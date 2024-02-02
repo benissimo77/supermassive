@@ -1,0 +1,208 @@
+/* Prevent scrollbars from appearing */
+body {
+    /* Prevent scrollbars from appearing */
+    overflow: hidden;
+    background-color: black;
+    transform-origin: top left;
+    margin:0;
+}
+
+/* Use a container to allow entire content to slide up/down or left/right based on screen ratio */
+#container {
+    position:absolute;
+    left:0px;
+    top:0px;
+    width:1920px;
+    height:1080px;
+    background-color: orange;
+    overflow:hidden;
+    z-index:-100
+}
+/* Try experimenting with fixed size and then adjust a window scale */
+/* playerlist is a container for all LIVING players */
+#playerlist {
+    z-index:-1;
+    position:absolute;
+    left:0;
+    top:0;
+    /* Next two lines solely for displaying list for debugging position of panel */
+    width:600px;
+    height:100vh;
+    background-color: rgba(0,0,0,0.3);
+    transform-origin: top left;
+    /* The above transform-origin is useful to allow rotation around top left corner (origin)
+
+    /* Its possible to scale ALL players but this affects their positioning canvas must also be scaled */
+    /* Set this property programmatically - leaving here for testing: */
+    /* scale:0.5; */
+}
+
+.player {
+    /* Set position to absolute so all child elements are relative to this position */
+    position:absolute;
+    /* z-index can be set programmatically to adjust ordering of players within the playerlist */
+    z-index: -1;
+    top:0;
+    left:0;
+}
+/* By adding a class of .dead to a player we can adjust the opacity of the player image */
+.player .dead img {
+    opacity: 0.3;
+}
+/* Debugging - show a pixel to identify the 'origin' of the player graphic */
+.pixel {
+    z-index:999;
+    position:absolute;
+    top:0;
+    left:0;
+    width:1px;
+    height:1px;
+    background-color: black;
+}
+.avatar {
+    position: absolute;
+    bottom:-60px;
+    left:0;
+    transform-origin: bottom center;
+}
+.avatar img {
+    width:100px;
+    transform-origin: center bottom;
+    -webkit-filter: drop-shadow(5px 5px 5px #222222);
+    filter: drop-shadow(5px 5px 5px #222222);}
+
+.playernamepanel {
+    z-index: -1;
+    position:absolute;
+    left:0;
+    top:-24px;
+    height:48px;
+    border-radius: 14px;
+    border: 2px solid #fff;
+    background-color: gray;
+    vertical-align: baseline;
+}
+.playername {
+    font-family: "Titan One", sans-serif;
+    font-weight: 400;
+    font-style: normal;
+    font-size:40px;
+    margin-left: 100px;
+    margin-right:20px;
+
+    line-height: 48px;
+    color:darkblue;
+    vertical-align:bottom;
+    border:1px white;
+}
+
+#gameoptions {
+    z-index:10;
+    font-size: 60px;
+    position:fixed;
+    padding:30px;
+    left:60px;
+    top:60px;
+    right: 60px;
+    bottom:60px;
+    border-radius: 30px;
+    border: 2px solid #fff;
+    background-color: rgba(0,0,0,0.4);
+    visibility: hidden;
+}
+/* positioning of the panels below done using canvasToScreenX function to convert to the correct position based on the screen ratio */
+#killedbywolves {
+    z-index:-1;
+    position:absolute;
+    left:1600px;
+    top:0;
+}
+#killedbyvillagers {
+    z-index:-1;
+    position:absolute;
+    left:0;
+    top:0;
+}
+
+#largepanel {
+    position:absolute;
+    z-index:10;
+    font-size: 60px;
+    left: 40px;
+    top: 40px;
+    width: 1840px;
+    height: 1000px;
+    padding:30px;
+    border-radius: 30px;
+    border: 2px solid #fff;
+    background-color: rgba(255,255,255,0.4);
+    display: none;
+}
+#largepanelcontent {
+    margin:auto;
+}
+#startgame {
+    display: none;
+}
+#nightaction {
+    display: none;
+}
+#dayaction {
+    display: none;
+}
+
+
+/* From https://alvarotrigo.com/blog/how-to-make-a-progress-bar-in-css/ */
+#timer {
+    position:absolute;
+    z-index:10;
+    left: 660px;
+    top: 900px;
+    width: 600px;
+    height:60px;
+    display: none;
+    border: 2px solid green;
+}
+.timer_progress {
+    --color:  /* the progress color */
+      linear-gradient(#fff8,#fff0),
+      repeating-linear-gradient(135deg,#0003 0 10px,#0000 0 20px),
+      green;
+    background: var(--color);
+    height: 100%;
+    width: 0%;
+  }
+
+/* From https://codepen.io/t_afif/pen/RwQZLYb */
+progress[value] {
+    --w: 600px; /* the width*/
+    --color:  /* the progress color */
+      linear-gradient(#fff8,#fff0),
+      repeating-linear-gradient(135deg,#0003 0 10px,#0000 0 20px),
+      green;
+  
+    --background: lightgrey; /* the background color */
+  
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    border: none;
+    width: var(--w);
+    height:100px;
+    margin: 0 10px;
+    border-radius: 1em;
+    background: var(--background);
+  }
+  progress[value]::-webkit-progress-bar {
+    border-radius: 1em;
+    background: var(--background);
+  }
+  progress[value]::-webkit-progress-value {
+    border-radius: 1em;
+    background: var(--color);
+  }
+  progress[value]::-moz-progress-bar {
+    border-radius: 1em;
+    background: var(--color);
+  }
+

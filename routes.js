@@ -32,6 +32,7 @@ router.post('/', (req, res) => {
 	req.session.room = req.body.room.toUpperCase();
 	req.session.name = req.body.name;
 	req.session.avatar = req.body.avatar;
+	req.session.host = false;
 	const redirect = 'play';
 	console.log('Validated - redirecting to:', redirect);
 	res.redirect(redirect);

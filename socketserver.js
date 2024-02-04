@@ -45,9 +45,17 @@ module.exports = function (server) {
 		// For developement use we will grab required data from the URL query string
 		const referer = socket.handshake.headers.referer.split('?')[1] || '';
 		const params = referer && referer.split('&');
-		// Testing - can I just parse request directly into a userObj ?
 		const urlParams = new URLSearchParams(referer);
+
+		// All-important is this line to create a userObj, either from query or from session (ideally merge)
 		let userObj = Object.fromEntries(urlParams);
+
+		console.log('io.connection:', socket.id, session, referer, params, urlParams, userObj);
+
+		// Session is already in the correct format - use it if URL query string doesn't have the required data
+		if (!userObj.room) {
+			userObj = session;
+		}
 
 		// Add socket.id to the userObj - then it has everything
 		userObj.socketid = socket.id;

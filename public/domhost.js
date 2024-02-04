@@ -16,17 +16,17 @@ function DOMaddPlayer(player) {
         </div>
     `;
     document.getElementById('playerlist').appendChild(playerDOM);
-    addRandomMovement(playerDOM);
+    moveToBottomLeftCorner(playerDOM);
 }
 // addRandomMovement
 // Accepts an element and generates a random tween to a new location - callback added to tween so that it repeats
-function addRandomMovement(element) {
+function moveToBottomLeftCorner(element) {
     gsap.to(element, {
         x: canvasToScreenX(gsap.utils.random(0, 1920)),
         y: canvasToScreenY(gsap.utils.random(0, 1080)),
         duration: gsap.utils.random(1,5,0.2),
         delay: gsap.utils.random(0,3,0.2),
-        onComplete:addRandomMovement,
+        onComplete:moveToBottomLeftCorner,
         onCompleteParams:[element]
     });
 }

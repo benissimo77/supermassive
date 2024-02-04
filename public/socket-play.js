@@ -29,7 +29,9 @@ function onGameState(gameState) {
 function onAddPlayer(player) {
 	console.log('onAddPlayer:', player);
 }
-
+function onPlayer(player) {
+	DOMaddPlayer(player);
+}
 // onServerRequest - general purpose function which handles all/most server requests in a generic way
 function onServerRequest(request) {
 	switch (request.type) {
@@ -65,6 +67,7 @@ socket.on('buttonselect', (buttons) => {
 
 socket.on('connect', onConnect);
 socket.on('disconnect', onDisconnect);
+socket.on('player', onPlayer);
 // socket.on('foo', onFooEvent);
 // socket.on('playerlist', onPlayerList);
 // socket.on('addplayer', onPlayerList);

@@ -47,13 +47,19 @@ console.log('onFoo', value);
 }
 
 // onPlayerList
+// Debugging - output playerlist to console
+// Done by host to get nicer layout of playerlist data
+function onPlayerList(playerlist) {
+    console.log('onPlayerList:', playerlist);
+}
+
+// onPlayersInRoom
 // Sent to the host when they first connect - ONLY done in case there are already players in the room
 // This ensures the host is fully caught up with all players in the room.
 // After this the host will receive addplayer events for any new players
 // During the game the separate event gamestate is used to move items around the screen
-function onPlayerList(playerlist) {
-    console.log('onPlayerList:', playerlist);
-
+function onPlayersInRoom(playerlist) {
+    console.log('onPlayersInRoom:', playerlist);
     var playerListDOM = document.getElementById("playerlist");
     console.log(playerListDOM);
     playerListDOM.innerHTML = '';
@@ -77,7 +83,11 @@ function onGameState() {
         y: (index,target,targets) => { return canvasToScreenY(200+index*100) },
         z: (index,target,targets) => { return index },
         stagger:0.4,
-        duration:duration
+        duration:duration,
+        onComplete: () => {
+            audioManager.fadeOut(musicTracks.MUSIC, 2);
+        }
+
     });
     gsap.to("#killedbywolves .player", {
         x: canvasToScreenX(0),
@@ -101,47 +111,45 @@ function onGameState() {
     });
     
 }
+
+function onMorning() {
+    audioManager.playTrack(musicTracks.MORNING);
+}
 function onAddPlayer(player) {
     console.log('onAddPlayer:', player);
     DOMaddPlayer(player);
     gameState.nplayers++;
 }
-function onWolfKill(socketid) {
-    console.log('onWolfKill:', socketid);
-    el = document.getElementById(socketid);
-
-    // Try dropping in the function below created in gsap.js for this...
-    playerKilledByWolves(el);
-    // gsap.to(el, {
-    //     x: canvasToScreenX(760),
-    //     y: canvasToScreenY(540),
-    //     scale: 1.5,
-    //     onComplete: () => {
-    //         killedbywolves = document.getElementById('killedbywolves');
-    //         killedbywolves.appendChild(el);
-    //         el.classList.add("dead");
-    //         socket.emit('hostready');
-    //     }
-    //  } );
+function onDayKill(dead) {
+    console.log('onDayKill:', dead);
+    doDeathAnimation([dead], "killedbyvillagers");
 }
-function playerKilledByWolves(el) {
-
+function onNightKill(dead) {
+    console.log('onNightKill:', dead);
+    doDeathAnimation(dead, "killedbywolves");
+}
+function doDeathAnimation(dead, container) {
     // Timeline animation for this since a few different things happening BUT will never need to repeat or interrupt
     // so should be safe for a basic timeline animation
+    const elements = dead.map( (id) => document.getElementById(id) );
     tl = gsap.timeline();
-    tl.to(el, {
+    tl.to(elements, {
         x: canvasToScreenX(980),
-        y: canvasToScreenY(580),
+        y: (index, target, targets) => canvasToScreenY(480 + index*180),
         scale: 2,
         duration: 2,
         ease: "ease:out",
-        onComplete: () => {
-            killedbywolves = document.getElementById('killedbywolves');
-            killedbywolves.appendChild(el);
-            el.classList.add("dead");
+        stagger: 0.5,
+        onComplete: (params) => {
+            console.log('onComplete:', this, this.target, params);
+            const DOMcontainer = document.getElementById(container);
+            elements.forEach( (element) => {
+                DOMcontainer.appendChild(element);
+                element.classList.add("dead");
+            })
             // directly change the position to align with new container - note we hardcode 1600 for now
-            newX = canvasToScreenX(980) - 1600;
-            gsap.set(el, {x: newX });
+            newX = canvasToScreenX(980) - DOMcontainer.getBoundingClientRect().left;
+            gsap.set(elements, {x: newX });
             socket.emit('hostready');
             // call onGameState directly since we are not waiting for a socket event
             onGameState();
@@ -160,6 +168,33 @@ function onStartTimer(request) {
     }});
 }
 
+function DOMinstructions(payload) {
+    console.log('DOMinstructions:', payload);
+    const content = document.getElementById("instructions-content");
+    content.innerHTML = payload.message;
+    gsap.to("#instructions", { display: "block" });
+}
+
+// onServerRequest - general purpose function which handles all/most server requests in a generic way
+// onServerRequest always responds with a host:response event to the server
+function onServerRequest(request) {
+	switch (request.type) {
+
+		case 'instructions':
+			DOMinstructions(request.payload);
+			break;
+
+		case 'message':
+			DOMmessage(request.payload);
+			break;
+
+		case 'timedmessage':
+			DOMtimedMessage(request.payload);
+			break;
+	}
+}
+
+
 // Contact the socket.io socket server
 // clientOptions can be used to pass things like username/password - see docs
 // URL of undefined means io will connect to the window.location (suitable if hosting at same place as socket-server is running)
@@ -173,8 +208,15 @@ socket.on('connect', onConnect);
 socket.on('disconnect', onDisconnect);
 socket.on('foo', onFoo);
 socket.on('playerlist', onPlayerList);
+socket.on('playersinroom', onPlayersInRoom);
+socket.on('morning', onMorning);
 socket.on('gamestate', onGameState);
 socket.on('addplayer', onAddPlayer);
-socket.on('wolfkill', onWolfKill);
+socket.on('nightkill', onNightKill);
+socket.on('daykill', onDayKill);
 socket.on('startgame', onStartGame);
 socket.on('server:starttimer', onStartTimer);
+socket.on('server:request', (request) => {
+    console.log('server:request:', request.type);
+    onServerRequest(request);
+})

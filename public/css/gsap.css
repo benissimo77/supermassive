@@ -2,22 +2,15 @@
 body {
     /* Prevent scrollbars from appearing */
     overflow: hidden;
-    background-color: black;
+    font-family: "Titan One", sans-serif;
+    font-weight: 400;
+    font-style: normal;
+    background-color:darkblue;
+    color:darkorange;
     transform-origin: top left;
     margin:0;
 }
 
-/* Use a container to allow entire content to slide up/down or left/right based on screen ratio */
-#container {
-    position:absolute;
-    left:0px;
-    top:0px;
-    width:1920px;
-    height:1080px;
-    background-color: orange;
-    overflow:hidden;
-    z-index:-100
-}
 /* Try experimenting with fixed size and then adjust a window scale */
 /* playerlist is a container for all LIVING players */
 #playerlist {
@@ -28,7 +21,7 @@ body {
     /* Next two lines solely for displaying list for debugging position of panel */
     width:600px;
     height:100vh;
-    background-color: rgba(0,0,0,0.3);
+    /* background-color: rgba(0,0,0,0.3); */
     transform-origin: top left;
     /* The above transform-origin is useful to allow rotation around top left corner (origin)
 
@@ -120,7 +113,7 @@ body {
 #killedbyvillagers {
     z-index:-1;
     position:absolute;
-    left:0;
+    left:1280px;
     top:0;
 }
 
@@ -150,7 +143,20 @@ body {
 #dayaction {
     display: none;
 }
-
+#instructions {
+    position:absolute;
+    z-index:10;
+    font-size: 60px;
+    left: 240px;
+    top: 140px;
+    width: 1640px;
+    height: 600px;
+    padding:30px;
+    border-radius: 30px;
+    border: 2px solid #fff;
+    background-color: rgba(255,255,255,0.4);
+    display: none;
+}
 
 /* From https://alvarotrigo.com/blog/how-to-make-a-progress-bar-in-css/ */
 #timer {
@@ -205,4 +211,13 @@ progress[value] {
     border-radius: 1em;
     background: var(--color);
   }
+
+
+#rolebutton {
+    display: none;
+}
+
+.container-centre {
+    text-align: center;
+}
 

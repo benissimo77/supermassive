@@ -3,20 +3,27 @@
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Titan+One&display=swap" rel="stylesheet">
-        <link rel="stylesheet" href="/css/main.css">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.4/gsap.min.js"></script>
+        <link rel="stylesheet" href="/css/gsap.css">
     </head>
     <body>
-        <div class="buttons">
+        <!-- <div class="buttons">
             <button onclick="connect()">Connect</button>
             <button onclick="disconnect()">Disconnect</button>
+        </div> -->
+        <div class="container-centre">
+            <div id="rolebutton">
+                <button onmousedown="buttonRolePress()" onmouseup="buttonRoleRelease()" type="button">ROLE</button>
+            </div>
+            <div id="content">
+                <h1>Welcome!</h1>
+                <p>Waiting to start...</p>    
+            </div>
+            <div id="role"></div>
         </div>
-        <div id="content">
-            <h1>Welcome!</h1>
-            <p>Waiting to start...</p>    
-        </div>
-        <div id="player">
+        <div id="playerlist"></div>
 
-        </div>
+
         <script src="/socket.io/socket.io.js"></script>
         <script src="/socket-play.js"></script>
         <script src="/domplay.js"></script>        

@@ -16,8 +16,8 @@ class Room {
 		this.started = false;
 		this.minplayers = 5;
 		this.currentAction = null;
-		this.clientResponses = [];
-		this.clientResponseHandlers = [];
+		this.clientResponseHandler = null;
+		this.hostResponseHandler = null;
 
 		// Development hardcode this new game for testing
 		this.game = new Game();
@@ -36,7 +36,7 @@ class Room {
 			console.log('this user is HOST');
 			// perform host initialisation...
 			this.host = userObj;
-			this.#io.to(socket.id).emit('playerlist', this.players);
+			this.#io.to(socket.id).emit('playersinroom', this.players);
 			this.attachHostEvents(socket);
 		} else {
 
@@ -52,15 +52,15 @@ class Room {
 			if (this.host) {
 				this.#io.to(this.host.socketid).emit('addplayer', player);
 			}
+			// and send the player their player object for display on the play page
+			this.#io.to(socket.id).emit('player', player);
 		}
 
 		socket.on('client:response', (response) => {
 			console.log('client:response :', socket.id, response);
-			// this.clientResponse(socket, selected);
-			this.clientResponseHandlers.forEach( (handler) => {
-				handler(socket, response);
-			})
-
+			if (this.clientResponseHandler) {
+				this.clientResponseHandler(socket, response);
+			}
 		})
 
 		// Just see if I can catch a socket connect/disconnect events
@@ -96,16 +96,31 @@ class Room {
 			console.log('requestgamestate:', socket.id, this.getPlayerBySocketId(socket.id));
 			this.#io.to(socket.id).emit('gamestate', this.players);
 		})
-
+		socket.on('host:response', (response) => {
+			console.log('host:response :', socket.id, response);
+			if (this.hostResponseHandler) {
+				this.hostResponseHandler(socket, response);
+			}
+		})
+		socket.on('buttontest', () => {
+			console.log('buttontest:');
+			this.#io.to(socket.id).emit('nightkill', [ this.players[0].socketid, this.players[1].socketid ] );
+		})
 	}
 
 	registerClientResponseHandler(handler) {
 		console.log('registerClientResponseHandler:', handler);
-		this.clientResponseHandlers.push( handler );
+		this.clientResponseHandler = handler;
 	}
 	deregisterClientResponseHandler(handler) {
 		console.log('deregisterClientResponseHandler:', handler);
-		this.clientResponseHandlers = this.clientResponseHandlers.filter( (h) => { return h != handler } );
+		this.clientResponseHandler = null;
+	}
+	registerHostResponseHandler(handler) {
+		this.hostResponseHandler = handler;
+	}
+	deregisterHostResponseHandler(handler) {
+		this.hostResponseHandler = null;
 	}
 
 	startGame(socket) {
@@ -125,15 +140,15 @@ class Room {
 		// If there is time try to add GHOST - can spell out a letter each night
 		// Witch can resurrect ANYONE they like from the list of dead players (once)
 		const numWerewolves = this.players.length > 10 ? 3 : 2;
-		const numVillagers = this.players.length - numWerewolves - 3;
+		const numVillagers = this.players.length - numWerewolves - 1;
 
 		console.log('Room: startGame:', numWerewolves, numVillagers);
 
 		let roles = new Array(numWerewolves).fill(Roles.WEREWOLF);
 		roles.push(...new Array(numVillagers).fill(Roles.VILLAGER));
-		roles.push(Roles.SEER);
+		// roles.push(Roles.SEER);
 		roles.push(Roles.WITCH);
-		roles.push(Roles.HEALER);
+		// roles.push(Roles.HEALER);
 
 		// Shuffle roles to randomize assignments
 		roles = shuffleArray(roles);
@@ -157,6 +172,16 @@ class Room {
 		return this.started = true;
 	}
 
+	// nightAction
+	// BIG FUNCTION - this will be a series of steps to collect all the night actions in a chain
+	//
+	// 1. Send server request to host to display message, play instructions etc
+	// 2. Wait for host response when above step complete
+	// 3. Send server request to players to collect their responses
+	// 4. Collect player response and store in local variabels until all requirements have been met
+	// 5. Send server request to host to perform clean-up, final instructions etc
+	// 6. Wait for host response to continue to next step
+	// 7. Repeat until all steps are complete
 	nightAction() {
 		this.currentAction = Actions.NIGHT;
 		console.log('nightaction:', this.id, this.getLivingVillagers());
@@ -169,42 +194,111 @@ class Room {
 		let witchsave = null;
 		
 		// Define all the callback functions which will be chained together
+		const wolfKillStart = () => {
+			console.log('wolfKillStart:');
+
+			this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Wolves, open your eyes' } });
+			this.registerHostResponseHandler(wolfKillGo);
+		}
+		const wolfKillGo = () => {
+			console.log('wolfKillGo:');
+
+			const villagers = this.getLivingVillagers();	
+			console.log('Living villagers:', villagers);
+			const wolves = this.getLivingPlayersWithRole(Roles.WEREWOLF);
+			console.log('Wolves:', wolves);
+			this.getClientResponse(wolves, villagers, wolfKillCallback);
+		}
 		const wolfKillCallback = (selected) => {
 			wolfkill = selected;
+			console.log('wolfKillCallback:', wolfkill);
+
+			this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Wolves, close your eyes' } });
+			this.registerHostResponseHandler(healerStart);
+		}
+		const healerStart = () => {
+			console.log('healerStart:');
+
+			const socketlist = this.getLivingPlayersWithRole(Roles.HEALER);
+			if (socketlist.length > 0) {
+				this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Healer, open your eyes' } });
+				this.registerHostResponseHandler(healerGo);
+			} else {
+				witchStart();
+			}
+		}
+		const healerGo = () => {
+			console.log('healerGo:');
+
 			const socketlist = this.getLivingPlayersWithRole(Roles.HEALER);
 			const buttonlist = this.getLivingPlayers();
-			this.collectVotes(socketlist, buttonlist, healerCallback);
+			this.getClientResponse(socketlist, buttonlist, healerCallback);
 		}
 		const healerCallback = (selected) => {
 			healer = selected;
-			const socketlist = this.getLivingPlayersWithRole(Roles.WITCH);
-			if ((socketlist.length > 0) && (!socketlist[0].witchkill)) {
-				const livingplayers = this.getLivingPlayers();
-				const buttonlist = [...livingplayers, { socketid:null, name:'NOT THIS TIME'}];
-				this.collectVotes(socketlist, buttonlist, witchKillCallback);		
+			console.log('healerCallback:', healer);
+
+			this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Healer, close your eyes' } });
+			this.registerHostResponseHandler(witchStart);
+		}
+		const witchStart = () => {
+			console.log('witchStart:');
+
+			const witchlist = this.getLivingPlayersWithRole(Roles.WITCH);
+			if (witchlist.length > 0) {
+				const witch = this.getPlayerBySocketId(witchlist[0].socketid);
+				if (!witch.witchkill) {
+					this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Witch, open your eyes' } });
+					this.registerHostResponseHandler(witchKillStart);
+				} else {
+					witchKillCallback( { socketid:''} );
+				}
 			} else {
-				witchKillCallback( { socketid:''} );
+				seerStart();
 			}
+		}
+		const witchKillStart = () => {
+			console.log('witchKillStart:');
+
+			this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Witch, choose someone to kill' } });
+			this.registerHostResponseHandler(witchKillGo);
+		}
+		const witchKillGo = () => {
+			const witchlist = this.getLivingPlayersWithRole(Roles.WITCH);
+			const livingplayers = this.getLivingPlayers();
+			const buttonlist = [...livingplayers, { socketid:null, name:'NOT THIS TIME'}];
+			this.getClientResponse(witchlist, buttonlist, witchKillCallback);		
 		}
 		const witchKillCallback = (selected) => {
 			witchkill = selected;
-			const socketlist = this.getLivingPlayersWithRole(Roles.WITCH);
+			console.log('witchKillCallback:', witchkill);
+			
+			// Complex line first grabs any witches and then retrieves actual player object with that socketid
+			const witch = this.getPlayerBySocketId(this.getLivingPlayersWithRole(Roles.WITCH)[0].socketid);
+
 			// if witch just killed someone then mark the witch kill so we don't do in future
-			if (socketlist.length > 0) {
-				if (this.getPlayerBySocketId(witchkill.socketid).length > 0) {
-					socketlist[0].witchkill = true;
-				}				
+			// we can discover this by checking if we have a valid player with the socketid
+			const witchkilled = this.getPlayerBySocketId(witchkill.socketid);
+			if (witchkilled) {
+				witch.witchkill = selected;
 			}
-			if ((socketlist.length > 0) && (!socketlist[0].witchsave)) {
-				let buttonlist = this.getDeadPlayers();
-				if (wolfkill) {
-					buttonlist.push(wolfkill);
-				}
-				buttonlist.push({socketid:null, name:'NOT THIS TIME'});
-				this.collectVotes(socketlist, buttonlist, witchSaveCallback);
+
+			// only allow witch to save if they haven't already saved someone				
+			if (!witch.witchsave) {
+				this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Witch, choose someone to save' } });
+				this.registerHostResponseHandler(witchSaveGo);
 			} else {
-				witchSaveCallback( {socketid:''});
+				witchSaveCallback( { socketid:''} );
 			}
+		}
+		const witchSaveGo = () => {
+			const witchlist = this.getLivingPlayersWithRole(Roles.WITCH);
+			let buttonlist = [];
+			if (wolfkill) {
+				buttonlist.push(wolfkill);
+			}
+			buttonlist.push({socketid:null, name:'NOT THIS TIME'});
+			this.getClientResponse(witchlist, buttonlist, witchSaveCallback);
 		}
 		const witchSaveCallback = (selected) => {
 			witchsave = selected;
@@ -212,46 +306,119 @@ class Room {
 			// if witch saved someone then mark save so we don't repeat in future
 			const playersaved = this.getPlayerBySocketId(witchsave.socketid);
 			if (playersaved) {
-				witch = this.getLivingPlayersWithRole(Role.WITCH);
-				witch[0].witchsave = true;
+				const witch = this.getLivingPlayersWithRole(Roles.WITCH);
+				this.getPlayerBySocketId(witch[0].socketid).witchsave = true;
 			}
+			// debugging - send playerlist to host for display in browser
+			this.#io.to(this.host.socketid).emit('playerlist', this.players );
+
+
+			this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Witch, close your eyes' } });
+			this.registerHostResponseHandler(seerStart);
+		}
+		const seerStart = () => {
+			console.log('seerStart:');
+
+			const socketlist = this.getLivingPlayersWithRole(Roles.SEER);
+			if (socketlist.length > 0) {
+				this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Seer, open your eyes' } });
+				this.registerHostResponseHandler(seerGo);
+			} else {
+				allDone();
+			}
+		}
+		const seerGo = () => {
+			console.log('seerGo:');
+
+			const socketlist = this.getLivingPlayersWithRole(Roles.SEER);
+			const buttonlist = this.getLivingPlayers();
+			this.getClientResponse(socketlist, buttonlist, seerCallback);
+		}
+		const seerCallback = (selected) => {
+			console.log('seerCallback:', selected);
+
+			// Send message to seer with the result of their selection
+			const seer = this.getLivingPlayersWithRole(Roles.SEER)[0];
+			const player = this.getPlayerBySocketId(selected.socketid);
+			const message = player.role === Roles.WEREWOLF ? 'YES' : 'NO';
+			this.#io.to(seer.socketid).emit('server:request', { type:'timedmessage', payload: { message: message, timer: 3 } });
+
+			this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Seer, close your eyes' } });
+			this.registerHostResponseHandler(allDone);
+		}
+		const allDone = () => {
+
+			// Now we have all the night actions we can process them
 			console.log('ALL DONE...', wolfkill, healer, witchkill, witchsave);
 
-			// this.wolfKill(selected);
-			// console.log('After kill:', this.getPlayerBySocketId(selected));
-			// console.log('Sending wolfkill to:', this.host.socketid);
-			// this.#io.to(this.host.socketid).emit('wolfkill', selected);
+			// Now we have all the night actions we can process them
+			// First we need to send the results to the host - display quickly on screen before people wake up to tell story of who died in the night
+			let message = '';
+			if (wolfkill && this.getPlayerBySocketId(wolfkill.socketid)) {
+				message = message + 'Wolves killed: ' + wolfkill.name + '<br/>';
+			}
+			if (witchkill && this.getPlayerBySocketId(witchkill.socketid)) {
+				message = message + 'Witch killed: ' + witchkill.name + '<br/>';
+			}
+			if (healer && this.getPlayerBySocketId(healer.socketid)) {
+				message = message + 'Healer chose: ' + healer.name;
+				if (healer.socketid == wolfkill.socketid || healer.socketid == witchkill.socketid) {
+					message = message + ' (success!)<br/>';
+				} else {
+					message = message + ' (no effect)<br/>';
+				}
+			}
+			if (witchsave && this.getPlayerBySocketId(witchsave.socketid)) {
+				message = message + 'Witch saved: ' + witchsave.name + '<br/>';
+			}
+			this.#io.to(this.host.socketid).emit('server:request', { type: 'instructions', payload: { message: message } } );
+			this.registerHostResponseHandler(wakeUp);
+		}
+		const wakeUp = () => {
+			console.log('wakeUp:');
+			this.#io.to(this.host.socketid).emit('morning');	
+			this.#io.to(this.host.socketid).emit('server:request', { type: 'instructions', payload: { message: 'Everyone, wake up<br/><br/>What happened?' } } );	
+			this.registerHostResponseHandler(nightActionComplete);
+		}
+		const nightActionComplete = () => {
+			
+			// Now we turn the kills/saves into a final list of dead people
+			let dead = new Set()
+			dead.add(wolfkill.socketid);
+			if (witchkill) dead.add(witchkill.socketid);
+			if (healer) dead.delete(healer.socketid);
+			if (witchsave) dead.delete(witchsave.socketid);
+			console.log('Dead:', dead);
+			this.nightKill(dead);
+			if (dead.size > 0) {
+				this.#io.to(this.host.socketid).emit('nightkill', Array.from(dead) );
+			}
 		}
 
-		// Kick start the chain with the first vote - the wolves
-		const villagers = this.getLivingVillagers();
-		
-		console.log('Living villagers:', villagers);
-		const wolves = this.getLivingPlayersWithRole(Roles.WEREWOLF);
-		console.log('Wolves:', wolves);
-		this.collectVotes(wolves, villagers, wolfKillCallback);
+		// Start the chain of events
+		wolfKillStart();
 	}
 
-	collectVotes(socketlist, buttonlist, callback) {
+	getClientResponse(socketlist, buttonlist, callback) {
 
 		console.log('collectVotes:', callback);
 
-		const voteHandler = (socket, response) => {
+		const responseHandler = (socket, response) => {
 			console.log('voteHandler:', socket.id, response);
-			// Immediately send a response back to the wolf clients for confirmation
-			const payload = { message: 'You voted:<br/><br/>' + response.label, timer:3 }
+			// Immediately send a response back to the relevant for confirmation (also has benefit of removing buttons so they can't vote again)
+			const payload = { message: 'You chose:<br/><br/>' + response.name, timer:3 }
 			this.#io.to(socketlist).emit('server:request', { type:'timedmessage', payload: payload } );
-			this.deregisterClientResponseHandler(voteHandler);
+			this.deregisterClientResponseHandler(responseHandler);
 			callback(response);
 		}
 
-
 		if (socketlist.length > 0 && buttonlist.length > 0) {
 
-			// socketlist is an array of objects, name and socketid, for use as a button
-			// but socketlist needs to just be the socketids and nothing else
+			// socketlist is an array of players objects, but it needs to just be the socketids and nothing else
 			socketlist = socketlist.map( (socket) => { return socket.socketid } );
-			this.registerClientResponseHandler(voteHandler);
+			// buttonlist is an array of players objects, but it needs to just be the socketids and names
+			buttonlist = buttonlist.map( button => { return { socketid: button.socketid, name: button.name } } );
+			this.registerClientResponseHandler(responseHandler);
 			this.#io.to(socketlist).emit('server:request', { type:'buttonselect', payload: buttonlist } );
 		} else {
 			callback(null);
@@ -259,46 +426,68 @@ class Room {
 	}
 
 	dayAction() {
+		const livingPlayers = this.getLivingPlayers();
+		this.collectVotes(livingPlayers, livingPlayers);
+	}
 
-		// For now go for something simpler... collect up the remaining players
-		this.currentAction = Actions.DAY;
+	collectVotes(livingPlayers, buttonlist) {
+
+		// map livingPlayers to just get the socketids
+		const livingPlayerSockets = livingPlayers.map( (player) => { return player.socketid } );
+		// and map the buttonlist to get just the name/id
+		buttonlist = buttonlist.map( button => { return { socketid: button.socketid, name: button.name } } );
+
+		// initialize the votes array and timerId
 		let votes = [];
 		let timerId = null;
-		const livingPlayers = this.getLivingPlayers();
-		console.log('Living players:', livingPlayers);
-		const livingPlayerSockets = livingPlayers.map( (player) => { return player.socketid } );
-		this.#io.to(livingPlayerSockets).emit('server:request', { type: 'buttonselect', payload:livingPlayers } );
 
 		const voteCount = () => {
 			console.log('voteCount:', votes);
 			clearTimeout(timerId);
 			// Now we have to find which player has the most votes
-			// do more with this later...
-			const map = votes.reduce((acc, e) => acc.set(e.response, (acc.get(e.response) || 0) + 1), new Map());
-			console.log('As map:', map);
-			console.log('Entries:', [...map].entries());
+			// votes is an array of objects with socketid of the voter and response who they voted for
+			// We need to convert this into a map of socketid:total votes
+			const map = votes.map( (vote) => { return vote.response } );
+			const occurences = this.countOccurences(map);
+			const candidates = this.getEntriesWithMaximumOccurences(occurences);
+			console.log('Candidates:', candidates);
+			if (candidates.length == 0) {
+				this.collectVotes(livingPlayers, buttonlist);
+			} else if (candidates.length > 1) {
+				// There is a draw - need to do something about this
+				console.log('There is a draw');
+				// Need to repeat the vote - build a new buttonlist with just the candidates
+				const buttonlist = candidates.map( (candidate) => { return { socketid: candidate, name: this.getPlayerBySocketId(candidate).name } } );
+				this.collectVotes(livingPlayers, buttonlist);
+			} else {
+				// We have a winner
+				const dead = candidates[0][0];
+				this.dayKill(dead);
+				this.#io.to(this.host.socketid).emit('daykill', dead);
+			}
 		}
 		const voteHandler = (socket, response) => {
-			votes.push( { socket: socket.id, response: response.id } );
+			votes.push( { socketid: socket.id, response: response.socketid } );
 			console.log('voteHandler:', socket.id, response, votes);
-			const payload = { message: 'You voted:<br/><br/>' + response.label, timer:3 }
+			const payload = { message: 'You voted:<br/><br/>' + response.name, timer:3 }
 			this.#io.to(socket.id).emit('server:request', { type:'timedmessage', payload: payload } );
 			if (votes.length == livingPlayers.length) {
 				// Everyone has voted
 				console.log('All votes are IN:');
-				voteCount();
 				// Assuming we are done with the day phase
 				this.deregisterClientResponseHandler(voteHandler);
+				voteCount();
 			}
 		}
+		this.#io.to(livingPlayerSockets).emit('server:request', { type: 'buttonselect', payload: buttonlist } );
 		this.registerClientResponseHandler(voteHandler);
-		timerId = setTimeout( voteCount, 3000);
-		this.#io.to(this.host.socketid).emit('server:starttimer',  { duration: 3 } );
+		timerId = setTimeout( voteCount, 5000);
+		this.#io.to(this.host.socketid).emit('server:starttimer',  { duration: 5 } );
 	}
 
 	// Need a good way to match up socket events with game state to determine what to do
 	// For now just fudget it until I have a better understanding of all the possibilities
-	clientResponse(socket, response) {
+	clientResponseXXX(socket, response) {
 
 		console.log('clientResponse:', socket.id, response);
 
@@ -325,7 +514,7 @@ class Room {
 		}
 	}
 
-	processClientResponses() {
+	processClientResponsesXXX() {
 		// Map an array of socketids to an object with socketid:total votes
 		const map = this.clientResponses.reduce((acc, e) => acc.set(e, (acc.get(e) || 0) + 1), new Map());
 		console.log('As map:', map);
@@ -334,11 +523,19 @@ class Room {
 		// do more with this later...
 	}
 
-	
+	countOccurences(arr) {
+		return arr.reduce((acc, e) => acc.set(e, (acc.get(e) || 0) + 1), new Map());
+	}
+	getMaximumOccurences(map) {
+		return Math.max(...map.values());
+	}
+	getEntriesWithMaximumOccurences(map) {
+		const max = this.getMaximumOccurences(map);
+		return [...map].filter(([k, v]) => v === max);
+	}
 	getPlayers() {
 		return this.players;
 	}
-
 	removePlayer(socketid) {
 		this.players = this.players.filter( (player) => player.socketid != socketid);
 	}
@@ -348,55 +545,39 @@ class Room {
 	}
 
 	getLivingPlayers() {
-		return this.players.filter( (player) => {
-			return (player.alive)
-		 }).map( (player) => {
-			return { socketid:player.socketid, name:player.name }
-		 })
+		return this.players.filter( player => player.alive )
 	}
 	getDeadPlayers() {
-		return this.players.filter( (player) => {
-			return (!player.alive)
-		 }).map( (player) => {
-			return { socketid:player.socketid, name:player.name }
-		 })
+		return this.players.filter( player => !player.alive )
 	}
 	getLivingVillagers() {
-		return this.players.filter( (player) => {
-			console.log('getLivingVillagers:', player);
-			return (player.alive & player.role != Roles.WEREWOLF)
-		}).map( (player) => {
-			return { socketid:player.socketid, name:player.name }
-		})
+		return this.players.filter( player => player.alive && player.role != Roles.WEREWOLF )
 	}
 	getLivingPlayersWithRole(role){ 
 		console.log('getLivingPlayersWithRole:', role);
-		return this.players.filter( player => player.alive & player.role === role)
-		.map( (player) => {
-			return { socketid:player.socketid, name:player.name }
-		})
+		return this.players.filter( player => player.alive && player.role === role)
 	}
 	getWolves() {
-		return this.players.filter( player => player.role === Roles.WEREWOLF )
-		.map( (player) => {
-			return { socketid:player.socketid, name:player.name }
-		})
+		return this.players.filter( player => player.alive && player.role === Roles.WEREWOLF )
 	}
 	getWolfSockets() {
 		const wolves = this.getWolves();
 		return wolves.map( (wolf) => { return wolf.socketid } );
 	}
-	wolfKill(socketid) {
-		const thisPlayer = this.getPlayerBySocketId(socketid);
-		if (!thisPlayer) {
-			console.log('ERROR: cant find player with this socket.id:', socketid);
-			return;
-		}
-		thisPlayer.alive = false;
-		thisPlayer.killaction = Actions.NIGHT;
+	nightKill(socketids) {
+		// socketid could be a list (technically a Set) of socketids
+		socketids.forEach( (socketid) => {
+			const thisPlayer = this.getPlayerBySocketId(socketid);
+			if (!thisPlayer) {
+				console.log('ERROR: cant find player with this socket.id:', socketid);
+				return;
+			}
+			thisPlayer.alive = false;
+			thisPlayer.killaction = Actions.NIGHT;
+		})
 	}
-	villagerKill(socketid) {
-		thisPlayer = this.getPlayerBySocketId(socketid);
+	dayKill(socketid) {
+		const thisPlayer = this.getPlayerBySocketId(socketid);
 		if (!thisPlayer) {
 			console.log('ERROR: cant find player with this socket.id:', socketid);
 			return;

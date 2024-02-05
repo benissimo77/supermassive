@@ -6,48 +6,26 @@
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Titan+One&display=swap" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.4/gsap.min.js"></script>
         <link rel="stylesheet" href="/css/play.css">
     </head>
     <body>
         <div align="center">
         <h1>Welcome</h1>
-        <form method='post' id="gameform">
-            <label for="fname">Enter your name:</label><br>
+        <form method='post' id="gameform" name="gameform" onsubmit="return checkForm()">
+            <label for="name" name="namelabel">Enter your name:</label><br>
             <input type="text" id="name" name="name"><br>
-            <label for="lname">Enter room name:</label><br>
+            <label for="room" name="roomlabel">Enter room name:</label><br>
             <input type="text" id="room" name="room" maxlength="4">
-            <input type="hidden" id="avatar" name="avatar">
+            <br/>
+            <input type="hidden" id="avatar" name="avatar" value="">
+            <label for="gallerycontainer" name="gallerylabel">Select your avatar:</label>
             <br><br>
 
-            <div class="gallery">
-                <img id='12138743' src="/img/avatar-200/image-from-rawpixel-id-12138743-original.png">
-            </div>
-            <div class="gallery">
-                <img id='12140600' src="/img/avatar-200/image-from-rawpixel-id-12140600-original.png">
-            </div>
-            <div class="gallery">
-                <img id='12143538' src="/img/avatar-200/image-from-rawpixel-id-12143538-original.png">
-            </div>
-            <div class="gallery">
-                <img id='12189382' src="/img/avatar-200/image-from-rawpixel-id-12189382-original.png">
-            </div>
-            <div class="gallery">
-                <img id='12360465' src="/img/avatar-200/image-from-rawpixel-id-12360465-original.png">
-            </div>
-            <div class="gallery">
-                <img id='12436639' src="/img/avatar-200/image-from-rawpixel-id-12436639-original.png">
-            </div>
-            <div class="gallery">
-                <img id='12474909' src="/img/avatar-200/image-from-rawpixel-id-12474909-original.png">
-            </div>
-            <div class="gallery">
-                <img id='12789062' src="/img/avatar-200/image-from-rawpixel-id-12789062-original.png">
-            </div>
-            <div class="gallery">
-                <img id='13100182' src="/img/avatar-200/image-from-rawpixel-id-13100182-original.png">
-            </div>
+            <div id="gallerycontainer" name="gallerycontainer"></div>
+
             <br style="clear:both"/>
-            <input type="submit" value="Enter">
+            <button type="submit" id='submit' value="Enter">ENTER</button>
 
         </form>
         </div>
@@ -58,19 +36,74 @@
     console.log('Hello');
 </script>
 <script type="text/javascript">
+    function checkForm() {
+        console.log('checkForm:', document.gameform);
+        if (document.gameform.name.value == "") {
+            document.gameform.scrollIntoView();
+            return false;
+        }
+        if (document.gameform.room.value == "") {
+            document.gameform.name.scrollIntoView();
+            return false;
+        }
+        if (document.gameform.avatar.value == "") {
+            document.gameform.room.scrollIntoView();
+            return false;
+        }
+        return true;
+    }
     function selectAvatar(e) {
-        console.log('select avatar:', e.target.id);
+        console.log('select avatar:', e.target.parent);
         document.getElementById('avatar').value = e.target.id;
+        document.getElementById('submit').scrollIntoView({ behavior: "smooth"});
+        gsap.set("#gallerycontainer .gallery", { borderColor: "darkblue" });
+        e.target.parentElement.style.borderColor = "darkorange";
+    }
+    const avatarlist =[ 12138118,
+12138231,
+12138743,
+12138846,
+12139963,
+12140600,
+12143538,
+12189343,
+12214366,
+12215207,
+12232806,
+12348050,
+12358126,
+12358607,
+12359578,
+12360465,
+12370419,
+12370830,
+12391847,
+12436639,
+12454847,
+12474909,
+12502935,
+12660677,
+12789062,
+12791500,
+13003915,
+13100182,
+]
+    avatarlist.forEach(element => {
+        addAvatar(element);
+    });
+    function addAvatar(element) {
+        console.log('addAvatar:', element);
+        const gallery = document.getElementById("gallerycontainer");
+        const newAvatar = document.createElement('div');
+        newAvatar.setAttribute('class', 'gallery');
+        newAvatar.innerHTML = `
+            <img id='${element}' src="/img/avatar-100/image-from-rawpixel-id-${element}-original.png">
+        `;
+        newAvatar.addEventListener("click", selectAvatar);
+        gallery.appendChild(newAvatar);
     }
     const avatars = document.querySelectorAll(".gallery img");
     console.log('Avatars:', avatars);
-    avatars.forEach(element => {
-        element.addEventListener('click', selectAvatar);
-    });
-    function validateFormElements() {
-        if (document.getElementById('name').value != 'w') return false;
-        if (document.getElementById('room').value != 'e') return false;
-        return true;
-    }
+
 </script>
 

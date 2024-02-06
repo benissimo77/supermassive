@@ -6,18 +6,21 @@ body {
     color:darkorange;
     display: flex;
     flex-direction: column;
+    max-width:100%;
     height: 100vh;
     margin:0;
 }
 
 input {
     font-family: "Titan One", sans-serif;
-    font-size:60px;
+    font-size:2rem;
     background-color: darkblue;
     color:darkorange;
-    border: none;
-    padding:20px;
+    border: 1px darkorange;
+    padding:0.5rem;
+    margin:1rem;
 }
+
 input#room {
     letter-spacing: 1ch;
     width:8ch;
@@ -27,22 +30,39 @@ input#room {
 
 
 /* Avatar image gallery */
-div.gallery {
-    padding: 3px;
+#gallerycontainer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.gallery {
+    padding: 0.1rem;
     border: 4px solid darkblue;
     float: left;
-    width: 18%;
+    align-items: baseline;
+    /* width: 18%; */
   }
   
-  div.gallery:hover {
+.gallery:hover {
     border: 4px solid darkorange;
-  }
+}
   
-  div.gallery img {
-    width: 100%;
-    height: auto;
-  }
+div.gallery img {
+  min-width:100px;
+  width: 100%;
+  height: auto;
+  align-items: baseline;
+}
   
+  button {
+    font-family: "Titan One", sans-serif;
+    font-weight: 400;
+    font-size: 3rem;
+    background-color: darkorange;
+    color: darkblue;
+    padding:1rem;
+  }
   /* Holder for player content */
   #content {
     text-align: center;

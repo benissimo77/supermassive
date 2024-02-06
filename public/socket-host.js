@@ -71,6 +71,28 @@ function onPlayersInRoom(playerlist) {
     })
 }
 
+// onAudioPlay
+// Sent by the server to begin playing audio
+// Object is an audio type and the track
+// Invokes the AudioManager class to play the track
+function onAudioPlay(audio) {
+    console.log('onAudioPlay:', audio, narratorTracks[audio.track]);
+    switch (audio.type) {
+
+        case 'NARRATOR':
+            audioManager.playTrack(narratorTracks[audio.track]);
+            break;
+
+        case 'EFFECTS':
+            audioManager.playTrack(effectTracks[audio.track]);
+            break;
+
+        case 'MUSIC':
+            audioManager.playTrack(musicTracks[audio.track]);
+            break;
+
+    }
+}
 // gameState is currently an array of players - this represents everything needed (for now)
 // This is sent to the host after each round to update the player positions
 function onGameState() {
@@ -82,6 +104,7 @@ function onGameState() {
         x: canvasToScreenX(100),
         y: (index,target,targets) => { return canvasToScreenY(200+index*100) },
         z: (index,target,targets) => { return index },
+        scale: 1,
         stagger:0.4,
         duration:duration,
         onComplete: () => {
@@ -114,6 +137,7 @@ function onGameState() {
 
 function onMorning() {
     audioManager.playTrack(musicTracks.MORNING);
+    audioManager.playTrack(narratorTracks.WAKEUP);
 }
 function onAddPlayer(player) {
     console.log('onAddPlayer:', player);
@@ -127,6 +151,10 @@ function onDayKill(dead) {
 function onNightKill(dead) {
     console.log('onNightKill:', dead);
     doDeathAnimation(dead, "killedbywolves");
+}
+function onDayDraw(candidates) {
+    console.log('onDayDraw:', candidates);
+    doDeathAnimation(candidates, "playerlist");
 }
 function doDeathAnimation(dead, container) {
     // Timeline animation for this since a few different things happening BUT will never need to repeat or interrupt
@@ -149,8 +177,9 @@ function doDeathAnimation(dead, container) {
             })
             // directly change the position to align with new container - note we hardcode 1600 for now
             newX = canvasToScreenX(980) - DOMcontainer.getBoundingClientRect().left;
+            console.log('ClientRect:', canvasToScreenX(980), DOMcontainer.getBoundingClientRect(), newX);
             gsap.set(elements, {x: newX });
-            socket.emit('hostready');
+            socket.emit('host:response');
             // call onGameState directly since we are not waiting for a socket event
             onGameState();
         }
@@ -209,11 +238,13 @@ socket.on('disconnect', onDisconnect);
 socket.on('foo', onFoo);
 socket.on('playerlist', onPlayerList);
 socket.on('playersinroom', onPlayersInRoom);
+socket.on('audioplay', onAudioPlay);
 socket.on('morning', onMorning);
 socket.on('gamestate', onGameState);
 socket.on('addplayer', onAddPlayer);
 socket.on('nightkill', onNightKill);
 socket.on('daykill', onDayKill);
+socket.on('daydraw', onDayDraw);
 socket.on('startgame', onStartGame);
 socket.on('server:starttimer', onStartTimer);
 socket.on('server:request', (request) => {

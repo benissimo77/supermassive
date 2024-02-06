@@ -179,7 +179,7 @@ function doDeathAnimation(dead, container) {
             newX = canvasToScreenX(980) - DOMcontainer.getBoundingClientRect().left;
             console.log('ClientRect:', canvasToScreenX(980), DOMcontainer.getBoundingClientRect(), newX);
             gsap.set(elements, {x: newX });
-            socket.emit('host:response');
+            // socket.emit('host:response');
             // call onGameState directly since we are not waiting for a socket event
             onGameState();
         }

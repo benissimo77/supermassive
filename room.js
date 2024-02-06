@@ -400,7 +400,7 @@ class Room {
 			
 			// Now we turn the kills/saves into a final list of dead people
 			let dead = new Set()
-			dead.add(wolfkill.socketid);
+			if (wolfkill) dead.add(wolfkill.socketid);
 			if (witchkill) dead.add(witchkill.socketid);
 			if (healer) dead.delete(healer.socketid);
 			if (witchsave) dead.delete(witchsave.socketid);

@@ -222,7 +222,12 @@ progress[value] {
     text-align: center;
 }
 
+#content {
+    margin-top:3rem;
+}
+
 button {
-    font-size: 1rem;
+    font-size: 2rem;
     padding: 0.5rem 1rem;
+    margin: 1rem;
 }

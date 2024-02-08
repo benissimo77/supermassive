@@ -12,6 +12,12 @@ body {
     font-size:1rem;
 }
 
+@media (max-width: 600px) {
+    body {
+        font-size: 2rem;
+    }
+}
+
 /* Try experimenting with fixed size and then adjust a window scale */
 /* playerlist is a container for all LIVING players */
 #playerlist {

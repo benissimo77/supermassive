@@ -236,6 +236,7 @@ console.log('socket-host.js:: Hello:', URL, window.location.host, location.hash)
 // Add client socket events listeners
 socket.on('connect', onConnect);
 socket.on('disconnect', onDisconnect);
+socket.on('playerdisconnect', () => { console.log('playerdisconnect:')} );
 socket.on('foo', onFoo);
 socket.on('playerlist', onPlayerList);
 socket.on('playersinroom', onPlayersInRoom);

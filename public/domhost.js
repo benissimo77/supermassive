@@ -18,6 +18,11 @@ function DOMaddPlayer(player) {
     document.getElementById('playerlist').appendChild(playerDOM);
     moveToBottomLeftCorner(playerDOM);
 }
+DOMremovePlayer(socketid) {
+    console.log('DOMremovePlayer:', socketid);
+    var playerDOM = document.getElementById(socketid);
+    playerDOM.remove();
+}
 // addRandomMovement
 // Accepts an element and generates a random tween to a new location - callback added to tween so that it repeats
 function moveToBottomLeftCorner(element) {

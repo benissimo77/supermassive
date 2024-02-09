@@ -39,8 +39,9 @@ function onStartGame() {
 function onConnect() {
     console.log('onConnect:', socket.connected);
   }
-function onDisconnect(reason) {
-console.log('onDisconnect:', reason);
+function onDisconnect(socketid) {
+    console.log('onDisconnect:', socketid);
+    DOMremovePlayer(socketid);
 }
 function onFoo(value) {
 console.log('onFoo', value);

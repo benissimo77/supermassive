@@ -18,7 +18,7 @@ function DOMaddPlayer(player) {
     document.getElementById('playerlist').appendChild(playerDOM);
     moveToBottomLeftCorner(playerDOM);
 }
-DOMremovePlayer(socketid) {
+function DOMremovePlayer(socketid) {
     console.log('DOMremovePlayer:', socketid);
     var playerDOM = document.getElementById(socketid);
     playerDOM.remove();

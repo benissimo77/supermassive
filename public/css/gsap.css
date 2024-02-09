@@ -5,7 +5,7 @@ body {
     font-family: "Titan One", sans-serif;
     font-weight: 400;
     font-style: normal;
-    background-color:darkblue;
+    background-color:blue;
     color:darkorange;
     transform-origin: top left;
     margin:0;
@@ -233,7 +233,12 @@ progress[value] {
 }
 
 button {
+    font-family: "Titan One", sans-serif;
+    font-weight: 400;
+    font-style: normal;
+    background-color:darkblue;
+    color:darkorange;
     font-size: 2rem;
     padding: 0.5rem 1rem;
-    margin: 1rem;
+    margin: 0.5rem;
 }

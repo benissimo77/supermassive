@@ -557,7 +557,9 @@ class Room {
 	}
 	removePlayer(socketid) {
 		this.players = this.players.filter( (player) => player.socketid != socketid);
-		this.#io.to(this.host.socketid).emit('playerdisconnect', socketid);
+		if (this.host) {
+			this.#io.to(this.host.socketid).emit('playerdisconnect', socketid);
+		}
 	}
 	getPlayerBySocketId(socketid) {
 		console.log(this.players.find( (player) => player.socketid == socketid ));

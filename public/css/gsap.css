@@ -5,7 +5,7 @@ body {
     font-family: "Titan One", sans-serif;
     font-weight: 400;
     font-style: normal;
-    background-color:blue;
+    background-color:#051C55; /* dark blue */
     color:darkorange;
     transform-origin: top left;
     margin:0;
@@ -236,8 +236,8 @@ button {
     font-family: "Titan One", sans-serif;
     font-weight: 400;
     font-style: normal;
-    background-color:darkblue;
-    color:darkorange;
+    background-color:#14128E;   
+    color:#E76900;  /* Spanish orange */ 
     font-size: 2rem;
     padding: 0.5rem 1rem;
     margin: 0.5rem;

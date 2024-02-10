@@ -12,12 +12,6 @@ body {
     font-size:1rem;
 }
 
-@media (max-width: 600px) {
-    body {
-        font-size: 2rem;
-    }
-}
-
 /* Try experimenting with fixed size and then adjust a window scale */
 /* playerlist is a container for all LIVING players */
 #playerlist {
@@ -220,25 +214,7 @@ progress[value] {
   }
 
 
-#rolebutton {
-    display: none;
-}
-
 .container-centre {
     text-align: center;
 }
 
-#content {
-    margin-top:3rem;
-}
-
-button {
-    font-family: "Titan One", sans-serif;
-    font-weight: 400;
-    font-style: normal;
-    background-color:#14128E;   
-    color:#E76900;  /* Spanish orange */ 
-    font-size: 2rem;
-    padding: 0.5rem 1rem;
-    margin: 0.5rem;
-}

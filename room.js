@@ -461,6 +461,12 @@ class Room {
 			console.log('voteCount:', votes);
 			clearTimeout(timerId);
 			this.#io.to(livingPlayerSockets).emit("server:request", { type:"timedmessage", payload: { message:"Votes are IN", timer:3 } } );
+			
+			const voteDraw = () => {
+				console.log('voteDraw:', buttonlist);
+				this.collectVotes(livingPlayers, buttonlist);
+			}
+			
 			// Now we have to find which player has the most votes
 			// votes is an array of objects with socketid of the voter and response who they voted for
 			// We need to convert this into a map of socketid:total votes
@@ -474,9 +480,10 @@ class Room {
 				// There is a draw - need to do something about this
 				console.log('There is a draw');
 				// Need to repeat the vote - build a new buttonlist with just the candidates
-				const buttonlist = candidates.map( (candidate) => { return { socketid: candidate[0], name: this.getPlayerBySocketId(candidate[0]).name } } );
-				this.#io.to(this.host.socketid).emit('daydraw', candidates.map( candidate => { return candidate[0] } ));
-				this.collectVotes(livingPlayers, buttonlist);
+				buttonlist = candidates.map( (candidate) => { return { socketid: candidate[0], name: this.getPlayerBySocketId(candidate[0]).name } } );
+				this.#io.to(this.host.socketid).emit('daydraw', votes.map( vote => { return vote.response } ));
+				this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'We have a DRAW!<br/><br/>Vote again...' } });
+				this.registerHostResponseHandler(voteDraw);
 			} else {
 				// We have a winner
 				const dead = candidates[0][0];
@@ -500,8 +507,8 @@ class Room {
 		}
 		this.#io.to(livingPlayerSockets).emit('server:request', { type: 'buttonselect', payload: buttonlist } );
 		this.registerClientResponseHandler(voteHandler);
-		timerId = setTimeout( voteCount, 5000);
-		this.#io.to(this.host.socketid).emit('server:starttimer',  { duration: 5 } );
+		timerId = setTimeout( voteCount, 10000);
+		this.#io.to(this.host.socketid).emit('server:starttimer',  { duration: 10 } );
 	}
 
 	// Need a good way to match up socket events with game state to determine what to do

@@ -140,15 +140,15 @@ class Room {
 		// If there is time try to add GHOST - can spell out a letter each night
 		// Witch can resurrect ANYONE they like from the list of dead players (once)
 		const numWerewolves = this.players.length > 10 ? 3 : 2;
-		const numVillagers = this.players.length - numWerewolves - 1;
+		const numVillagers = this.players.length - numWerewolves - 3;
 
 		console.log('Room: startGame:', numWerewolves, numVillagers);
 
 		let roles = new Array(numWerewolves).fill(Roles.WEREWOLF);
 		roles.push(...new Array(numVillagers).fill(Roles.VILLAGER));
-		// roles.push(Roles.SEER);
+		roles.push(Roles.SEER);
 		roles.push(Roles.WITCH);
-		// roles.push(Roles.HEALER);
+		roles.push(Roles.HEALER);
 
 		// Shuffle roles to randomize assignments
 		roles = shuffleArray(roles);

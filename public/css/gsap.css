@@ -147,16 +147,20 @@ body {
 #instructions {
     position:absolute;
     z-index:10;
-    font-size: 60px;
+    font-size: 5rem;
     left: 240px;
     top: 140px;
-    width: 1640px;
+    width: 1440px;
     height: 600px;
-    padding:30px;
+    padding:70px;
     border-radius: 30px;
     border: 2px solid #fff;
     background-color: rgba(255,255,255,0.4);
-    display: none;
+    text-align: center;
+    display: block;
+}
+#instructions-close {
+    margin-top: 80px;
 }
 
 /* From https://alvarotrigo.com/blog/how-to-make-a-progress-bar-in-css/ */

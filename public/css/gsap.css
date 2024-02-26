@@ -5,7 +5,7 @@ body {
     font-family: "Titan One", sans-serif;
     font-weight: 400;
     font-style: normal;
-    background-color:darkblue;
+    background-color:#051C55; /* dark blue */
     color:darkorange;
     transform-origin: top left;
     margin:0;
@@ -75,19 +75,20 @@ body {
     border: 2px solid #fff;
     background-color: gray;
     vertical-align: baseline;
+    max-width: 500px;
 }
 .playername {
     font-family: "Titan One", sans-serif;
     font-weight: 400;
-    font-style: normal;
     font-size:40px;
     margin-left: 100px;
-    margin-right:20px;
-
+    margin-right:10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     line-height: 48px;
     color:darkblue;
     vertical-align:bottom;
-    border:1px white;
 }
 
 #gameoptions {
@@ -104,7 +105,8 @@ body {
     background-color: rgba(0,0,0,0.4);
     visibility: hidden;
 }
-/* positioning of the panels below done using canvasToScreenX function to convert to the correct position based on the screen ratio */
+/* positioning of the panels below done using a standard width of 1920px - body is scaled to make this always work */
+/* left 1600px is 320px from right edge of 1920px */
 #killedbywolves {
     z-index:-1;
     position:absolute;
@@ -123,9 +125,7 @@ body {
     z-index:10;
     font-size: 60px;
     left: 40px;
-    top: 40px;
     width: 1840px;
-    height: 1000px;
     padding:30px;
     border-radius: 30px;
     border: 2px solid #fff;
@@ -147,16 +147,18 @@ body {
 #instructions {
     position:absolute;
     z-index:10;
-    font-size: 60px;
+    font-size: 5rem;
     left: 240px;
-    top: 140px;
-    width: 1640px;
-    height: 600px;
-    padding:30px;
+    width: 1440px;
+    padding:70px;
     border-radius: 30px;
     border: 2px solid #fff;
     background-color: rgba(255,255,255,0.4);
-    display: none;
+    text-align: center;
+    display: block;
+}
+#instructions-close {
+    margin-top: 80px;
 }
 
 /* From https://alvarotrigo.com/blog/how-to-make-a-progress-bar-in-css/ */
@@ -213,10 +215,6 @@ progress[value] {
     background: var(--color);
   }
 
-
-#rolebutton {
-    display: none;
-}
 
 .container-centre {
     text-align: center;

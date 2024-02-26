@@ -1,20 +1,20 @@
 <html>
     <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0">
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Titan+One&display=swap" rel="stylesheet">
         <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.4/gsap.min.js"></script>
-        <link rel="stylesheet" href="/css/gsap.css">
+        <link rel="stylesheet" href="/css/play.css">
     </head>
     <body>
-        <!-- <div class="buttons">
+        <div class="buttons">
             <button onclick="connect()">Connect</button>
             <button onclick="disconnect()">Disconnect</button>
-        </div> -->
+        </div>
         <div class="container-centre">
             <div id="rolebutton">
-                <button onmousedown="buttonRolePress()" onmouseup="buttonRoleRelease()" type="button">ROLE</button>
+                <button onmousedown="buttonRolePress()" onmouseup="buttonRoleRelease()" ontouchstart="buttonRolePress()" ontouchend="buttonRoleRelease()" onselectstart="return false" type="button">ROLE</button>
             </div>
             <div id="content">
                 <h1>Welcome!</h1>

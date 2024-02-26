@@ -1,6 +1,6 @@
 // Models
 const res = require('express/lib/response');
-const { Player, Game, Actions, Roles } = require('./server/models/allModels');
+const { Player, Game, Phases, Roles } = require('./server/models/allModels');
 
 
 class Room {
@@ -26,7 +26,7 @@ class Room {
 	// we say user because at this point we don't know if they are a player or a host/moderator/viewer etc...
 	addUserToRoom(socket, userObj) {
 
-		// console.log('userJoinRoom:', userObj.name, this.host, this.id);
+		console.log('userJoinRoom:', userObj.name, this.host, this.id, userObj);
 
 		// Instantly add this user's socket to this room
 		socket.join(this.id);
@@ -40,10 +40,17 @@ class Room {
 			this.attachHostEvents(socket);
 		} else {
 
-			const player = new Player(userObj);
+			var player = this.getPlayerBySessionId(userObj.sessionid);
+			if (player) {
+				console.log('player already exists:', player);
+				player.disconnected = false;
+				player.socketid = socket.id;
+			} else {
+				player = new Player(userObj);
+				this.players.push(player);
+			}
 			
 			// For now we only have host and players - maybe in future there will be other user types
-			this.players.push(player);
 			// this.game.addPlayer(player);
 
 			// throw this in here for now...
@@ -86,7 +93,7 @@ class Room {
 		})
 		socket.on('host:requestnight', () => {
 			console.log('host:requestnight:', this.getLivingVillagers());
-			this.nightAction();
+			this.nightActionAsync();
 		})
 		socket.on('host:requestday', () => {
 			console.log('host:requestday');
@@ -123,9 +130,9 @@ class Room {
 		this.hostResponseHandler = null;
 	}
 
-	startGame(socket) {
+	startGame() {
 
-		console.log('Room::startGame:', socket.id, this.id);
+		console.log('Room::startGame:', this.id);
 
 		// Validation
 		if (this.players.length < this.minplayers) {
@@ -140,15 +147,17 @@ class Room {
 		// If there is time try to add GHOST - can spell out a letter each night
 		// Witch can resurrect ANYONE they like from the list of dead players (once)
 		const numWerewolves = this.players.length > 10 ? 3 : 2;
-		const numVillagers = this.players.length - numWerewolves - 1;
 
-		console.log('Room: startGame:', numWerewolves, numVillagers);
+		console.log('Room: startGame:', numWerewolves);
 
 		let roles = new Array(numWerewolves).fill(Roles.WEREWOLF);
-		roles.push(...new Array(numVillagers).fill(Roles.VILLAGER));
 		// roles.push(Roles.SEER);
-		roles.push(Roles.WITCH);
+		// roles.push(Roles.WITCH);
 		// roles.push(Roles.HEALER);
+
+		// Fill up the rest with villagers
+		const numVillagers = this.players.length - roles.length;
+		roles.push(...new Array(numVillagers).fill(Roles.VILLAGER));
 
 		// Shuffle roles to randomize assignments
 		roles = shuffleArray(roles);
@@ -167,9 +176,10 @@ class Room {
 		// Send full playerlist to host
 		// TODO - find a better way to synchronize the player list without destroying and re-creating
 		// Experimenting with a simple gamestate call which updates the host screen based on players
-		this.#io.to(this.host.socketid).emit('gamestate', this.players);
+		this.#io.to(this.host.socketid).emit('startgame', this.players);
 
-		return this.started = true;
+		// Maintain a flag to indicate the game has started
+		this.started = true;
 	}
 
 	// nightAction
@@ -182,238 +192,227 @@ class Room {
 	// 5. Send server request to host to perform clean-up, final instructions etc
 	// 6. Wait for host response to continue to next step
 	// 7. Repeat until all steps are complete
-	nightAction() {
-		this.currentAction = Actions.NIGHT;
-		console.log('nightaction:', this.id, this.getLivingVillagers());
+	nightActionAsync() {
+		this.currentAction = Phases.NIGHT;
+		console.log('nightactionAsync:', this.id, this.getLivingVillagers());
 
-		// Several things can happen during the night phase
-		// Collect them all up and then take action based on the accumulation of results
-		let wolfkill = null;
-		let healer = null;
-		let witchkill = null;
-		let witchsave = null;
-		
-		// Define all the callback functions which will be chained together
-		const wolfKillStart = () => {
-			console.log('wolfKillStart:');
+		var wolfkill = null;
+		var healersave = null;
+		var witchkill = null;
+		var witchsave = null;
 
-			this.#io.to(this.host.socketid).emit('audioplay', { type:'NARRATOR', track:'WOLFOPEN' } );
-			this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Wolves, open your eyes' } });
-			this.registerHostResponseHandler(wolfKillGo);
-		}
-		const wolfKillGo = () => {
-			console.log('wolfKillGo:');
-
-			const villagers = this.getLivingVillagers();	
-			console.log('Living villagers:', villagers);
-			const wolves = this.getWolves();
-			console.log('Wolves:', wolves);
-			this.getClientResponse(wolves, villagers, wolfKillCallback);
-		}
-		const wolfKillCallback = (selected) => {
-			wolfkill = selected;
-			console.log('wolfKillCallback:', wolfkill);
-
-			this.#io.to(this.host.socketid).emit('audioplay', { type:'NARRATOR', track:'WOLFCLOSE' } );
-			this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Wolves, close your eyes' } });
-			this.registerHostResponseHandler(healerStart);
-		}
-		const healerStart = () => {
-			console.log('healerStart:');
-
-			const healer = this.getPlayerWithRole(Roles.HEALER);
-			if (healer && (healer.alive || healer.nightKill)) {
-				this.#io.to(this.host.socketid).emit('audioplay', { type:'NARRATOR', track:'HEALEROPEN' } );
-				this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Healer, open your eyes' } });
-				this.registerHostResponseHandler(healerGo);
-			} else {
-				witchStart();
-			}
-		}
-		const healerGo = () => {
-			console.log('healerGo:');
-
-			const healer = this.getPlayerWithRole(Roles.HEALER);
-			if (healer && healer.alive) {
-				const buttonlist = this.getLivingPlayers();
-				this.getClientResponse([healer], buttonlist, healerCallback);	
-			} else {
-				this.#io.to(healer.socketid).emit('server:request', { type:"timedmessage", payload: { message: "You are dead...<br/><br/>Nothing to do here", timer: 3 } });
-				healerCallback();
-			}
-		}
-		const healerCallback = (selected) => {
-			healer = selected;
-			console.log('healerCallback:', healer);
-
-			this.#io.to(this.host.socketid).emit('audioplay', { type:'NARRATOR', track:'HEALERCLOSE' } );
-			this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Healer, close your eyes' } });
-			this.registerHostResponseHandler(witchStart);
-		}
-		const witchStart = () => {
-			console.log('witchStart:');
-
-			const witch = this.getPlayerWithRole(Roles.WITCH);
-			if (witch && (witch.alive || witch.nightKill)) {
-				this.#io.to(this.host.socketid).emit('audioplay', { type:'NARRATOR', track:'WITCHOPEN' } );
-				this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Witch, open your eyes' } });
-				this.registerHostResponseHandler(witchKillGo);
-			} else {
-				seerStart();
-			}
-		}
-		const witchKillStart = () => {
-			console.log('witchKillStart:');
-
-			this.#io.to(this.host.socketid).emit('audioplay', { type:'NARRATOR', track:'WITCHKILL' } );
-			this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Witch, choose someone to kill' } });
-			this.registerHostResponseHandler(witchKillGo);
-		}
-		const witchKillGo = () => {
-			const witch = this.getPlayerWithRole(Roles.WITCH);
-			const livingplayers = this.getLivingPlayers();
-			const buttonlist = [...livingplayers, { socketid:null, name:'NOT THIS TIME'}];
-			this.getClientResponse([witch], buttonlist, witchKillCallback);		
-		}
-		const witchKillCallback = (selected) => {
-			witchkill = selected;
-			console.log('witchKillCallback:', witchkill);
-			
-			// Complex line first grabs any witches and then retrieves actual player object with that socketid
-			const witch = this.getPlayerWithRole(Roles.WITCH);
-
-			// if witch just killed someone then mark the witch kill so we don't do in future
-			// we can discover this by checking if we have a valid player with the socketid
-			const witchkilled = this.getPlayerBySocketId(witchkill.socketid);
-			if (witchkilled) {
-				witch.witchkill = selected;
-			}
-
-			// only allow witch to save if they haven't already saved someone
-			this.#io.to(this.host.socketid).emit('audioplay', { type:'NARRATOR', track:'WITCHSAVE' } );
-			this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Witch, choose someone to save' } });
-			this.registerHostResponseHandler(witchSaveGo);
-		}
-		const witchSaveGo = () => {
-			const witch = this.getPlayerWithRole(Roles.WITCH);
-			let buttonlist = [];
-			if (wolfkill) {
-				buttonlist.push(wolfkill);
-			}
-			buttonlist.push({socketid:null, name:'NOT THIS TIME'});
-			if (witch.witchsave) {
-				this.#io.to(witch.socketid).emit("server:request", { type:"timedmessage", payload: { message:"You've already SAVED<br/><br/>Nothing to do here", timer:3 } } );
-				witchSaveCallback();
-			} else {
-				this.getClientResponse([witch], buttonlist, witchSaveCallback);
-			}
-		}
-		const witchSaveCallback = (selected) => {
-			witchsave = selected;
-
-			// if witch saved someone then mark save so we don't repeat in future
-			const playersaved = this.getPlayerBySocketId(witchsave.socketid);
-			if (playersaved) {
-				const witch = this.getPlayerWithRole(Roles.WITCH);
-				witch.witchsave = true;
-			}
-			// debugging - send playerlist to host for display in browser
-			this.#io.to(this.host.socketid).emit('playerlist', this.players );
-
-			this.#io.to(this.host.socketid).emit('audioplay', { type:'NARRATOR', track:'WITCHCLOSE' } );
-			this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Witch, close your eyes' } });
-			this.registerHostResponseHandler(seerStart);
-		}
-		const seerStart = () => {
-			console.log('seerStart:');
-
-			const seer = this.getPlayerWithRole(Roles.SEER);
-			if (seer && (seer.alive || seer.nightKill)) {
-				this.#io.to(this.host.socketid).emit('audioplay', { type:'NARRATOR', track:'SEEROPEN' } );
-				this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Seer, open your eyes' } });
-				this.registerHostResponseHandler(seerGo);
-			} else {
-				allDone();
-			}
-		}
-		const seerGo = () => {
-			console.log('seerGo:');
-
-			const seer = this.getPlayerWithRole(Roles.SEER);
-			if (seer && seer.alive) {
-				const buttonlist = this.getLivingPlayers();
-				this.getClientResponse([seer], buttonlist, seerCallback);	
-			} else {
-				this.#io.to(seer.socketid).emit("server:request", { type:"timedmessage", payload: { message:"You're DEAD...<br/><br/>Nothing to do here", timer: 3 } } );
-				this.seerCallback({ socketid:'' });
-			}
-		}
-		const seerCallback = (selected) => {
-			console.log('seerCallback:', selected);
-
-			// Send message to seer with the result of their selection
-			const seer = this.getPlayerWithRole(Roles.SEER);
-			const player = this.getPlayerBySocketId(selected.socketid);
-			if (player) {
-				const message = player.role === Roles.WEREWOLF ? 'YES' : 'NO';
-				this.#io.to(seer.socketid).emit('server:request', { type:'timedmessage', payload: { message: message, timer: 3 } });
-			}
-			this.#io.to(this.host.socketid).emit('audioplay', { type:'NARRATOR', track:'SEERCLOSE' } );
-			this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Seer, close your eyes' } });
-			this.registerHostResponseHandler(allDone);
-		}
-		const allDone = () => {
-
-			// Now we have all the night actions we can process them
-			console.log('ALL DONE...', wolfkill, healer, witchkill, witchsave);
-
-			// Now we have all the night actions we can process them
-			// First we need to send the results to the host - display quickly on screen before people wake up to tell story of who died in the night
-			let message = '';
-			if (wolfkill && this.getPlayerBySocketId(wolfkill.socketid)) {
-				message = message + 'Wolves killed: ' + wolfkill.name + '<br/>';
-			}
-			if (witchkill && this.getPlayerBySocketId(witchkill.socketid)) {
-				message = message + 'Witch killed: ' + witchkill.name + '<br/>';
-			}
-			if (healer && this.getPlayerBySocketId(healer.socketid)) {
-				message = message + 'Healer chose: ' + healer.name;
-				if (healer.socketid == wolfkill.socketid || healer.socketid == witchkill.socketid) {
-					message = message + ' (success!)<br/>';
+		const doWolfAction = () => {
+			console.log('doWolfAction:');
+			return new Promise( (resolve, reject) => {
+				this.#io.to(this.host.socketid).emit('audioplay', { type:'NARRATOR', track:'WOLFOPEN' } );
+				this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Wolves, open your eyes' } });
+				this.registerHostResponseHandler( (response) => {
+					const villagers = this.getLivingVillagers();
+					const wolves = this.getWolves();
+					this.getClientResponse(wolves, villagers, (selected) => {
+						wolfkill = selected;
+						this.#io.to(this.host.socketid).emit('audioplay', { type:'NARRATOR', track:'WOLFCLOSE' } );
+						this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Wolves, close your eyes' } });
+						this.registerHostResponseHandler( () => {
+							resolve();
+						});
+					});
+				});
+			});
+		};
+		const doHealerAction = () => {
+			console.log('doHealerAction:');
+			return new Promise( (resolve, reject) => {
+				console.log('doHealerAction: inside Promise');
+				const healer = this.getPlayerWithRole(Roles.HEALER);
+				console.log('doHealerAction:', healer);
+				if (healer && (healer.alive || healer.killphase === Phases.NIGHT)) {
+					this.#io.to(this.host.socketid).emit('audioplay', { type:'NARRATOR', track:'HEALEROPEN' } );
+					this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Healer, open your eyes' } });
+					this.registerHostResponseHandler( () => {
+						const buttonlist = this.getLivingPlayers();
+						this.getClientResponse([healer], buttonlist, (selected) => {
+							healersave = selected;
+							this.#io.to(this.host.socketid).emit('audioplay', { type:'NARRATOR', track:'HEALERCLOSE' } );
+							this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Healer, close your eyes' } });
+							this.registerHostResponseHandler( () => {
+								resolve();
+							});
+						});
+					});
 				} else {
-					message = message + ' (no effect)<br/>';
+					resolve();
 				}
-			}
-			if (witchsave && this.getPlayerBySocketId(witchsave.socketid)) {
-				message = message + 'Witch saved: ' + witchsave.name + '<br/>';
-			}
-			this.#io.to(this.host.socketid).emit('server:request', { type: 'instructions', payload: { message: message } } );
-			this.registerHostResponseHandler(wakeUp);
+			});
 		}
-		const wakeUp = () => {
-			console.log('wakeUp:');
-			this.#io.to(this.host.socketid).emit('morning');
-			this.#io.to(this.host.socketid).emit('server:request', { type: 'instructions', payload: { message: 'Everyone, wake up<br/><br/>What happened?' } } );	
-			this.registerHostResponseHandler(nightActionComplete);
-		}
-		const nightActionComplete = () => {
-			
-			// Now we turn the kills/saves into a final list of dead people
-			let dead = new Set()
-			dead.add(wolfkill.socketid);
-			if (witchkill) dead.add(witchkill.socketid);
-			if (healer) dead.delete(healer.socketid);
-			if (witchsave) dead.delete(witchsave.socketid);
-			console.log('Dead:', dead);
-			this.nightKill(dead);
-			if (dead.size > 0) {
-				this.#io.to(this.host.socketid).emit('nightkill', Array.from(dead) );
-			}
+		const doWitchAction = () => {
+			console.log('doWitchAction:');
+
+			return new Promise( (resolve, reject) => {
+				const witch = this.getPlayerWithRole(Roles.WITCH);
+				if (witch && (witch.alive || witch.killphase === Phases.NIGHT)) {
+
+					this.#io.to(this.host.socketid).emit('audioplay', { type:'NARRATOR', track:'WITCHOPEN' } );
+					this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Witch, open your eyes' } });
+					this.registerHostResponseHandler( () => {
+						doWitchKill()
+						.then(doWitchSave)
+						.then( () => {
+							this.#io.to(this.host.socketid).emit('audioplay', { type:'NARRATOR', track:'WITCHCLOSE' } );
+							this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Witch, close your eyes' } });
+							this.registerHostResponseHandler( () => {
+								resolve();
+							});
+						});
+					});
+				} else {
+					resolve();
+				}
+
+				const doWitchKill = () => {
+					console.log('doWitchKill:');
+					return new Promise( (resolve, reject) => {
+						this.#io.to(this.host.socketid).emit('audioplay', { type:'NARRATOR', track:'WITCHKILL' } );
+						this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Witch, choose someone to kill' } });
+						this.registerHostResponseHandler( () => {
+							const livingplayers = this.getLivingPlayers();
+							const buttonlist = [...livingplayers, { socketid:null, name:'NOT THIS TIME'}];
+							this.getClientResponse([witch], buttonlist, (selected) => {
+								witchkill = selected;
+								witch.witchkill = selected;
+								resolve();
+							});
+						});
+					});
+				}
+				const doWitchSave = () => {
+					console.log('doWitchSave:');
+					return new Promise( (resolve, reject) => {
+						this.#io.to(this.host.socketid).emit('audioplay', { type:'NARRATOR', track:'WITCHSAVE' } );
+						this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Witch, choose someone to save' } });
+						this.registerHostResponseHandler( () => {
+							let buttonlist = [];
+							if (wolfkill) {
+								buttonlist.push(wolfkill);
+							}
+							buttonlist.push({socketid:null, name:'NOT THIS TIME'});
+							if (witch.witchsave) {
+								this.#io.to(witch.socketid).emit("server:request", { type:"timedmessage", payload: { message:"You've already SAVED<br/><br/>Nothing to do here", timer:3 } } );
+								resolve();
+							} else {
+								this.getClientResponse([witch], buttonlist, (selected) => {
+									witchsave = selected;
+									witch.witchsave = selected;
+									resolve();
+								});
+							}
+						});
+					});
+				}
+			});
 		}
 
-		// Start the chain of events
-		wolfKillStart();
+		const doSeerAction = () => {
+			console.log('doSeerAction:');
+			return new Promise( (resolve, reject) => {
+				const seer = this.getPlayerWithRole(Roles.SEER);
+				if (seer && (seer.alive || seer.killphase === Phases.NIGHT)) {
+					this.#io.to(this.host.socketid).emit('audioplay', { type:'NARRATOR', track:'SEEROPEN' } );
+					this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Seer, open your eyes' } });
+					this.registerHostResponseHandler( () => {
+						const buttonlist = this.getLivingPlayers();
+						this.getClientResponse([seer], buttonlist, (selected) => {
+							console.log('doSeerAction: selected:', selected);
+
+							// Send message to seer with the result of their selection0
+							const player = this.getPlayerBySocketId(selected.socketid);
+							if (player) {
+								const message = player.role === Roles.WEREWOLF || player.role === Roles.WITCH ? 'YES' : 'NO';
+								this.#io.to(seer.socketid).emit('server:request', { type:'timedmessage', payload: { message: message, timer: 3 } });
+							}
+							this.#io.to(this.host.socketid).emit('audioplay', { type:'NARRATOR', track:'SEERCLOSE' } );
+							this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'Seer, close your eyes' } });
+							this.registerHostResponseHandler( () => {
+								resolve();
+							});
+						});
+					});
+				}
+				else {
+					resolve();
+				}
+			});
+		}
+
+		const showResultsHost = () => {
+			console.log('showResultsHost:');
+			return new Promise( (resolve, reject) => {
+
+				// Now we have all the night actions we can process them
+				console.log('ALL DONE...', wolfkill, healersave, witchkill, witchsave);
+
+				// Now we have all the night actions we can process them
+				// First we need to send the results to the host - display quickly on screen before people wake up to tell story of who died in the night
+				let message = '';
+				if (wolfkill && this.getPlayerBySocketId(wolfkill.socketid)) {
+					message = message + 'Wolves killed: ' + wolfkill.name + '<br/>';
+				}
+				if (witchkill && this.getPlayerBySocketId(witchkill.socketid)) {
+					message = message + 'Witch killed: ' + witchkill.name + '<br/>';
+				}
+				if (healersave && this.getPlayerBySocketId(healersave.socketid)) {
+					message = message + 'Healer chose: ' + healersave.name;
+					if (healersave.socketid == wolfkill.socketid || healersave.socketid == witchkill.socketid) {
+						message = message + ' (success!)<br/>';
+					} else {
+						message = message + ' (no effect)<br/>';
+					}
+				}
+				if (witchsave && this.getPlayerBySocketId(witchsave.socketid)) {
+					message = message + 'Witch saved: ' + witchsave.name + '<br/>';
+				}
+				this.#io.to(this.host.socketid).emit('server:request', { type: 'instructions', payload: { message: message } } );
+				this.registerHostResponseHandler(() => { resolve(); });
+			});
+		}
+		const showResultsAll = () => {
+			console.log('showResultsAll:');
+			return new Promise( (resolve, reject) => {
+				this.#io.to(this.host.socketid).emit('morning');
+				this.#io.to(this.host.socketid).emit('server:request', { type: 'instructions', payload: { message: 'Everyone, wake up<br/><br/>What happened?' } } );	
+				this.registerHostResponseHandler( () => {
+
+					// Now we turn the kills/saves into a final list of dead people
+					let dead = new Set()
+					if (wolfkill) dead.add(wolfkill.socketid);
+					if (witchkill) dead.add(witchkill.socketid);
+					if (healersave) dead.delete(healersave.socketid);
+					if (witchsave) dead.delete(witchsave.socketid);
+					console.log('Dead:', dead);
+					this.nightKill(dead);
+					if (dead.size > 0) {
+						this.#io.to(this.host.socketid).emit('nightkill', Array.from(dead) );
+					}
+				});
+			});
+		}
+
+		// Now we chain all the promises together
+		doWolfAction()
+		.then( doHealerAction )
+		.then( doWitchAction )
+		.then( doSeerAction )
+		.then( showResultsHost )
+		.then( showResultsAll )
+		.then( () => {
+			console.log('nightActionAsync complete');
+		})
+		.catch( (error) => {
+			console.log('nightActionAsync error:', error);
+		});
+
 	}
+
 
 	getClientResponse(socketlist, buttonlist, callback) {
 
@@ -461,6 +460,12 @@ class Room {
 			console.log('voteCount:', votes);
 			clearTimeout(timerId);
 			this.#io.to(livingPlayerSockets).emit("server:request", { type:"timedmessage", payload: { message:"Votes are IN", timer:3 } } );
+			
+			const voteDraw = () => {
+				console.log('voteDraw:', buttonlist);
+				this.collectVotes(livingPlayers, buttonlist);
+			}
+			
 			// Now we have to find which player has the most votes
 			// votes is an array of objects with socketid of the voter and response who they voted for
 			// We need to convert this into a map of socketid:total votes
@@ -474,14 +479,15 @@ class Room {
 				// There is a draw - need to do something about this
 				console.log('There is a draw');
 				// Need to repeat the vote - build a new buttonlist with just the candidates
-				const buttonlist = candidates.map( (candidate) => { return { socketid: candidate[0], name: this.getPlayerBySocketId(candidate[0]).name } } );
-				this.#io.to(this.host.socketid).emit('daydraw', candidates.map( candidate => { return candidate[0] } ));
-				this.collectVotes(livingPlayers, buttonlist);
+				buttonlist = candidates.map( (candidate) => { return { socketid: candidate[0], name: this.getPlayerBySocketId(candidate[0]).name } } );
+				this.#io.to(this.host.socketid).emit('daydraw', votes.map( vote => { return vote.response } ));
+				this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'We have a DRAW!<br/><br/>Vote again...' } });
+				this.registerHostResponseHandler(voteDraw);
 			} else {
 				// We have a winner
 				const dead = candidates[0][0];
 				this.dayKill(dead);
-				this.#io.to(livingPlayerSockets).emit("server:request", { type:"timedmessage", payload: { message:"We have a winner!", timer:3 } } );
+				this.#io.to(livingPlayerSockets).emit("server:request", { type:"timedmessage", payload: { message:"The people have chosen...", timer:3 } } );
 				this.#io.to(this.host.socketid).emit('daykill', dead);
 			}
 		}
@@ -500,47 +506,10 @@ class Room {
 		}
 		this.#io.to(livingPlayerSockets).emit('server:request', { type: 'buttonselect', payload: buttonlist } );
 		this.registerClientResponseHandler(voteHandler);
-		timerId = setTimeout( voteCount, 5000);
-		this.#io.to(this.host.socketid).emit('server:starttimer',  { duration: 5 } );
+		timerId = setTimeout( voteCount, 10000);
+		this.#io.to(this.host.socketid).emit('server:starttimer',  { duration: 10 } );
 	}
 
-	// Need a good way to match up socket events with game state to determine what to do
-	// For now just fudget it until I have a better understanding of all the possibilities
-	clientResponseXXX(socket, response) {
-
-		console.log('clientResponse:', socket.id, response);
-
-		// Immediately send a response back to the client for confirmation
-		// OK this works - commenting out so I can use the same client for multiple button clicks...
-		// const payload = { message: 'You voted:<br/><br/>' + response.label, timer:3 }
-		// this.#io.to(socket.id).emit('server:request', { type:'timedmessage', payload: payload } );
-		
-		const selected = response.id;
-
-		// Use the gameState to check if we are night or daytime to determine how to process this event
-		if (this.currentAction == Actions.NIGHT) {
-
-			this.wolfKill(selected);
-			console.log('After kill:', this.getPlayerBySocketId(selected));
-			console.log('Sending wolfkill to:', this.host.socketid);
-			this.#io.to(this.host.socketid).emit('wolfkill', selected);
-		
-		} else {
-
-			this.clientResponseHandlers.forEach( (handler) => {
-				handler(socket, response);
-			})
-		}
-	}
-
-	processClientResponsesXXX() {
-		// Map an array of socketids to an object with socketid:total votes
-		const map = this.clientResponses.reduce((acc, e) => acc.set(e, (acc.get(e) || 0) + 1), new Map());
-		console.log('As map:', map);
-		console.log('Entries:', [...map].entries());
-		// Now we have to find which player has the most votes
-		// do more with this later...
-	}
 
 	countOccurences(arr) {
 		return arr.reduce((acc, e) => acc.set(e, (acc.get(e) || 0) + 1), new Map());
@@ -555,14 +524,31 @@ class Room {
 	getPlayers() {
 		return this.players;
 	}
+
+	// removePlayer
+	// Remove a player from the room - only takes effect if game has not started
+	// If game HAS started then we need to handle the player leaving in a different way - maybe just mark them as disconnected
 	removePlayer(socketid) {
-		this.players = this.players.filter( (player) => player.socketid != socketid);
+		if (this.started) {
+			const player = this.players.find( (player) => player.socketid === socketid );
+			if (player) {
+				player.disconnected = true;
+			}
+		} else {
+			this.players = this.players.filter( (player) => player.socketid != socketid);
+		}
+		// Either way we want to inform the host - we will remove the player from the host display even though we retain the player object
+		if (this.host) {
+			this.#io.to(this.host.socketid).emit('playerdisconnect', socketid);
+		}
 	}
 	getPlayerBySocketId(socketid) {
 		console.log(this.players.find( (player) => player.socketid == socketid ));
 		return this.players.find( (player) => player.socketid === socketid )
 	}
-
+	getPlayerBySessionId(sessionid) {
+		return this.players.find( (player) => player.sessionid === sessionid )
+	}
 	getLivingPlayers() {
 		return this.players.filter( player => player.alive )
 	}
@@ -592,7 +578,7 @@ class Room {
 				return;
 			}
 			thisPlayer.alive = false;
-			thisPlayer.killaction = Actions.NIGHT;
+			thisPlayer.killphase = Phases.NIGHT;
 		})
 	}
 	dayKill(socketid) {
@@ -602,7 +588,7 @@ class Room {
 			return;
 		}
 		thisPlayer.alive = false;
-		thisPlayer.killaction = Actions.DAY;
+		thisPlayer.killphase = Phases.DAY;
 	}
 
 

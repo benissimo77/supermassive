@@ -1,0 +1,65 @@
+<?xml version="1.0" standalone="no" ?>
+<!DOCTYPE project PUBLIC "-//audacityproject-1.3.0//DTD//EN" "http://audacity.sourceforge.net/xml/audacityproject-1.3.0.dtd" >
+<project xmlns="http://audacity.sourceforge.net/xml/" projname="narrator-night-1_data" version="1.3.0" audacityversion="2.1.0" sel0="14.5774775571" sel1="14.5774775571" vpos="0" h="0.0000000000" zoom="54.0559912998" rate="24000.0" snapto="off" selectionformat="hh:mm:ss + milliseconds">
+	<tags/>
+	<wavetrack name="narrator" channel="2" linked="0" mute="0" solo="0" height="150" minimized="0" isSelected="0" rate="44100" gain="1.0" pan="0.0">
+		<waveclip offset="0.00000000">
+			<sequence maxsamples="262144" sampleformat="262159" numsamples="711396">
+				<waveblock start="0">
+					<simpleblockfile filename="e0000e47.au" len="133794" min="-0.908689" max="0.938434" rms="0.095857"/>
+				</waveblock>
+				<waveblock start="133794">
+					<simpleblockfile filename="e0000c2a.au" len="133795" min="-0.392007" max="0.657978" rms="0.029372"/>
+				</waveblock>
+				<waveblock start="267589">
+					<simpleblockfile filename="e0000d1b.au" len="144941" min="-0.669288" max="0.942743" rms="0.095717"/>
+				</waveblock>
+				<waveblock start="412530">
+					<simpleblockfile filename="e00004bc.au" len="144941" min="-0.618247" max="0.951485" rms="0.054508"/>
+				</waveblock>
+				<waveblock start="557471">
+					<simpleblockfile filename="e00007fe.au" len="153925" min="-0.955856" max="0.952" rms="0.075998"/>
+				</waveblock>
+			</sequence>
+			<envelope numpoints="0"/>
+		</waveclip>
+	</wavetrack>
+	<wavetrack name="wolfgrowl-1" channel="0" linked="1" mute="0" solo="0" height="150" minimized="0" isSelected="1" rate="44100" gain="1.0" pan="0.0">
+		<waveclip offset="2.88589569">
+			<sequence maxsamples="262144" sampleformat="262159" numsamples="569600">
+				<waveblock start="0">
+					<simpleblockfile filename="e0000089.au" len="148479" min="-0.645332" max="0.669166" rms="0.050584"/>
+				</waveblock>
+				<waveblock start="148479">
+					<simpleblockfile filename="e0000a42.au" len="148480" min="-0.424501" max="0.382258" rms="0.073859"/>
+				</waveblock>
+				<waveblock start="296959">
+					<simpleblockfile filename="e0000c4a.au" len="218640" min="-0.622237" max="0.662029" rms="0.080503"/>
+				</waveblock>
+				<waveblock start="515599">
+					<simpleblockfile filename="e0000776.au" len="54001" min="-0.410819" max="0.495983" rms="0.1043"/>
+				</waveblock>
+			</sequence>
+			<envelope numpoints="0"/>
+		</waveclip>
+	</wavetrack>
+	<wavetrack name="wolfgrowl-1" channel="1" linked="0" mute="0" solo="0" height="150" minimized="0" isSelected="1" rate="44100" gain="1.0" pan="0.0">
+		<waveclip offset="2.88589569">
+			<sequence maxsamples="262144" sampleformat="262159" numsamples="569600">
+				<waveblock start="0">
+					<simpleblockfile filename="e0000ba3.au" len="148479" min="-0.645332" max="0.669166" rms="0.050584"/>
+				</waveblock>
+				<waveblock start="148479">
+					<simpleblockfile filename="e0000b40.au" len="148480" min="-0.424501" max="0.382258" rms="0.073859"/>
+				</waveblock>
+				<waveblock start="296959">
+					<simpleblockfile filename="e0000345.au" len="218640" min="-0.622237" max="0.662029" rms="0.080503"/>
+				</waveblock>
+				<waveblock start="515599">
+					<simpleblockfile filename="e0000a15.au" len="54001" min="-0.410819" max="0.495983" rms="0.1043"/>
+				</waveblock>
+			</sequence>
+			<envelope numpoints="0"/>
+		</waveclip>
+	</wavetrack>
+</project>

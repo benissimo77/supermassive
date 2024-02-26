@@ -14,9 +14,11 @@
         <button onclick="buttonNight()" type="button">NIGHT</button>
         <button onclick="buttonDay()" type="button">DAY</button>
 
-        <button onclick="buttonListPlayers()" type="button">LIST PLAYERS</button>
-        <button onclick="buttonListGames()" type="button">LIST GAMES</button>
+        <!-- <button onclick="buttonListPlayers()" type="button">LIST PLAYERS</button>
+        <button onclick="buttonListGames()" type="button">LIST GAMES</button> -->
         <button onclick="buttonTest()" type="button">TEST</button>
+
+        <!-- Content for the game itself -->
         <div id="largepanel">
             <div id="largepanelcontent">
                 <div id="startgame">
@@ -74,13 +76,17 @@
             </div>
         </div>
         <div id="instructions">
-            <div id="instructions-title">INSTRUCTIONS</div>
-            <div id="instructions-content"></div>
+            <div id="instructions-title">VIDEOSWIPE.NET</div>
+            <div id="instructions-content">
+                <h1>Room: WOLF</h1>
+            </div>
             <div id="instructions-close">
                 <button onclick="buttonHostComplete()" type="button">READY!</button>
             </div>
         </div>
 
+        <!-- Containers to hold the various lists of players -->
+        <div id="voterlist"></div>
         <div id="playerlist"></div>
         <div id="killedbywolves"></div>
         <div id="killedbyvillagers"></div>
@@ -95,9 +101,6 @@
             function buttonStart() {
                 console.log('Button: Start');
                 socket.emit('host:requeststart');
-                // Display the start game options directly here rather than waiting for a separate socket event
-                document.getElementById('largepanel').style.display = 'flex';
-                document.getElementById('startgame').style.display = 'block';
             }
             function buttonReady() {
                 console.log('Button: Ready');

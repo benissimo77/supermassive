@@ -1,0 +1,61 @@
+<?xml version="1.0" standalone="no" ?>
+<!DOCTYPE project PUBLIC "-//audacityproject-1.3.0//DTD//EN" "http://audacity.sourceforge.net/xml/audacityproject-1.3.0.dtd" >
+<project xmlns="http://audacity.sourceforge.net/xml/" projname="witch-openeyes-1_data" version="1.3.0" audacityversion="2.1.0" sel0="10.2188344142" sel1="10.2188344142" vpos="0" h="13.9347742012" zoom="19.3759867294" rate="44100.0" snapto="off" selectionformat="hh:mm:ss + milliseconds">
+	<tags/>
+	<wavetrack name="narrator" channel="2" linked="0" mute="0" solo="0" height="150" minimized="0" isSelected="1" rate="44100" gain="1.0" pan="0.0">
+		<waveclip offset="0.00000000">
+			<sequence maxsamples="262144" sampleformat="262159" numsamples="450651">
+				<waveblock start="0">
+					<simpleblockfile filename="e000071c.au" len="146289" min="-0.925458" max="0.95404" rms="0.07935"/>
+				</waveblock>
+				<waveblock start="146289">
+					<simpleblockfile filename="e00000a4.au" len="152181" min="-0.489717" max="0.933887" rms="0.073672"/>
+				</waveblock>
+				<waveblock start="298470">
+					<simpleblockfile filename="e0000017.au" len="152181" min="-0.917223" max="0.941934" rms="0.057224"/>
+				</waveblock>
+			</sequence>
+			<envelope numpoints="0"/>
+		</waveclip>
+	</wavetrack>
+	<wavetrack name="evil-witch-laugh-140135" channel="0" linked="1" mute="1" solo="0" height="150" minimized="0" isSelected="0" rate="44100" gain="1.0" pan="0.0">
+		<waveclip offset="2.58052154">
+			<sequence maxsamples="262144" sampleformat="262159" numsamples="133632">
+				<waveblock start="0">
+					<simpleblockfile filename="e00001e7.au" len="133632" min="-0.335172" max="0.360327" rms="0.038059"/>
+				</waveblock>
+			</sequence>
+			<envelope numpoints="0"/>
+		</waveclip>
+	</wavetrack>
+	<wavetrack name="evil-witch-laugh-140135" channel="1" linked="0" mute="1" solo="0" height="150" minimized="0" isSelected="0" rate="44100" gain="1.0" pan="0.0">
+		<waveclip offset="2.58052154">
+			<sequence maxsamples="262144" sampleformat="262159" numsamples="133632">
+				<waveblock start="0">
+					<simpleblockfile filename="e00001a2.au" len="133632" min="-0.333263" max="0.365623" rms="0.038157"/>
+				</waveblock>
+			</sequence>
+			<envelope numpoints="0"/>
+		</waveclip>
+	</wavetrack>
+	<wavetrack name="witchcackle-1" channel="0" linked="1" mute="0" solo="0" height="150" minimized="0" isSelected="0" rate="44100" gain="0.199526" pan="0.0">
+		<waveclip offset="2.27086168">
+			<sequence maxsamples="262144" sampleformat="262159" numsamples="203904">
+				<waveblock start="0">
+					<simpleblockfile filename="e0000aa4.au" len="203904" min="-0.560247" max="0.566354" rms="0.047554"/>
+				</waveblock>
+			</sequence>
+			<envelope numpoints="0"/>
+		</waveclip>
+	</wavetrack>
+	<wavetrack name="witchcackle-1" channel="1" linked="0" mute="0" solo="0" height="150" minimized="0" isSelected="0" rate="44100" gain="0.199526" pan="0.0">
+		<waveclip offset="2.27086168">
+			<sequence maxsamples="262144" sampleformat="262159" numsamples="203904">
+				<waveblock start="0">
+					<simpleblockfile filename="e0000579.au" len="203904" min="-0.571112" max="0.571098" rms="0.054256"/>
+				</waveblock>
+			</sequence>
+			<envelope numpoints="0"/>
+		</waveclip>
+	</wavetrack>
+</project>

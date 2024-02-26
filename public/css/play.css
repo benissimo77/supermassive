@@ -2,7 +2,8 @@ body {
     font-family: "Titan One", sans-serif;
     font-weight: 400;
     font-style: normal;
-    background-color:darkblue;
+    font-size: 2rem;
+    background-color:#051C55; /* dark blue */
     color:darkorange;
     display: flex;
     flex-direction: column;
@@ -14,7 +15,7 @@ body {
 input {
     font-family: "Titan One", sans-serif;
     font-size:2rem;
-    background-color: darkblue;
+    background-color: #051C55; /* dark blue */
     color:darkorange;
     border: 1px darkorange;
     padding:0.5rem;
@@ -38,7 +39,7 @@ input#room {
 }
 .gallery {
     padding: 0.1rem;
-    border: 4px solid darkblue;
+    border: 4px solid #051C55; /* dark blue */
     float: left;
     align-items: baseline;
     /* width: 18%; */
@@ -55,26 +56,6 @@ div.gallery img {
   align-items: baseline;
 }
   
-  button {
-    font-family: "Titan One", sans-serif;
-    font-weight: 400;
-    font-size: 3rem;
-    background-color: darkorange;
-    color: darkblue;
-    padding:1rem;
-  }
-  /* Holder for player content */
-  #content {
-    text-align: center;
-  }
-  /* formatted button for players to make selections */
-  #content button {
-    border-radius: 6;
-    border-color: white;
-    font-size: large;
-  }
-
-
   /* When playing in a room... */
 
 #playercontainer {
@@ -124,7 +105,7 @@ div.gallery img {
   height:48px;
   border-radius: 14px;
   border: 2px solid #fff;
-  background-color: gray;
+  background-color: #FA921C;
   vertical-align: baseline;
 }
 .playername {
@@ -155,3 +136,24 @@ div.gallery img {
 #rolebutton {
   display: none;
 } 
+
+#role {
+  margin-top:3rem;
+  text-align: center;
+}
+/* Holder for player content */
+#content {
+  margin-top:3rem;
+  text-align: center;
+}
+
+button {
+  font-family: "Titan One", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+  background-color:#14128E;   
+  color:#E76900;  /* Spanish orange */ 
+  font-size: 2rem;
+  padding: 0.5rem 1rem;
+  margin: 0.5rem;
+}

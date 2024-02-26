@@ -1,9 +1,12 @@
 const URL = '/host';
 
 // Global variable for holding useful data representing the game eg number of players
+// This is updated by the server and used to update the game state
+// Not sure if I'll use this in the end, or just rely on the server sending relevent data when needed
 var gameState = {
     nplayers: 0,
-    playerScale: 1
+    playerScale: 1,
+    started: false
 }
 
 
@@ -17,24 +20,10 @@ var gameState = {
 // For now provide a button which will remove instructions and send a hostready event to move to next stage
 function onStartGame() {
     console.log('socket-host: onStartGame');
-    el = document.getElementById("largepanelcontent");
-    el.innerHTML = `
-    <h1>Game Started</h1>
-        <p>Instructions for the game go here</p>
-        <ul>
-        <li>
-            Don't let anyone see your screen!
-        </li>
-        <li>
-            Press 'ROLE' button to see your role
-        </li>
-        <li>
-            Release 'ROLE'button to hide your role
-        </li>
-    </ul>
-<button onclick='buttonReady()'>Ready</button>
-    `;
-    gsap.to("#largepanel", { display: visible });
+    gsap.set("#largepanel", { display: "block" });
+    gsap.set("#largepanelcontent > div", { display: "none" });
+    gsap.set("#startgame", { display: "block" });
+    gameState.started = true;
 }
 function onConnect() {
     console.log('onConnect:', socket.connected);
@@ -42,6 +31,7 @@ function onConnect() {
 function onDisconnect(socketid) {
     console.log('onDisconnect:', socketid);
     DOMremovePlayer(socketid);
+    gameState.nplayers--;
 }
 function onFoo(value) {
 console.log('onFoo', value);
@@ -68,7 +58,7 @@ function onPlayersInRoom(playerlist) {
     Object.keys(playerlist).forEach(key => {
         player = playerlist[key];
         console.log(player);
-        DOMaddPlayer(player);
+        onAddPlayer(player);
     })
 }
 
@@ -94,6 +84,7 @@ function onAudioPlay(audio) {
 
     }
 }
+
 // gameState is currently an array of players - this represents everything needed (for now)
 // This is sent to the host after each round to update the player positions
 function onGameState() {
@@ -113,11 +104,12 @@ function onGameState() {
         }
 
     });
+    // scale of .64 is based on a 'standard' width of 500px - so 320px is 64% of that
     gsap.to("#killedbywolves .player", {
         x: canvasToScreenX(0),
         y: (index,target,targets) => { return canvasToScreenY(200+index*100) },
         z: (index,target,targets) => { return index },               
-        scale: 0.8,
+        scale: 0.64,
         stagger:0.4,
         duration:duration
     });
@@ -129,7 +121,7 @@ function onGameState() {
         x: canvasToScreenX(0),
         y: (index,target,targets) => { return canvasToScreenY(200+index*100) },
         z: (index,target,targets) => { return index },               
-        scale: 0.8,
+        scale: 0.64,
         stagger:0.4,
         duration:duration
     });
@@ -141,9 +133,14 @@ function onMorning() {
     audioManager.playTrack(narratorTracks.WAKEUP);
 }
 function onAddPlayer(player) {
-    console.log('onAddPlayer:', player);
+    console.log('onAddPlayer:', player, gameState);
     DOMaddPlayer(player);
     gameState.nplayers++;
+    if (gameState.started) {
+        onGameState();
+    } else {
+        addRandomMovement(document.getElementById(player.socketid));
+    }
 }
 function onDayKill(dead) {
     console.log('onDayKill:', dead);
@@ -202,7 +199,7 @@ function DOMinstructions(payload) {
     console.log('DOMinstructions:', payload);
     const content = document.getElementById("instructions-content");
     content.innerHTML = payload.message;
-    gsap.to("#instructions", { display: "block" });
+    gsap.set("#instructions", { display: "block" });
 }
 
 // onServerRequest - general purpose function which handles all/most server requests in a generic way

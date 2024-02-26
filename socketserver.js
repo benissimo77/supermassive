@@ -25,6 +25,9 @@ module.exports = function (server) {
 	const { Room } = require('./room');
 
 	// Store all room objects, keyed on the 4-CHAR ID of the room
+	// This is a simple way to ensure we don't have multiple rooms with the same ID
+	// It also makes it easy to find a room by its ID
+	// Note: if server restarts for any reason then all rooms will be lost
 	var rooms = {};
 
 	
@@ -53,6 +56,7 @@ module.exports = function (server) {
 		console.log('io.connection:', socket.id, session, referer, params, urlParams, userObj);
 
 		// Session is already in the correct format - use it if URL query string doesn't have the required data
+		// Note: this can be hacked if the user simply adds room to their URL - but that's not a big deal for now 
 		if (!userObj.room) {
 			userObj = session;
 		}

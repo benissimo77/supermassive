@@ -3,7 +3,6 @@
 class Player {
 	constructor(obj) {
 		// Socket related
-		this.socket = obj.socket,
 		this.socketid = obj.socketid;
 		this.sessionid = obj.sessionid;
 		// Player data
@@ -12,7 +11,7 @@ class Player {
 		// Game data
 		this.role = null;
 		this.alive = true;
-		this.killaction = null;
+		this.killphase = null;
 		this.sheriff = false;
 		this.witchkill = false;
 		this.witchsave = false;
@@ -31,7 +30,7 @@ class Roles {
 	// Add more roles as needed
 }
 
-class Actions {
+class Phases {
 	static DAY = 'Day';
 	static NIGHT = 'Night';
 }
@@ -102,7 +101,7 @@ class Game {
 			return;
 		}
 		thisPlayer.alive = false;
-		thisPlayer.killaction = Actions.NIGHT;
+		thisPlayer.killphase = Phases.NIGHT;
 	}
 	villagerKill(socketid) {
 		thisPlayer = this.getPlayerBySocketId(socketid);
@@ -111,7 +110,7 @@ class Game {
 			return;
 		}
 		thisPlayer.alive = false;
-		thisPlayer.killaction = Actions.DAY;
+		thisPlayer.killphase = Phases.DAY;
 	}
 
 	startGame() {
@@ -216,4 +215,4 @@ class AsyncTimer {
 }
 
 
-module.exports = { Player, Roles, Actions, Game };
+module.exports = { Player, Roles, Phases, Game };

@@ -1,20 +1,14 @@
 body {
     font-family: "Titan One", sans-serif;
-    font-weight: 400;
-    font-style: normal;
     font-size: 2rem;
     background-color:#051C55; /* dark blue */
     color:darkorange;
-    display: flex;
-    flex-direction: column;
-    max-width:100%;
-    height: 100vh;
     margin:0;
 }
 
 input {
-    font-family: "Titan One", sans-serif;
-    font-size:2rem;
+    font-family: inherit;
+    font-size:inherit;
     background-color: #051C55; /* dark blue */
     color:darkorange;
     border: 1px darkorange;
@@ -60,15 +54,12 @@ div.gallery img {
 
 #playercontainer {
     position:fixed;
-    top:0px;
+    bottom:0px;
 }
 
 .player {
-    position: fixed;
-    bottom: 10vh;
-    width: 100%;
-    height: 10vh; /* Adjust this value to change the player's size */
-    box-sizing: border-box;
+    position: relative;
+    bottom:24px;
 }
 
 /* By adding a class of .dead to a player we can adjust the opacity of the player image */
@@ -105,31 +96,23 @@ div.gallery img {
   height:48px;
   border-radius: 14px;
   border: 2px solid #fff;
-  background-color: #FA921C;
+  background-color: gray;
   vertical-align: baseline;
+  max-width: 720px;
 }
+
 .playername {
   font-family: "Titan One", sans-serif;
-  font-weight: 400;
-  font-style: normal;
   font-size:40px;
   margin-left: 100px;
-  margin-right:20px;
+  margin-right:10px;
+  color:darkblue;
 
   line-height: 48px;
-  color:darkblue;
   vertical-align:bottom;
-  border:1px white;
-  width: 100vw;
-}
-
-.player-name {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    margin-left:120px;
-    width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* By default the role button should be invisible */
@@ -144,15 +127,15 @@ div.gallery img {
 /* Holder for player content */
 #content {
   margin-top:3rem;
+  margin-bottom: 2rem;
   text-align: center;
 }
 
 button {
   font-family: "Titan One", sans-serif;
-  font-weight: 400;
-  font-style: normal;
-  background-color:#14128E;   
-  color:#E76900;  /* Spanish orange */ 
+  background-color:#4B538B;   
+  color:#FF8C00 ;  /* Spanish orange */ 
+  border: 1px solid #FF8C00; /* Spanish orange */
   font-size: 2rem;
   padding: 0.5rem 1rem;
   margin: 0.5rem;

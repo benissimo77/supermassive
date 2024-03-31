@@ -2,7 +2,6 @@
 // Accepts a player object and builds the HTML to make the player character
 // This should not need to be created again - this function ONLY called when a new player joins
 function DOMaddPlayer(player) {
-    console.log('DOMaddPlayer:', player);
     var playerDOM = document.createElement('div');
     playerDOM.setAttribute('class', 'player');
     playerDOM.setAttribute('id', player.socketid);
@@ -15,66 +14,8 @@ function DOMaddPlayer(player) {
             <div class="playername">${player.name}</div>
         </div>
     `;
-    document.getElementById('playerlist').appendChild(playerDOM);
-    moveToBottomLeftCorner(playerDOM);
-}
-// addRandomMovement
-// Accepts an element and generates a random tween to a new location - callback added to tween so that it repeats
-function moveToBottomLeftCorner(element) {
-    gsap.to(element, {
-        x: canvasToScreenX(0),
-        y: window.innerHeight - 40,
-        duration: 2
-    });
-}
-function toX(x) {
-    console.log('toX:', x);
-    stagger = {
-        // wrap advanced options in an object
-        each: 0.2,
-        from: "center",
-        grid: "auto",
-        ease: "power2.inOut",
-        repeat: 3, // Repeats immediately, not waiting for the other staggered animations to finish
-    }
-    gsap.to(".player", { x: canvasToScreenX(x), duration:3, stagger: stagger });
-}
-function toY(y) {
-    console.log('toY:', y);
-    gsap.to(".player", { y: canvasToScreenY(y), stagger: 0.4, duration: 4, onComplete: toYComplete })
-}
-function fromX(x) {
-    console.log('fromX:', x);
-    gsap.from(".player", { x:canvasToScreenX(x), duration: 3 })
-}
-function setXY(x,y) {
-    console.log('setXY:', x, y);
-    gsap.set(".player", { x:canvasToScreenX(x), y:canvasToScreenY(y) })
-}
-function setScale(s) {
-    console.log('setScale:', s);
-    gsap.to("#playerlist", { scale: s, stagger:0.5 });
-}
-function setAvatarScale(s) {
-    console.log('setAvatarScale:', s);
-    gsap.to(".avatar img", { scale: s, duration:1})
-}
-
-function toYComplete() {
-    console.log('Tween toY complete');
-    ting.play();
-}
-function layoutPlayers(players) {
-    console.log('layoutPlayers:', players);
-    gsap.killTweensOf(players);
-    gsap.to(players,
-    {
-        x: canvasToScreenX(100),
-        y: (index,target,targets) => { return canvasToScreenY(200+index*100) },                     
-        ease: "elastic.out(1,0.3)",
-        stagger:0.4,
-        duration:2
-    });
+    document.getElementById('playercontainer').appendChild(playerDOM);
+    init(); // this will scale the player div to the correct size
 }
 
 function DOMplayerRole(role) {
@@ -88,11 +29,7 @@ function DOMplayerRole(role) {
     // This is a hack because its not technically part of the role action - but a good moment to clear the current content
     document.getElementById('content').innerHTML = '';
 }
-function buttonClick(e) {
-    ret = { socketid:e.currentTarget.id, name: e.currentTarget.innerHTML };
-    console.log('buttonClick - sending client:response event:', ret);
-    socket.emit('client:response', ret );
-}
+
 function buttonRolePress(e) {
     console.log('buttonRolePress');
     document.getElementById('role').style.display = 'block';
@@ -105,49 +42,29 @@ function buttonRoleRelease() {
 }
 
 function DOMbuttonSelect(buttons) {
-    clearTimeout(timer);
     var contentDOM = document.getElementById("content");
-    console.log('DOMbuttonSelect');
     contentDOM.innerHTML = '';
-    Object.keys(buttons).forEach(key => {
-        button = buttons[key];
-        console.log(button);
+    timer.clear();
+    buttons.forEach(button => {
         buttonDOM = document.createElement("button");
         if (button.socketid) buttonDOM.setAttribute("id", button.socketid);
         buttonDOM.innerHTML = button.name;
-        buttonDOM.addEventListener('click', buttonClick);
         contentDOM.appendChild(buttonDOM);
+        buttonDOM.addEventListener('click', (e) => {
+            ret = { socketid:e.currentTarget.id, name: e.currentTarget.innerHTML };
+            socket.emit('client:response', ret );
+            // Experiment with putting the confirmation directly here without requiring the trip to the server - more responsive
+            DOMtimedMessage({ message: 'You selected:<br/><br/>' + ret.name, timer: 3 });
+        })
     })
 }
 function DOMtimedMessage(payload) {
-    clearTimeout(timer);
     console.log('DOMtimedMessage:', payload);
-    const timerEnds = () => {
-        contentDOM.innerHTML = '';        
-    }
     var contentDOM = document.getElementById("content");
-    console.log('DOMbuttonSelect');
     contentDOM.innerHTML = payload.message;
-    timer = setTimeout(timerEnds, payload.timer * 1000);
+    timer.start(payload.timer, () => { contentDOM.innerHTML = ''; });
 }
 
-// Recursive function keeps calling itself until width is small enough
-function adjustPlayerNameSize(el, size) {
-    gsap.set(el, { fontSize: size } );
-    console.log(screenToCanvasX(el.clientWidth));
-    if (screenToCanvasX(el.clientWidth) > 500) {
-        console.log('Changing font size for', el.innerHTML);
-        adjustPlayerNameSize(el, size-1);
-    }
-}
-function adjustPlayerNameSizes() {
-    console.log('adjustPlayerNameSizes:');
-    const els = document.getElementsByClassName("playername");
-    console.log('playernames:', els);
-    [...els].forEach( (el) => {
-        adjustPlayerNameSize(el, 40);
-    });
-}
 
 // Accepts a canvas position (720x1440) and returns a translated position
 function canvasToScreenX(x) {
@@ -162,9 +79,21 @@ function screenToCanvasX(x) {
     return Math.floor(x*720/window.innerWidth);
 }
 
-function setWindowScale(x,y) {
-    console.log('setWindowScale:', x, y);
-    gsap.to(".player", { scaleX: x, scaleY: y })
+function setAvatarScale(x) {
+    console.log('setAvatarScale:', x);
+    gsap.to(".player", { scaleX: x, scaleY: x })
+}
+
+const timer = {
+    id: null,
+    clear: function() {
+        clearTimeout(this.id);
+    },
+
+    start: function(delaySeconds, fn) {
+        this.clear();
+        this.id = setTimeout(fn, delaySeconds * 1000);
+    }
 }
 
 // Function copied from gsap site - useful utility function
@@ -178,16 +107,9 @@ function callAfterResize(func, delay) {
 
 function init() {
     screenSizeBody();
-
-    // // Experiment with audio files...
-    ting = new Audio('audio/ting1.mp3');
-    // gsap.registerPlugin(Draggable);
-    // Draggable.create("#playerlist");
-    // gsap.registerPlugin(MotionPathPlugin)
-    // Next line should be done at the time of the player being added NOT in one function...
-    // adjustPlayerNameSizes();
     callAfterResize(screenSizeBody, 0.2);
 }
+
 // Adjust the scale of the BODY tag and then everything uses 720x1440 scale for positioning
 // This ensures content will scale neatly - only problem is the total height of screen is variable
 // Use scale function to calculate Y positions so it will scale all the way to the bottom of the visible screen
@@ -197,13 +119,10 @@ function screenSizeBody() {
     // Copy from below but don't use the screenOffset just scale x and y independently
     const windowInnerWidth  = window.innerWidth;
     const windowInnerHeight = window.innerHeight;
-    console.log('Viewport:', windowInnerWidth, windowInnerHeight);
+    console.log('PLAY:: Viewport:', windowInnerWidth, windowInnerHeight);
     const scaleX = window.innerWidth / 720;
-    setWindowScale(scaleX, scaleX);
-
-    // To ensure the panel is the correct size - set left, top and height
-    gsap.set("#largepanel", { top: canvasToScreenY(50), height: canvasToScreenY(980) } );
-    gsap.set("#timer", { top: canvasToScreenY(900), height: canvasToScreenY(60) } );
+    setAvatarScale(scaleX);
 }
 
+// Use the scale function just to scale the player avatar
 window.onload=init();

@@ -26,7 +26,7 @@ class Room {
 	// we say user because at this point we don't know if they are a player or a host/moderator/viewer etc...
 	addUserToRoom(socket, userObj) {
 
-		console.log('userJoinRoom:', userObj.name, this.host, this.id, userObj);
+		console.log('addUserToRoom:', userObj.name, "Room Id:", this.id, "userObj:", userObj);
 
 		// Instantly add this user's socket to this room
 		socket.join(this.id);
@@ -119,14 +119,14 @@ class Room {
 		console.log('registerClientResponseHandler:', handler);
 		this.clientResponseHandler = handler;
 	}
-	deregisterClientResponseHandler(handler) {
-		console.log('deregisterClientResponseHandler:', handler);
+	deregisterClientResponseHandler() {
+		console.log('deregisterClientResponseHandler:');
 		this.clientResponseHandler = null;
 	}
 	registerHostResponseHandler(handler) {
 		this.hostResponseHandler = handler;
 	}
-	deregisterHostResponseHandler(handler) {
+	deregisterHostResponseHandler() {
 		this.hostResponseHandler = null;
 	}
 
@@ -277,13 +277,18 @@ class Room {
 						this.registerHostResponseHandler( () => {
 							const livingplayers = this.getLivingPlayers();
 							const buttonlist = [...livingplayers, { socketid:null, name:'NOT THIS TIME'}];
-							this.getClientResponse([witch], buttonlist, (selected) => {
-								witchkill = selected;
-								witch.witchkill = selected;
+							if (witch.witchkill) {
+								this.#io.to(witch.socketid).emit("server:request", { type:"timedmessage", payload: { message:"You've already SAVED<br/><br/>Nothing to do here", timer:3 } } );
 								resolve();
-							});
-						});
-					});
+							} else {
+								this.getClientResponse([witch], buttonlist, (selected) => {
+									witchkill = selected;
+									witch.witchkill = selected;
+									resolve();
+								})
+							}
+						})
+					})
 				}
 				const doWitchSave = () => {
 					console.log('doWitchSave:');
@@ -393,8 +398,9 @@ class Room {
 					if (dead.size > 0) {
 						this.#io.to(this.host.socketid).emit('nightkill', Array.from(dead) );
 					}
-				});
-			});
+					resolve();
+				})
+			})
 		}
 
 		// Now we chain all the promises together
@@ -405,25 +411,30 @@ class Room {
 		.then( showResultsHost )
 		.then( showResultsAll )
 		.then( () => {
+			this.deregisterHostResponseHandler();
 			console.log('nightActionAsync complete');
 		})
 		.catch( (error) => {
+			this.deregisterHostResponseHandler();
 			console.log('nightActionAsync error:', error);
-		});
+		})
 
 	}
 
-
+	// getClientResponse
+	// This function is used to collect a response from a client or clients (in the event of multiple clients eg wolves)
+	// It will send a request to the client(s) to select a button from a list of buttons
+	// It will then wait for the response and store it in a local variable
+	// It will inform all clients of the selection (one wolf makes a vote all wolves see the result)
+	// It will then call the callback function with the response
 	getClientResponse(socketlist, buttonlist, callback) {
 
-		console.log('collectVotes:', callback);
+		console.log('getClientResponse:', callback);
 
 		const responseHandler = (socket, response) => {
-			console.log('voteHandler:', socket.id, response);
+			console.log('responseHandler:', socket.id, response);
 			// Immediately send a response back to the relevant for confirmation (also has benefit of removing buttons so they can't vote again)
-			const payload = { message: 'You chose:<br/><br/>' + response.name, timer:3 }
-			this.#io.to(socketlist).emit('server:request', { type:'timedmessage', payload: payload } );
-			this.deregisterClientResponseHandler(responseHandler);
+			this.deregisterClientResponseHandler();
 			callback(response);
 		}
 
@@ -441,30 +452,102 @@ class Room {
 	}
 
 	dayAction() {
-		const livingPlayers = this.getLivingPlayers();
-		this.collectVotes(livingPlayers, livingPlayers);
+
+		// dayAction can have a choice of different ways to collect votes
+		// eg FirstPastThePost, MalignDictator, DemocracyRules etc
+		// These can be selected by the host or by the game rules - each will have their own entry point
+		// Once I've built a few there might be ways to generalise the code to make it more flexible
+		// For now I'm just going to hardcode a simple system: WeNeedAWinner
+
+		// These two lines WORK 
+		// const livingPlayers = this.getLivingPlayers();
+		// this.collectVotes(livingPlayers, livingPlayers);
+
+		// How about these two?
+		this.weNeedAWinner();
 	}
 
-	collectVotes(livingPlayers, buttonlist) {
+	// WeNeedAWinner - voting system
+	// All living players vote once, the player with the most votes is killed. In the event of a draw, the vote is repeated with just the tied candidates
+	weNeedAWinner() {
+
+		// Dictionary to hold votes, scoped to this function so all functions inside here can access
+		let votes = {};
+		// ...and the players voting will always be constant, so define here and use throughout (same with voterSockets)
+		const voterList = this.getLivingPlayers();
+		const voterSockets = voterList.map( (player) => { return player.socketid } );
+
+		const collectVotes = (candidateList) => {
+
+			return new Promise( (resolve, reject) => {
+				const voteHandler = (socket, response) => {
+					console.log('voteHandler:', socket.id, response, Object.keys(votes).length);
+					votes[socket.id] = response.socketid;	// this ensures that we can't vote twice
+					// Check if everyone has votes
+					if (Object.keys(votes).length == voterList.length) {
+						this.deregisterClientResponseHandler();
+						resolve();
+					}
+				}		
+				this.#io.to(voterSockets).emit('server:request', { type: 'buttonselect', payload: candidateList } );
+				this.registerClientResponseHandler(voteHandler);
+			})
+		}
+		
+		const votingStart = (candidateList) => {
+			const timeoutSeconds = 10;
+			votes = {};
+			this.#io.to(this.host.socketid).emit('server:dayvotestart', { voters: voterList, candidates: candidateList } );
+			this.#io.to(this.host.socketid).emit('server:starttimer',  { duration: timeoutSeconds } );
+			this.withTimeout(collectVotes(candidateList), timeoutSeconds)
+			.then( () => {
+				this.#io.to(voterSockets).emit("server:request", { type:"timedmessage", payload: { message:"Votes are IN", timer:3 } } );
+				this.#io.to(this.host.socketid).emit('server:dayvoteresult', { voters: voterList, votes: votes } );
+				this.registerHostResponseHandler( () => {
+					const candidates = this.getPlayersWithMostVotes(votes);
+					if (candidates.length == 0) {
+						votingStart(candidateList);
+					} else if (candidates.length > 1) {
+						// There is a draw - call votingStart again with just the candidates
+						const playersBeingVotedOn = candidates.map( (candidate) => { return this.getPlayerBySocketId(candidate[0]) } );
+						this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'We have a DRAW!<br/><br/>Vote again...' } });
+						this.registerHostResponseHandler( () => { votingStart(playersBeingVotedOn); });
+					}
+					else {
+						// We have a winner
+						const dead = candidates[0][0];
+						this.dayKill(dead);
+						this.#io.to(this.host.socketid).emit('daykill', dead);
+					}
+				})
+			})
+			.catch( (error) => {
+				console.log('votingStart error:', error);
+			})
+		}
+
+		// Kick-start the process - note voterList here is actually the candidates (not the voters!) but initially they are the same
+		votingStart(voterList);
+
+	}
+
+
+	collectVotes(playersVoting, playersBeingVotedOn) {
 
 		// map livingPlayers to just get the socketids
-		const livingPlayerSockets = livingPlayers.map( (player) => { return player.socketid } );
-		// and map the buttonlist to get just the name/id
-		buttonlist = buttonlist.map( button => { return { socketid: button.socketid, name: button.name } } );
+		const playersVotingSockets = playersVoting.map( (player) => { return player.socketid } );
 
 		// initialize the votes array and timerId
 		let votes = [];
 		let timerId = null;
+		const timeoutSeconds = 10;
 
-		const voteCount = () => {
-			console.log('voteCount:', votes);
+		const votesCollected = () => {
+
+			// Clean-up: clear the timer and deregister the voteHandler
 			clearTimeout(timerId);
-			this.#io.to(livingPlayerSockets).emit("server:request", { type:"timedmessage", payload: { message:"Votes are IN", timer:3 } } );
-			
-			const voteDraw = () => {
-				console.log('voteDraw:', buttonlist);
-				this.collectVotes(livingPlayers, buttonlist);
-			}
+			this.deregisterClientResponseHandler();
+			this.#io.to(playersVotingSockets).emit("server:request", { type:"timedmessage", payload: { message:"Votes are IN", timer:3 } } );
 			
 			// Now we have to find which player has the most votes
 			// votes is an array of objects with socketid of the voter and response who they voted for
@@ -474,20 +557,20 @@ class Room {
 			const candidates = this.getEntriesWithMaximumOccurences(occurences);
 			console.log('Candidates:', candidates);
 			if (candidates.length == 0) {
-				this.collectVotes(livingPlayers, buttonlist);
+				this.collectVotes(playersVoting, playersBeingVotedOn);
 			} else if (candidates.length > 1) {
 				// There is a draw - need to do something about this
 				console.log('There is a draw');
 				// Need to repeat the vote - build a new buttonlist with just the candidates
-				buttonlist = candidates.map( (candidate) => { return { socketid: candidate[0], name: this.getPlayerBySocketId(candidate[0]).name } } );
+				playersBeingVotedOn = candidates.map( (candidate) => { return this.getPlayerBySocketId(candidate[0]) } );
 				this.#io.to(this.host.socketid).emit('daydraw', votes.map( vote => { return vote.response } ));
 				this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'We have a DRAW!<br/><br/>Vote again...' } });
-				this.registerHostResponseHandler(voteDraw);
+				this.registerHostResponseHandler( () => { this.collectVotes(playersVoting, playersBeingVotedOn); });
 			} else {
 				// We have a winner
 				const dead = candidates[0][0];
 				this.dayKill(dead);
-				this.#io.to(livingPlayerSockets).emit("server:request", { type:"timedmessage", payload: { message:"The people have chosen...", timer:3 } } );
+				this.#io.to(playersVotingSockets).emit("server:request", { type:"timedmessage", payload: { message:"The people have chosen...", timer:3 } } );
 				this.#io.to(this.host.socketid).emit('daykill', dead);
 			}
 		}
@@ -496,20 +579,123 @@ class Room {
 			console.log('voteHandler:', socket.id, response, votes);
 			const payload = { message: 'You voted:<br/><br/>' + response.name, timer:3 }
 			this.#io.to(socket.id).emit('server:request', { type:'timedmessage', payload: payload } );
-			if (votes.length == livingPlayers.length) {
+			this.#io.to(this.host.socketid).emit('server:playervoted',  this.getPlayerBySocketId(socket.id) );
+			if (votes.length == playersVoting.length) {
 				// Everyone has voted
 				console.log('All votes are IN:');
-				// Assuming we are done with the day phase
-				this.deregisterClientResponseHandler(voteHandler);
-				voteCount();
+				votesCollected();
 			}
 		}
-		this.#io.to(livingPlayerSockets).emit('server:request', { type: 'buttonselect', payload: buttonlist } );
+
+		// Send the request to all living players and collect responses
+		this.#io.to(playersVotingSockets).emit('server:request', { type: 'buttonselect', payload: playersBeingVotedOn } );
+		this.#io.to(this.host.socketid).emit('server:dayvote',  { voters: playersVoting, votingon: playersBeingVotedOn } );
 		this.registerClientResponseHandler(voteHandler);
-		timerId = setTimeout( voteCount, 10000);
-		this.#io.to(this.host.socketid).emit('server:starttimer',  { duration: 10 } );
+		timerId = setTimeout(votesCollected, timeoutSeconds * 1000);
+		this.#io.to(this.host.socketid).emit('server:starttimer',  { duration: timeoutSeconds } );
 	}
 
+
+	// Helper function to add a timeout to a promise
+	withTimeout(promise, timeoutSeconds) {
+		const timeout = new Promise((resolve) => {
+			let id = setTimeout(() => {
+				clearTimeout(id);
+				resolve('Timed out');
+			}, timeoutSeconds*1000);
+		})
+		return Promise.race([promise, timeout]);
+	}
+	
+	dayActionAsync() {
+		this.currentAction = Phases.DAY;
+		console.log('dayActionAsync:', this.id, this.getLivingVillagers());
+
+		// initialize the votes array
+		let votes = [];
+
+		const timeoutSeconds = 10;
+		const livingPlayers = this.getLivingPlayers();
+
+		const collectVotesAsync = (livingPlayers, buttonlist) => {
+			console.log('collectVotesAsync:', livingPlayers, buttonlist);
+	
+			// map livingPlayers to just get the socketids
+			const livingPlayerSockets = livingPlayers.map( (player) => { return player.socketid } );
+			// and map the buttonlist to get just the name/id
+			buttonlist = buttonlist.map( button => { return { socketid: button.socketid, name: button.name } } );
+	
+			return new Promise( (resolve, reject) => {
+
+				const voteHandler = (socket, response) => {
+					console.log('voteHandler:', socket.id, response, votes);
+					votes.push( { socketid: socket.id, response: response.socketid } );
+					const payload = { message: 'You voted:<br/><br/>' + response.name, timer:3 }
+					this.#io.to(socket.id).emit('server:request', { type:'timedmessage', payload: payload } );
+					if (votes.length == livingPlayers.length) {
+						// Everyone has voted
+						console.log('All votes are IN:');
+						// Assuming we are done with the day phase
+						this.deregisterClientResponseHandler();
+						resolve();
+					}
+				}
+				this.#io.to(livingPlayerSockets).emit('server:request', { type: 'buttonselect', payload: buttonlist } );
+				this.registerClientResponseHandler(voteHandler);
+			})
+		}
+			
+		// Function to count the votes and determine the outcome
+		const voteCountAsync = () => {
+			console.log('voteCount:', votes);
+			
+			return new Promise( (resolve, reject) => {
+
+				const voteDraw = () => {
+					console.log('voteDraw:', buttonlist);
+					this.collectVotes(livingPlayers, buttonlist);
+				}
+				
+				resolve(votes);
+
+				// Now we have to find which player has the most votes
+				// votes is an array of objects with socketid of the voter and response who they voted for
+				// We need to convert this into a map of socketid:total votes
+				const map = votes.map( (vote) => { return vote.response } );
+				const occurences = this.countOccurences(map);
+				const candidates = this.getEntriesWithMaximumOccurences(occurences);
+				console.log('Candidates:', candidates);
+				if (candidates.length == 0) {
+					this.collectVotes(livingPlayers, buttonlist);
+				} else if (candidates.length > 1) {
+					// There is a draw - need to do something about this
+					console.log('There is a draw');
+					// Need to repeat the vote - build a new buttonlist with just the candidates
+					buttonlist = candidates.map( (candidate) => { return { socketid: candidate[0], name: this.getPlayerBySocketId(candidate[0]).name } } );
+					this.#io.to(this.host.socketid).emit('daydraw', votes.map( vote => { return vote.response } ));
+					this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'We have a DRAW!<br/><br/>Vote again...' } });
+					this.registerHostResponseHandler(voteDraw);
+				} else {
+					// We have a winner
+					const dead = candidates[0][0];
+					this.dayKill(dead);
+					this.#io.to(livingPlayerSockets).emit("server:request", { type:"timedmessage", payload: { message:"The people have chosen...", timer:3 } } );
+					this.#io.to(this.host.socketid).emit('daykill', dead);
+				}
+			})
+		}
+
+		// Now we chain all the promises together
+		this.#io.to(this.host.socketid).emit('server:starttimer',  { duration: timeoutSeconds } );
+		this.withTimeout(collectVotesAsync(livingPlayers, livingPlayers), timeoutSeconds * 1000)
+		.then( () => {
+			// this.#io.to(livingPlayerSockets).emit("server:request", { type:"timedmessage", payload: { message:"Votes are IN", timer:3 } } );
+			return voteCountAsync();
+		})
+		.then( result => {
+			console.log('dayActionAsync complete:', result);
+		})
+	}
 
 	countOccurences(arr) {
 		return arr.reduce((acc, e) => acc.set(e, (acc.get(e) || 0) + 1), new Map());
@@ -520,6 +706,12 @@ class Room {
 	getEntriesWithMaximumOccurences(map) {
 		const max = this.getMaximumOccurences(map);
 		return [...map].filter(([k, v]) => v === max);
+	}
+	getPlayersWithMostVotes(votes) {
+		const map = Object.values(votes);
+		const occurences = this.countOccurences(map);
+		const max = this.getMaximumOccurences(occurences);
+		return [...occurences].filter(([k, v]) => v === max);
 	}
 	getPlayers() {
 		return this.players;

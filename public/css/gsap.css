@@ -1,41 +1,116 @@
-/* Prevent scrollbars from appearing */
+
 body {
     /* Prevent scrollbars from appearing */
     overflow: hidden;
     font-family: "Titan One", sans-serif;
-    font-weight: 400;
-    font-style: normal;
     background-color:#051C55; /* dark blue */
     color:darkorange;
     transform-origin: top left;
     margin:0;
+    padding:0;
     font-size:1rem;
 }
 
-/* Try experimenting with fixed size and then adjust a window scale */
+/* CONTAINERS */
+/* positioning of the container panels below done using a standard width of 1920px - body is scaled to make this always work */
+/* eg left 1600px is 320px from right edge of 1920px */
+/* width supplied solely for debugging position of panel */
+/* top and height will be set by the window resize event since affected by window innerheight */
+
+#offscreen {
+    z-index: -1;
+    position:absolute;
+    transform-origin: top left;
+    left:-960px;
+    width:520px;
+}
+
 /* playerlist is a container for all LIVING players */
 #playerlist {
     z-index:-1;
     position:absolute;
-    left:0;
-    top:0;
-    /* Next two lines solely for displaying list for debugging position of panel */
-    width:600px;
-    height:100vh;
-    /* background-color: rgba(0,0,0,0.3); */
     transform-origin: top left;
+    left:0;
+    width:520px;
+    background-color: rgba(0,0,0,0.3);
     /* The above transform-origin is useful to allow rotation around top left corner (origin)
 
     /* Its possible to scale ALL players but this affects their positioning canvas must also be scaled */
     /* Set this property programmatically - leaving here for testing: */
     /* scale:0.5; */
 }
+/* panels to hold the players after they have been killed by wolves or by villagers */
+/* width 312 as this is 0.6 of 520 (killed players have a scale of 0.6 applied) */
+#nightphase {
+    z-index:-1;
+    position:absolute;
+    transform-origin: top left;
+    left: 1580px;
+    width: 320px;
+    background-color: rgba(255,0,0,0.3);
+    border: 1px solid #fff;
+    padding: 12px 12px;
+    display: flex;
+    flex-direction: column;
+}
+#dayphase {
+    z-index:-1;
+    position:absolute;
+    transform-origin: top left;
+    left: 1240px;
+    width: 320px;
+    background-color: rgba(0,255,0,0.3);
+    border: 1px solid #fff;
+    padding: 12px 12px;
+    display: flex;
+    flex-direction: column;
+}
+#killedbywolves {
+    position: relative;
+    background-color: rgba(255,0,0,0.3);
+    border: 1px dashed #fff;
+    flex-grow: 1;
+}
+#killedbyvillagers {
+    position: relative;
+    background-color: rgba(0,255,0,0.3);
+    border: 1px dashed #fff;
+    flex-grow: 1;
+}
+.paneltop {
+    margin:auto;
+}
+/* voters and the candidates for voting */
+/* voters are scaled to 0.75, candidates are scaled to 1.5 */
+#voters {
+    z-index: -1;
+    position: absolute;
+    transform-origin: top left;
+    left: 0px;
+    width: 320px;
+    background-color: rgba(0,128,128,0.3);
+}
+#candidates {
+    z-index: -1;
+    position: absolute;
+    transform-origin: top left;
+    left: 1100px;
+    width: 720px;
+    background-color: rgba(128,0,128,0.3);
+}
+#safe {
+    z-index: -1;
+    position: absolute;
+    transform-origin: top left;
+    left: 10px;
+    width:1900px;
+    background-color: rgba(128,128,0,0.3);
+}
 
+/* PLAYER */
 .player {
     /* Set position to absolute so all child elements are relative to this position */
     position:absolute;
-    /* z-index can be set programmatically to adjust ordering of players within the playerlist */
-    z-index: -1;
     top:0;
     left:0;
 }
@@ -75,14 +150,13 @@ body {
     border: 2px solid #fff;
     background-color: gray;
     vertical-align: baseline;
-    max-width: 500px;
+    max-width: 480px;
 }
 .playername {
     font-family: "Titan One", sans-serif;
-    font-weight: 400;
     font-size:40px;
     margin-left: 100px;
-    margin-right:10px;
+    margin-right:20px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -91,6 +165,13 @@ body {
     vertical-align:bottom;
 }
 
+.voter {
+    position: absolute;
+    left: 0px;
+    top: 0px;
+}
+
+/* INFORMATION/INSTRUCTION PANELS */
 #gameoptions {
     z-index:10;
     font-size: 60px;
@@ -105,20 +186,7 @@ body {
     background-color: rgba(0,0,0,0.4);
     visibility: hidden;
 }
-/* positioning of the panels below done using a standard width of 1920px - body is scaled to make this always work */
-/* left 1600px is 320px from right edge of 1920px */
-#killedbywolves {
-    z-index:-1;
-    position:absolute;
-    left:1600px;
-    top:0;
-}
-#killedbyvillagers {
-    z-index:-1;
-    position:absolute;
-    left:1280px;
-    top:0;
-}
+
 
 #largepanel {
     position:absolute;
@@ -161,6 +229,7 @@ body {
     margin-top: 80px;
 }
 
+/* TIMER */
 /* From https://alvarotrigo.com/blog/how-to-make-a-progress-bar-in-css/ */
 #timer {
     position:absolute;
@@ -182,41 +251,39 @@ body {
     width: 0%;
   }
 
-/* From https://codepen.io/t_afif/pen/RwQZLYb */
-progress[value] {
-    --w: 600px; /* the width*/
-    --color:  /* the progress color */
-      linear-gradient(#fff8,#fff0),
-      repeating-linear-gradient(135deg,#0003 0 10px,#0000 0 20px),
-      green;
-  
-    --background: lightgrey; /* the background color */
-  
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    border: none;
-    width: var(--w);
-    height:100px;
-    margin: 0 10px;
-    border-radius: 1em;
-    background: var(--background);
-  }
-  progress[value]::-webkit-progress-bar {
-    border-radius: 1em;
-    background: var(--background);
-  }
-  progress[value]::-webkit-progress-value {
-    border-radius: 1em;
-    background: var(--color);
-  }
-  progress[value]::-moz-progress-bar {
-    border-radius: 1em;
-    background: var(--color);
-  }
 
+
+  /* SCRATCH  -  used by GSAP testing script */
 
 .container-centre {
     text-align: center;
 }
 
+#buttonlist {
+    position:absolute;
+    transform-origin: top left;
+    /* background-color: rgba(128,128,0,0.4); */
+    top:0;
+    left:0;
+    width: 1920px;
+    margin:0;
+    padding:0;
+    z-index: 999;
+}
+
+#test1 {
+    position:absolute;
+    left:0px;
+    top:0px;
+    width:100px;
+    height:100px;
+    border: 1px solid rgb(0,255,0);
+}
+#test2 {
+    position:absolute;
+    left:0px;
+    top:0;
+    width:100px;
+    height:100px;
+    border: 1px solid rgb(255,0,255);
+}

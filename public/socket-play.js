@@ -6,7 +6,6 @@ const URL = 'http://localhost:3000';
 // URL of undefined means io will connect to the window.location (suitable if hosting at same place as socket-server is running)
 clientOptions = {};
 const socket = io();
-let timer;	// general purpose timer to remove content after a delay
 
 console.log('socket-play.js:: Hello:', URL, window.location, location.hash);
 
@@ -60,11 +59,6 @@ socket.on('playerrole', (role) => {
 	console.log('playerrole:', role);
 	DOMplayerRole(role);
 })
-socket.on('buttonselect', (buttons) => {
-	console.log('buttonselect:', buttons);
-	DOMbuttonSelect(buttons)
-})
-
 socket.on('connect', onConnect);
 socket.on('disconnect', onDisconnect);
 socket.on('player', onPlayer);

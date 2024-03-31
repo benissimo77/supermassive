@@ -14,7 +14,7 @@
         <h1>Welcome</h1>
         <form method='post' id="gameform" name="gameform" onsubmit="return checkForm()">
             <label for="name" name="namelabel">Enter your name:</label><br>
-            <input type="text" id="name" name="name"><br>
+            <input type="text" id="name" name="name" maxlength="15"><br>
             <label for="room" name="roomlabel">Enter room name:</label><br>
             <input type="text" id="room" name="room" maxlength="4">
             <br/>
@@ -56,7 +56,7 @@
         console.log('select avatar:', e.target.parent);
         document.getElementById('avatar').value = e.target.id;
         document.getElementById('submit').scrollIntoView({ behavior: "smooth"});
-        gsap.set("#gallerycontainer .gallery", { borderColor: "darkblue" });
+        gsap.set("#gallerycontainer .gallery", { borderColor: "#051C55" });
         e.target.parentElement.style.borderColor = "darkorange";
     }
     const avatarlist =[ 12138118,
@@ -92,7 +92,7 @@
         addAvatar(element);
     });
     function addAvatar(element) {
-        console.log('addAvatar:', element);
+        // console.log('addAvatar:', element);
         const gallery = document.getElementById("gallerycontainer");
         const newAvatar = document.createElement('div');
         newAvatar.setAttribute('class', 'gallery');
@@ -102,8 +102,5 @@
         newAvatar.addEventListener("click", selectAvatar);
         gallery.appendChild(newAvatar);
     }
-    const avatars = document.querySelectorAll(".gallery img");
-    console.log('Avatars:', avatars);
-
 </script>
 

@@ -7,73 +7,68 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Titan+One&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.4/Draggable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.4/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.4/MotionPathPlugin.min.js"></script>
     <link rel="stylesheet" href="css/gsap.css">
-    <link rel="stylesheet" href="css/main.css">
 </head>
 
 <body>
-    <button onclick="toX(0)" type="button">To 0 X</button>
-    <!-- <button onclick="toX(960)" type="button">To 960 X</button> -->
-    <button onclick="toX(1920)" type="button">To 1920 X</button>
-    <button onclick="toY(0)" type="button">To 0 Y</button>
-    <!-- <button onclick="toY(540)" type="button">To 540 Y</button> -->
-    <button onclick="toY(1080)" type="button">To 1080 Y</button>
-    <!-- <button onclick="fromX(600)" type="button">From 600 X</button> -->
-    <!-- <button onclick="setXY(960,540)" type="button">Set Centre</button> -->
-    <button onclick="setXY(0,0)" type="button">Set TL</button>
-    <button onclick="setXY(1920,1080)" type="button">Set BR</button>
-    <!-- <button onclick="listToX(0)" type="button">List To0</button> -->
-    <!-- <button onclick="listToX(960)" type="button">List To640</button> -->
-    <!-- <button onclick="setScale(0.5)" type="button">Half-scale</button> -->
-    <button onclick="setScale(1)" type="button">1-scale</button>
-    <button onclick="setScale(1.5)" type="button">1.5-scale</button>
-    <!-- <button onclick="setAvatarScale(0.5)" type="button">Av Half-scale</button>
-    <button onclick="setAvatarScale(2)" type="button">Av 2x-scale</button>
-    <button onclick="setKilledScale(0.5)" type="button">Killed half-scale</button> -->
-    <!-- <button onclick="adjustPlayerNameSizes()" type="button">Adjust names</button> -->
+    <div id="buttonlist">
+        <!-- <button onclick="toX(0)" type="button">to Left</button>
+        <button onclick="toX(1918)" type="button">to Right</button> -->
+        <button onclick="toY(0)" type="button">to Top</button>
+        <button onclick="toY(540)" type="button">to Centre</button>
+        <button onclick="toY(1080)" type="button">to Bottom</button>
+        <button onclick="toDiv('test1')" type="button">to Div1</button>
+        <button onclick="toDiv('3456')" type="button">to Div2</button>
+        <!-- <button onclick="divMove('test1', 20)" type="button">Div1 +</button>
+        <button onclick="divMove('test1', -20)" type="button">Div1 -</button>
+        <button onclick="divMove('test1', 0, -20)" type="button">Div1 ^</button>
+        <button onclick="divMove('test1', 0, 20)" type="button">Div1 v</button> -->
+        <!-- <button onclick="setScale(0.6)" type="button">0.6-scale</button> -->
+        <button onclick="setScale(1)" type="button">1-scale</button>
+        <button onclick="setScale(1.5)" type="button">1.5-scale</button>
 
-    <!-- Some experiments with performing tweened layouts for different game states -->
-    <button onclick="layoutPlayersList()" type="button">Layout list</button>
-    <button onclick="layoutPlayersCircle()" type="button">Layout circle</button>
-    <button onclick="startSpinPlayersCircle()" type="button">Spin circle</button>
-    <button onclick="stopSpinPlayersCircle()" type="button">Stop spin circle</button>
-    <button onclick="layoutDeadPlayers()" type="button">Layout dead</button>
-    <button onclick="playerKilledByWolves()" type="button">Wolf kill</button>
-    
-        <div id="playerlist">
-            <div class="player">
-                <div class="pixel"></div>
-                <div class='avatar'>
-                    <img src="/img/avatar/image-from-rawpixel-id-12360465-original.png">
-                </div>
-                <div class="playernamepanel">
-                    <div class="playername">Short</div>
-                </div>
-            </div>
-            <div class="player">
-                <div class="pixel"></div>
-                <div class="avatar">
-                    <img src="/img/avatar/image-from-rawpixel-id-12474909-original.png">
-                </div>
-                <div class="playernamepanel">
-                    <div class="playername">Player&nbsp;2BUTaverylongname...s.s</div>
-                </div>
-            </div>
-            <div class="player">
-                <div class="pixel"></div>
-                <div class="avatar">
-                    <img src="/img/avatar/image-from-rawpixel-id-13100182-original.png">
-                </div>
-                <div class="playernamepanel">
-                    <div class="playername">WWWWWWWWWW12</div>
-                </div>
-            </div>
+        <!-- Some experiments with performing tweened layouts for different game states -->
+        <button onclick="onGameState()" type="button">GameState</button>
+        <button onclick="buttonArrangeCandidates()" type="button">Candidates</button>
+        <button onclick="buttonAssignNewParent('test1')" type="button">Re-Parent1</button>
+        <button onclick="buttonAssignNewParent('6789')" type="button">Re-Parent2</button>
+        <!-- <button onclick="layoutPlayersCircle()" type="button">Layout circle</button>
+        <button onclick="startSpinPlayersCircle()" type="button">Spin circle</button>
+        <button onclick="stopSpinPlayersCircle()" type="button">Stop spin circle</button> -->
+        <!-- <button onclick="layoutDeadPlayers()" type="button">Layout dead</button> -->
+        <button onclick="buttonDayVoteStart()" type="button">Vote start</button>
+        <button onclick="buttonAddVoters()" type="button">Add voters</button>
+        <button onclick="buttonDoVote()" type="button">Vote</button>
+        <button onclick="buttonDoSafe()" type="button">Safe</button>
+        <button onclick="buttonDayVoteResult()" type="button">Results</button>
+
+        <button onclick="playerKilledByWolves()" type="button">Wolf kill</button>
+    </div>
+
+    <!-- Containers to hold the various lists of players -->
+        <div id="playerlist"></div>
+        <div id="nightphase">
+            <img src="/img/nighttime-fullsize.png" alt="Nighttime" width="240" class="paneltop">
+            <div id="killedbywolves"></div>
         </div>
-        <div id="killedbywolves"></div>
-        <div id="killedbyvillagers"></div>
+        <div id="dayphase">
+            <img src="/img/daytime-fullsize.png" alt="Daytime" width="240">
+            <div id="killedbyvillagers"></div>
+        </div>
+        
+        <div id="voters"></div>
+        <div id="candidates"></div>
+        <div id="safe"></div>
+
+        <div id="timer"> 
+            <div class="timer_progress"></div>
+        </div>
+        
+        <div id="test1" class="debug"></div>
+        <div id="test2" class="debug"></div>
+
         <div id="gameoptions">
             <div class="container text-center">
                 <div class="mb-3">
@@ -94,10 +89,165 @@
         </div>
 
 
-    <!-- Useful to put custom Javascript code at the end to ensure DOM is loaded -->
-    <script src="gsap.js"></script>
-    <!-- <script src="timelines.js"></script> -->
-    <!-- <script src="https://s3-us-west-2.amazonaws.com/s.cdpn.io/16327/GSDevTools3.min.js"></script> -->
+        <!-- Content for the game itself -->
+        <div id="largepanel"></div>
 
+        <div id="timer"> 
+            <div class="timer_progress"></div>
+        </div>
+
+
+    <!-- Useful to put custom Javascript code at the end to ensure DOM is loaded -->
+    <script src="vm.js"></script>
+    <script src="domhost.js"></script>
+
+    <!-- Code specific to this test page - initialise some players and add them as if they joined via socket.io -->
+    <script>
+        var playerlist = [
+                {"name": "Player 1", "avatar": "12360465", socketid:"1234", alive:true},
+                {"name": "Player 2BUTaverylongname...s.s", "avatar": "12474909", socketid:"2345", alive:true},
+                {"name": "Player 3", "avatar": "13100182", socketid:"3456", alive:true},
+                {"name": "Player 4", "avatar": "12360465", socketid:"4567", alive:true},
+                {"name": "Player 5", "avatar": "12474909", socketid:"5678", alive:true},
+                {"name": "Player 6", "avatar": "13100182", socketid:"1789", alive:true},
+                {"name": "Player 7", "avatar": "12360465", socketid:"7890", alive:true},
+                {"name": "Player 8", "avatar": "12474909", socketid:"1901", alive:true},
+                {"name": "Player 9", "avatar": "13100182", socketid:"9012", alive:true},
+                {"name": "Player 10", "avatar": "12360465", socketid:"0123", alive:false, killphase:'Night'},
+                {"name": "Player 11", "avatar": "12474909", socketid:"wqeweq", alive:false, killphase:'Night'},
+                {"name": "Player 12", "avatar": "13100182", socketid:"ASas", alive:false, killphase:'Night'},
+                {"name": "WWWWWWWWWW13", "avatar": "12138846", socketid:"fdsgsdg", alive:false, killphase:'Day'},
+                {"name": "WWWWWWWWWW14", "avatar": "12139963", socketid:"ddddddd", alive:true, killphase:'Day'},
+                {"name": "WWWWWWWWWW15", "avatar": "12140600", socketid:"eeeeeee", alive:false, killphase:'Day'},
+                {"name": "WWWWWWWWWW16", "avatar": "12436639", socketid:"fffffff", alive:true, killphase:'Day'},
+
+            ]
+        var voters = playerlist.filter(player => player.alive & player.socketid.length < 5);
+
+        gameState.started = true;
+        DOMaddPlayers(playerlist);
+
+        // DOMaddPlayer(playerlist[0])
+        // onGameState();
+        // buttonDayVoteStart();
+        // buttonDayVoteResult();
+
+    function toX(x) {
+        console.log('toX:', x);
+        const testPlayer = document.getElementById('1234');
+        const container = testPlayer.parentElement;
+        const containerRect = container.getBoundingClientRect();
+        console.log( "toX:", testPlayer.getBoundingClientRect(), containerRect );
+        gsap.to(testPlayer, { x: x - screenToCanvasX(containerRect.x), onComplete: () => { console.log( "onComplete:", testPlayer.getBoundingClientRect(), containerRect ); } });
+    }
+    function toY(y) {
+        console.log('toY:', y, canvasAdjustY(y));
+        let testPlayer = document.getElementById('1234');
+//        testPlayer = document.getElementById('test1');
+        const container = testPlayer.parentElement;
+        const containerRect = container.getBoundingClientRect();
+        const newY = canvasAdjustY(y) - screenToCanvasY(containerRect.y)
+        console.log( "toY:", newY );
+        gsap.to(testPlayer, {
+            y: newY,
+            onComplete: () => {
+                testPlayer.setAttribute("data-y", newY);
+                console.log('Rect:', testPlayer.getBoundingClientRect());
+            }
+        })
+    }
+    function toDiv(div) {
+        const testPlayer = document.getElementById('1234');
+        const container = testPlayer.parentElement;
+        const containerRect = container.getBoundingClientRect();
+        const target = document.getElementById(div);
+        let targetRect = target.getBoundingClientRect();
+        const newY = screenToCanvasY(targetRect.y) - screenToCanvasY(containerRect.y);
+        console.log( "toDiv:", testPlayer.getBoundingClientRect(), targetRect );
+        gsap.to(testPlayer, {
+            x: screenToCanvasX(targetRect.x) - screenToCanvasX(containerRect.x),
+            y: newY,
+            onComplete: () => {
+                targetRect = target.getBoundingClientRect();
+                console.log( "onComplete:", testPlayer.getBoundingClientRect(), targetRect );
+                testPlayer.setAttribute("data-y", newY);
+            }
+        });
+    }
+    function divMove(div, deltaX, deltaY=0) {
+        const target = document.getElementById(div);
+        let targetRect = target.getBoundingClientRect();
+        console.log('divMove:', targetRect, screenToCanvasX(targetRect.x), screenToCanvasY(targetRect.y));
+        // getBoundingClientRect is measured in screen coords, so we need to convert to canvas coords
+        gsap.to(target, {
+            x: screenToCanvasX(targetRect.x) + deltaX,
+            y: screenToCanvasY(targetRect.y) + deltaY,
+            onComplete: () => {
+                targetRect = target.getBoundingClientRect();
+                console.log( "onComplete:", targetRect, screenToCanvasX(targetRect.x), screenToCanvasY(targetRect.y) );
+            }
+        });
+    }
+        // onAssignNewParent
+    // Function to test moving elements to a new parent
+    function buttonAssignNewParent(div) {
+        console.log('buttonAssignNewParent:');
+        var testPlayer = document.getElementById('1234');
+        var dead = document.getElementById(div);
+        assignNewParent(testPlayer, dead);
+        // moveElementToMatchAnother(testPlayer, dead);
+    }
+
+    function buttonAddVoters() {
+        const voters =  playerlist.filter(player => player.alive);
+        DOMaddVoters(voters);
+        const tl = DOMarrangeVoters();
+        tl.play();
+    }
+    // Function to test the layout of the candidates - create the vote object to simulate what will be sent by socket-server
+    // then call onDayVoteStart with the vote object - this is how it will be done in the real game
+    function buttonDayVoteStart() {
+        const candidates = playerlist.filter(player => player.alive);
+        gameState.started = true;
+        onDayVoteStart( { voters:voters, candidates:candidates } );
+    }
+    function buttonDoVote() {
+        votes = [
+            { 'socketid': '1234', 'response': '3456' },
+            { 'socketid': '2345', 'response': '3456' },
+            { 'socketid': '3456', 'response': '1234' },
+            { 'socketid': '4567', 'response': '1234' },
+            { 'socketid': '5678', 'response': '1234' },
+        ];
+        const vote = votes[Math.floor(Math.random() * votes.length)];
+        DOMplayerVoted(vote);
+    }
+    // Test the arranging of players in safe panel
+    function buttonDoSafe() {
+        const safeCandidates = playerlist.filter(player => player.socketid.length > 4);
+        console.log(safeCandidates);
+        safeCandidates.forEach( c => { assignNewParent(document.getElementById(c.socketid), document.getElementById("safe")); });
+        const tl = gsap.timeline();
+        tl.add(DOMarrangePlayersInSafePanel());
+        tl.play();
+    }
+    function buttonDayVoteResult() {
+        const candidates = playerlist.filter(player => player.alive);
+        // Now make a dictionary with the keys being the socketid array above
+        const votes = {};
+        voters.forEach(voter => {
+            const vote = candidates[Math.floor(Math.random() * candidates.length/2) * 2].socketid;
+            // the key of this dictionary must be a string, so convert the socketid to a string
+            votes[voter.socketid] = vote;
+        });
+        console.log('buttonDayVoteResult:', candidates, votes);
+        onDayVoteResult( { candidates:candidates, votes:votes } );
+    }
+    function buttonArrangeCandidates() {
+        const tl = DOMarrangeCandidates();
+        tl.play();
+    }
+
+    </script>
 </body>
 </html>

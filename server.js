@@ -17,8 +17,8 @@ io.engine.use(sessionMiddleware);
 // });
 // Copilot is talking out of its AI-arse...
 
-// Start the server on port 3000
-const PORT = process.env.PORT || 3000;
+// Start the server on port 3001
+const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });

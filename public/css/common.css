@@ -1,0 +1,18 @@
+/* Apply box-sizing: border-box to all elements */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+
+html, body {
+    font-family: "Arial", sans-serif;
+    font-size: 1rem;
+    background-color:#051C55; /* dark blue */
+    color:darkorange;
+    margin:0;
+    padding:0;
+    height: 100%;
+}
+

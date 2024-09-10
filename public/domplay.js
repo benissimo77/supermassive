@@ -21,7 +21,7 @@ function DOMaddPlayer(player) {
 function DOMplayerRole(role) {
 
     // fill out the role panel and make the role button visible so user can see their role
-    document.getElementById('role').innerHTML = `
+    document.getElementById('panel-role').innerHTML = `
         Your role:<br/><br/>${role}
         `;
     document.getElementById('role').style.display = 'none';
@@ -32,7 +32,7 @@ function DOMplayerRole(role) {
 
 function buttonRolePress(e) {
     console.log('buttonRolePress');
-    document.getElementById('role').style.display = 'block';
+    document.getElementById('panel-role').style.display = 'block';
     document.getElementById('content').style.display = 'none';
 }
 function buttonRoleRelease() {
@@ -80,7 +80,7 @@ function screenToCanvasX(x) {
 }
 
 function setAvatarScale(x) {
-    console.log('setAvatarScale:', x);
+    // console.log('setAvatarScale:', x);
     gsap.to(".player", { scaleX: x, scaleY: x })
 }
 
@@ -119,7 +119,7 @@ function screenSizeBody() {
     // Copy from below but don't use the screenOffset just scale x and y independently
     const windowInnerWidth  = window.innerWidth;
     const windowInnerHeight = window.innerHeight;
-    console.log('PLAY:: Viewport:', windowInnerWidth, windowInnerHeight);
+    // console.log('PLAY:: Viewport:', windowInnerWidth, windowInnerHeight);
     const scaleX = window.innerWidth / 720;
     setAvatarScale(scaleX);
 }

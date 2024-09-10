@@ -3,42 +3,19 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0">
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Titan+One&display=swap" rel="stylesheet">
+        <!-- <link href="https://fonts.googleapis.com/css2?family=Titan+One&display=swap" rel="stylesheet"> -->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.4/gsap.min.js"></script>
-        <link rel="stylesheet" href="/css/play.css">
+        <link rel="stylesheet" href="./css/common.css">
     </head>
     <body>
-        <div class="buttons">
-            <button onclick="connect()">Connect</button>
-            <button onclick="disconnect()">Disconnect</button>
-        </div>
-        <div class="container-centre">
-            <div id="rolebutton">
-                <button onmousedown="buttonRolePress()" onmouseup="buttonRoleRelease()" ontouchstart="buttonRolePress()" ontouchend="buttonRoleRelease()" onselectstart="return false" type="button">ROLE</button>
-            </div>
-            <div id="content">
-                <h1>Welcome!</h1>
-                <p>Waiting to start...</p>    
-            </div>
-            <div id="role"></div>
-        </div>
+
+        <!-- This is always used to display the player's name and avatar at the bottom (although maybe for some games its not needed) -->
         <div id="playercontainer"></div>
 
-
         <script src="/socket.io/socket.io.js"></script>
-        <script src="/socket-play.js"></script>
+        <script src="/play.socket.js"></script>
         <script src="/domplay.js"></script>        
     </body>
 </html>
 
 
-<script>
-    function connect() {
-        console.log('connect');
-        socket.connect();
-    }
-    function disconnect() {
-        console.log('disconnect');
-        socket.disconnect();
-    }
-</script>

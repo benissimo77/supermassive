@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+    <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Titan+One&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Lilita+One&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="css/lobby.css">
+    </head>
+    <body style="background-color: darkblue;">
+        <p>Welcome Host</p>
+        <button id="buttonQuiz" type="button">QUIZ</button>
+        <button id="buttonWerewolves" type="button">WEREWOLVES</button>
+        <button id="buttonTest" type="button">TEST</button>
+
+        <div id="playerlist"></div>
+        
+        <div id="instructions">
+            <div id="instructions-title">VIDEOSWIPE.NET</div>
+            <div id="instructions-content">
+                <h1>Room: WOLF</h1>
+            </div>
+            <div id="instructions-close">
+                <button id="buttonHostComplete" type="button">READY!</button>
+            </div>
+        </div>
+            
+        <script src="/socket.io/socket.io.js"></script>
+        <script src="lobby.min.js"></script>
+    </body>
+</html>
+
+
+

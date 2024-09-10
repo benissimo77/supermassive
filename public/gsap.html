@@ -19,6 +19,7 @@
         <button onclick="toY(0)" type="button">to Top</button>
         <button onclick="toY(540)" type="button">to Centre</button>
         <button onclick="toY(1080)" type="button">to Bottom</button>
+        <button onclick="nudgeX(20)" type="button">nudgeX</button>
         <button onclick="toDiv('test1')" type="button">to Div1</button>
         <button onclick="toDiv('3456')" type="button">to Div2</button>
         <!-- <button onclick="divMove('test1', 20)" type="button">Div1 +</button>
@@ -30,8 +31,7 @@
         <button onclick="setScale(1.5)" type="button">1.5-scale</button>
 
         <!-- Some experiments with performing tweened layouts for different game states -->
-        <button onclick="onGameState()" type="button">GameState</button>
-        <button onclick="buttonArrangeCandidates()" type="button">Candidates</button>
+        <button onclick="buttonGameState()" type="button">GameState</button>
         <button onclick="buttonAssignNewParent('test1')" type="button">Re-Parent1</button>
         <button onclick="buttonAssignNewParent('6789')" type="button">Re-Parent2</button>
         <!-- <button onclick="layoutPlayersCircle()" type="button">Layout circle</button>
@@ -156,6 +156,14 @@
             }
         })
     }
+    function nudgeX(deltaX) {
+        const testPlayer = document.getElementById('voter-1234');
+        const container = testPlayer.parentElement;
+        const containerRect = container.getBoundingClientRect();
+        const newX = testPlayer.getBoundingClientRect().x + deltaX - containerRect.x;
+        console.log( "nudgeX:", testPlayer.getBoundingClientRect(), containerRect );
+        gsap.to(testPlayer, { x: testPlayer.getBoundingClientRect().x + deltaX, onComplete: () => { console.log( "onComplete:", testPlayer.getBoundingClientRect(), containerRect ); } });
+    }
     function toDiv(div) {
         const testPlayer = document.getElementById('1234');
         const container = testPlayer.parentElement;
@@ -188,20 +196,30 @@
             }
         });
     }
-        // onAssignNewParent
+
+    function buttonGameState() {
+        console.log('buttonGameState:');
+        TLgameState().play();
+    }
+
+    // onAssignNewParent
     // Function to test moving elements to a new parent
     function buttonAssignNewParent(div) {
         console.log('buttonAssignNewParent:');
-        var testPlayer = document.getElementById('1234');
-        var dead = document.getElementById(div);
-        assignNewParent(testPlayer, dead);
-        // moveElementToMatchAnother(testPlayer, dead);
+        var testPlayer = document.getElementById('voter-1234');
+        var newParent = document.getElementById(div);
+        // test placing player in the voters panel for a candidate - should be at -1100px to keep at left edge but doesn't seem to work
+        //newParent = document.getElementById('1234').getElementsByClassName('voters')[0];
+        assignNewParent(testPlayer, newParent);
+        // Above function will NOT work when assigning a new parent as a voter - need to use the following instead
+        //vm.addDOMVoter(testPlayer, '1234');
+        // console.log('Updated VM:', vm.getVoters('1234'));
     }
 
     function buttonAddVoters() {
         const voters =  playerlist.filter(player => player.alive);
         DOMaddVoters(voters);
-        const tl = DOMarrangeVoters();
+        const tl = TLarrangeVoters();
         tl.play();
     }
     // Function to test the layout of the candidates - create the vote object to simulate what will be sent by socket-server
@@ -209,7 +227,8 @@
     function buttonDayVoteStart() {
         const candidates = playerlist.filter(player => player.alive);
         gameState.started = true;
-        onDayVoteStart( { voters:voters, candidates:candidates } );
+        const tl = TLdayVoteStart( { voters:voters, candidates:candidates } );
+        tl.play();
     }
     function buttonDoVote() {
         votes = [
@@ -228,7 +247,7 @@
         console.log(safeCandidates);
         safeCandidates.forEach( c => { assignNewParent(document.getElementById(c.socketid), document.getElementById("safe")); });
         const tl = gsap.timeline();
-        tl.add(DOMarrangePlayersInSafePanel());
+        tl.add(TLarrangePlayersInSafePanel());
         tl.play();
     }
     function buttonDayVoteResult() {
@@ -236,18 +255,16 @@
         // Now make a dictionary with the keys being the socketid array above
         const votes = {};
         voters.forEach(voter => {
-            const vote = candidates[Math.floor(Math.random() * candidates.length/2) * 2].socketid;
+            let vote = candidates[Math.floor(Math.random() * candidates.length/2)].socketid;
+            vote = candidates[0].socketid;
             // the key of this dictionary must be a string, so convert the socketid to a string
             votes[voter.socketid] = vote;
         });
         console.log('buttonDayVoteResult:', candidates, votes);
-        onDayVoteResult( { candidates:candidates, votes:votes } );
-    }
-    function buttonArrangeCandidates() {
-        const tl = DOMarrangeCandidates();
+        const tl = TLdayVoteResult( { candidates:candidates, votes:votes } );
+        tl.add( () => { console.log('DayVoteResult: Done'); TLdayKill(candidates[0].socketid).play(); } );
         tl.play();
     }
-
     </script>
 </body>
 </html>

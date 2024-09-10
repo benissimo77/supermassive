@@ -1,6 +1,11 @@
+import { gsap } from 'gsap';
+import viewModel from './vm.js';
+
+const vm = new viewModel();
+
 // Global variable for holding useful data representing the game eg number of players
 // This is updated by the server and used to update the game state
-// Not sure if I'll use this in the end, or just rely on the server sending relevent data when needed
+// Not sure if I'll use this in the end, or just rely on the server sending relevent data when needed   
 var gameState = {
     nplayers: 0,
     playerScale: 1,
@@ -9,7 +14,7 @@ var gameState = {
 
 // DOMcreatePlayer
 // Accepts a player object and creates the HTML for the player character
-function DOMcreatePlayer(player) {
+const DOMcreatePlayer = function(player) {
     // console.log('DOMcreatePlayer:', player);
     var DOMplayer = document.createElement('div');
     DOMplayer.setAttribute('class', 'player');
@@ -27,6 +32,7 @@ function DOMcreatePlayer(player) {
     `;
     return DOMplayer;
 }
+
 // DOMremovePlayer
 // Accepts a socketid and removes the player from the DOM - executes on a socket disconnect event
 function DOMremovePlayer(socketid) {
@@ -43,38 +49,25 @@ function DOMremovePlayer(socketid) {
 // DOMaddPlayer
 // Accepts a player object and builds the HTML to make the player character
 // This should not need to be created again - this function ONLY called when a new player joins
-function DOMaddPlayer(player) {
+const DOMaddPlayer = function(player) {
     // console.log('DOMaddPlayer:', player);
     var DOMplayer = document.getElementById(player.socketid);
     if (!DOMplayer) {
         DOMplayer = DOMcreatePlayer(player);
         document.body.appendChild(DOMplayer);    // Note: it will be re-parented later
         vm.addDOMElement(DOMplayer, 'document');
-        gameState.nplayers++;
     }
 
-
-    // If player has (re-)joined mid-game then they need to join with the current gameState, otherwise just add random movement
-    // slight difference to usual architecture - DOM functions return a timeline to be appended to the main timeline
-    // in this case the function returns the created player - so instead of returning the timeline we just play it immediately
-    if (gameState.started) {
-
-        // Decide which container to place this player (might already be dead - then disconnected/reconnected)
-        var container = 'playerlist';
-        if (player.alive == false) {
-            if (player.killphase == 'Day') {
-                container = 'killedbyvillagers';
-            } else {
-                container = 'killedbywolves';
-            }
+    // Decide which container to place this player (might already be dead - then disconnected/reconnected)
+    var container = 'playerlist';
+    if (player.alive == false) {
+        if (player.killphase == 'Day') {
+            container = 'killedbyvillagers';
+        } else {
+            container = 'killedbywolves';
         }
-        assignNewParent(DOMplayer, document.getElementById(container));
-        // DOMarrangePlayersInPanel(container).play();
-        TLgameState().play();
-
-    } else {
-        addRandomMovement(DOMplayer);
     }
+    assignNewParent(DOMplayer, document.getElementById(container));
     return DOMplayer;
 }
 
@@ -83,7 +76,7 @@ function DOMaddPlayer(player) {
 // This ensures the host is fully caught up with all players in the room.
 // After this the host will receive addplayer events for any new players
 // During the game the separate event gamestate is used to move items around the screen
-function DOMaddPlayers(playerlist) {
+const DOMaddPlayers = function(playerlist) {
     var playerListDOM = document.getElementById("playerlist");
     playerListDOM.innerHTML = '';
     gameState.nplayers = 0;
@@ -125,12 +118,13 @@ function DOMplayerVoted(player) {
 // player scale is determined using a reference width of 480px - so the player will be scaled to fit the panel
 // Note: this only works for a vertical list at the moment, will need to be extended to handle horizontal lists
 // Note: used to use getBoundingClientRect but this is not reliable - use the panel offset width and height instead
-function TLarrangePlayersInPanel(panel, align='top', distribute=false) {
+const TLarrangePlayersInPanel = function(panel, align='top', distribute=false) {
     const DOMpanel = document.getElementById(panel);
     const players = vm[panel];
     const [playerStart, playerSpacing] = calculatePlayerPositions(players.length, DOMpanel.offsetHeight, align, distribute);
     const playerScale = DOMpanel.offsetWidth / 480;
     const tl = gsap.timeline();
+    console.log('TLarrangePlayersInPanel:', panel, players, playerStart, playerSpacing);
     tl.addLabel("arrange")
     players.forEach( (player,index) => {
         tl.add( gsap.to(document.getElementById(player.id), {
@@ -465,12 +459,33 @@ function TLdayKill(dead) {
     return tl;
 }
 
+// TLnightKill
+// Called by the server when there has been a (successful) night kill
+// This function is responsible for moving the killed player to the appropriate container
+// Almost identical to dayKill but with a different container
+function TLnightKill(dead) {
+    console.log('TLnightKill:', dead);
+    const el = document.getElementById(dead);
+    const tl = gsap.timeline();
+    tl.to("#dayphase", { y: 0 });
+    tl.to("#nightphase", { y: 0 }, "<+=0.5" );
+    // re-assign the parent right away since we want to animate the player relative to screen coords
+    assignNewParent(el, document.getElementById("playerlist"));
+    tl.add( TLdoDeathAnimation([dead]) );
+    // this technique seems to work - add a callback function which assigns the parent and then calls the function which relies on the parent being set correctly
+    tl.add( () => {
+        assignNewParent(el, document.getElementById("killedbywolves") );
+        tl.add(TLgameState());
+    });    
+    return tl;
+}
+
 // TLdoDeathAnimation
 // Called when a player has been killed either day or night - deadArray is an array of socketids of the dead players
 function TLdoDeathAnimation(deadArray) {
     // Timeline animation for this since a few different things happening BUT will never need to repeat or interrupt
     // so should be safe for a basic timeline animation
-    tl = gsap.timeline();
+    const tl = gsap.timeline();
     deadArray.forEach( (dead, index) => {
         const el = document.getElementById(dead);
         tl.add( gsap.to(el, {
@@ -482,23 +497,18 @@ function TLdoDeathAnimation(deadArray) {
     return tl;
 }
 
-// addRandomMovement
-// Accepts an element and generates a random tween to a new location - callback added to tween so that it repeats
-// Note although the canvas is 1920x1080 we adjust x and y range to allow for the width and height of the player
-function addRandomMovement(element) {
-    // console.log('addRandomMovement:', element.getAttribute('id') );
-    gsap.to(element, {
-        x: gsap.utils.random(0,1820),
-        y: canvasAdjustY( gsap.utils.random(80,1080) ),
-        duration: gsap.utils.random(1,5,0.2),
-        delay: gsap.utils.random(0,3,0.2),
-        onComplete: addRandomMovement,
-        onCompleteParams:[element]
-    });
+function TLgameOver() {
+    const tl = gsap.timeline();
+    tl.to("#dayphase", { y: -1080 });
+    tl.to("#nightphase", { y: -1080 }, "<+=0.5" );
+    tl.to("#playerlist", { x: -1920 } );
+    tl.to("body", { backgroundColor: "#051C55" });
+    return tl;
 }
 
-
 // Recursive function keeps calling itself until width is small enough
+// NOTE: not using this at the moment, CSS defines playername as overflow:ellipsis which is quite neat
+// This function could be re-purposed for sizing the text in buttons to make them fit
 function adjustPlayerNameSize(el, size=40) {
     gsap.set(el, { fontSize: size } );
     console.log(el.innerHTML, ":", screenToCanvasX(el.clientWidth));
@@ -589,9 +599,14 @@ function canvasAdjustY(y) {
     return Math.floor(y / bodyScale * window.innerHeight / 1080);
 }
 
-function setWindowScale(x) {
-    console.log('setWindowScale:', x);
-    gsap.to("body", { scaleX: x, scaleY: x })
+function setWindowScale(x, instant=true) {
+    console.log('setWindowScale:', x, instant, document.getElementById("body"), gsap);
+    if (instant) {
+        console.log('Instant scale:', x);
+        gsap.set("body", { scaleX: x, scaleY: x });
+    } else {
+        gsap.to("body", { scaleX: x, scaleY: x });
+    }
 }
 
 // Function copied from gsap site - useful utility function
@@ -604,10 +619,18 @@ function callAfterResize(func, delay) {
 }
 
 function init() {
+
     screenSizeBody();
     callAfterResize(screenSizeBody, 0.2);
 
     console.log('init:', vm);
+
+    // Experiment with adding new functions for the intro eg change the background colour
+    gsap.to("body", { backgroundColor: "#000000" });
+
+    // werewwolves.hmtl defines body as display:none to prevent drawing before everything set up
+    // now that everything is set up we can display the body
+    gsap.set("#wrapper", { display: "block" });
 }
 
 // Adjust the scale of the BODY tag and then everything uses 1920,1080 scale for positioning
@@ -650,4 +673,24 @@ function screenSizeBody() {
     } );
 }
 
-window.onload=init();
+
+  export const dom = {
+    DOMaddPlayer,
+    DOMaddPlayers,
+    DOMremovePlayer,
+    DOMaddVoters,
+    DOMplayerVoted,
+    TLarrangePlayersInPanel,
+    TLarrangePlayersInSafePanel,
+    TLarrangeVoters,
+    TLgameState,
+    DOMinstructions,
+    TLdayVoteStart,
+    TLdayVoteResult,
+    TLdayKill,
+    TLnightKill,
+    TLdoDeathAnimation,
+    TLgameOver,
+    init
+  }
+

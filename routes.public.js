@@ -1,6 +1,6 @@
 // ROUTES
 const express = require('express');
-const router = express.Router();
+const router = express.Router({ strict: true });
 
 // Define a route for the home page
 router.get('/xxx', (req, res) => {
@@ -38,8 +38,9 @@ router.post('/', (req, res) => {
 	res.redirect(redirect);
 })
 
+
 // // And a route for the expected shape of the URL when a player wants to play a game (ROOM/NAME)
-// // Passed her via successful redirect from above POST request, also useful if the user refreshes the page in their browser
+// // Passed here via successful redirect from above POST request, also useful if the user refreshes the page in their browser
 router.get('/play', (req, res) => {
 	console.log('routes.get /play:', req.params, req.session, req.query, req.originalUrl);
 	// perform validation on room / name here...
@@ -47,28 +48,11 @@ router.get('/play', (req, res) => {
 })
 
 
-router.get('/host', (req, res) => {
-	console.log('router.get /host');
-	// Authorise user here
-
-	// If already in a room then use it, otherwise generate random room name
-	if (req.session.room) {
-		console.log('Already in room:', req.session.room);
-	} else {
-		req.session.room = generateNewRoomName();
-	}
-	req.session.host = true;
-	res.sendFile('host.html', { root: './public' })
-})
-
 // For development - admin console
 router.get('/admin', (req, res) => {
 	// Authorise user here
 	res.sendFile('index.html', { root: './public/admin' })
 })
 
-const generateNewRoomName = () => {
-	return 'WOLF';
-}
 
 module.exports = router;

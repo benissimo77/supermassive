@@ -1,4 +1,4 @@
-// src/allModels.js
+
 
 class Player {
 	constructor(obj) {

@@ -1,6 +1,10 @@
-class AudioManager {
-    constructor() {
+// AudioManager requires the gsap library to handle audio fade in/out effects
+import { gsap } from 'gsap';
 
+export class AudioManager {
+    constructor() {
+        console.log('AudioManager.constructor');
+        
         // global duration parameter to control fade in/out duration
         this.duration = 2;
         this.currentlyPlaying = {
@@ -9,7 +13,7 @@ class AudioManager {
             NARRATOR: null
         };
     }
-
+    
     stopAllAudio() {
         for (const type in this.currentlyPlaying) {
             if (this.currentlyPlaying[type]) {
@@ -18,6 +22,8 @@ class AudioManager {
         }
     }
     playTrack(track) {
+        console.log('AudioManager.playTrack:', track.name, track.type);
+
         // If there's a track of the same type playing, fade it out
         if (this.currentlyPlaying[track.type]) {
             this.fadeOut(track.type);
@@ -44,10 +50,7 @@ class AudioManager {
     }
 }
 
-// Experiments with Audio object
-const audioManager = new AudioManager();
-
-class AudioTrack {
+export class AudioTrack {
     constructor(name, type, path, volume = 0.5) {
         this.name = name;
         this.type = type;
@@ -63,6 +66,7 @@ class AudioTrack {
     }
 
     play() {
+        console.log('AudioTrack.play:', this.name, this.path);
         this.audio.play();
     }
 
@@ -70,31 +74,11 @@ class AudioTrack {
         this.audio.pause();
         this.audio.currentTime = 0;
     }
+
 }
 
-const AudioTypes = {
+export const AudioTypes = {
     MUSIC: 'MUSIC',
     EFFECT: 'EFFECT',
     NARRATOR: 'NARRATOR'
-}
-
-const musicTracks = {
-    NIGHT: new AudioTrack('NIGHT', AudioTypes.MUSIC, '/audio/spookynight-1.mp3', 0.3),
-    MORNING: new AudioTrack('DAY', AudioTypes.MUSIC, '/audio/happyday-1.mp3'),
-}
-const effectTracks = {
-    WOLFHOWL: new AudioTrack('WOLFHOWL', AudioTypes['EFFECT'], '/audio/wolfhowl-1.mp3'),
-    WOLFATTACK: new AudioTrack('WOLFATTACK', AudioTypes['EFFECT'], '/audio/wolfattack-1.mp3')
-} 
-const narratorTracks = {
-    WAKEUP: new AudioTrack('WAKEUP', AudioTypes['NARRATOR'], '/audio/narrator-wakeup-1.mp3'),
-    WOLFOPEN: new AudioTrack('WOLFOPEN', AudioTypes['NARRATOR'], '/audio/narrator-wolf-openeyes-1.mp3'),
-    WOLFCLOSE: new AudioTrack('WOLFCLOSE', AudioTypes['NARRATOR'], '/audio/narrator-wolf-closeeyes-1.mp3'),
-    WITCHOPEN: new AudioTrack('WITCHOPEN', AudioTypes['NARRATOR'], '/audio/narrator-witch-openeyes-1.mp3'),
-    WITCHSAVE: new AudioTrack('WITCHSAVE', AudioTypes['NARRATOR'], '/audio/narrator-witch-save-1.mp3'),
-    WITCHCLOSE: new AudioTrack('WITCHCLOSE', AudioTypes['NARRATOR'], '/audio/narrator-witch-closeeyes-1.mp3'),
-    HEALEROPEN: new AudioTrack('HEALEROPEN', AudioTypes['NARRATOR'], '/audio/narrator-healer-openeyes-1.mp3'),
-    HEALERCLOSE: new AudioTrack('HEALERCLOSE', AudioTypes['NARRATOR'], '/audio/narrator-healer-closeeyes-1.mp3'),
-    SEEROPEN: new AudioTrack('SEERHOPEN', AudioTypes['NARRATOR'], '/audio/narrator-seer-openeyes-1.mp3'),
-    SEERCLOSE: new AudioTrack('SEERCLOSE', AudioTypes['NARRATOR'], '/audio/narrator-seer-closeeyes-1.mp3'),
 }

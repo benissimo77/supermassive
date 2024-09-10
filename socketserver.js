@@ -1,5 +1,7 @@
 const cookie = require('cookie');
 const socketIO = require('socket.io');
+const cookieSignature = require('cookie-signature');
+
 const { instrument } = require("@socket.io/admin-ui");
 
 // Experiment with receiving the server variable from the requiring module...
@@ -42,7 +44,6 @@ module.exports = function (server) {
 	io.on('connection', (socket) => {
 
 		// For regular (production) use we will grab required data from session cookie
-		var cookies = socket.handshake.headers.cookie ? cookie.parse(socket.handshake.headers.cookie) : null;
 		const session = socket.request.session;
 
 		// For developement use we will grab required data from the URL query string
@@ -52,8 +53,6 @@ module.exports = function (server) {
 
 		// All-important is this line to create a userObj, either from query or from session (ideally merge)
 		let userObj = Object.fromEntries(urlParams);
-
-		console.log('io.connection:', socket.id, session, referer, params, urlParams, userObj);
 
 		// Session is already in the correct format - use it if URL query string doesn't have the required data
 		// Note: this can be hacked if the user simply adds room to their URL - but that's not a big deal for now 
@@ -65,7 +64,7 @@ module.exports = function (server) {
 		userObj.socketid = socket.id;
 
 		// console.log('io.connect: userObj:', userObj);
-		console.log('io.connection:', socket.id, userObj.room);
+		console.log('io.connection:', socket.id, session, referer, params, urlParams);
 
 		if (!rooms[userObj.room]) {
 			rooms[userObj.room] = new Room(io, userObj.room);
@@ -75,13 +74,17 @@ module.exports = function (server) {
 		// From https://socket.io/docs/v4/server-socket-instance/#socketrooms
 		// Its possible to add attributes to a socket and they will be readable later...
 		// Attach the room - this then gives an entry directly into the room on every event
-		socket.room = thisRoom;
+		// socket.room = thisRoom;
 		// I think the above only works during a single event - won't persist across events
 
 		// userJoinRoom performs all the relevant socket set up for this user in this room
 		thisRoom.addUserToRoom(socket, userObj);
 
 	})	// io.on('connection')
+
+	io.on('disconnection', (socket) => {
+		console.log('io.disconnect:', socket.id);
+	})
 
 	return io;
 }

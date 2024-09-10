@@ -77,7 +77,7 @@ function toX(x) {
 }
 function toY(y) {
     console.log('toY:', y);
-    gsap.to(".player", { y: canvasToScreenY(y, gameState.windowScaleY), stagger: 0.4, duration: 4, onComplete: toYComplete })
+    gsap.to(".player", { y: canvasAdjustY(y, gameState.windowScaleY), stagger: 0.4, duration: 4, onComplete: toYComplete })
 }
 function fromX(x) {
     console.log('fromX:', x);
@@ -85,7 +85,7 @@ function fromX(x) {
 }
 function setXY(x,y) {
     console.log('setXY:', x, y);
-    gsap.set(".player", { x:canvasToScreenX(x, gameState.windowScaleX), y:canvasToScreenY(y, gameState.windowScaleY) })
+    gsap.set(".player", { x:canvasToScreenX(x, gameState.windowScaleX), y:canvasAdjustY(y, gameState.windowScaleY) })
 }
 function listToX(x) {
     console.log('listToX:', x);
@@ -127,7 +127,7 @@ function layoutPlayersListOld() {
     gsap.to(".player",
     {
         x: canvasToScreenX(startX),
-        y: (index,target,targets) => { return canvasToScreenY(startY + index*100) },
+        y: (index,target,targets) => { return canvasAdjustY(startY + index*100) },
         z: (index,target,targets) => { return index },                    
         ease: "elastic.out(1,0.3)",
         stagger:0.4,
@@ -142,7 +142,7 @@ function layoutPlayersList() {
     layout_list.to("#playerlist .player",
     {
         x: canvasToScreenX(startX),
-        y: (index,target,targets) => { return canvasToScreenY(startY + index*100) },
+        y: (index,target,targets) => { return canvasAdjustY(startY + index*100) },
         z: (index,target,targets) => { return index },                    
         ease: "elastic.out(1,0.3)",
         stagger:0.4,
@@ -155,7 +155,7 @@ function layoutPlayersCircle() {
     // gsap.set("#playerlist .playernamepanel", { opacity: 0 });
     console.log('layoutPlayersCircle');
     var enter_circle = gsap.timeline();
-    enter_circle.to("#playerlist", { x: canvasToScreenX(640), y:canvasToScreenY(540), ease:"none", duration:3 } );
+    enter_circle.to("#playerlist", { x: canvasToScreenX(640), y:canvasAdjustY(540), ease:"none", duration:3 } );
     enter_circle.to("#playerlist .player", {
         x: (index,target,targets) => { 
             console.log(index, targets.length, Math.sin(index * 2 * Math.PI / targets.length));
@@ -198,7 +198,7 @@ function playerKilledByWolves() {
     tl = gsap.timeline();
     tl.to(el, {
         x: canvasToScreenX(980),
-        y: canvasToScreenY(580),
+        y: canvasAdjustY(580),
         scale: 2,
         duration: 2,
         ease: "ease:out"
@@ -206,7 +206,7 @@ function playerKilledByWolves() {
     tl.set(el.getElementsByClassName("avatar"), { alpha:0.5 } )
     tl.to(el, {
         x: canvasToScreenX(1620),
-        y: canvasToScreenY(100),
+        y: canvasAdjustY(100),
         scale: 0.5,
         onComplete: () => {
             document.getElementById("playerlist").removeChild(el);
@@ -242,7 +242,7 @@ function canvasToScreenX(x, scale=1) {
     return x;
 }
 // CURRENT version scaling based on screen width and then adjust Y position using the width scale
-function canvasToScreenY(y, scale=1) {
+function canvasAdjustY(y, scale=1) {
     return Math.floor( y * 1920 / window.innerWidth );
 }
 function screenToCanvasX(x, scale=1) {

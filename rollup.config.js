@@ -89,6 +89,20 @@ export default [
             }        
         ],
         plugins: [terser(), resolve()]
+    },
+    {
+        input: "src/play.common.js",
+        output: [
+            {
+                file: "public/play.common.min.js", // replace with desired output file path
+                format: "esm",
+                sourcemap: true,
+                globals: {
+                    io: 'io'
+                }
+            }        
+        ],
+        plugins: [terser(), resolve()]
     }
 
 

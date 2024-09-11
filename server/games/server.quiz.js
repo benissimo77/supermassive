@@ -34,8 +34,8 @@ class Quiz extends Game {
 							answers: ['Paris', 'London', 'Berlin', 'Madrid']
 						},
 						{
-							question: 'What is the capital of Spain?',
-							answers: ['Madrid', 'Paris', 'London', 'Berlin']
+							question: 'What is the capital of Spain? But this question is in reality far longer - meaning it might not fit in the space avialable... what happend in this case? Does it overflow???',
+							answers: ['Madrid', 'Paris', 'London', 'Berlin', 'And another answer', 'A sixth answer which is a long one' ]
 						},
 						{
 							question: 'What is the capital of Germany?',

@@ -12,6 +12,7 @@ body {
     font-size:1rem;
 }
 
+
 /* CONTAINERS */
 /* positioning of the container panels below done using a standard width of 1920px - body is scaled to make this always work */
 /* eg left 1600px is 320px from right edge of 1920px */
@@ -31,10 +32,10 @@ body {
     position: absolute;
     transform-origin: top left;
     z-index:-1;
-    left:0;
-    width:520px;
+    left: 10px;
+    width:1900px;
     background-color: rgba(0,0,0,0.3);
-    border: 1px solid #fff;
+    border: 1px solid red;
     /* The above transform-origin is useful to allow rotation around top left corner (origin)
 
     /* Its possible to scale ALL players but this affects their positioning canvas must also be scaled */
@@ -237,14 +238,12 @@ body {
     top: 60px;
     font-size: 48px;
 }
-/* Space for the question and answers */
+/* Space for the question */
 #panel-question {
     position: absolute;
     z-index: 10;
     left: 120px;
-    top: 120px;
     width: 1680px;
-    height: 800px;
     background-color: rgba(0,0,0,0.2);
     border: #0000 1px solid;
     text-align: center;
@@ -261,33 +260,43 @@ body {
     min-height:200px;
     border: 1px solid #fff;
 }
+
+#panel-answers {
+    position: absolute;
+    z-index: 10;
+    left: 120px;
+    width: 1680px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(0,0,0,0.2);
+    border: #0000 1px solid;
+}
 #answers {
     display: flex;
-    flex-direction: column;
-    flex-wrap: wrap;
-    flex-shrink: 1;
-    justify-content: center;
-    gap: 8vh;
-    border: 1px solid #fff;
+    flex-direction: column; /* Arrange buttons in a column */
+    justify-content: space-between; /* Distribute buttons evenly */
+    background-color: rgba(0,0,0,0.2);
+    border: 1px solid blue;
     align-self: center; /* Center the container within its parent */
     margin: 0 auto; /* Center the container within its parent */
+    height: 100%; /* Ensure the container takes the full height of the parent */
 }
 
 #answers button {
-    /* same CSS as play.quiz.js to ensure consistency - numbers slightly increased since display is larger */
-    /* Also flex 1 1 auto instead of flex 1 1 100% since buttons are inside a wider container */
-    flex: 1 1 auto;
     margin: 0;
     padding: 15px 30px;
     font-size: var(--button-font-size, 72px); /* Use custom property for font size */
+    flex: 0 1 auto;
     background-color: #007bff;
-    color:white;
+    color: white;
     border: 2px solid white;
     border-radius: 20px;
     text-align: center;
+    align-self: stretch; /* Center the button within its parent */
     box-shadow: inset 4px 4px 10px rgba(0, 0, 0, 0.3), inset -4px -4px 10px rgba(255, 255, 255, 0.5);
+    white-space: nowrap; /* Prevent text from wrapping */
 }
-
 
 /* TIMER */
 /* From https://alvarotrigo.com/blog/how-to-make-a-progress-bar-in-css/ */

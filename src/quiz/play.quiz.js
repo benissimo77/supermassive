@@ -230,13 +230,13 @@ export class Game {
 
 	attachButtonEvents() {
 		// Attach events to buttons defined in play.html that also rely on knowing socket
-		document.getElementById('connect').addEventListener('click', this.socketConnect.bind(this) );
-		document.getElementById('disconnect').addEventListener('click', this.socketDisconnect.bind(this) );
+		// document.getElementById('connect').addEventListener('click', this.socketConnect.bind(this) );
+		// document.getElementById('disconnect').addEventListener('click', this.socketDisconnect.bind(this) );
 	}
 	removeButtonEvents() {
 		// Remove event listeners added in the attach function above
-		document.getElementById('connect').removeEventListener('click', this.socketConnect);
-		document.getElementById('disconnect').removeEventListener('click', this.socketDisconnect);
+		// document.getElementById('connect').removeEventListener('click', this.socketConnect);
+		// document.getElementById('disconnect').removeEventListener('click', this.socketDisconnect);
 	}
 
 	onConnect() {

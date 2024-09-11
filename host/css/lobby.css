@@ -252,7 +252,16 @@ body {
     width: 0%;
   }
 
-
+  button {
+    font-family: "Titan One", sans-serif;
+    background-color:#4B538B;   
+    color:#FF8C00 ;  /* Spanish orange */ 
+    border: 1px solid #FF8C00; /* Spanish orange */
+    font-size: 2rem;
+    padding: 0.5rem 1rem;
+    margin: 0.5rem;
+  }
+  
 
   /* SCRATCH  -  used by GSAP testing script */
 

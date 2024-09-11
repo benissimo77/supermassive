@@ -86,7 +86,7 @@ const DOMaddPlayers = function(playerlist) {
 // player scale is determined using a reference width of 480px - so the player will be scaled to fit the panel
 // Note: this only works for a vertical list at the moment, will need to be extended to handle horizontal lists
 // Note: used to use getBoundingClientRect but this is not reliable - use the panel offset width and height instead
-const TLarrangePlayersInPanel = function(panel, align='top', distribute=false) {
+const TLarrangePlayersInPanelVertical = function(panel, align='top', distribute=false) {
     const DOMpanel = document.getElementById(panel);
     const players = vm[panel];
     const [playerStart, playerSpacing] = calculatePlayerPositions(players.length, DOMpanel.offsetHeight, align, distribute);
@@ -106,6 +106,26 @@ const TLarrangePlayersInPanel = function(panel, align='top', distribute=false) {
     return tl;
 }
 
+// TLarrangePlayersInPanelHorizontal
+// Separate from above function since these elements must be arranged horizontally instead of vertically
+function TLarrangePlayersInPanelHorizontal(panel) {
+    const DOMpanel = document.getElementById(panel);
+    const DOMplayers = vm[panel];
+    const [playerStart, playerSpacing] = calculatePlayerPositions(DOMplayers.length, DOMpanel.offsetWidth, 'top', true);
+    const playerScale = DOMpanel.offsetHeight / 120;    // don't use scale just keep same size
+    const tl = gsap.timeline();
+    DOMplayers.forEach( (player,index) => {
+        tl.add( gsap.to(document.getElementById(player.id), {
+            x: playerStart + index * playerSpacing,
+            y: 0,
+            'z-index':index,
+            ease: "back.out(1.7)",
+        }), "<" );
+    });
+    return tl;
+}
+
+
 
 
 // TLGameState
@@ -116,7 +136,7 @@ function TLgameState() {
     // I used to use duration here to determine an overall speed - but better to use the timeline speed as it can be sped up to near-instant
     const tl = gsap.timeline();
     gsap.killTweensOf(".player");
-    tl.add( TLarrangePlayersInPanel("playerlist"));
+    tl.add( TLarrangePlayersInPanelHorizontal("playerlist"));
     return tl;
 }
 
@@ -301,9 +321,12 @@ function screenSizeBody() {
     setWindowScale(scaleX);
 
     // Panel width will always be right because body scale ensures it fits, but height needs to be set as this can vary
-    gsap.set("#playerlist", { top: canvasAdjustY(120), height: canvasAdjustY(860) } );
-    gsap.set("#timer", { top: canvasAdjustY(1000), height: canvasAdjustY(60) } );
+    gsap.set("#playerlist", { top: canvasAdjustY(1040), height: canvasAdjustY(20) } );
     gsap.set("#panel-response", { top: canvasAdjustY(960), height: canvasAdjustY(60) } );
+    gsap.set("#panel-question", { top: canvasAdjustY(90), height: canvasAdjustY(380) } );
+    gsap.set("#panel-answers", { top: canvasAdjustY(520), height: canvasAdjustY(400) } );
+
+    gsap.set("#timer", { top: canvasAdjustY(940), height: canvasAdjustY(40) } );
 
     // Test whether setting x,y via GSAP is different to specifying top,left in the CSS
     // YES it does make a difference - executeing gsap.set causes a translate3d to be added to the style, separate to the left/top
@@ -330,7 +353,7 @@ function screenSizeBody() {
     DOMhideAllPanels,
     DOMpanelResponse,
     DOMpanelQuestion,
-    TLarrangePlayersInPanel,
+    TLarrangePlayersInPanel: TLarrangePlayersInPanelVertical,
     TLgameState,
     TLgameOver,
     init

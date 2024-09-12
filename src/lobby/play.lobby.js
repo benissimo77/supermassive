@@ -60,17 +60,9 @@ export class Game {
 		`;
 
 		// Begin with the welcome panel - maybe do this via the buildDOM function above...
-		this.addButton('button-container-1', 'Button 1');
-		this.addButton('button-container-1', 'Button 2 with longer text . . .');
-		this.addButton('button-container-1', 'Button 3 with even longer text! Probably longer than Ill ever need');
-		this.addButton('button-container-1', 'And a 4th Button to make more real - and include more text to ensure font size shrinks');
-		this.addButton('button-container-1', '5th button t...f.');
-		this.addButton('button-container-1', '6th button to put it to the test...');
-		this.addButton('button-container-2', 'Another Button');
-		this.addButton('button-container-2', 'Yet Another Button');
-		this.addButton('button-container-3', 'Final Button');
+		// this.addButton('button-container-3', 'Final Button');
 
-		this.adjustFontSizeToFit('button-container-1');
+		// this.adjustFontSizeToFit('button-container-1');
 		// this.adjustFontSizeToFit('button-container-2');
 		// this.adjustFontSizeToFit('button-container-3');
 		

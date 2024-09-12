@@ -34,18 +34,22 @@ class Quiz {
     attachSocketEvents(socket) {
 
         // built-in events
-        socket.on('connect', onConnect);
-        socket.on('disconnect', onDisconnect);
+        socket.on('connect', this.onConnect);
+        socket.on('disconnect', this.onDisconnect);
         
         // Connect/Disconnect events specific to game
-        socket.on('hostconnect', onHostConnect);
-        socket.on('playerconnect', onPlayerConnect);
-        socket.on('playerdisconnect', onPlayerDisconnect);
+        socket.on('hostconnect', this.onHostConnect);
+        socket.on('playerconnect', this.onPlayerConnect);
+        socket.on('playerdisconnect', this.onPlayerDisconnect);
         
         // Other game-specific events
         socket.on('server:introquiz', onIntroQuiz);
         socket.on('server:introround', onIntroRound);
         socket.on('server:question', onQuestion);
+        socket.on('server:questionanswered', onQuestionAnswered)
+        socket.on('server:questionfinished', onQuestionFinished);
+        socket.on('server:endround', this.onEndRound);
+        socket.on('server:endquiz', this.onEndQuiz);
         // socket.on('playerlist', onPlayerList);
         // socket.on('audioplay', onAudioPlay);
         // socket.on('gamestate', onGameState);
@@ -77,14 +81,53 @@ class Quiz {
         
     }        
 
+    // SOCKET EVENT HANDLERS
+    // BUILT-IN EVENTS
+    onConnect =  () => {
+        console.log('onConnect:', socket.connected);
+    }
+    onDisconnect = () => {
+        console.log('onDisconnect:', socket.connected);
+    }
+    
+    // CONNECT/DISCONNECT GAME-SPECIFIC EVENTS
+    onHostConnect = (players) => {
+        console.log('onHostConnect:', players);
+        dom.DOMaddPlayers(players);
+        dom.TLgameState().play();
+    }
+    onPlayerConnect = (player) => {
+        console.log('onPlayerConnect:', player);
+        dom.DOMaddPlayer(player);
+        dom.TLgameState().play();
+    }
+    onPlayerDisconnect = (socketid) => {
+        console.log('onPlayerDisconnect:', socketid);
+        dom.DOMremovePlayer(socketid);
+    }
+    
+    //onEndRound
+    // Note: this function must end with a host response to move to the next stage
+    onEndRound = (round) => {
+        console.log('onEndRound:', round);
+        const tl = dom.TLendRound(round)
+        .add( () => {
+            socket.emit('host:response');
+        })
+        .play();
+    }
+
+    // onEndQuiz
+    // endRound should already have left the panels in a good state... only thing left here is to announce the winner...
+    onEndQuiz = (results) => {
+        console.log('onEndQuiz:', results);
+        dom.TLendQuiz().play()
+        .then( () => {
+            socket.emit('host:response');
+        });
+    }
 }
 
-// Placing the init function inside window.onLoad is too late - for some reason a lot of code has already been called including building the display
-window.onload = function() {
-    dom.init();
-    const quiz = new Quiz(socket);
-    console.log('window.onload: completed:', socket);
-};
 
 
 // Define event listeners for the HOST buttons (only for testing at this stage)
@@ -93,30 +136,21 @@ function buttonHostComplete() {
 }
 
 
-
-
 // SOCKET EVENTS
-// Add client socket event handlers
-const onConnect = function () {
-    console.log('onConnect:', socket.connected);
-  }
-const onDisconnect = function () {
-    console.log('onDisconnect:', socket.connected);
-}
-const onHostConnect = function(players) {
-    console.log('onHostConnect:', players);
-    dom.DOMaddPlayers(players);
-    dom.TLgameState().play();
-}
-const onPlayerConnect = function(player) {
-    console.log('onPlayerConnect:', player);
-    dom.DOMaddPlayer(player);
-    dom.TLgameState().play();
-}
-const onPlayerDisconnect = function(socketid) {
-    console.log('onPlayerDisconnect:', socketid);
-    dom.DOMremovePlayer(socketid);
-}
+
+
+
+
+
+
+// Why are the below functions outside of the Quiz class???
+
+
+
+
+
+
+
 
 // onStartGame
 // Sent to the host when the game is started - display instructions on screen (these must be removed)
@@ -148,34 +182,43 @@ function onIntroQuiz(payload) {
 // This is a simple fade in/out of the instructions panel
 function onIntroRound(payload) {
     console.log('onIntroRound:', payload);
-    dom.DOMpanelResponse(payload);
+    dom.TLpanelAutoResponse(payload).play()
+    .then( () => {
+        socket.emit('host:response');
+    });
 }
 
 // onQuestion
 // Display the question on the screen
 // This is a simple fade in/out of the question panel
+// NOTE: importantly the socket event that called this is expecting a response before it starts the timer...
 function onQuestion(question) {
-    dom.DOMpanelQuestion(question);
+    dom.TLpanelQuestion(question)
+    .add( () => {
+        socket.emit('host:response');
+    })
+    .play();
 }
 
+// onQuestionAnswered
+function onQuestionAnswered(payload) {
+    console.log('onQuestionAnswered:', payload);
+    dom.DOMsetPlayerNamePanel(payload.socketid);
+}
+
+// onQuestionFinished
+// Clear up after the question has been answered (or time run out)
+function onQuestionFinished() {
+    console.log('onQuestionFinished:');
+    dom.DOMhideTimer();
+    dom.DOMresetPlayerNamePanels();
+}
 // onStartTimer
 // Simple function to display a timer on the screen which counts down
 // Nothing happens when the timer completes - this is just a visual timer
 // It is up to the server to determine what happens at the end of the timer period
 function onStartTimer(request) {
-    console.log('onStartTimer:', request);
-    gsap.set("#timer", { display: "block" });
-    gsap.fromTo("#timer .timer_progress", { width: "100%" }, { 
-        width: 0,
-        duration: request.duration,
-        ease: "linear",
-        onComplete: () => {
-            hideTimer();
-    }});
-}
-
-function hideTimer() {
-    gsap.set("#timer", { display: "none" });
+    dom.DOMstartTimer(request);
 }
 
 function onLoadGame(game) {
@@ -186,6 +229,14 @@ function onLoadGame(game) {
     });
     tl.play();
 }
+
+// Placing the init function inside window.onLoad is too late - for some reason a lot of code has already been called including building the display
+window.onload = function() {
+    dom.init();
+    const quiz = new Quiz(socket);
+    console.log('window.onload: completed:', socket);
+};
+
 
 
 // Contact the socket.io socket server

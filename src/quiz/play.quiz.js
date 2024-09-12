@@ -1,4 +1,4 @@
-console.log('play.quiz.js is executing');
+// console.log('play.quiz.js is executing');
 
 // This is a simple example of a game module
 export class Game {
@@ -9,23 +9,23 @@ export class Game {
 
 		// Just call start here - not sure if really need a constructor AND a start method
 		this.start();
-        console.log('Quiz initialized');
+        // console.log('Quiz initialized');
     }
   
     start() {
-      console.log('quiz.start');
+    //   console.log('quiz.start');
       this.loadFonts();
       this.buildDOM();
       this.attachSocketEvents(this.socket);
       this.attachButtonEvents();
       
       // Show the first panel by default
-      this.showPanel('panel-1');
+      this.showPanel('panel-start');
 
     }
   
     end() {
-      console.log('Ending the quiz...');
+    //   console.log('Ending the quiz...');
 	  this.removeButtonEvents();
 	  this.removeSocketEvents(this.socket);
 	  this.unloadDOM();
@@ -44,6 +44,10 @@ export class Game {
 		document.body.appendChild(game);
 		game.innerHTML = `
 			<div class="panel" id="panel-start">
+				<div class="button-container">
+					<h2>Welcome to the Quiz</h2>
+					<p>Waiting to start...</p>
+				</div>
 			</div>
 			<div class="panel" id="panel-buttonselect">
 				<div class="button-container" id="button-container-buttonselect"></div>
@@ -63,11 +67,10 @@ export class Game {
 		`;
 
 		// Begin with the welcome panel - maybe do this via the buildDOM function above...
-		this.addButton('button-container-2', 'Another Button');
-		this.addButton('button-container-2', 'Yet Another Button');
-		this.addButton('button-container-3', 'Final Button');
+		// this.addButton('button-container-2', 'Another Button');
+		// this.addButton('button-container-2', 'Yet Another Button');
+		// this.addButton('button-container-3', 'Final Button');
 
-		this.adjustFontSizeToFit('button-container-2');
 		// this.adjustFontSizeToFit('button-container-3');
 		
 	}
@@ -95,7 +98,7 @@ export class Game {
 	}
 
 	addButton(panelId, buttonText) {
-		console.log('Adding button:', panelId, buttonText);
+		// console.log('Adding button:', panelId, buttonText);
 		const buttonContainer = document.getElementById(panelId);
 		const button = document.createElement('button');
 
@@ -133,7 +136,7 @@ export class Game {
 
 		const adjustFontSize = () => {
             let totalHeight = container.getBoundingClientRect().height;
-			console.log('Adjusting font size:', totalHeight, availableHeight, loopCount);
+			// console.log('Adjusting font size:', totalHeight, availableHeight, loopCount);
             if ( (totalHeight > availableHeight) && (loopCount > 0) ) {
 				loopCount--;
                 buttons.forEach(button => {
@@ -213,7 +216,7 @@ export class Game {
     }
 
     attachSocketEvents(socket) {
-        console.log('Attaching socket events');
+        // console.log('Attaching socket events');
         socket.on('connect', this.onConnect);
         socket.on('disconnect', this.onDisconnect);
         socket.on('player', this.onPlayer);
@@ -222,7 +225,7 @@ export class Game {
     }
 
     removeSocketEvents(socket) {
-        console.log('Removing socket events');
+        // console.log('Removing socket events');
         socket.off('connect', this.onConnect);
         socket.off('disconnect', this.onDisconnect);
         socket.off('player', this.onPlayer);

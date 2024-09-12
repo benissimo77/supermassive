@@ -244,7 +244,7 @@ html, body {
     justify-content: center;
     align-items: center;
     height: 100vh; /* Full viewport height */
-    border:#FF8C00 1px solid;
+    /* border:#FF8C00 1px solid; */
   }
   
   .panel.active {
@@ -255,7 +255,7 @@ html, body {
     display: flex;
     flex-direction: column;
     gap: 8vh;
-    border:#33FF33 1px solid;
+    /* border:#33FF33 1px solid; */
   }
   
   .button-container button {

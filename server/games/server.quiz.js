@@ -1,6 +1,74 @@
 const Game = require('./server.game.js');
 
+const QuizState = {
+    INIT: 'INIT',
+    INTRO_QUIZ: 'INTRO_QUIZ',
+    INTRO_ROUND: 'INTRO_ROUND',
+    QUESTION: 'QUESTION',
+    END_ROUND: 'END_ROUND',
+    END_QUIZ: 'END_QUIZ'
+};
+
+class QuizStateMachine {
+
+    constructor(quiz) {
+        this.quiz = quiz;
+        this.state = QuizState.INIT;
+    }
+
+    start() {
+        this.transitionTo(QuizState.INTRO_ROUND);
+    }
+
+    transitionTo(newState) {
+        this.state = newState;
+        console.log(`Transitioning to state: ${newState}`);
+        switch (newState) {
+            case QuizState.INTRO_QUIZ:
+                this.quiz.introQuiz().then(() => this.transitionTo(QuizState.INTRO_ROUND));
+                break;
+
+            case QuizState.INTRO_ROUND:
+				const nextRound = this.quiz.nextRound(); // Increment round number and reset question number
+				if (nextRound) {
+	                this.quiz.introRound()
+					.then(() => this.transitionTo(QuizState.QUESTION));
+				} else {
+					this.transitionTo(QuizState.END_QUIZ);
+				}
+                break;
+
+            case QuizState.QUESTION:
+                const nextQuestion = this.quiz.nextQuestion(); // Increment question number and get question
+				if (nextQuestion) {
+					this.quiz.doQuestion(nextQuestion)
+					.then(() => {
+                        this.transitionTo(QuizState.QUESTION);
+					});
+				} else {
+					this.transitionTo(QuizState.END_ROUND);
+				}
+                break;
+
+            case QuizState.END_ROUND:
+                this.quiz.endRound().then(() => {
+					this.transitionTo(QuizState.INTRO_ROUND);
+                });
+                break;
+
+            case QuizState.END_QUIZ:
+                this.quiz.endQuiz();
+                break;
+
+            default:
+                console.error(`Unknown state: ${newState}`);
+        }
+    }
+}
+
+
 class Quiz extends Game {
+
 	constructor(room) {
 		super(room);
 
@@ -8,6 +76,12 @@ class Quiz extends Game {
 		console.log('Quiz::constructor:');
 		this.name = 'quiz';
 		this.minplayers = 1;
+		this.maxplayers = 10;
+		this.roundNumber = 0;
+		this.questionNumber = 0;
+
+		// Instantiate the State Machine which will manage the game flow
+		this.stateMachine = new QuizStateMachine(this);
 
 		// Build a model JSON structure to represent a quiz
 		// This will likely change a lot - but make a start, this becomes the way to store an entire quiz as an object
@@ -21,31 +95,102 @@ class Quiz extends Game {
 		// Questions and Rounds are not numbered, so in theory they can be shudffled or presented in any order
 		// The order of the rounds might be important - but the order of the questions within a round is not
 		// Basic type the answers are an array, the first answer is always the correct one - quiz shuffles the answers before sending
-		this.quiz = {
-			title: 'Quiz Title',
-			description: 'This is a quiz description - displayed at the beginning of the quiz',
+		this.quizData = {
+			title: 'The Veluwe Weekend Mega-Quiz!',
+			description: 'Ok, not very mega, but hey sales...',
 			type: 'basic',
 			rounds: [
 				{
-					description: 'Round 1 description',
+					title: 'General Ignorance',
+					description: 'Just your basic general knowledge questions. Four possible answers, how much do you know?',
 					questions: [
 						{
-							question: 'What is the capital of France?',
-							answers: ['Paris', 'London', 'Berlin', 'Madrid']
+							question: 'Who wrote the play "Romeo and Juliet"?',
+							answers: ['William Shakespeare', 'Charles Dickens', 'Jane Austen', 'Mark Twain']
 						},
 						{
-							question: 'What is the capital of Spain? But this question is in reality far longer - meaning it might not fit in the space avialable... what happend in this case? Does it overflow???',
-							answers: ['Madrid', 'Paris', 'London', 'Berlin', 'And another answer', 'A sixth answer which is a long one' ]
+							question: 'What is the capital city of Japan?',
+							answers: ['Tokyo', 'Beijing', 'Seoul', 'Bangkok']
 						},
 						{
-							question: 'What is the capital of Germany?',
-							answers: ['Berlin', 'Madrid', 'Paris', 'London']
+							question: 'In which year did the Titanic sink?',
+							answers: ['1912', '1905', '1915', '1920']
+						},
+						{
+							question: 'What is the largest ocean on Earth?',
+							answers: ['Pacific Ocean', 'Atlantic Ocean', 'Indian Ocean', 'Arctic Ocean']
+						},
+						{
+							question: 'Who painted the Mona Lisa?',
+							answers: ['Leonardo da Vinci', 'Vincent van Gogh', 'Pablo Picasso', 'Claude Monet']
+						},
+						{
+							question: 'What is the smallest country in the world?',
+							answers: ['Vatican City', 'Monaco', 'San Marino', 'Liechtenstein']
+						},
+						{
+							question: 'Which country is known as the Land of the Rising Sun?',
+							answers: ['Japan', 'China', 'South Korea', 'Thailand']
+						},
+						{
+							question: 'What is the main ingredient in guacamole?',
+							answers: ['Avocado', 'Tomato', 'Onion', 'Garlic']
+						},
+						{
+							question: 'Who was the first President of the United States?',
+							answers: ['George Washington', 'Thomas Jefferson', 'Abraham Lincoln', 'John Adams']
 						}
 					]
-
+				},
+				{
+					title: 'Science and Nature',
+					description: 'I wanted to include some different types of question, but I ran out of time...',
+					questions: [
+						{
+							question: 'Which planet is known as the Red Planet?',
+							answers: ['Mars', 'Venus', 'Jupiter', 'Saturn']
+						},
+						{
+							question: 'What is the hardest natural substance on Earth?',
+							answers: ['Diamond', 'Gold', 'Iron', 'Platinum']
+						},
+						{
+							question: 'What is the process by which plants make their food?',
+							answers: ['Photosynthesis', 'Respiration', 'Digestion', 'Fermentation']
+						},
+						{
+							question: 'What is the boiling point of water at sea level?',
+							answers: ['100°C', '90°C', '80°C', '110°C']
+						},
+						{
+							question: 'Which gas do plants absorb from the atmosphere?',
+							answers: ['Carbon Dioxide', 'Oxygen', 'Nitrogen', 'Hydrogen']
+						},
+						{
+							question: 'What is the main gas found in the air we breathe?',
+							answers: ['Nitrogen', 'Oxygen', 'Carbon Dioxide', 'Helium']
+						},
+						{
+							question: 'What is the largest planet in our solar system?',
+							answers: ['Jupiter', 'Saturn', 'Earth', 'Mars']
+						},
+						{
+							question: 'What is the chemical symbol for gold?',
+							answers: ['Au', 'Ag', 'Fe', 'Pb']
+						},
+						{
+							question: 'Which organ in the human body is primarily responsible for detoxification?',
+							answers: ['Liver', 'Kidney', 'Heart', 'Lungs']
+						},
+						{
+							question: 'What is the most abundant element in the universe?',
+							answers: ['Hydrogen', 'Oxygen', 'Carbon', 'Nitrogen']
+						}
+					]
 				}
 			]
-		};
+		}
+
 	}
 
 	// Add methods for game-specific logic here
@@ -65,11 +210,12 @@ class Quiz extends Game {
 		// Game start logic for game 1
 		console.log('Quiz: startGame')
 
-		// questionNumber is set to 0 because in nextQuestion we increment question number before we start the question
-		// roundNumber this does not happen (so set to 1)
-		this.roundNumber = 1;
-		this.questionNumber = 0;
-		this.nextQuestion();
+		// Start the state machine
+		this.stateMachine.start();
+
+		// the idea is that this is enough - after that the host will invoke a 'next round' event which will trigger the next round
+		// next round is also responsible for determining if there are any more rounds left
+		// if not then we end the quiz
 	}
 
 	endGame() {
@@ -78,16 +224,34 @@ class Quiz extends Game {
 		// Not much to do here - we rely on room.js for all the heavy-lifting, game itself is pretty lightweight
 	}
 
+	// doRound
+	// A function that can be called to start a round
+	// Function handles the beginning and end of rounds, any additional events to fire at the start or end of a round
+	// Idea is that the entire quiz can then be a series of 'doRound' calls until there are no more rounds
+	// This avoids the need for a single game loop and allows the game to be paused, stopped, restarted etc.
+	nextRound() {
+		this.roundNumber++;
+		this.questionNumber = 0;
+		this.round = (this.roundNumber <= this.quizData.rounds.length) ? this.quizData.rounds[this.roundNumber - 1] : null;
+		return this.round;
+	}
+
+	nextQuestion() {
+		this.questionNumber++;
+		this.question = (this.questionNumber <= this.round.questions.length) ? this.round.questions[this.questionNumber -1] : null;
+		return this.question;
+	}
+
 	// nextQuestion
 	// A function that can be continually called to move to the next question
 	// Function handles the beginning and end of rounds, any additional events to fire at the start or end of a round
 	// Idea is that the entire quiz can then be a series of 'nextQuestion' calls until there are no more questions
 	// This avoids the need for a single game loop and allows the game to be paused, stopped, restarted etc.
 	// Can even provide a way to skip questions or rounds if needed, and to re-play older questions if people need a repeat
-	nextQuestion() {
+	nextQuestionX() {
 		console.log('Quiz: nextQuestion:', this.roundNumber, this.questionNumber);
 		this.questionNumber++;
-		this.round = this.quiz.rounds[this.roundNumber - 1];
+		this.round = this.quizData.rounds[this.roundNumber - 1];
 		this.question = this.round.questions[this.questionNumber - 1];
 
 		// Introduce quiz/round if we are at the beginning
@@ -104,14 +268,8 @@ class Quiz extends Game {
 		console.log('introQuiz:');
 		return new Promise((resolve, reject) => {
 			console.log('introQuiz: inside Promise');
-			if ((this.questionNumber == 1) && (this.roundNumber == 10000)) {
-				this.room.emitToHosts('server:introquiz', { type: this.quiz.type, payload: { message: 'Welcome to the Quiz' } });
-				this.room.registerHostResponseHandler( () => {
-					resolve();
-				});
-			} else {
-				resolve();
-			}
+			this.room.emitToHosts('server:introquiz', { title: this.quizData.title, description: this.quizData.description }, true )
+			.then ( () => resolve() );
 		});
 	}
 
@@ -119,60 +277,73 @@ class Quiz extends Game {
 		console.log('introRound:');
 		return new Promise((resolve, reject) => {
 			console.log('introRound: inside Promise');
-			if (this.questionNumber == 10000) {
-
-				// Check if we are overriding question/answer types for this round
-				const typeOverride = (this.round.type && this.round.type != this.quiz.type);
-				this.room.emitToHosts('server:introround', { type: this.quiz.type, override:typeOverride, description: this.round.description }, true )
-				.then ( () => resolve() );
-			} else {
-				resolve();
-			}
+			// Check if we are overriding question/answer types for this round
+			const typeOverride = (this.round.type && this.round.type != this.quizData.type);
+			this.room.emitToHosts('server:introround', { roundnumber: this.roundNumber, title: this.round.title, description: this.round.description, duration: 4 }, true )
+			.then ( () => resolve() );
 		});
 	}
 
+	// doQuestion
+	// A general function that will do everything needed to presen the supplied question
+	// It doesn't know anything outside of the question it is given
+	// It does have responsibility to handle the correct answer and the responses from the players
 	doQuestion(question) {
 		console.log('doQuestion:', question);
-		const timeoutSeconds = 15;
-		const playerList = this.getPlayers();
-		const socketList = playerList.map( (player) => { return player.socketid } );
-		const correctAnswer = question.answers[0];
-		const answers = shuffleArray(question.answers);
-		const buttonList = answers.map((answer, index) => { return { id: `answer-${index}`, answer: answer } });
-		const correctAnswerId = buttonList.find( (button) => { return button.answer == correctAnswer } ).id;
+		return new Promise((resolve, reject) => {
+			const timeoutSeconds = 5;
+			const playerList = this.getPlayers();
+			const socketList = playerList.map( (player) => { return player.socketid } );
+			const correctAnswer = question.answers[0];
+			const answers = shuffleArray(question.answers);
+			const buttonList = answers.map((answer, index) => { return { id: `answer-${index}`, answer: answer } });
+			const correctAnswerId = buttonList.find( (button) => { return button.answer == correctAnswer } ).id;
 
-		const everyoneAnswered = (responses) => {
-			console.log('everyoneAnswered:', Object.keys(responses).length);
-			return (Object.keys(responses).length == playerList.length);
-		}
-		const storeResults = (responses) => {
-			console.log('storeResults:', responses);
-		}
-		const responseHandler = (socket, response) => {
-			console.log('quiz.responseHandler:', socket.id, response);
-		}
-		const strategy = {
-			responseHandler: responseHandler,
-			endCondition: everyoneAnswered,
-			callback: storeResults,
-			timeoutSeconds: timeoutSeconds
-		}
+			// Try overwriting the actual quizData with the modified question/answers data
+			// Now I can actually pass the entire question object directly to the client (do later it works right now)
+			this.question.answers = buttonList;
+			this.question.number = this.questionNumber;
 
-		this.room.emitToHosts('server:question', { question: question.question, answers: buttonList, number:this.questionNumber } );
-		this.room.getClientResponses(socketList, buttonList, strategy);
+			var results = {};
+
+			const everyoneAnswered = (responses) => {
+				console.log('everyoneAnswered:', Object.keys(responses).length);
+				return (Object.keys(responses).length == playerList.length);
+			}
+			const questionFinished = (responses) => {
+				console.log('storeResults:', results);
+				this.question.results = results;
+				this.question.correctAnswerId = correctAnswerId;
+				this.room.emitToHosts('server:questionfinished', {},  true)
+				.then( resolve() );
+			}
+			const responseHandler = (socket, response) => {
+				console.log('quiz.responseHandler:', socket.id, response);
+				results[socket.id] = (response == correctAnswerId);
+				this.room.emitToHosts('server:questionanswered', { socketid: socket.id, response: response });
+			}
+			const strategy = {
+				responseHandler: responseHandler,
+				endCondition: everyoneAnswered,
+				callback: questionFinished,
+				timeoutSeconds: timeoutSeconds
+			}
+
+			this.room.emitToHosts('server:question', { question: question.question, answers: buttonList, number:this.questionNumber }, true )
+			.then( () => {
+				this.room.getClientResponses(socketList, buttonList, strategy);
+			});
+			
+		});
+
 	}
 
 	endRound() {
-		console.log('endRound:');
+		console.log('endRound:', this.round);
 		return new Promise((resolve, reject) => {
 			console.log('endRound: inside Promise');
-			if (this.questionNumber == this.round.questions.length) {
-
-				this.room.emitToHosts('server:endround', { type: this.quiz.type, description: this.round.description }, true )
-				.then( resolve() );
-			} else {
-				resolve();
-			}
+			this.room.emitToHosts('server:endround', this.round, true )
+			.then( resolve() );
 		});
 	}
 
@@ -180,12 +351,8 @@ class Quiz extends Game {
 		console.log('endQuiz:');
 		return new Promise((resolve, reject) => {
 			console.log('endQuiz: inside Promise');
-			if ((this.questionNumber == this.round.questions.length) && (this.roundNumber == this.quiz.rounds.length)) {
-				this.room.emitToHosts('server:endquiz', { description: 'END OF THE QUIZ' }, true )
-				.then( resolve() );
-			} else {
-				resolve();
-			}
+			this.room.emitToHosts('server:endquiz', { description: 'END OF THE QUIZ' }, true )
+			.then( resolve() );
 		});
 	}
 

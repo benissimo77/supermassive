@@ -182,24 +182,161 @@ function DOMhideAllPanels() {
 
 // Maybe model the play.quiz.js pattern with a series of panels and activating one panel automatically hides the others
 function DOMpanelResponse(instructions) {
-    document.getElementById("panel-response-title").innerHTML = 'Welcome to the Quiz!';
-    document.getElementById("panel-response-details").innerHTML = instructions;
+    document.getElementById("panel-response-title").innerHTML = instructions.title;
+    document.getElementById("panel-response-description").innerHTML = instructions.description;
     this.DOMsetActivePanel("panel-response");
 }
-function DOMpanelQuestion(question) {
-    console.log('panelQuestion:', question);
-    document.getElementById("question-number").innerHTML = "Question: " + question.number;
-    document.getElementById("question").innerHTML = question.question;
-    const buttonContainer = document.getElementById("answers");
-    buttonContainer.innerHTML = '';
-    question.answers.forEach( answer => {
-        const button = document.createElement('button');
-        // button.classList.add('answer');
-        button.setAttribute('id', answer.id);
-        button.innerHTML = answer.answer;
-        buttonContainer.appendChild(button);
+
+function TLpanelAutoResponse(instructions) {
+    const tl = gsap.timeline();
+    const panel = document.getElementById("panel-autoresponse");
+    tl.add( gsap.set(panel, { y: -400 }) );
+    tl.add( () => {
+        document.getElementById("panel-autoresponse-title").innerHTML = instructions.title;
+        document.getElementById("panel-autoresponse-description").innerHTML = instructions.description;
+        DOMsetActivePanel("panel-autoresponse");
     });
-    this.DOMsetActivePanel("panel-question");    
+    tl.add( gsap.to(panel, { y: 200 }) );
+    tl.add( () => { console.log('Short delay to show the panel...') }, `>+${instructions.duration}` ); 
+
+    return tl;
+}
+// TLreplayRound
+// This borrows some of the TLpanelQuestion since we want to go back through each question, but this time we also show the correct answer
+// and we show the players who answered the question correctly
+function TLendRound(round) {
+    const tl = gsap.timeline();
+    const endData = { title:'End of Round!', description:'Lets see how you got on, here are the answers...', duration: 2 };
+    console.log('TLendRound:', round);
+
+
+    tl.add( TLpanelAutoResponse(endData));
+    round.questions.forEach( question => {
+        tl.add( TLpanelQuestion(question), ">" );
+        tl.add( () => DOMresetPlayerNamePanels(), ">" );
+        tl.add( () => { document.getElementById(question.correctAnswerId).classList.add('correct'); }, ">+1" );
+        tl.add( () => { console.log('Short delay before doign the players...') }, ">+1" );
+        for (let socketId in question.results) {
+            if (question.results[socketId]) {
+                tl.add( () => { DOMsetPlayerNamePanel(socketId); } );
+                const player = document.getElementById(socketId);
+                const playerNewScore = player.getAttribute('data-score') ? parseInt(player.getAttribute('data-score')) + 1 : 1;
+                player.setAttribute('data-score', playerNewScore);
+                console.log('TLendRound: moving player:', player, playerNewScore);
+                tl.add( gsap.to(player, { y: playerNewScore * -50 }) );
+            }
+        }
+    });
+
+    // final cleanup - remove the final question and answers
+    tl.add( () => { document.getElementById("answers").innerHTML = '' });
+    tl.add( gsap.to("#panel-question", { x: -1920 }) );
+    tl.add( () => { DOMresetPlayerNamePanels() });
+
+    return tl;
+}
+
+   
+function TLendQuiz() {
+    const tl = gsap.timeline();
+
+    let bestScore = 0;
+    let bestPlayerId = '';
+    for (let player of document.querySelectorAll('.player')) {
+        const score = parseInt(player.getAttribute('data-score'));
+        if (score > bestScore) {
+            bestScore = score;
+            bestPlayerId = player.getAttribute('id');
+        }
+    }
+    console.log('TLendQuiz: best player:', bestPlayerId, bestScore);
+    const bestPlayerName = document.getElementById(bestPlayerId).getAttribute('name');
+    const endData = { title:'End of Quiz!', description:'and the winner is...<br/><br/><br/>' + bestPlayerName, duration: 5 };
+    tl.add( TLpanelAutoResponse(endData) );
+    tl.add( () => { DOMsetPlayerNamePanel(bestPlayerId); } );
+    tl.add( gsap.to(document.getElementById(bestPlayerId), { scale: 2 }) );
+    return tl;
+}
+
+function TLpanelQuestion(question) {
+    console.log('panelQuestion:', question);
+
+    // This functions assumes that there is already a question panel visible on the screen from the previous question
+    // So first animate this away and then bring in the new question
+    const buttonContainer = document.getElementById("answers");
+    const tl = gsap.timeline();
+
+    // Animate the question panel away, clear previous answers
+    tl.add( () => { buttonContainer.innerHTML = '' });
+    tl.add( gsap.to("#panel-question", { x: -1920 }) );
+
+    // Initialise the (new) question panel with the relevant question (it should already be off-screen)
+    // and position it off-screen to the right
+    tl.add( () => {
+        DOMsetActivePanel("panel-question");
+        document.getElementById("question-number").innerHTML = "Question: " + question.number;
+        document.getElementById("question").innerHTML = question.question;
+        gsap.set("#panel-question", { x: 1920 }); 
+    });
+
+    // Create a new SplitText instance to make the question animate one word at a time
+    // const split = new SplitText("#question", { type: "words" });
+    // const words = mySplitText.words; //an array of all the divs that wrap each word
+
+    // Animate the question panel
+    tl.add( gsap.to("#panel-question", { x: 0 }) );
+
+    // Animate the question text
+    // tl.from(words, {
+    //     duration: 0.8,
+    //     opacity: 0,
+    //     ease: "back",
+    //     stagger: 0.01
+    //   });
+
+    // Finally add the answers - straightforward adding to the timeline
+    const addAnswers = (question) => {
+        question.answers.forEach( answer => {
+            const button = document.createElement('button');
+            // button.classList.add('answer');
+            button.setAttribute('id', answer.id);
+            button.innerHTML = answer.answer;
+            buttonContainer.appendChild(button);
+        });
+    }
+    tl.add( () => addAnswers(question) );
+    
+    return tl;
+}
+
+function DOMflyPanelLeft(panel) {
+    gsap.to(panel, { x: -1920, duration: 1 });
+}
+function DOMresetPlayerNamePanels() {
+    const players = document.querySelectorAll('.playernamepanel');
+    players.forEach( player => player.classList.remove('answered') );
+}
+// DOMsetPlayerNamePanel
+// Sets or resets the playername panel to show that the player has answered
+// class 'answered' is added to the panel
+function DOMsetPlayerNamePanel(playerId) {
+    const panel = document.getElementById(playerId).querySelector('.playernamepanel');
+    panel.classList.add('answered');
+}
+
+function DOMstartTimer(request) {
+    console.log('onStartTimer:', request);
+    gsap.set("#timer", { display: "block" });
+    gsap.fromTo("#timer .timer_progress", { width: "100%" }, { 
+        width: 0,
+        duration: request.duration,
+        ease: "linear",
+        onComplete: () => {
+           DOMhideTimer();
+    }});
+}
+function DOMhideTimer() {
+    gsap.set("#timer", { display: "none" });
 }
 
 
@@ -273,14 +410,19 @@ function canvasAdjustY(y) {
     return Math.floor(y / bodyScale * window.innerHeight / 1080);
 }
 
+// setWindowScale
+// Update: trying with setting the scale of a wrapper div so that BODY can have a background image
 function setWindowScale(x, instant=true) {
     console.log('setWindowScale:', x, instant, document.getElementById("body"), gsap);
     if (instant) {
-        console.log('Instant scale:', x);
-        gsap.set("body", { scaleX: x, scaleY: x });
+        gsap.set("#wrapper", { scaleX: x, scaleY: x });
     } else {
-        gsap.to("body", { scaleX: x, scaleY: x });
+        gsap.to("#wrapper", { scaleX: x, scaleY: x });
     }
+
+    // Experiment - try setting the font size of BODY to scale up... might work...
+    console.log('setWindowScale: setting font size to:', (16/x) );
+    // gsap.set("body", { fontSize: (16 / x) });
 }
 
 // Function copied from gsap site - useful utility function
@@ -294,17 +436,27 @@ function callAfterResize(func, delay) {
 
 function init() {
 
+    console.log('dom.init started...');
+
     screenSizeBody();
     callAfterResize(screenSizeBody, 0.2);
 
     // console.log('init:', vm);
 
     // Experiment with adding new functions for the intro eg change the background colour
-    gsap.to("body", { backgroundColor: "#8080e0" });
+    gsap.to("body", { backgroundColor: "#ffffff" });
 
     // quiz.hmtl includes a wrapper div which is set as display:none to prevent drawing before everything set up
     // now that everything is set up we can display the body
     gsap.set("#wrapper", { display: "block" });
+
+    // animate the fade in of the background image by setting the opacity from 1 to final amount
+    gsap.to("#overlay", { opacity: 0.7, duration: 1 });
+
+    // Register SplitText plugin to allow questions to be animated one word at a time
+    // gsap.registerPlugin(SplitText);
+
+    console.log('dom.init completed...');
 }
 
 // Adjust the scale of the BODY tag and then everything uses 1920,1080 scale for positioning
@@ -316,15 +468,15 @@ function screenSizeBody() {
     // Copy from below but don't use the screenOffset just scale x and y independently
     const windowInnerWidth  = window.innerWidth;
     const windowInnerHeight = window.innerHeight;
-    console.log('Viewport:', windowInnerWidth, windowInnerHeight);
+    console.log('dom.screenSizeBody:: viewport size:', windowInnerWidth, windowInnerHeight);
     const scaleX = window.innerWidth / 1920;
     setWindowScale(scaleX);
 
     // Panel width will always be right because body scale ensures it fits, but height needs to be set as this can vary
     gsap.set("#playerlist", { top: canvasAdjustY(1040), height: canvasAdjustY(20) } );
-    gsap.set("#panel-response", { top: canvasAdjustY(960), height: canvasAdjustY(60) } );
+    gsap.set("#panel-response", { top: canvasAdjustY(90), height: canvasAdjustY(240) } );
     gsap.set("#panel-question", { top: canvasAdjustY(90), height: canvasAdjustY(380) } );
-    gsap.set("#panel-answers", { top: canvasAdjustY(520), height: canvasAdjustY(400) } );
+    gsap.set("#panel-answers", { top: canvasAdjustY(440), height: canvasAdjustY(400) } );
 
     gsap.set("#timer", { top: canvasAdjustY(940), height: canvasAdjustY(40) } );
 
@@ -352,10 +504,19 @@ function screenSizeBody() {
     DOMsetActivePanel,
     DOMhideAllPanels,
     DOMpanelResponse,
-    DOMpanelQuestion,
-    TLarrangePlayersInPanel: TLarrangePlayersInPanelVertical,
+    DOMflyPanelLeft,
+    DOMsetPlayerNamePanel,
+    DOMresetPlayerNamePanels,
+    DOMstartTimer,
+    DOMhideTimer,
+    TLarrangePlayersInPanelHorizontal,
+    TLarrangePlayersInPanelVertical,
     TLgameState,
     TLgameOver,
+    TLendRound,
+    TLendQuiz,
+    TLpanelQuestion,
+    TLpanelAutoResponse,
     init
   }
 

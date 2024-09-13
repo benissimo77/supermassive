@@ -46,14 +46,17 @@ class QuizStateMachine {
                         this.transitionTo(QuizState.QUESTION);
 					});
 				} else {
+					console.log('No more questions - ending round...');
 					this.transitionTo(QuizState.END_ROUND);
 				}
                 break;
 
             case QuizState.END_ROUND:
-                this.quiz.endRound().then(() => {
-					this.transitionTo(QuizState.INTRO_ROUND);
-                });
+                this.quiz.endRound()
+					.then(() => {
+						console.log('endRound complete - moving to next round...');
+						this.transitionTo(QuizState.INTRO_ROUND);
+                	});
                 break;
 
             case QuizState.END_QUIZ:
@@ -116,30 +119,30 @@ class Quiz extends Game {
 							question: 'In which year did the Titanic sink?',
 							answers: ['1912', '1905', '1915', '1920']
 						},
-						{
-							question: 'What is the largest ocean on Earth?',
-							answers: ['Pacific Ocean', 'Atlantic Ocean', 'Indian Ocean', 'Arctic Ocean']
-						},
-						{
-							question: 'Who painted the Mona Lisa?',
-							answers: ['Leonardo da Vinci', 'Vincent van Gogh', 'Pablo Picasso', 'Claude Monet']
-						},
-						{
-							question: 'What is the smallest country in the world?',
-							answers: ['Vatican City', 'Monaco', 'San Marino', 'Liechtenstein']
-						},
-						{
-							question: 'Which country is known as the Land of the Rising Sun?',
-							answers: ['Japan', 'China', 'South Korea', 'Thailand']
-						},
-						{
-							question: 'What is the main ingredient in guacamole?',
-							answers: ['Avocado', 'Tomato', 'Onion', 'Garlic']
-						},
-						{
-							question: 'Who was the first President of the United States?',
-							answers: ['George Washington', 'Thomas Jefferson', 'Abraham Lincoln', 'John Adams']
-						}
+						// {
+						// 	question: 'What is the largest ocean on Earth?',
+						// 	answers: ['Pacific Ocean', 'Atlantic Ocean', 'Indian Ocean', 'Arctic Ocean']
+						// },
+						// {
+						// 	question: 'Who painted the Mona Lisa?',
+						// 	answers: ['Leonardo da Vinci', 'Vincent van Gogh', 'Pablo Picasso', 'Claude Monet']
+						// },
+						// {
+						// 	question: 'What is the smallest country in the world?',
+						// 	answers: ['Vatican City', 'Monaco', 'San Marino', 'Liechtenstein']
+						// },
+						// {
+						// 	question: 'Which country is known as the Land of the Rising Sun?',
+						// 	answers: ['Japan', 'China', 'South Korea', 'Thailand']
+						// },
+						// {
+						// 	question: 'What is the main ingredient in guacamole?',
+						// 	answers: ['Avocado', 'Tomato', 'Onion', 'Garlic']
+						// },
+						// {
+						// 	question: 'Who was the first President of the United States?',
+						// 	answers: ['George Washington', 'Thomas Jefferson', 'Abraham Lincoln', 'John Adams']
+						// }
 					]
 				},
 				{
@@ -158,34 +161,34 @@ class Quiz extends Game {
 							question: 'What is the process by which plants make their food?',
 							answers: ['Photosynthesis', 'Respiration', 'Digestion', 'Fermentation']
 						},
-						{
-							question: 'What is the boiling point of water at sea level?',
-							answers: ['100°C', '90°C', '80°C', '110°C']
-						},
-						{
-							question: 'Which gas do plants absorb from the atmosphere?',
-							answers: ['Carbon Dioxide', 'Oxygen', 'Nitrogen', 'Hydrogen']
-						},
-						{
-							question: 'What is the main gas found in the air we breathe?',
-							answers: ['Nitrogen', 'Oxygen', 'Carbon Dioxide', 'Helium']
-						},
-						{
-							question: 'What is the largest planet in our solar system?',
-							answers: ['Jupiter', 'Saturn', 'Earth', 'Mars']
-						},
-						{
-							question: 'What is the chemical symbol for gold?',
-							answers: ['Au', 'Ag', 'Fe', 'Pb']
-						},
-						{
-							question: 'Which organ in the human body is primarily responsible for detoxification?',
-							answers: ['Liver', 'Kidney', 'Heart', 'Lungs']
-						},
-						{
-							question: 'What is the most abundant element in the universe?',
-							answers: ['Hydrogen', 'Oxygen', 'Carbon', 'Nitrogen']
-						}
+						// {
+						// 	question: 'What is the boiling point of water at sea level?',
+						// 	answers: ['100°C', '90°C', '80°C', '110°C']
+						// },
+						// {
+						// 	question: 'Which gas do plants absorb from the atmosphere?',
+						// 	answers: ['Carbon Dioxide', 'Oxygen', 'Nitrogen', 'Hydrogen']
+						// },
+						// {
+						// 	question: 'What is the main gas found in the air we breathe?',
+						// 	answers: ['Nitrogen', 'Oxygen', 'Carbon Dioxide', 'Helium']
+						// },
+						// {
+						// 	question: 'What is the largest planet in our solar system?',
+						// 	answers: ['Jupiter', 'Saturn', 'Earth', 'Mars']
+						// },
+						// {
+						// 	question: 'What is the chemical symbol for gold?',
+						// 	answers: ['Au', 'Ag', 'Fe', 'Pb']
+						// },
+						// {
+						// 	question: 'Which organ in the human body is primarily responsible for detoxification?',
+						// 	answers: ['Liver', 'Kidney', 'Heart', 'Lungs']
+						// },
+						// {
+						// 	question: 'What is the most abundant element in the universe?',
+						// 	answers: ['Hydrogen', 'Oxygen', 'Carbon', 'Nitrogen']
+						// }
 					]
 				}
 			]
@@ -343,7 +346,9 @@ class Quiz extends Game {
 		return new Promise((resolve, reject) => {
 			console.log('endRound: inside Promise');
 			this.room.emitToHosts('server:endround', this.round, true )
-			.then( resolve() );
+			.then( () => {
+				resolve();
+			});
 		});
 	}
 

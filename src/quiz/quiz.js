@@ -48,7 +48,7 @@ class Quiz {
         socket.on('server:question', onQuestion);
         socket.on('server:questionanswered', onQuestionAnswered)
         socket.on('server:questionfinished', onQuestionFinished);
-        socket.on('server:endround', this.onEndRound);
+        socket.on('server:endround', onEndRound);
         socket.on('server:endquiz', this.onEndQuiz);
         // socket.on('playerlist', onPlayerList);
         // socket.on('audioplay', onAudioPlay);
@@ -106,17 +106,6 @@ class Quiz {
         dom.DOMremovePlayer(socketid);
     }
     
-    //onEndRound
-    // Note: this function must end with a host response to move to the next stage
-    onEndRound = (round) => {
-        console.log('onEndRound:', round);
-        const tl = dom.TLendRound(round)
-        .add( () => {
-            socket.emit('host:response');
-        })
-        .play();
-    }
-
     // onEndQuiz
     // endRound should already have left the panels in a good state... only thing left here is to announce the winner...
     onEndQuiz = (results) => {
@@ -182,10 +171,11 @@ function onIntroQuiz(payload) {
 // This is a simple fade in/out of the instructions panel
 function onIntroRound(payload) {
     console.log('onIntroRound:', payload);
-    dom.TLpanelAutoResponse(payload).play()
-    .then( () => {
+    dom.TLpanelAutoResponse(payload)
+    .add( () => {
         socket.emit('host:response');
-    });
+    })
+    .play();
 }
 
 // onQuestion
@@ -213,6 +203,19 @@ function onQuestionFinished() {
     dom.DOMhideTimer();
     dom.DOMresetPlayerNamePanels();
 }
+
+//onEndRound
+// Note: this function must end with a host response to move to the next stage
+function onEndRound(round) {
+    console.log('onEndRound:', round);
+    dom.TLendRound(round)
+    .add( () => {
+        socket.emit('host:response');
+    })
+    .play();
+}
+
+
 // onStartTimer
 // Simple function to display a timer on the screen which counts down
 // Nothing happens when the timer completes - this is just a visual timer

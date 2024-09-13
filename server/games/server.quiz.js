@@ -282,7 +282,7 @@ class Quiz extends Game {
 			console.log('introRound: inside Promise');
 			// Check if we are overriding question/answer types for this round
 			const typeOverride = (this.round.type && this.round.type != this.quizData.type);
-			this.room.emitToHosts('server:introround', { roundnumber: this.roundNumber, title: this.round.title, description: this.round.description, duration: 4 }, true )
+			this.room.emitToHosts('server:introround', { roundnumber: this.roundNumber, title: this.round.title, description: this.round.description, duration: 8 }, true )
 			.then ( () => resolve() );
 		});
 	}
@@ -294,7 +294,7 @@ class Quiz extends Game {
 	doQuestion(question) {
 		console.log('doQuestion:', question);
 		return new Promise((resolve, reject) => {
-			const timeoutSeconds = 5;
+			const timeoutSeconds = 10;
 			const playerList = this.getPlayers();
 			const socketList = playerList.map( (player) => { return player.socketid } );
 			const correctAnswer = question.answers[0];

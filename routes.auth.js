@@ -88,7 +88,7 @@ router.post('/host/endgame', (req, res) => {
   });
 
   const generateNewRoomName = () => {
-	return 'WOLF';
+	return 'GOLF';
 }
 
 module.exports = router;

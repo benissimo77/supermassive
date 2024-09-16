@@ -3,23 +3,11 @@ const express = require('express');
 const router = express.Router({ strict: true });
 
 // Define a route for the home page
-router.get('/xxx', (req, res) => {
+router.get('/', (req, res) => {
     console.log('Root request access - clearing cookie');
     req.session = null;
     res.sendFile('index.html', { root: './public'});
   })
-
-// Access the session as req.session
-router.get('/', function (req, res) {
-	console.log('GET /: ', req.session);
-	if (req.session.views) {
-		req.session.views++;
-		res.sendFile('index.html', { root: './public' });
-	} else {
-		req.session.views = 1
-		res.end('welcome to the session demo. refresh!')
-	}
-})
 
 // Route for when user submits PLAY form
 router.post('/', (req, res) => {

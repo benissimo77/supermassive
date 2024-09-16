@@ -57,14 +57,17 @@ module.exports = function (server) {
 		// Session is already in the correct format - use it if URL query string doesn't have the required data
 		// Note: this can be hacked if the user simply adds room to their URL - but that's not a big deal for now 
 		if (!userObj.room) {
+			console.log('io.connection:: using req.session data:', session);
 			userObj = session;
+		} else {
+			console.log('io.connection: using URL query string data:', userObj);
 		}
 
 		// Add socket.id to the userObj - then it has everything
 		userObj.socketid = socket.id;
 
 		// console.log('io.connect: userObj:', userObj);
-		console.log('io.connection:', socket.id, session, referer, params, urlParams);
+		// console.log('io.connection:', socket.id, session, referer, params, urlParams);
 
 		if (!rooms[userObj.room]) {
 			rooms[userObj.room] = new Room(io, userObj.room);

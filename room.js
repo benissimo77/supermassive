@@ -20,21 +20,20 @@ class Room {
 	// we say user because at this point we don't know if they are a player or a host/moderator/viewer etc...
 	addUserToRoom(socket, userObj) {
 
-		console.log('Room::addUserToRoom:', userObj.name, "Room Id:", this.id, "userObj:", userObj);
+		console.log('Room::addUserToRoom:', this.id, userObj.name, userObj.host, userObj.sessionid);
 
 		// Instantly add this user's socket to this room
 		socket.join(this.id);
 
 		// host value in player object must evaluate to truth (eg = 1)
 		if (userObj.host) {
-			console.log('this user is HOST');
 			// perform host initialisation...
 			this.host = userObj;
 			this.#io.to(socket.id).emit('hostconnect', this.players);
 			this.attachHostEvents(socket);
 		} else {
 
-			var player = this.getPlayerBySessionId(userObj.sessionID);
+			var player = this.getPlayerBySessionId(userObj.sessionid);
 			if (player) {
 				console.log('player already exists:', player);
 				player.disconnected = false;
@@ -329,7 +328,8 @@ class Room {
 		return Promise.race([promise, timeout]);
 	}
 	
-
+	// PLAYER FUNCTIONS
+	// These are defined on the Room but used by all games - functions related to players
 	// removePlayer
 	// Remove a player from the room - only takes effect if game has not started
 	// If game HAS started then we need to handle the player leaving in a different way - maybe just mark them as disconnected
@@ -353,6 +353,9 @@ class Room {
 	}
 	getPlayerBySessionId(sessionid) {
 		return this.players.find( (player) => player.sessionid === sessionid )
+	}
+	getConnectedPlayers() {
+		return this.players.filter( (player) => !player.disconnected );
 	}
 
 }

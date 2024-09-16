@@ -253,46 +253,8 @@ class Quiz extends Game {
 		// Not much to do here - we rely on room.js for all the heavy-lifting, game itself is pretty lightweight
 	}
 
-	// doRound
-	// A function that can be called to start a round
-	// Function handles the beginning and end of rounds, any additional events to fire at the start or end of a round
-	// Idea is that the entire quiz can then be a series of 'doRound' calls until there are no more rounds
-	// This avoids the need for a single game loop and allows the game to be paused, stopped, restarted etc.
-	nextRound() {
-		this.roundNumber++;
-		this.questionNumber = 0;
-		this.round = (this.roundNumber <= this.quizData.rounds.length) ? this.quizData.rounds[this.roundNumber - 1] : null;
-		return this.round;
-	}
-
-	nextQuestion() {
-		this.questionNumber++;
-		this.question = (this.questionNumber <= this.round.questions.length) ? this.round.questions[this.questionNumber -1] : null;
-		return this.question;
-	}
-
-	// nextQuestion
-	// A function that can be continually called to move to the next question
-	// Function handles the beginning and end of rounds, any additional events to fire at the start or end of a round
-	// Idea is that the entire quiz can then be a series of 'nextQuestion' calls until there are no more questions
-	// This avoids the need for a single game loop and allows the game to be paused, stopped, restarted etc.
-	// Can even provide a way to skip questions or rounds if needed, and to re-play older questions if people need a repeat
-	nextQuestionX() {
-		console.log('Quiz: nextQuestion:', this.roundNumber, this.questionNumber);
-		this.questionNumber++;
-		this.round = this.quizData.rounds[this.roundNumber - 1];
-		this.question = this.round.questions[this.questionNumber - 1];
-
-		// Introduce quiz/round if we are at the beginning
-		this.introQuiz()
-		.then( () => this.introRound() )
-		.then( () => this.doQuestion(this.question) )
-		.then( () => { console.log('nextQuestion: doQuestion complete') } );
-
-		// .then( this.endRound() )
-		// .then( this.endQuiz() )
-	}
-
+	// introQuiz
+	// Run introductory animation, plus run any set up data tasks
 	introQuiz() {
 		console.log('introQuiz:');
 		return new Promise((resolve, reject) => {
@@ -302,6 +264,8 @@ class Quiz extends Game {
 		});
 	}
 
+	// introRound
+	// Similar to introQuiz - runs at the beginning of each round
 	introRound() {
 		console.log('introRound:');
 		return new Promise((resolve, reject) => {
@@ -313,15 +277,34 @@ class Quiz extends Game {
 		});
 	}
 
+	// nextRound
+	// A function that can be called to start a round
+	// Function returns the round data, or null if there are no more rounds
+	nextRound() {
+		this.roundNumber++;
+		this.questionNumber = 0;
+		this.round = (this.roundNumber <= this.quizData.rounds.length) ? this.quizData.rounds[this.roundNumber - 1] : null;
+		return this.round;
+	}
+
+	// nextQuestion
+	// Similar to nextRound above - returns the question data or null if there are no more questions in this round
+	nextQuestion() {
+		this.questionNumber++;
+		this.question = (this.questionNumber <= this.round.questions.length) ? this.round.questions[this.questionNumber -1] : null;
+		return this.question;
+	}
+
+
 	// doQuestion
-	// A general function that will do everything needed to presen the supplied question
+	// A general function that will do everything needed to present the supplied question
 	// It doesn't know anything outside of the question it is given
-	// It does have responsibility to handle the correct answer and the responses from the players
+	// It does have responsibility to handle the correct answer and collect responses from the players
 	doQuestion(question) {
 		console.log('doQuestion:', question);
 		return new Promise((resolve, reject) => {
 			const timeoutSeconds = 10;
-			const playerList = this.getPlayers();
+			const playerList = this.room.getConnectedPlayers();
 			const socketList = playerList.map( (player) => { return player.socketid } );
 			const correctAnswer = question.answers[0];
 			const answers = shuffleArray(question.answers);

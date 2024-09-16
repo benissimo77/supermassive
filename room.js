@@ -20,7 +20,7 @@ class Room {
 	// we say user because at this point we don't know if they are a player or a host/moderator/viewer etc...
 	addUserToRoom(socket, userObj) {
 
-		console.log('addUserToRoom:', userObj.name, "Room Id:", this.id, "userObj:", userObj);
+		console.log('Room::addUserToRoom:', userObj.name, "Room Id:", this.id, "userObj:", userObj);
 
 		// Instantly add this user's socket to this room
 		socket.join(this.id);
@@ -34,10 +34,11 @@ class Room {
 			this.attachHostEvents(socket);
 		} else {
 
-			var player = this.getPlayerBySessionId(userObj.sessionid);
+			var player = this.getPlayerBySessionId(userObj.sessionID);
 			if (player) {
 				console.log('player already exists:', player);
 				player.disconnected = false;
+				// each re-connection will result in a new socketid
 				player.socketid = socket.id;
 			} else {
 				player = new Player(userObj);

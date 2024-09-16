@@ -6,6 +6,9 @@ const express = require('express');
 // cookie/sessions
 const session = require("cookie-session");
 
+// generating a unique sessionID
+const uuid = require('uuid');
+
 // nodemailer
 const nodemailer = require('nodemailer');
 
@@ -34,12 +37,24 @@ sessionMiddleware = session({
 });
 app.use(sessionMiddleware);
 
+// Generate a unique sessionID for each user
+app.use( (req, res, next) => {
+      if (req.session.sessionID) {
+              // already have a sessionID
+      } else {
+              const sessionID = uuidv4();
+              req.session.sessionID = sessionID;
+              console.log('Setting sessionID:', req.session);
+      }
+      next()
+});
+
 // Tested enough - this works...
-app.use((req, res, next) => {
-  console.log('Session:', req.session);
-  req.session.nowInMinutes = Math.floor(Date.now() / 60e3)
-  next();
-})
+// app.use((req, res, next) => {
+//   console.log('Session:', req.session);
+//   req.session.nowInMinutes = Math.floor(Date.now() / 60e3)
+//   next();
+// })
 
 // Parse form data correctly
 app.use(express.urlencoded({ extended: true }));

@@ -7,7 +7,7 @@ const express = require('express');
 const session = require("cookie-session");
 
 // generating a unique sessionID
-const uuid = require('uuid');
+const { v4: uuidv4 } = require('uuid');
 
 // nodemailer
 const nodemailer = require('nodemailer');

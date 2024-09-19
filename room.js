@@ -30,7 +30,7 @@ class Room {
 			// perform host initialisation...
 			console.log('user is host:', userObj.room, userObj.sessionid);
 			this.host = userObj;
-			this.#io.to(socket.id).emit('hostconnect', this.getConnectedPlayers(), this.id);
+			this.#io.to(socket.id).emit('hostconnect', this.id, this.getConnectedPlayers());
 			this.attachHostEvents(socket);
 		} else {
 

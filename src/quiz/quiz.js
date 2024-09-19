@@ -179,8 +179,8 @@ class Quiz {
     }
     
     // CONNECT/DISCONNECT GAME-SPECIFIC EVENTS
-    onHostConnect = (players) => {
-        console.log('onHostConnect:', players);
+    onHostConnect = (room, players) => {
+        console.log('onHostConnect:', room, players);
         dom.DOMaddPlayers(players);
         dom.TLgameState().play();
     }

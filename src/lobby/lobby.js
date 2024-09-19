@@ -171,8 +171,8 @@ const onConnect = function () {
 const onDisconnect = function () {
     console.log('onDisconnect:', socket.connected);
 }
-const onHostConnect = function (players, room) {
-    console.log('onHostConnect:', socket.connected, room);
+const onHostConnect = function (room, players) {
+    console.log('onHostConnect:', socket.connected, room, players);
     DOMaddRoomName(room);
     DOMaddPlayers(players);
 }

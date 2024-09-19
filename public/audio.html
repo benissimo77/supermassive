@@ -12,6 +12,8 @@
     <audio id="audio" controls></audio>
     <a id="download" href="#" download="recording.webm">Download Recording</a>
 
+    <p id="status"></p>
+
     <script>
         let mediaRecorder;
         let audioChunks = [];
@@ -21,6 +23,7 @@
             console.log('Media devices:', navigator.mediaDevices);
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 console.error('MediaDevices API or getUserMedia not supported in this browser.');
+                document.getElementById('status').textContent = 'MediaDevices API or getUserMedia not supported in this browser.';
                 return;
             }
 
@@ -49,6 +52,7 @@
                 document.getElementById('stop').disabled = false;
             } catch (error) {
                 console.error('Error accessing microphone:', error);
+                document.getElementById('status').textContent = 'Error accessing microphone: ' + error;
             }
         });
 

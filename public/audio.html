@@ -17,34 +17,47 @@
         let audioChunks = [];
 
         document.getElementById('start').addEventListener('click', async () => {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
+            console.log('Navigator:', navigator);
+            console.log('Media devices:', navigator.mediaDevices);
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                console.error('MediaDevices API or getUserMedia not supported in this browser.');
+                return;
+            }
 
-            mediaRecorder.ondataavailable = event => {
-                audioChunks.push(event.data);
-            };
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
 
-            mediaRecorder.onstop = () => {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                const audioUrl = URL.createObjectURL(audioBlob);
-                const audio = document.getElementById('audio');
-                const downloadLink = document.getElementById('download');
+                mediaRecorder.ondataavailable = event => {
+                    audioChunks.push(event.data);
+                };
 
-                audio.src = audioUrl;
-                downloadLink.href = audioUrl;
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    const audio = document.getElementById('audio');
+                    const downloadLink = document.getElementById('download');
 
-                audioChunks = [];
-            };
+                    audio.src = audioUrl;
+                    downloadLink.href = audioUrl;
 
-            mediaRecorder.start();
-            document.getElementById('start').disabled = true;
-            document.getElementById('stop').disabled = false;
+                    audioChunks = [];
+                };
+
+                mediaRecorder.start();
+                document.getElementById('start').disabled = true;
+                document.getElementById('stop').disabled = false;
+            } catch (error) {
+                console.error('Error accessing microphone:', error);
+            }
         });
 
         document.getElementById('stop').addEventListener('click', () => {
-            mediaRecorder.stop();
-            document.getElementById('start').disabled = false;
-            document.getElementById('stop').disabled = true;
+            if (mediaRecorder) {
+                mediaRecorder.stop();
+                document.getElementById('start').disabled = false;
+                document.getElementById('stop').disabled = true;
+            }
         });
     </script>
 </body>

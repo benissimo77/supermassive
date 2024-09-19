@@ -301,6 +301,20 @@ body {
 }
 
 
+/* Similar for payload panels since they all behave in a similar way  */
+.payload {
+    flex-direction: column;
+    font-size: inherit;
+    width: 400px;
+    padding:10px;
+    border-radius: 10px;
+    text-align: left;
+    display:none;
+}
+.payload.active {
+    display: flex; /* Show the active panel */
+}
+
 
 /* QUESTION/ANSWERS */
 
@@ -417,9 +431,37 @@ body {
     top:0;
     left:0;
     width: 1920px;
+    height:120px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); /* Adjust minmax as needed */
+    grid-auto-rows: auto;
+    gap: 5px; /* Adjust gap between buttons */
     margin:0;
     padding:0;
     z-index: 999;
+}
+#payloadlist {
+    position:absolute;
+    transform-origin: top left;
+    top:120px;
+    left:0;
+    width: 1920px;
+    height:200px;
+    margin:0;
+    padding:0;
+    z-index: 999;
+    font-size: 32px;
+}
+#payloadlist .payload textarea {
+    font-size:inherit;
+}
+/* Specific styles for payload and event buttons */
+.payload-button {
+    grid-row: 1;
+}
+
+.event-button {
+    grid-row: 2;
 }
 
 #test1 {

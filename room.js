@@ -28,8 +28,9 @@ class Room {
 		// host value in player object must evaluate to truth (eg = 1)
 		if (userObj.host) {
 			// perform host initialisation...
+			console.log('user is host:', userObj.room, userObj.sessionid);
 			this.host = userObj;
-			this.#io.to(socket.id).emit('hostconnect', this.players);
+			this.#io.to(socket.id).emit('hostconnect', this.getConnectedPlayers(), this.id);
 			this.attachHostEvents(socket);
 		} else {
 

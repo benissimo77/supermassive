@@ -241,10 +241,6 @@ class Quiz extends Game {
 
 		// Start the state machine
 		this.stateMachine.start();
-
-		// the idea is that this is enough - after that the host will invoke a 'next round' event which will trigger the next round
-		// next round is also responsible for determining if there are any more rounds left
-		// if not then we end the quiz
 	}
 
 	endGame() {
@@ -322,11 +318,12 @@ class Quiz extends Game {
 				console.log('everyoneAnswered:', Object.keys(responses).length);
 				return (Object.keys(responses).length == playerList.length);
 			}
-			const questionFinished = (responses) => {
-				console.log('storeResults:', results);
+			const endQuestion = (responses) => {
+				console.log('endQuestion:: storeResults:', results);
 				this.question.results = results;
 				this.question.correctAnswerId = correctAnswerId;
-				this.room.emitToHosts('server:questionfinished', {},  true)
+				this.room.emitToAllPlayers('server:endquestion');
+				this.room.emitToHosts('server:endquestion', {},  true)
 				.then( resolve() );
 			}
 			const responseHandler = (socket, response) => {
@@ -337,7 +334,7 @@ class Quiz extends Game {
 			const strategy = {
 				responseHandler: responseHandler,
 				endCondition: everyoneAnswered,
-				callback: questionFinished,
+				callback: endQuestion,
 				timeoutSeconds: timeoutSeconds
 			}
 

@@ -1,4 +1,6 @@
 import { gsap } from 'gsap';
+import { TextPlugin } from "gsap/TextPlugin";
+
 import viewModel from '../werewolves/vm.js';
 
 // Not sure if a viewModel will be needed here - seems a bit overkill, but since its here I'll include for now
@@ -261,30 +263,21 @@ function TLendQuiz() {
 function TLpanelQuestion(question) {
     console.log('panelQuestion:', question);
 
-    // This functions assumes that there is already a question panel visible on the screen from the previous question
-    // So first animate this away and then bring in the new question
+    // This functions assumes that everything has been neatly cleaned up from previous question
     const buttonContainer = document.getElementById("answers");
     const tl = gsap.timeline();
-
-    // Animate the question panel away, clear previous answers
-    tl.add( () => { buttonContainer.innerHTML = '' });
-    tl.add( gsap.to("#panel-question", { x: -1920 }) );
 
     // Initialise the (new) question panel with the relevant question (it should already be off-screen)
     // and position it off-screen to the right
     tl.add( () => {
         DOMsetActivePanel("panel-question");
         document.getElementById("question-number").innerHTML = "Question: " + question.number;
-        document.getElementById("question").innerHTML = question.question;
+        document.getElementById("question").innerHTML = '';
         gsap.set("#panel-question", { x: 1920 }); 
     });
 
-    // Create a new SplitText instance to make the question animate one word at a time
-    // const split = new SplitText("#question", { type: "words" });
-    // const words = mySplitText.words; //an array of all the divs that wrap each word
-
-    // Animate the question panel
-    tl.add( gsap.to("#panel-question", { x: 0 }) );
+    // Fly the question panel in from the right (note the question is not shown yet, only the question number)
+    tl.add( gsap.to("#panel-question", { x: 0, ease:"back.out(1)" }) );
 
     // Animate the question text
     // tl.from(words, {
@@ -295,6 +288,18 @@ function TLpanelQuestion(question) {
     //   });
 
     // Finally add the answers - straightforward adding to the timeline
+    // Create a new Text instance to make the question animate one word at a time
+    // const split = new SplitText("#question", { type: "words" });
+    // const words = mySplitText.words; //an array of all the divs that wrap each word
+
+    // Animate the question panel
+    tl.add( gsap.to("#question", { text: {
+        value: question.question,
+        delimiter: "",
+        speed: 1,
+        preserveSpaces:true
+    }}));
+
     const addAnswers = (question) => {
         question.answers.forEach( answer => {
             const button = document.createElement('button');
@@ -308,10 +313,23 @@ function TLpanelQuestion(question) {
     
     return tl;
 }
-
-function DOMflyPanelLeft(panel) {
-    gsap.to(panel, { x: -1920, duration: 1 });
+function TLflyPanelLeft(panel) {
+    const tl = gsap.timeline();
+    tl.to(panel, { x: -1920, ease: "back.in(1)" });
+    return tl;
 }
+
+function TLendQuestion() {
+    const tl = gsap.timeline();
+    tl.add( () => {
+        document.getElementById("answers").innerHTML = '';
+        DOMresetPlayerNamePanels();
+        DOMhideTimer();    
+    })
+    tl.add( TLflyPanelLeft("#panel-question") );
+    return tl;
+}
+
 function DOMresetPlayerNamePanels() {
     const players = document.querySelectorAll('.playernamepanel');
     players.forEach( player => player.classList.remove('answered') );
@@ -438,6 +456,9 @@ function init() {
 
     console.log('dom.init started...');
 
+    // Since we want to animate text we need to register the TextPlugin
+    gsap.registerPlugin(TextPlugin);
+
     screenSizeBody();
     callAfterResize(screenSizeBody, 0.2);
 
@@ -493,22 +514,30 @@ function screenSizeBody() {
         height: canvasAdjustY(20),
         scale: 1/scaleX,
     } );
+    gsap.set("#payloadlist", {
+        fontSize: 16 / scaleX,
+    })
 }
 
 
-
-  export const dom = {
+// Export all the functions
+// Functions beginning with DOM are DOM manipulation functions that act immediately and don't require further interaction
+// Functions beginning with TL are timeline functions that can be added to a timeline and executed in sequence
+// General pattern for quiz.js is they will invoke a TL function and then add a host:response event to signify completion
+// Some events won't require this and they can call the DOM functions directly
+export const dom = {
     DOMaddPlayer,
     DOMaddPlayers,
     DOMremovePlayer,
     DOMsetActivePanel,
     DOMhideAllPanels,
     DOMpanelResponse,
-    DOMflyPanelLeft,
     DOMsetPlayerNamePanel,
     DOMresetPlayerNamePanels,
     DOMstartTimer,
     DOMhideTimer,
+    TLflyPanelLeft,
+    TLendQuestion,
     TLarrangePlayersInPanelHorizontal,
     TLarrangePlayersInPanelVertical,
     TLgameState,

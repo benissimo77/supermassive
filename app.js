@@ -37,16 +37,16 @@ sessionMiddleware = session({
 });
 app.use(sessionMiddleware);
 
-// Generate a unique sessionid for each user
+// Generate a unique sessionid for each user (perform on every request)
 app.use( (req, res, next) => {
-      if (req.session.sessionid) {
-              // already have a sessionID
-      } else {
-              const sessionid = uuidv4();
-              req.session.sessionid = sessionid;
-              console.log('Setting sessionid:', req.session);
-      }
-      next()
+  if (req.session.sessionid) {
+          // already have a sessionID
+  } else {
+          const sessionid = uuidv4();
+          req.session.sessionid = sessionid;
+          console.log('Setting sessionid:', req.session);
+  }
+  next()
 });
 
 // Tested enough - this works...

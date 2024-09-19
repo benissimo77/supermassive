@@ -10,9 +10,27 @@ import { dom } from './dom.quiz.js';
 console.log('Quiz.js loaded:', window.location);
 
 class Quiz {
-
+    
     constructor(socket) {
         this.socket = socket;
+
+        this.events = {
+            // 'connect': [this.onConnect, 'Connect', {}],
+            // 'disconnect': [this.onDisconnect, 'Disconnect', {}],
+            // 'hostconnect': [this.onHostConnect, 'Host Connect', {}],
+            // 'playerconnect': [this.onPlayerConnect, 'Player Connect', {name:'Player Name', avatar:'12140600', socketid:1}],
+            // 'playerdisconnect': [this.onPlayerDisconnect, 'Player Disconnect', {}],
+            'server:introquiz': [this.onIntroQuiz, 'Intro Quiz', {"title":"Quiz Title","description":"Quiz Instructions"}],
+            'server:introround': [this.onIntroRound, 'Intro Round', {title: 'Round Title', description: 'Round Instructions'}],
+            'server:question': [this.onQuestion, 'Question', {question: 'This is a typical length question - how does it look?', answers: [{id:'answer-1', answer:'Answer 1'}, {id:'answer-2',answer:'Answer 2'}, {id:'answer-3', answer:'Answer 3'}, {id:'answer-4', answer:'Answer 4'} ] } ],
+            'server:questionanswered': [this.onQuestionAnswered, 'Question Answered', {}],
+            'server:endquestion': [this.onEndQuestion, 'End Question', {}],
+            'server:endround': [this.onEndRound, 'End Round', {}],
+            'server:endquiz': [this.onEndQuiz, 'End Quiz', {}],
+            'server:starttimer': [this.onStartTimer, 'Start Timer', {duration:10}],
+            'server:loadgame': [this.onLoadGame, 'Load Game', {}],
+        }
+
         this.init();
         console.log('Quiz initialized');
     }
@@ -20,7 +38,7 @@ class Quiz {
     init() {
         dom.init();
         this.attachSocketEvents(this.socket);
-        this.attachButtonEventHandlers();
+        this.attachButtonEventHandlers(this.events);
         console.log('Quiz started');
     }
 
@@ -43,51 +61,121 @@ class Quiz {
         socket.on('playerdisconnect', this.onPlayerDisconnect);
         
         // Other game-specific events
-        socket.on('server:introquiz', onIntroQuiz);
-        socket.on('server:introround', onIntroRound);
-        socket.on('server:question', onQuestion);
-        socket.on('server:questionanswered', onQuestionAnswered)
-        socket.on('server:questionfinished', onQuestionFinished);
-        socket.on('server:endround', onEndRound);
+        socket.on('server:introquiz', this.onIntroQuiz);
+        socket.on('server:introround', this.onIntroRound);
+        socket.on('server:question', this.onQuestion);
+        socket.on('server:questionanswered', this.onQuestionAnswered)
+        socket.on('server:endquestion', this.onEndQuestion);
+        socket.on('server:endround', this.onEndRound);
         socket.on('server:endquiz', this.onEndQuiz);
         // socket.on('playerlist', onPlayerList);
         // socket.on('audioplay', onAudioPlay);
         // socket.on('gamestate', onGameState);
         // socket.on('startgame', onStartGame);
-        socket.on('server:starttimer', onStartTimer);
+        socket.on('server:starttimer', this.onStartTimer);
         // socket.on('server:request', onServerRequest);
-        socket.on('server:loadgame', onLoadGame);
+        socket.on('server:loadgame', this.onLoadGame);
     
+    }
+
+    buttonStart = () => {
+        console.log('buttonStart');
+        this.socket.emit('host:requeststart', 'quiz');
+    }
+    buttonEnd = () => {
+        console.log('buttonEnd:', this.socket);
+        this.socket.emit('host:requestend');
+    }
+    buttonHostReady = () => {
+        console.log('buttonHostReady:');
+        // clear up all possible audio/visuals
+        dom.DOMhideAllPanels();
+        this.socket.emit('host:response');
     }
 
     // attachButtonEvents - attach event handlers to the buttons
     // These are the specific event handlers for buttons that are displayed on the host screen
     // Most likely will be used during testing - ideally the host screen will be a display-only screen, controlled by the server
-    attachButtonEventHandlers() {
-        document.getElementById("buttonStart").addEventListener('click', function() {
-            console.log('buttonStart');
-            socket.emit('host:requeststart', 'quiz');
-        });
-        document.getElementById("buttonEnd").addEventListener('click', function() {
-            console.log('buttonEnd:', socket);
-            socket.emit('host:requestend');
-        });
-        document.getElementById("buttonHostReady").addEventListener('click', function() {
-            console.log('buttonHostReady:');
-            // clear up all possible audio/visuals
-            dom.DOMhideAllPanels();
-            socket.emit('host:response');
-        });
+    attachButtonEventHandlers(events) {
+        console.log('attachButtonEventHandlers:', events);
+    
+        for (var eventname in events) {
+            console.log('attachButtonEventHandlers:', eventname, events[eventname]);
+
+            const event = events[eventname];
+            const button = this.createEventButton(eventname, event);
+            const payload = this.createPayloadButton(eventname, event);
+
+            // Place two buttons into buttonlist - one for the event and one for the payload
+            // Payload button should be arrange to go on top of the event button
+            document.getElementById('buttonlist').appendChild(payload);
+            document.getElementById('buttonlist').appendChild(button);
+
+            button.addEventListener('click', (e) => { this.triggerSocketEvent(e) });
+            payload.addEventListener('click', (e) => { this.togglePayload(e); })
+        }
+
+        // Additional button handlers needed by the host
+        document.getElementById("buttonHostReady").addEventListener('click', this.buttonHostReady);
         
     }        
 
+    createEventButton(eventname, event) {
+        const button = document.createElement('button');
+        button.id = `button-${eventname}`;
+        button.classList.add('event-button');
+        button.innerHTML = event[1];
+        return button;
+    }
+    createPayloadButton(eventname, event) {
+        console.log('createPayload:', eventname, event);
+        const payload = document.createElement('div');
+        payload.id = `payload-${eventname}`;
+        payload.classList.add('payload');
+        const textarea = payload.appendChild(document.createElement('textarea'));
+        textarea.value = JSON.stringify(event[2]);
+        document.getElementById('payloadlist').appendChild(payload);
+
+        const payloadButton = document.createElement('button');
+        payloadButton.id = `payloadbutton-${eventname}`;
+        payloadButton.innerHTML = 'Payload';
+        payloadButton.classList.add('payload-button');
+        return payloadButton;
+    }
+    triggerSocketEvent = (e) => {
+        const eventname = e.target.id.replace('button-', '');
+        const event = this.events[eventname];
+        console.log('triggerSocketEvent:', eventname, event);
+        const payload = document.getElementById(`payload-${eventname}`);
+        const payloadText = payload.querySelector('textarea').value;
+        const payloadObject = JSON.parse(payloadText);
+        console.log('triggerSocketEvent:', eventname, payloadObject);
+        this.socket.trigger(eventname, payloadObject);
+    }
+
+    togglePayload = (e) => {
+        console.log('togglePayload:', e, e.target.id);
+        const eventname = e.target.id.replace('payloadbutton-', '');
+        const payload = document.getElementById(`payload-${eventname}`);
+        const active = payload.classList.contains('active');
+        // Hide all payloads
+        const payloads = document.querySelectorAll('.payload');
+        payloads.forEach( (payload) => {
+            payload.classList.remove('active');
+        });
+        // Show the payload if it is not already active
+        if (!active) {
+            payload.classList.add('active');
+        }
+    }
+
     // SOCKET EVENT HANDLERS
     // BUILT-IN EVENTS
-    onConnect =  () => {
-        console.log('onConnect:', socket.connected);
+    onConnect = () => {
+        console.log('onConnect:', this.socket.connected);
     }
     onDisconnect = () => {
-        console.log('onDisconnect:', socket.connected);
+        console.log('onDisconnect:', this.socket.connected);
     }
     
     // CONNECT/DISCONNECT GAME-SPECIFIC EVENTS
@@ -106,36 +194,102 @@ class Quiz {
         dom.DOMremovePlayer(socketid);
     }
     
+    // GAME-SPECIFIC EVENTS
+
+    // onIntroQuiz
+    // Display the quiz instructions on the screen
+    // This is a simple fade in/out of the question/answer panel
+    // Might as well use the question/answer panel since it by definition should not be used when introducing the quiz/round
+    // Note: slightly hacky but this function also removes the connection panel
+    onIntroQuiz = (payload) => {
+        console.log('onIntroQuiz:', payload);
+        dom.DOMpanelResponse(payload);
+    }
+
+    // onIntroRound
+    // Display the round instructions on the screen
+    // This is a simple fade in/out of the instructions panel
+    onIntroRound = (payload) => {
+        console.log('onIntroRound:', payload);
+        dom.TLpanelAutoResponse(payload)
+        .add( () => {
+            this.socket.emit('host:response');
+        })
+        .play();
+    }
+
+    // onQuestion
+    // Display the question on the screen
+    // This is a simple fade in/out of the question panel
+    // NOTE: importantly the socket event that called this is expecting a response before it starts the timer...
+    onQuestion = (question) => {
+        dom.TLpanelQuestion(question)
+        .add( () => {
+            this.socket.emit('host:response');
+        })
+        .play();
+    }
+
+    // onQuestionAnswered
+    onQuestionAnswered = (payload) => {
+        console.log('onQuestionAnswered:', payload);
+        dom.DOMsetPlayerNamePanel(payload.socketid);
+    }
+
+    // onEndQuestion
+    // Clear up after the question has been answered (or time run out)
+    onEndQuestion = () => {
+        console.log('onEndQuestion:');
+        dom.TLendQuestion()
+        .add( () => {
+            this.socket.emit('host:response');
+        })
+        .play();
+    }
+
+    //onEndRound
+    // Note: this function must end with a host response to move to the next stage
+    onEndRound = (round) => {
+        console.log('onEndRound:', round);
+        dom.TLendRound(round)
+        .add( () => {
+            this.socket.emit('host:response');
+        })
+        .play();
+    }
+
     // onEndQuiz
     // endRound should already have left the panels in a good state... only thing left here is to announce the winner...
     onEndQuiz = (results) => {
         console.log('onEndQuiz:', results);
         dom.TLendQuiz().play()
         .then( () => {
-            socket.emit('host:response');
+            this.socket.emit('host:response');
         });
     }
+
+    // OTHER MISCELLANEOUS EVENTS
+
+    // onStartTimer
+    // Simple function to display a timer on the screen which counts down
+    // Nothing happens when the timer completes - this is just a visual timer
+    // It is up to the server to determine what happens at the end of the timer period
+    onStartTimer = (request) => {
+        dom.DOMstartTimer(request);
+    }
+
+
+    // onLoadGame
+    onLoadGame = (game) => {
+        console.log('onLoadGame:');
+        const tl = dom.TLgameOver();
+        tl.add( () => {
+            window.location.href = `./${game}.html`;
+        });
+        tl.play();
+    }
+    
 }
-
-
-
-// Define event listeners for the HOST buttons (only for testing at this stage)
-// Attach event handlers to the buttons
-function buttonHostComplete() {
-}
-
-
-// SOCKET EVENTS
-
-
-
-
-
-
-// Why are the below functions outside of the Quiz class???
-
-
-
 
 
 
@@ -156,90 +310,8 @@ function onStartGame() {
     dom.TLgameState().play();
 }
 
-// onIntroQuiz
-// Display the quiz instructions on the screen
-// This is a simple fade in/out of the question/answer panel
-// Might as well use the question/answer panel since it by definition should not be used when introducing the quiz/round
-// Note: slightly hacky but this function also removes the connection panel
-function onIntroQuiz(payload) {
-    console.log('onIntroQuiz:', payload);
-    dom.DOMpanelResponse(payload);
-}
 
-// onIntroRound
-// Display the round instructions on the screen
-// This is a simple fade in/out of the instructions panel
-function onIntroRound(payload) {
-    console.log('onIntroRound:', payload);
-    dom.TLpanelAutoResponse(payload)
-    .add( () => {
-        socket.emit('host:response');
-    })
-    .play();
-}
-
-// onQuestion
-// Display the question on the screen
-// This is a simple fade in/out of the question panel
-// NOTE: importantly the socket event that called this is expecting a response before it starts the timer...
-function onQuestion(question) {
-    dom.TLpanelQuestion(question)
-    .add( () => {
-        socket.emit('host:response');
-    })
-    .play();
-}
-
-// onQuestionAnswered
-function onQuestionAnswered(payload) {
-    console.log('onQuestionAnswered:', payload);
-    dom.DOMsetPlayerNamePanel(payload.socketid);
-}
-
-// onQuestionFinished
-// Clear up after the question has been answered (or time run out)
-function onQuestionFinished() {
-    console.log('onQuestionFinished:');
-    dom.DOMhideTimer();
-    dom.DOMresetPlayerNamePanels();
-}
-
-//onEndRound
-// Note: this function must end with a host response to move to the next stage
-function onEndRound(round) {
-    console.log('onEndRound:', round);
-    dom.TLendRound(round)
-    .add( () => {
-        socket.emit('host:response');
-    })
-    .play();
-}
-
-
-// onStartTimer
-// Simple function to display a timer on the screen which counts down
-// Nothing happens when the timer completes - this is just a visual timer
-// It is up to the server to determine what happens at the end of the timer period
-function onStartTimer(request) {
-    dom.DOMstartTimer(request);
-}
-
-function onLoadGame(game) {
-    console.log('onLoadGame:');
-    const tl = dom.TLgameOver();
-    tl.add( () => {
-        window.location.href = `./${game}.html`;
-    });
-    tl.play();
-}
-
-// Placing the init function inside window.onLoad is too late - for some reason a lot of code has already been called including building the display
-window.onload = function() {
-    dom.init();
-    const quiz = new Quiz(socket);
-    console.log('window.onload: completed:', socket);
-};
-
+// TASKS TO PERFORM OUTSIDE OF THE QUIZ CLASS
 
 
 // Contact the socket.io socket server
@@ -247,5 +319,36 @@ window.onload = function() {
 // URL of undefined means io will connect to the window.location (suitable if hosting at same place as socket-server is running)
 // import io from 'socket.io-client';
 const clientOptions = {};
-const socket = io();
 
+// Placing the init function inside window.onLoad is too late - for some reason a lot of code has already been called including building the display
+window.onload = function() {
+
+    // For development use a dummy socket object to simulate socket communication
+    const socket = new Socket();
+    // const socket = io();
+
+    const quiz = new Quiz(socket);
+    console.log('window.onload: completed:', socket);
+};
+
+class Socket {
+    constructor() {
+        this.socket = "Dummy socket server";
+        this.connected = false;
+        this.events = {};
+    }
+    emit(event, payload) {
+        console.log('Socket.emit:', event, payload?payload:'');
+    }
+    on(event, callback) {
+        console.log('Socket.on:', event);
+        this.events[event] = callback;
+    }
+    trigger(event, payload) {
+        console.log('Socket.trigger:', event, payload);
+        this.events[event](payload);
+    }
+    getSocket() {
+        return this.socket;
+    }
+}

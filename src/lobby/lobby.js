@@ -64,6 +64,14 @@ const DOMaddPlayers = function(playerlist) {
     })
 }
 
+// DOMaddRoomName
+// Accepts a room name and adds it to the DOM
+const DOMaddRoomName = function(room) {
+    console.log('DOMaddRoomName:', room);
+    var roomNameDOM = document.getElementById("instructions-room").querySelector('.roomname');
+    roomNameDOM.innerHTML = room;
+}
+
 // addRandomMovement
 // Accepts an element and generates a random tween to a new location - callback added to tween so that it repeats
 // Note although the canvas is 1920x1080 we adjust x and y range to allow for the width and height of the player
@@ -163,8 +171,9 @@ const onConnect = function () {
 const onDisconnect = function () {
     console.log('onDisconnect:', socket.connected);
 }
-const onHostConnect = function (players) {
-    console.log('onHostConnect:', socket.connected);
+const onHostConnect = function (players, room) {
+    console.log('onHostConnect:', socket.connected, room);
+    DOMaddRoomName(room);
     DOMaddPlayers(players);
 }
 

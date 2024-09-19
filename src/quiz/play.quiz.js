@@ -49,6 +49,12 @@ export class Game {
 					<p>Waiting to start...</p>
 				</div>
 			</div>
+			<div class="panel" id="panel-waiting">
+				<div class="button-container">
+					<h2>Quiz</h2>
+					<p>Waiting for the next question...</p>
+				</div>
+			</div>
 			<div class="panel" id="panel-buttonselect">
 				<div class="button-container" id="button-container-buttonselect"></div>
 			</div>
@@ -189,6 +195,11 @@ export class Game {
 		this.showPanel(panelId);
 	}
 
+	onEndQuestion() {
+		console.log('onEndQuestion:');
+		this.showPanel('panel-waiting');
+	}
+
 	socketConnect(e) {
 		this.socket.connect();
 	}
@@ -222,6 +233,7 @@ export class Game {
         socket.on('player', this.onPlayer);
 
 		socket.on('server:request', this.onServerRequest.bind(this));
+		socket.on('server:endquestion', this.onEndQuestion.bind(this));
     }
 
     removeSocketEvents(socket) {

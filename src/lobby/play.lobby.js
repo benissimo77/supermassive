@@ -20,7 +20,7 @@ export class Game {
 		this.attachButtonEvents();
 		
 		// Show the first panel by default
-		this.showPanel('panel-1');
+		this.showPanel('panel-start');
 	}
   
     end() {
@@ -60,12 +60,11 @@ export class Game {
 		`;
 
 		// Begin with the welcome panel - maybe do this via the buildDOM function above...
-		// this.addButton('button-container-3', 'Final Button');
+		this.addButton('button-container-1', 'Final Button');
 
-		// this.adjustFontSizeToFit('button-container-1');
+		this.adjustFontSizeToFit('button-container-1');
 		// this.adjustFontSizeToFit('button-container-2');
 		// this.adjustFontSizeToFit('button-container-3');
-		
 	}
 
 	unloadDOM() {

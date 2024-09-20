@@ -115,7 +115,7 @@ class Quiz {
             payload.addEventListener('click', (e) => { this.togglePayload(e); })
         }
 
-        // Additional button handlers needed by the host
+        // Additional button handlers needed by the host - this should go in a separate function if it is required in production mode
         document.getElementById("buttonHostReady").addEventListener('click', this.buttonHostReady);
         
     }        
@@ -324,9 +324,14 @@ const clientOptions = {};
 window.onload = function() {
 
     // For development use a dummy socket object to simulate socket communication
-    const socket = new Socket();
-    // const socket = io();
-
+    // If in development mode then use the dummy socket object
+    // If in production mode then use the real socket object
+    let socket;
+    if (process.env.NODE_ENV === 'development') {
+        socket = new Socket();
+    } else {
+        socket = io();
+    }
     const quiz = new Quiz(socket);
     console.log('window.onload: completed:', socket);
 };

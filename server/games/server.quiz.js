@@ -1,4 +1,5 @@
 const Game = require('./server.game.js');
+const parseQuizFromCSV = require('../readcsv.js');
 
 const QuizState = {
     INIT: 'INIT',
@@ -98,127 +99,127 @@ class Quiz extends Game {
 		// Questions and Rounds are not numbered, so in theory they can be shudffled or presented in any order
 		// The order of the rounds might be important - but the order of the questions within a round is not
 		// Basic type the answers are an array, the first answer is always the correct one - quiz shuffles the answers before sending
-		this.quizData = {
-			title: 'The Veluwe Weekend Mega-Quiz!',
-			description: 'Ok, not very mega, but hey sales...',
-			type: 'basic',
-			rounds: [
-				{
-					title: 'General Ignorance',
-					description: 'Just your basic general knowledge questions. Four possible answers, how much do you know?',
-					questions: [
-						{
-							question: 'Who wrote the play "Romeo and Juliet"?',
-							answers: ['William Shakespeare', 'Charles Dickens', 'Jane Austen', 'Mark Twain']
-						},
-						{
-							question: 'What is the capital city of Japan?',
-							answers: ['Tokyo', 'Beijing', 'Seoul', 'Bangkok']
-						},
-						{
-							question: 'In which year did the Titanic sink?',
-							answers: ['1912', '1905', '1915', '1920']
-						},
-						{
-							question: 'What is the largest ocean on Earth?',
-							answers: ['Pacific Ocean', 'Atlantic Ocean', 'Indian Ocean', 'Arctic Ocean']
-						},
-						{
-							question: 'Who painted the Mona Lisa?',
-							answers: ['Leonardo da Vinci', 'Vincent van Gogh', 'Pablo Picasso', 'Claude Monet']
-						},
-						{
-							question: 'What is the smallest country in the world?',
-							answers: ['Vatican City', 'Monaco', 'San Marino', 'Liechtenstein']
-						},
-						{
-							question: 'Which country is known as the Land of the Rising Sun?',
-							answers: ['Japan', 'China', 'South Korea', 'Thailand']
-						},
-						{
-							question: 'What is the main ingredient in guacamole?',
-							answers: ['Avocado', 'Tomato', 'Onion', 'Garlic']
-						},
-						{
-							question: 'Who was the first President of the United States?',
-							answers: ['George Washington', 'Thomas Jefferson', 'Abraham Lincoln', 'John Adams']
-						}
-					]
-				},
-				{
-					title: 'Science and Nature',
-					description: 'I wanted to include some different types of question, but I ran out of time...',
-					questions: [
-						{
-							question: 'Which planet is known as the Red Planet?',
-							answers: ['Mars', 'Venus', 'Jupiter', 'Saturn']
-						},
-						{
-							question: 'What is the hardest natural substance on Earth?',
-							answers: ['Diamond', 'Gold', 'Iron', 'Platinum']
-						},
-						{
-							question: 'What is the process by which plants make their food?',
-							answers: ['Photosynthesis', 'Respiration', 'Digestion', 'Fermentation']
-						},
-						{
-							question: 'What is the boiling point of water at sea level?',
-							answers: ['100°C', '90°C', '80°C', '110°C']
-						},
-						{
-							question: 'Which gas do plants absorb from the atmosphere?',
-							answers: ['Carbon Dioxide', 'Oxygen', 'Nitrogen', 'Hydrogen']
-						},
-						{
-							question: 'What is the main gas found in the air we breathe?',
-							answers: ['Nitrogen', 'Oxygen', 'Carbon Dioxide', 'Helium']
-						},
-						{
-							question: 'What is the largest planet in our solar system?',
-							answers: ['Jupiter', 'Saturn', 'Earth', 'Mars']
-						},
-						{
-							question: 'What is the chemical symbol for gold?',
-							answers: ['Au', 'Ag', 'Fe', 'Pb']
-						},
-						{
-							question: 'Which organ in the human body is primarily responsible for detoxification?',
-							answers: ['Liver', 'Kidney', 'Heart', 'Lungs']
-						},
-						{
-							question: 'What is the most abundant element in the universe?',
-							answers: ['Hydrogen', 'Oxygen', 'Carbon', 'Nitrogen']
-						}
-					]
-				},
-				{
-					title: 'GOLF!',
-					description: 'Well why not eh? It is a golf weekend after all...',
-					questions: [
-						{
-							question: 'What is the term for a score of one under par on a hole?',
-							answers: ['Birdie', 'Eagle', 'Par', 'Bogey']
-						},
-						{
-							question: 'What is the maximum number of clubs a golfer is allowed to carry in their bag during a round?',
-							answers: ['14', '10', '12', '16']
-						},
-						{
-							question: 'Which famous golfer is known as "The Golden Bear"?',
-							answers: ['Jack Nicklaus', 'Tiger Woods', 'Arnold Palmer', 'Gary Player']
-						},
-						{
-							question: 'Which tournament is considered the oldest major championship in golf?',
-							answers: ['The Open Championship', 'The Masters', 'The U.S. Open', 'The PGA Championship']
-						},
-						{
-							question: 'What is the name of the trophy awarded to the winner of The Masters Tournament?',
-							answers: ['The Green Jacket', 'The Claret Jug', 'The Wanamaker Trophy', 'The Ryder Cup']
-						}
-					]
-				}
-			]
-		}
+		// this.quizData = {
+		// 	title: 'The Veluwe Weekend Mega-Quiz!',
+		// 	description: 'Ok, not very mega, but hey sales...',
+		// 	type: 'basic',
+		// 	rounds: [
+		// 		{
+		// 			title: 'General Ignorance',
+		// 			description: 'Just your basic general knowledge questions. Four possible answers, how much do you know?',
+		// 			questions: [
+		// 				{
+		// 					question: 'Who wrote the play "Romeo and Juliet"?',
+		// 					answers: ['William Shakespeare', 'Charles Dickens', 'Jane Austen', 'Mark Twain']
+		// 				},
+		// 				{
+		// 					question: 'What is the capital city of Japan?',
+		// 					answers: ['Tokyo', 'Beijing', 'Seoul', 'Bangkok']
+		// 				},
+		// 				{
+		// 					question: 'In which year did the Titanic sink?',
+		// 					answers: ['1912', '1905', '1915', '1920']
+		// 				},
+		// 				{
+		// 					question: 'What is the largest ocean on Earth?',
+		// 					answers: ['Pacific Ocean', 'Atlantic Ocean', 'Indian Ocean', 'Arctic Ocean']
+		// 				},
+		// 				{
+		// 					question: 'Who painted the Mona Lisa?',
+		// 					answers: ['Leonardo da Vinci', 'Vincent van Gogh', 'Pablo Picasso', 'Claude Monet']
+		// 				},
+		// 				{
+		// 					question: 'What is the smallest country in the world?',
+		// 					answers: ['Vatican City', 'Monaco', 'San Marino', 'Liechtenstein']
+		// 				},
+		// 				{
+		// 					question: 'Which country is known as the Land of the Rising Sun?',
+		// 					answers: ['Japan', 'China', 'South Korea', 'Thailand']
+		// 				},
+		// 				{
+		// 					question: 'What is the main ingredient in guacamole?',
+		// 					answers: ['Avocado', 'Tomato', 'Onion', 'Garlic']
+		// 				},
+		// 				{
+		// 					question: 'Who was the first President of the United States?',
+		// 					answers: ['George Washington', 'Thomas Jefferson', 'Abraham Lincoln', 'John Adams']
+		// 				}
+		// 			]
+		// 		},
+		// 		{
+		// 			title: 'Science and Nature',
+		// 			description: 'I wanted to include some different types of question, but I ran out of time...',
+		// 			questions: [
+		// 				{
+		// 					question: 'Which planet is known as the Red Planet?',
+		// 					answers: ['Mars', 'Venus', 'Jupiter', 'Saturn']
+		// 				},
+		// 				{
+		// 					question: 'What is the hardest natural substance on Earth?',
+		// 					answers: ['Diamond', 'Gold', 'Iron', 'Platinum']
+		// 				},
+		// 				{
+		// 					question: 'What is the process by which plants make their food?',
+		// 					answers: ['Photosynthesis', 'Respiration', 'Digestion', 'Fermentation']
+		// 				},
+		// 				{
+		// 					question: 'What is the boiling point of water at sea level?',
+		// 					answers: ['100°C', '90°C', '80°C', '110°C']
+		// 				},
+		// 				{
+		// 					question: 'Which gas do plants absorb from the atmosphere?',
+		// 					answers: ['Carbon Dioxide', 'Oxygen', 'Nitrogen', 'Hydrogen']
+		// 				},
+		// 				{
+		// 					question: 'What is the main gas found in the air we breathe?',
+		// 					answers: ['Nitrogen', 'Oxygen', 'Carbon Dioxide', 'Helium']
+		// 				},
+		// 				{
+		// 					question: 'What is the largest planet in our solar system?',
+		// 					answers: ['Jupiter', 'Saturn', 'Earth', 'Mars']
+		// 				},
+		// 				{
+		// 					question: 'What is the chemical symbol for gold?',
+		// 					answers: ['Au', 'Ag', 'Fe', 'Pb']
+		// 				},
+		// 				{
+		// 					question: 'Which organ in the human body is primarily responsible for detoxification?',
+		// 					answers: ['Liver', 'Kidney', 'Heart', 'Lungs']
+		// 				},
+		// 				{
+		// 					question: 'What is the most abundant element in the universe?',
+		// 					answers: ['Hydrogen', 'Oxygen', 'Carbon', 'Nitrogen']
+		// 				}
+		// 			]
+		// 		},
+		// 		{
+		// 			title: 'GOLF!',
+		// 			description: 'Well why not eh? It is a golf weekend after all...',
+		// 			questions: [
+		// 				{
+		// 					question: 'What is the term for a score of one under par on a hole?',
+		// 					answers: ['Birdie', 'Eagle', 'Par', 'Bogey']
+		// 				},
+		// 				{
+		// 					question: 'What is the maximum number of clubs a golfer is allowed to carry in their bag during a round?',
+		// 					answers: ['14', '10', '12', '16']
+		// 				},
+		// 				{
+		// 					question: 'Which famous golfer is known as "The Golden Bear"?',
+		// 					answers: ['Jack Nicklaus', 'Tiger Woods', 'Arnold Palmer', 'Gary Player']
+		// 				},
+		// 				{
+		// 					question: 'Which tournament is considered the oldest major championship in golf?',
+		// 					answers: ['The Open Championship', 'The Masters', 'The U.S. Open', 'The PGA Championship']
+		// 				},
+		// 				{
+		// 					question: 'What is the name of the trophy awarded to the winner of The Masters Tournament?',
+		// 					answers: ['The Green Jacket', 'The Claret Jug', 'The Wanamaker Trophy', 'The Ryder Cup']
+		// 				}
+		// 			]
+		// 		}
+		// 	]
+		// }
 
 	}
 
@@ -239,8 +240,12 @@ class Quiz extends Game {
 		// Game start logic for game 1
 		console.log('Quiz: startGame')
 
-		// Start the state machine
-		this.stateMachine.start();
+		// Load the quiz from file and start the state machine
+		parseQuizFromCSV('quiz1.v1').then((quiz) => {
+			this.quizData = quiz;
+			this.stateMachine.start();
+		});
+
 	}
 
 	endGame() {

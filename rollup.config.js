@@ -1,5 +1,8 @@
 import terser from "@rollup/plugin-terser";
 import resolve from '@rollup/plugin-node-resolve';
+import replace from '@rollup/plugin-replace';
+
+const isProduction = process.env.NODE_ENV === 'production';
 
 export default [
 
@@ -16,7 +19,14 @@ export default [
                 }
             }        
         ],
-        plugins: [terser(), resolve()]
+        plugins: [
+            replace({
+                'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+                preventAssignment: true,
+              }),
+            resolve(),
+            isProduction && terser()
+        ]
     },
     {
         input: "src/werewolves/werewolves.js", // replace with path to your main JS file

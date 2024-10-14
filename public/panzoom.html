@@ -130,8 +130,17 @@ instance.on('transform', function(e) {
         element.addEventListener('mousedown', function () {
             mouseDownTime = new Date().getTime();
         });
-
         element.addEventListener('mouseup', function (event) {
+            handleClick(event);
+        });
+        element.addEventListener('touchstart', function () {
+            mouseDownTime = new Date().getTime();
+        });
+        element.addEventListener('touchend', function (event) {
+            handleClick(event);
+        });
+
+        function handleClick(event) {
             var mouseUpTime = new Date().getTime();
             var duration = mouseUpTime - mouseDownTime;
 

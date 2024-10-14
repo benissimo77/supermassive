@@ -4,16 +4,41 @@
 const express = require('express');
 const router = express.Router({ strict: true });
 
+const isAuth = (req, res, next) => {
+    if (req.isAuthenticated()) {
+        next();
+    } else {
+        res.status(401).json({ msg: 'You are not authorized to view this resource' });
+    }
+}
+
+const isAdmin = (req, res, next) => {
+    if (req.isAuthenticated() && req.user.admin) {
+        next();
+    } else {
+        res.status(401).json({ msg: 'You are not authorized to view this resource because you are not an admin.' });
+    }
+}
 
 // Middleware to check if the user is a host
 function checkHost(req, res, next) {
 	// console.log('checkHost:', req.baseUrl, req.originalUrl, req.url, req.path, req.params, req.query);
-	// Assume we have validated somehow...
-	req.session.host = true;
+
+	// Zach Goll suggests that there might be a req.isAuthenticated() function that can be used here
+	console.log('Checking if user is a host:', req.user);
+    // if (req.isAuthenticated()) {
+	// 	console.log('Hmmm... surprisingly that worked...');
+	// } else {
+	// 	console.log('Well the call worked, response:', req.isAuthenticated());
+	// }
+	if (req.user) {
+		req.session.host = true;
+		next();
+	}
 	if (req.session && req.session.host) {
-	  next();
+		next();
 	} else {
-	  //res.redirect('/login');
+	//   res.redirect('/login');
 	  next();
 	}
   }
@@ -31,7 +56,7 @@ function checkRoom(req, res, next) {
 
 router.use( [checkHost, checkRoom] );
 
-// This works when it is described below - it does NOT seem to work when placed into a (req,red,next) type function
+// This works when it is described below - it does NOT seem to work when placed into a (req,res,next) type function
 // NOTE: this is placed after the checks above so it serves /host files only to authenticated hosts with a room
 router.use( express.static(__dirname + '/host', { redirect: false }) );
 
@@ -42,10 +67,12 @@ router.get('/login', (req, res) => {
 	res.sendFile('login.html', { root: './public' });
   });
   
-  router.post('/login', (req, res) => {
-	// Handle the login form submission
-	// This is where you would check the user's credentials and set req.session.host
-  });
+// router.post('/login', (req, res) => {
+// 	// Handle the login form submission
+// 	// This is where you would check the user's credentials and set req.session.host
+//   });
+
+
 
 // For development - admin console (shouldn't be placed in the public folder...)
 router.get('/admin', (req, res) => {
@@ -53,12 +80,8 @@ router.get('/admin', (req, res) => {
 	res.sendFile('index.html', { root: './public/admin' })
 })
 
-router.post('/host/endgame', (req, res) => {
-	// End the game
-	// This is where you would check the user's credentials and set req.session.host
-  });
 
-  const generateNewRoomName = () => {
+const generateNewRoomName = () => {
 	return 'GOLD';
 }
 

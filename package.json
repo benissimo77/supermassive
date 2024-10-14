@@ -4,7 +4,7 @@
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "server": "nodemon --inspect=9229 server.js",
+    "server": "nodemon --inspect=9229 app.js",
     "rollup": "rollup -c -w",
     "start": "npm-run-all --parallel rollup server"
   },
@@ -24,6 +24,8 @@
     "gsap": "^3.12.5",
     "mongoose": "^8.5.2",
     "nodemailer": "^6.9.13",
+    "passport": "^0.7.0",
+    "passport-local": "^1.0.0",
     "socket.io": "^4.7.3",
     "socket.io-client": "^4.7.5",
     "uuid": "^10.0.0"

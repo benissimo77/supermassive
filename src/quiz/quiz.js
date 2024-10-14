@@ -115,8 +115,10 @@ class Quiz {
             payload.addEventListener('click', (e) => { this.togglePayload(e); })
         }
 
+        // 
         // Additional button handlers needed by the host - this should go in a separate function if it is required in production mode
         document.getElementById("buttonHostReady").addEventListener('click', this.buttonHostReady);
+        document.getElementById("buttonStart").addEventListener('click', this.buttonStart);
         
     }        
 

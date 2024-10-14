@@ -1,6 +1,9 @@
 // ROUTES
 const express = require('express');
-const router = express.Router({ strict: true });
+const router = express.Router();
+
+const passport = require('passport');
+const User = require('./server/models/mongo.user');
 
 // Define a route for the home page
 router.get('/', (req, res) => {
@@ -33,6 +36,62 @@ router.get('/play', (req, res) => {
 	console.log('routes.get /play:', req.params, req.session, req.query, req.originalUrl);
 	// perform validation on room / name here...
 	res.sendFile('play.html', { root: './public' });
+})
+
+// This taken from Zach Goll https://github.com/zachgoll/express-session-authentication-starter/blob/final/routes/index.js
+// router.post('/login', passport.authenticate('local', { failureRedirect: '/login-failure', successRedirect: '/login-success' }));
+router.post('/login', passport.authenticate('local', { failureRedirect: '/login-failure', successRedirect: 'login-success' }));
+
+// Login route
+router.post('/loginXXX', (req, res, next) => {
+    console.log('Login route hit');
+    passport.authenticate('custom-local', (err, user, info) => {
+        if (err) {
+            return next(err);
+        }
+        if (!user) {
+            return res.status(400).json({ message: 'Invalid email or password' });
+        }
+        req.logIn(user, (err) => {
+            if (err) {
+                return next(err);
+            }
+            return res.status(200).json({ message: 'Login successful' });
+        });
+    })(req, res, next);
+});
+
+
+router.get('/login-success', (req, res, next) => {
+    res.send('<p>You successfully logged in. --> <a href="/protected-route">Go to protected route</a></p>');
+});
+
+router.get('/login-failure', (req, res, next) => {
+    res.send('You entered the wrong password.');
+});
+
+// This taken from https://www.golinuxcloud.com/nodejs-passportjs-authenticate/
+router.all('/register', async (req, res) => {
+	console.log('Registering user:', req.body)
+
+		const { username, email, password } = req.body;
+
+        // Check if user already exists
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({ message: 'User already exists' });
+        }
+
+        // Create a new user
+        const newUser = new User({
+            username,
+            email
+		})
+		newUser.password = newUser.generateHash(password);
+
+        // Save the user to the database
+        await newUser.save();
+        res.status(201).json({ message: 'User registered successfully:', newUser });    
 })
 
 

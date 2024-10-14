@@ -57,64 +57,41 @@
     <script>
         var relativePos = null;
         var element = document.getElementById('panzoom')
+        var image = document.getElementById('panzoomimg')
         var instance = panzoom(element, {
             bounds: true,
-            boundsPadding: 0.5,
+            boundsPadding: 0.8,
             maxZoom: 3,
             minZoom: 1
         });
 
-        instance.on('zoomX', function(e) {
-
-            // adjust size of crosshair back to ensure it always shows at the same scale
+        // use the transform event as this is fired at the end of the chain and the getBoundingRect is updated
+        // (tried using zoom event but the boundingRect was not updated yet)
+        instance.on('transform', function(e) {
+            // This event will be called along with events above.
             if (relativePos) {
                 setCrosshair();
             }
         });
-        instance.on('zoomend', function(e) {
-  console.log('Fired when zoom animation ended', e);
-});
 
-instance.on('transform', function(e) {
-  // This event will be called along with events above.
-  console.log('Fired when any transformation has happened', e);
-  var rect = element.getBoundingClientRect();
-            var scale = instance.getTransform().scale;
-            console.log('transform:', rect, scale, relativePos);
-            if (relativePos) {
-                setCrosshair();
-            }
-});
-
-        // function to hide the crosshair
-        function hideCrosshair() {
-            var crosshair = document.getElementById('crosshair');
-            crosshair.style.display = 'none';
-        }
         // setCrosshair
         // Position the crosshair at the location of the click
-        // Note: relies on mousePos being set
+        // Note: relies on relativePos being set
         function setCrosshair() {
+
             var rect = element.getBoundingClientRect();
             var scale = instance.getTransform().scale;
-            console.log('setCrosshair:', rect, scale, relativePos);
-            // var absoluteX = (mousePos.x - rect.left) / scale;
-            // var absoluteY = (mousePos.y - rect.top) / scale;
-
             var absoluteX = relativePos.x * rect.width / scale / 1000;
             var absoluteY = relativePos.y * rect.height / scale / 1000;
-            // console.log('click', mousePos, rect);
-            // console.log(mousePos.x - rect.left);
-            // console.log('x:', relativeX, 'y:', relativeY);
+
             var crosshair = document.getElementById('crosshair');
             crosshair.style.display = 'block';
             crosshair.style.left = absoluteX + 'px';
             crosshair.style.top = absoluteY + 'px';
+
             var inverseScale = 1 / scale;
             var translateX = -50 * inverseScale;
             var translateY = -50 * inverseScale;
-            // crosshair.style.transformOrigin = 'center center'; // Ensure scaling happens from the center
-            // crosshair.style.transform = `translate(${translateX}%, ${translateY}%) scale(${inverseScale})`;
             crosshair.style.transform = `translate(-50%, -50%) scale(${inverseScale})`; 
         }
 
@@ -127,16 +104,16 @@ instance.on('transform', function(e) {
                 return { x: event.clientX, y: event.clientY };
             }
         }
-        element.addEventListener('mousedown', function () {
+        image.addEventListener('mousedown', function () {
             mouseDownTime = new Date().getTime();
         });
-        element.addEventListener('mouseup', function (event) {
+        image.addEventListener('mouseup', function (event) {
             handleClick(event);
         });
-        element.addEventListener('touchstart', function () {
+        image.addEventListener('touchstart', function () {
             mouseDownTime = new Date().getTime();
         });
-        element.addEventListener('touchend', function (event) {
+        image.addEventListener('touchend', function (event) {
             handleClick(event);
         });
 
@@ -145,12 +122,15 @@ instance.on('transform', function(e) {
             var duration = mouseUpTime - mouseDownTime;
 
             // Define a maximum duration for a valid click (e.g., 500ms)
-            var maxClickDuration = 500;
+            var maxClickDuration = 300;
 
             if (duration <= maxClickDuration) {
                 var mousePos = getMousePosition(event);
                 var rect = element.getBoundingClientRect();
-                relativePos = { x: Math.floor(1000 * (mousePos.x - rect.left) / (rect.width)), y: Math.floor(1000 * (mousePos.y - rect.top) / (rect.height)) };
+                relativePos = {
+                    x: Math.floor(1000 * (mousePos.x - rect.left) / (rect.width)),
+                    y: Math.floor(1000 * (mousePos.y - rect.top) / (rect.height))
+                };
 
                 // Now that relativePos has been set we can use it to calculate the position of the crosshair
                 // Separate into function so that it can also be called from the zoom events

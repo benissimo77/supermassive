@@ -42,6 +42,7 @@ app.use((req, res, next) => {
 })
 
 // Parse form data correctly
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ROUTES

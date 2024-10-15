@@ -158,7 +158,7 @@ document.getElementById("buttonWerewolves").addEventListener('click', function()
     socket.emit('host:requestgame', 'werewolves');
 });
 document.getElementById("buttonTest").addEventListener('click', function() {
-    console.log('Host:: buttonTest');
+    console.log('Host:: buttonTest: ', socket);
     socket.emit('buttontest', 'test');
 });
 
@@ -167,7 +167,7 @@ document.getElementById("buttonTest").addEventListener('click', function() {
 // Add client socket event handlers
 const onConnect = function () {
     console.log('onConnect:', socket.connected);
-  }
+}
 const onDisconnect = function () {
     console.log('onDisconnect:', socket.connected);
 }
@@ -204,6 +204,6 @@ socket.on('playerdisconnect', onPlayerDisconnect);
 socket.on('server:loadgame', (game) => {
     console.log('server:loadgame:', game);
     history.pushState({ game: `${game}` }, '', `/host/${game}.html`);
-    window.location.href = `${game}.html`;
+    // window.location.href = `${game}.html`;
 })
 

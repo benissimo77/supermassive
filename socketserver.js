@@ -1,8 +1,7 @@
-const cookie = require('cookie');
 const socketIO = require('socket.io');
-const cookieSignature = require('cookie-signature');
 
 const { instrument } = require("@socket.io/admin-ui");
+const { sessionMiddleware } = require('./app');
 
 // Experiment with receiving the server variable from the requiring module...
 module.exports = function (server) {
@@ -16,7 +15,15 @@ module.exports = function (server) {
 	//   }
 	// }
 	// const io = socketIO(server, ioconfig);
-	const io = socketIO(server);
+	const io = socketIO(server, {
+		transports: ['websocket', 'polling'],
+		allowEIO3: true, // If you are using Engine.IO v3 clients
+	  });
+
+	// This suggested by copilot (hmmm...)
+	io.use( (socket, next) => {
+		sessionMiddleware(socket.request, {}, next);
+	});
 
 	// Used by the Admin UI
 	instrument(io, {
@@ -57,17 +64,14 @@ module.exports = function (server) {
 		// Session is already in the correct format - use it if URL query string doesn't have the required data
 		// Note: this can be hacked if the user simply adds room to their URL - but that's not a big deal for now 
 		if (!userObj.room) {
-			console.log('io.connection:: using req.session data:', session);
 			userObj = session;
-		} else {
-			console.log('io.connection: using URL query string data:', userObj);
 		}
 
 		// Add socket.id to the userObj - then it has everything
 		userObj.socketid = socket.id;
 
 		// console.log('io.connect: userObj:', userObj);
-		// console.log('io.connection:', socket.id, session, referer, params, urlParams);
+		console.log('io.connection:', socket.id, session, referer, params, urlParams);
 
 		if (!rooms[userObj.room]) {
 			rooms[userObj.room] = new Room(io, userObj.room);

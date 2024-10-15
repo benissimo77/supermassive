@@ -1,6 +1,8 @@
 // console.log('play.quiz.js is executing');
 
 // This is a simple example of a game module
+// No matter what the game is, it is always defined as a class Game
+// This means the loading code in play.common.js can always instantiate the game using new Game()
 export class Game {
     constructor(socket) {
 

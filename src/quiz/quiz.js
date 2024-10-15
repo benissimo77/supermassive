@@ -345,7 +345,7 @@ class Socket {
         this.events = {};
     }
     emit(event, payload) {
-        console.log('Socket.emit:', event, payload?payload:'');
+        console.log('Socket.emit:', event, payload ? payload : '');
     }
     on(event, callback) {
         console.log('Socket.on:', event);

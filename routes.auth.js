@@ -22,30 +22,18 @@ const isAdmin = (req, res, next) => {
 
 // Middleware to check if the user is a host
 function checkHost(req, res, next) {
-	// console.log('checkHost:', req.baseUrl, req.originalUrl, req.url, req.path, req.params, req.query);
-
-	// Zach Goll suggests that there might be a req.isAuthenticated() function that can be used here
-	console.log('Checking if user is a host:', req.user);
-    // if (req.isAuthenticated()) {
-	// 	console.log('Hmmm... surprisingly that worked...');
-	// } else {
-	// 	console.log('Well the call worked, response:', req.isAuthenticated());
-	// }
-	if (req.user) {
-		req.session.host = true;
-		next();
-	}
+	console.log('checkHost:', req.session, req.url, req.originalUrl, req.baseUrl, req.path, req.params, req.query);
 	if (req.session && req.session.host) {
-		next();
+	  next();
 	} else {
-	//   res.redirect('/login');
+	  //res.redirect('/login');
 	  next();
 	}
   }
 
 // Middleware to check if the (host) user is in a room - creates a new room if not
 function checkRoom(req, res, next) {
-// console.log('checkRoom:', req.baseUrl, req.originalUrl, req.url, req.path, req.params, req.query);
+	console.log('checkRoom:', req.baseUrl, req.originalUrl, req.url, req.path, req.params, req.query);
 	if (req.session && req.session.room) {
 		next();
 	} else {

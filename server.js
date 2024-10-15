@@ -8,7 +8,8 @@ const server = http.createServer(app);
 const io = require('./socketserver')(server)
 
 // From https://socket.io/how-to/use-with-express-session
-io.engine.use(sessionMiddleware);
+// io.engine.use(sessionMiddleware);
+
 // Copilot says above line is not correct (!) use below instead...
 // Use the session middleware with Socket.IO
 // io.use((socket, next) => {
@@ -17,7 +18,15 @@ io.engine.use(sessionMiddleware);
 // });
 // Copilot is talking out of its AI-arse...
 
-// Start the server on port 3001
+// Copilot also now tried suggesting another alternative to above...
+
+// Use the session middleware with Socket.IO
+io.use((socket, next) => {
+  sessionMiddleware(socket.request, {}, next);
+  next();
+});
+
+// Start the server on port 3000
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);

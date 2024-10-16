@@ -2,7 +2,6 @@
 const express = require('express');
 const router = express.Router();
 
-const passport = require('passport');
 const User = require('./server/models/mongo.user');
 
 // Define a route for the home page
@@ -40,7 +39,7 @@ router.get('/play', (req, res) => {
 
 // This taken from Zach Goll https://github.com/zachgoll/express-session-authentication-starter/blob/final/routes/index.js
 // router.post('/login', passport.authenticate('local', { failureRedirect: '/login-failure', successRedirect: '/login-success' }));
-router.post('/login', passport.authenticate('local', { failureRedirect: '/login-failure', successRedirect: 'login-success' }));
+// router.post('/login', passport.authenticate('local', { failureRedirect: '/login-failure', successRedirect: 'login-success' }));
 
 // Login route
 router.post('/loginXXX', (req, res, next) => {

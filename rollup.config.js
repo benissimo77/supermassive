@@ -86,6 +86,17 @@ export default [
     },
 
     {
+        input: "src/scripts/landing.js", // replace with path to your main JS file
+        output: [
+            {
+                file: "public/landing.min.js", // replace with desired output file path
+                format: "esm",
+                sourcemap: true,
+            }        
+        ],
+        plugins: [terser(), resolve()]
+    },
+    {
         input: "src/lobby/play.lobby.js", // replace with path to your main JS file
         output: [
             {

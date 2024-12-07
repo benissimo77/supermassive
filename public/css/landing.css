@@ -1,0 +1,743 @@
+:root {
+    --color-primary: #dd00dd;
+    --color-primary-rgb: 255, 0, 255;
+    --color-primary-hover: #ff00ff;
+    --color-secondary: #00FFFF;
+    --color-secondary-rgb: 0, 255, 255;
+    --color-accent: #FFFF00;
+    --color-background-dark: #1A0033;
+    --color-background-light: #FFFFFF;
+    --color-text-dark: #333333;
+    --color-text-dark-rgb: 51, 51, 51;
+    --color-text-light: #FFFFFF;
+    --color-text-light-rgb: 255, 255, 255;
+    --color-dark-ocean: #040762;
+    --font-primary: 'Poppins', sans-serif;
+    --font-secondary: 'Helvetica', sans-serif;
+    --gradient: linear-gradient( 45deg,
+        #845ec2,
+        #d65db1,
+        #ff6f91,
+        #ff9671,
+        #ffc75f,
+        #f9f871);
+}
+
+body {
+    font-family: var(--font-primary);
+    margin: 0;
+    padding: 0;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* Header Styles */
+#main-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    transition: background-color 0.3s ease, backdrop-filter 0.3s ease;
+}
+
+#main-header .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+}
+
+.logo {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--color-text-light);
+}
+
+nav ul {
+    display: flex;
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+}
+
+nav ul li {
+    margin-left: 20px;
+}
+
+nav ul li a {
+    color: var(--color-text-light);
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+nav ul li a:hover {
+    color: var(--color-accent);
+}
+
+.auth-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+/* Button Styles */
+.btn {
+    font-family: var(--font-primary);
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: box-shadow 0.3s ease;
+    text-decoration: none;
+}
+
+/* This is an old style keeping it here for reference */
+.btn-extra {
+    transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.btn-primary {
+    background-color: var(--color-primary);
+    color: var(--color-text-light);
+}
+.btn-primary:hover {
+    /* add outer glow */
+    background-color: var(--color-primary-hover);
+    box-shadow: 0 0 15px rgba(var(--color-primary-rgb), 0.7); /* Adjust color to match your primary button color */
+}
+
+.btn-secondary {
+    background-color: rgba(var(--color-text-light-rgb), 0.1);
+    color: var(--color-text-light);
+    border: 2px solid var(--color-text-light);
+}
+.btn-secondary:hover {
+    /* add outer glow */
+    background-color: rgba(var(--color-text-light-rgb), 0.3);
+    box-shadow: 0 0 15px rgba(var(--color-text-light-rgb), 0.7);
+}
+
+
+.btn-large {
+    padding: 15px 30px;
+    font-size: 18px;
+}
+
+
+/* Specific effects */
+
+/* Wavy dividing lines (white to blue) */
+.wave-divider {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 100px; /* Choose height for entire divider */
+    overflow: hidden;
+}
+
+.wave-divider svg {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%; /* Double the height to compensate for viewBox change */
+    /* transform: translateY(-25%); Move the SVG up by 25% of its height */
+}
+
+.wave1 {
+    fill: #ccccff;
+}
+.wave2 {
+    fill: #9999dd;
+}
+.wave3 {
+    fill: #6666bb;
+}
+.wave4 {
+    fill: #333399;
+}
+.wave5 {
+    fill: var(--color-dark-ocean);
+}
+.wave1 { fill: #E6F3FF; } /* Lightest blue */
+.wave2 { fill: #B3D9FF; }
+.wave3 { fill: #80BFFF; }
+.wave4 { fill: #4DA6FF; }
+.wave5 { fill: #1A8CFF; } /* Darkest blue */
+
+.wave1 { fill: #B3D4FF; }
+.wave2 { fill: #80A5FF; }
+.wave3 { fill: #2D66FF; }
+.wave4 { fill: #1641c0; }
+.wave5 { fill: var(--color-dark-ocean); }
+
+/* Background shows through text */
+.gradient-text {
+    background: linear-gradient(45deg, #ff00ff, #00ffff);
+    background-image: url('img/KREA-6.webp');
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+}
+.animated-gradient-text {
+    background: linear-gradient(45deg, #ff00ff, #00ffff);
+    background: var(--gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    background-size: 600%;
+    animation: bg-animation 5s infinite alternate
+
+}
+@keyframes bg-animation {
+    0% {
+        background-position: left;
+    }
+    100% {
+        background-position: right;
+    }
+}
+
+/* Similar to above but a different technique */
+.punch-through-text-container {
+    background-image: url('img/KREA-6.webp');
+    background-size: cover;
+    background-position: center;
+}
+.punch-through-text {
+    font-size: 96px;
+    font-weight: bold;
+    background-color: black;
+    color: var(--color-text-light);
+    mix-blend-mode: multiply;
+    padding: 20px;
+}
+
+
+
+/* SECTION STYLES */
+section {
+    padding: 80px 0;
+    position: relative;
+    overflow: hidden;
+    min-height: 20vh;
+}
+.section-dark {
+    background-color: var(--color-background-dark);
+    color: var(--color-text-light);
+}
+
+.section-light {
+    background-color: var(--color-background-light);
+    color: var(--color-text-dark);
+}
+/* This section is required to blend from the wave-divider in the section above it */
+.section-blue {
+    background-color: var(--color-dark-ocean);
+    color: var(--color-text-light);
+}
+
+.parallax-bg {
+    position: absolute;
+    top: -50%;
+    left: 0;
+    right: 0;
+    bottom: -50%;
+    z-index: 1;
+    background-size: cover;
+    background-position: center;
+}
+.section-light .parallax-bg {
+    background-image: url('https://picsum.photos/800/600?grayscale');
+}
+
+.section-dark .parallax-bg {
+    background-image: url('https://picsum.photos/800/600?grayscale&blur=2');
+}
+
+.section-dark .container, .section-light .container {
+    position: relative;
+    z-index: 2;
+}
+
+/* Hero Section */
+#hero {
+    background-image: url('/img/KREA-2.webp');
+    background-size: cover;
+    background-position: center;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    text-align: center;
+}
+.hero-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.8);
+    z-index: 1;
+  }
+  
+#hero h1 {
+    font-size: 48px;
+    margin-bottom: 20px;
+}
+
+#hero p {
+    font-size: 24px;
+    margin-bottom: 40px;
+}
+
+.cta-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+
+/* Games Section */
+.games-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+}
+
+/* Game card is designed to be displayed on a dark ocean background as they are semi-transparent */
+.game-card {
+    background-color: rgba(var(--color-text-light-rgb), 0.1);
+    color: var(--color-accent);
+    border: 2px solid var(--color-primary);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.game-card:hover {
+    background-color: rgba(var(--color-text-light-rgb), 0.2);
+    box-shadow: 0 0 20px rgba(var(--color-primary-rgb), 0.7);
+
+}
+
+.game-card img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+}
+
+.game-card h3 {
+    font-size: 24px;
+    margin: 20px;
+}
+
+.game-card p {
+    margin: 0 20px 20px;
+}
+
+.game-meta {
+    display: flex;
+    justify-content: space-between;
+    margin: 0 20px 20px;
+    font-size: 14px;
+}
+
+.game-card .btn {
+    display: block;
+    width: calc(100% - 40px);
+    margin: 0 20px 20px;
+}
+
+/* How It Works Section */
+#how-it-works img {
+    width: 100%;
+    height: auto;
+    margin-bottom: 80px;
+}
+
+.steps-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 30px;
+}
+
+.step {
+    
+    text-align: center;
+}
+
+.step-number {
+    width: 60px;
+    height: 60px;
+    background-color: var(--color-primary);
+    color: var(--color-text-light);
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 24px;
+    margin: 0 auto 20px;
+}
+
+/* Testimonials Section */
+.testimonials-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+}
+
+.testimonial {
+    background-color: #f0f0f0;
+    border-radius: 10px;
+    padding: 30px;
+    text-align: center;
+}
+
+.avatar {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    margin-bottom: 20px;
+}
+
+blockquote {
+    font-style: italic;
+    margin-bottom: 20px;
+}
+
+cite {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.user-type {
+    font-size: 14px;
+    color: #666;
+}
+
+/* Leaderboard section  */
+/* Add these styles to your existing CSS file */
+
+#leaderboards {
+    background-color: var(--color-background-dark);
+    color: var(--color-text-light);
+    padding: 80px 0;
+}
+
+.section-title {
+    text-align: center;
+    font-size: 2.5rem;
+    margin-bottom: 40px;
+    color: var(--color-accent);
+}
+
+.leaderboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+    margin-bottom: 60px;
+}
+
+.leaderboard-card {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.leaderboard-title {
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+    color: var(--color-secondary);
+    text-align: center;
+}
+
+.leaderboard-window {
+    height: 240px; /* Adjust this value to fit approximately 3 items */
+    overflow-y: hidden;
+    position:relative;
+}
+
+.leaderboard-list {
+    list-style-type: none;
+    padding: 0;
+    position:relative;
+}
+
+.leaderboard-item {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    height: 50px;
+    margin-bottom: 15px;
+    padding: 0 10px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 5px;
+    transition: transform 0.3s ease;
+    position:relative;
+    overflow: visible;
+}
+
+.leaderboard-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    /* transform: translateY(-5px); */
+}
+
+.player-avatar {
+    width: 50px;
+    height: auto;
+}
+
+.player-name {
+    flex-grow: 1;
+    font-weight: bold;
+}
+
+.player-rank {
+    flex-shrink: 0;
+    font-size: 0.8rem;
+    padding: 3px 8px;
+    border-radius: 12px;
+    margin-right: 10px;
+    justify-content: flex-end;
+}
+
+.badge {
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.elite { background-color: #FFD700; color: #000; }
+.commando { background-color: #C0C0C0; color: #000; }
+.master { background-color: #CD7F32; color: #000; }
+.jedi { background-color: #4B0082; color: #fff; }
+.sage { background-color: #228B22; color: #fff; }
+.wizard { background-color: #9400D3; color: #fff; }
+
+.player-stars {
+    color: var(--color-accent);
+    margin-right: auto;
+    flex-shrink: 0;
+}
+
+.player-score {
+    font-weight: bold;
+    font-size: 1.2rem;
+    color: var(--color-primary);
+    justify-content: flex-end;
+}
+
+.trophy-showcase {
+    text-align: center;
+    margin-top: 60px;
+}
+
+.trophy-title {
+    font-size: 2.5rem;
+    margin-bottom: 30px;
+    color: var(--color-secondary);
+}
+
+.champion-card-border {
+    width: 50%; /* Set to approximately half the screen width */
+    margin:0 auto;
+    background: linear-gradient(145deg, #aab600, #ffcc00, #ff0000);
+    border-radius: 15px;
+    border:2px solid #EEEE00;
+    padding: 5px;
+    box-shadow: 0 10px 20px rgba(255, 255, 0, 0.5);
+    background-size: 400%;
+    animation: bg-animation 3s infinite alternate;
+}
+.champion-card {
+    background-color: var(--color-background-dark);
+    border-radius: 12px;
+    border: 1px solid #777700;
+    padding: 20px 40px
+    
+}
+
+.champion-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 30px;
+}
+
+.champion-avatar {
+    width: 100px;
+}
+
+.champion-details {
+    text-align: left;
+}
+
+.champion-details .player-name {
+    font-size: 2rem;
+    font-weight: bold;
+    /* color: #333; */
+    margin-bottom: 5px;
+    display: block;
+}
+
+.champion-details .player-rank {
+    font-size: 1rem;
+    padding: 5px 10px;
+}
+
+.champion-details .player-stars {
+    font-size: 1.5rem;
+    color: #ff9900;
+}
+
+.trophy-grid {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 20px;
+}
+
+.trophy {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.trophy i {
+    font-size: 3rem;
+    margin-bottom: 10px;
+}
+
+.trophy-label {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.trophy-count {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.gold i, .gold .trophy-count { color: #FFD700; }
+.silver i, .silver .trophy-count { color: #C0C0C0; }
+.bronze i, .bronze .trophy-count { color: #CD7F32; }
+
+.legendary {
+    background: linear-gradient(45deg, #ff00ff, #00ffff);
+    color: white;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+}
+
+/* CTA Section */
+#cta {
+    text-align: center;
+}
+
+#cta h2 {
+    font-size: 36px;
+    margin-bottom: 20px;
+}
+
+#cta p {
+    font-size: 18px;
+    margin-bottom: 40px;
+}
+
+/* Footer Styles */
+#main-footer {
+    background-color: #333;
+    color: #fff;
+    padding: 60px 0 30px;
+}
+
+.footer-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 30px;
+    margin-bottom: 30px;
+}
+
+.footer-section h3 {
+    font-size: 18px;
+    margin-bottom: 20px;
+}
+
+.footer-section ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+.footer-section ul li {
+    margin-bottom: 10px;
+}
+
+.footer-section a {
+    color: #fff;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.footer-section a:hover {
+    color: var(--color-accent);
+}
+
+.social-icons {
+    display: flex;
+    gap: 15px;
+}
+
+.social-icons a {
+    font-size: 24px;
+}
+
+.footer-bottom {
+    text-align: center;
+    padding-top: 30px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.section-dark, .section-light {
+    position: relative;
+    overflow: hidden;
+}
+
+.section-dark::before, .section-light::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: inherit;
+    z-index: -1;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    nav ul {
+        display: none;
+    }
+
+    .auth-buttons {
+        display: none;
+    }
+
+    #hero h1 {
+        font-size: 36px;
+    }
+
+    #hero p {
+        font-size: 18px;
+    }
+
+    .cta-buttons {
+        flex-direction: column;
+    }
+}

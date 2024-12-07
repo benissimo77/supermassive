@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Builder</title>
+    <link rel="stylesheet" href="/dashboard/dashboard.css">
+    <link rel="stylesheet" href="/dashboard/quizbuilder.css">
+    <script type="text/javascript" src="/dashboard/dashboard.js" defer></script>
+    <script type="text/javascript" src="/dashboard/quizbuilder.min.js"></script>
+	
+	<!-- Add these to your head section -->
+	<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>  
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+
+</head>
+<body class="dark-theme">
+    
+    {{> dashboardnav}}
+
+<main>
+    <div id="button-panel">
+        <button id="create-quiz" class="quiz-btn">New Quiz</button>
+        <button id="import-quiz" class="quiz-btn">Host Quiz</button>
+        <button id="export-quiz" class="quiz-btn">Export Quiz</button>
+    </div>
+
+    {{!-- This is the content for the quiz list --}}
+    <div id="quiz-list">
+        <ul id="quiz-items"></ul>
+    </div>
+
+    {{!-- This is the content for the quiz editor --}}
+    <div id="quiz-edit">
+		<details class="quiz" open>
+			<summary class="header-quiz">
+				<div class="left-group">
+					<span class="header-quiz-label">Quiz:</span>
+					<span class="header-title"></span>
+				</div>
+			</summary>
+            <input type="hidden" id="quiz-id" />
+            <input type="hidden" id="quiz-owner" />
+            <input type="text" id="quiz-title" placeholder="Enter quiz title">
+            <div id="quiz-description" placeholder="Enter quiz description"></div>
+	        <ul id="rounds-container"></ul>
+	        <button id="add-round" class="round-btn">Add Round</button>
+	        <button id="save-quiz">Save Quiz</button>
+            {{!-- <label for="import-quiz">Select Quiz to import:</label>
+	        <input type="file" id="import-quiz" accept="json"> --}}
+		</details>
+
+    <h3>Quiz JSON</h3>
+    <textarea id="quiz-json"></textarea>
+
+    </div>
+
+
+</main>
+
+<template id="round-template">
+    <li>
+        <details class="round" open>
+            <summary class="header-round">
+                <div class="left-group">
+                    <span aria-label="Drag to reorder">☰</span>
+                    <span class="header-round-label">Round <span class="header-round-number"></span>:</span>
+                    <span class="header-title"></span>
+                </div>
+                <button class="delete-btn">Delete</button>
+            </summary>
+            <div class="form-two-column">
+                <div class="form-left-column">
+                    <input type="hidden" class="round-id" />
+                    <input type="hidden" class="round-owner" />
+                    <input type="text" class="round-title" placeholder="Enter round title" maxlength="50"/>
+                    <textarea class="round-description" placeholder="Enter round description"></textarea>
+                </div>
+                <div class="form-right-column">
+                    <label>Timed questions?</label>
+                    <select data-field="round-timer">
+                        <option value="0" selected>No timer, I will decide</option>
+                        <option value="10">10 seconds (fast)</option>
+                        <option value="20">20 seconds (average)</option>
+                        <option value="30">30 seconds (relaxed)</option>
+                        <option value="60">1 minute (very relaxed)</option>
+                    </select>
+                    <label>Show answer:</label>
+                    <select data-field="show-answer">
+                        <option value="round" selected>End of round</option>
+                        <option value="question">Every question</option>
+                        <option value="no">Combine with next round</option>
+                    </select>
+                    <label>Update team scores:</label>
+                    <select data-field="update-scores">
+                        <option value="round" selected>End of round</option>
+                        <option value="answer">Every question</option>
+                    </select>
+                    
+                </div>
+            </div>
+                </div>
+            </div>
+            <ul class="questions-container"></ul>
+            <button class="question-btn">Add Question</button>
+        </details>
+    </li>
+</template>
+
+<template id="question-template">
+    <li>
+        <details class="question" open>
+        <summary class="header-question">
+            <div class="left-group">
+                <span aria-label="Drag to reorder">☰</span>
+                <span class="header-question-label">Question <span class="header-question-number"></span>:</span>
+                <span class="header-title"></span>
+            </div>
+            <button class="delete-btn">Delete</button>
+        </summary>
+        <div class="form-two-column">
+            <div class="form-left-column">
+                <label>Text:</label><input type="text" data-field="question-text" class="question-field" placeholder="Enter question">
+                <label>Picture:</label>
+                <div data-field="image-selection">
+                    <input type="text" data-field="question-image-url" class="question-text" placeholder="Enter URL of image">
+                    <p>OR</p>
+                    <div data-field="dropzone" class="dropzone">
+                        <p>Drop image or click to select</p>
+                        <input type="file" data-field="dropzone-image" style="display: none;" accept="image/*" />
+                    </div>
+                </div>
+                {{!-- <image-selector data-field="question-image" class="image-selector-preview" mode="disabled" style="width:100%;height:120px;display:none;"></image-selector> --}}
+                <img data-field="question-image" class="image-selector-preview" style="max-width:100%;height:120px;display:none;" />
+                <label>Audio:</label><input type="text" data-field="question-audio" class="question-text" placeholder="Enter URL of music track">
+                <iframe width="200" height="80" title="YouTube video player" frameborder="0" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+            </div>
+            <div class="form-right-column">
+                <label>Answer Type:</label>
+                <select class="question-type">
+                    <option value="text">Text</option>
+                    <option value="multiple-choice">Multiple Choice</option>
+                    <option value="true-false">True/False</option>
+                    <option value="matching">Matching Pairs</option>
+                    <option value="ordering">Ordering</option>
+                    <option value="hotspot">Hotspot</option>
+                    <option value="point-it-out">Point It Out</option>
+                    <option value="draw">Draw the Answer</option>
+                </select>
+                <div class="question-specific-content"></div>
+            </div>
+        </div>
+        </details>
+    </li>
+</template>
+<template id="quiz-item-template">
+    <div class="quiz-item">
+        <button class="edit-quiz-item">Edit</button>
+        <span class="quiz-item-title"></span>
+    </div>
+</template>
+
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!doctype html>
+<html>
+    <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Titan+One&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="quiz.css">
+        <script src="https://www.youtube.com/iframe_api"></script>
+    
+    </head>
+    <!-- Background colour faded from dark blue (lobby) to black in onload -->
+    <body style="background-color: darkblue;">
+
+        <template id="question-template">
+            <div id="question-number-title">Question: <span id="question-number"></span></div>
+            <div id="question-text"></div>
+            <div id="question-audio">
+                <!-- player will be dynamically added if necessary -->
+            </div>
+            <div id="question-image">
+                <!-- image selector will be dynamically added if necessary -->
+            </div>
+            <div id="question-answer">
+                <!-- this can be used to display an answer for simple questions that just need a textual answer -->
+            </div>
+            <div id="question-options-wrapper">
+                <div id="question-options"></div>
+            </div>
+        </template>
+        <template id="information-panel-template">
+            
+        </template>
+
+        <!-- Background image - inside its own element outside of the wrapper since we don't want it to be concerned with scaling -->
+        <div id="background">
+            <div id="overlay"></div>
+        </div>
+
+        <!-- Place everything inside a wrapper so that entire contents can be hidden/revealed (useful when setting up) -->
+         <!-- Also attempting to use the wrapper as the scale element to prevent scaling on BODY -->
+        <div id="wrapper"> 
+
+            <!-- at some point this will become a general round/question indicator -->
+            <div id="roundnumber"></div>
+
+            <div id="buttonlist">
+                <button id="buttonStart" type="button">START</button>
+                <!-- <button id="buttonEnd" type="button">END</button>     -->
+            </div>
+            <div id="payloadlist"></div>
+            
+            <!-- panel which displays text but contains a button for host response -->
+            <div id="panel-response" class="panel">
+                <div id="panel-response-title" class="outline">VIDEOSWIPE.NET</div>
+                <div id="panel-response-description" class="outline">Room: GOLF</div>
+                <div id="panel-response-close">
+                    <button id="buttonHostReady" type="button">READY!</button>
+                </div>
+            </div>
+
+            <!-- panel which displays title and description (useful for quiz/round instructions) -->
+            <!-- TODO: add styles for the Quill markup that can be added during quiz creation -->
+            <div id="information-panel">
+                <div id="information-panel-title" class="outline"></div>
+                <div id="information-panel-description" class="outline"></div>
+            </div>
+
+            <!-- panel which displays text, image, audio player everything to show the question -->
+            <div id="question-panel"></div>
+
+            <!-- Layers used to store players and animate the results -->
+            <div id="playerlist"></div>
+            <div id="racetrack">
+                <div id="racetrack-markers"></div>
+                <div id="racetrack-lanes"></div>
+            </div>
+            
+        </div> <!-- wrapper -->
+
+        <script src="/socket.io/socket.io.js"></script>
+        <script src="quiz.min.js"></script>
+    </body>
+</html>
+
+
+

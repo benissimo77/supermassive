@@ -52,7 +52,7 @@ function unloadGame() {
 function loadCSS(href) {
 	const link = document.createElement('link');
 	link.rel = 'stylesheet';
-	link.href = `./css/${href}.css`;
+	link.href = `/css/${href}.css`;
 	link.id = 'dynamic-css'; // Give an ID to easily find and remove it later
 	document.head.appendChild(link);
 }

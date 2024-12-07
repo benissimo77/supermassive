@@ -554,7 +554,6 @@ body {
     width: 100%;    /* Ensure the image does not exceed the container width */
     height: 100%;   /* Ensure the image does not exceed the container height */
     cursor: crosshair;
-    border: 1px solid red;
     object-fit: contain; /* Scale the image to fit within the container while maintaining aspect ratio */
 }
 

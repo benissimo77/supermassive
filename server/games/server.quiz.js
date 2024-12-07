@@ -649,8 +649,6 @@ class Quiz extends Game {
 		// Now I can actually pass the entire question object directly to the client (do later it works right now)
 		if (mode == "ask") {
 
-			this.question.number = this.questionNumber;
-
 			switch (this.question.type) {
 
 				case "multiple-choice":
@@ -678,13 +676,16 @@ class Quiz extends Game {
 
 		}
 
+		// Add the question number
+		this.question.number = this.questionNumber;
+
 		// This is an exception where we want to automatically move to next state without waiting for host
 		// WHY? Because after asking a question we know we instantly want to either collect answers or show the answer
 		this.room.registerHostResponseHandler( () => {
 			this.room.deregisterHostResponseHandler();
 			this.stateMachine.nextState();
 		} );
-		console.log('Sending question to hosts');
+		console.log('Sending question to hosts:', this.question);
 		this.room.emitToHosts('server:question', this.question, true );
 
 		// Now that we have sent the data we can attach the correct answer to the question object

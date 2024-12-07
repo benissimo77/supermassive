@@ -987,7 +987,7 @@ function screenSizeBody() {
 
     gsap.set("#racetrack", { y: canvasAdjustY(200), height: canvasAdjustY(600) });
     gsap.set("#racetrack-markers", { y: 0, height: canvasAdjustY(24) });
-    gsap.set("#racetrack-lanes", { y: canvasAdjustY(60), height: canvasAdjustY(600) });
+    gsap.set("#racetrack-lanes", { y: canvasAdjustY(80), height: canvasAdjustY(600) });
 
     gsap.set("#timer", { top: canvasAdjustY(940), height: canvasAdjustY(40) } );
 

@@ -74,7 +74,7 @@ export default [
 
     // Player modules
     {
-        input: "src/login.js", // replace with path to your main JS file
+        input: "src/scripts/login.js", // replace with path to your main JS file
         output: [
             {
                 file: "public/modules/login.min.js", // replace with desired output file path

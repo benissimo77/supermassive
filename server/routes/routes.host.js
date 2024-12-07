@@ -71,6 +71,11 @@ router.get('/dashboard/', (req, res) => {
 	console.log('routes.host.js: /dashboard');
     res.render('home', { layout: 'dashboard' }); // Use a different layout
 });
+// Repeat above but without the slash... (?)
+router.get('/dashboard', (req, res) => {
+	console.log('routes.host.js: /dashboard');
+    res.render('home', { layout: 'dashboard' }); // Use a different layout
+});
 router.get('/dashboard/home', (req, res) => {
 	console.log('routes.host.js: /dashboard/home');
     res.render('home', { layout: 'dashboard' }); // Use a different layout

@@ -116,13 +116,14 @@ class Room {
 
 		// requeststart
 		// Called by host once the introduction has been watched and host is ready to start the game
-		socket.on('host:requeststart', () => {
-			console.log('host:requeststart:', socket.id, this.getPlayerBySocketId(socket.id));
+		// Function accepts an optional config object which can be used to pass additional data to the game
+		socket.on('host:requeststart', (config) => {
+			console.log('host:requeststart:', socket.id, this.getPlayerBySocketId(socket.id), config);
 			if (this.game) {
 				const valid = this.game.checkGameRequirements();
 				console.log('Game is valid:', valid);
 				if (valid) {
-					this.game.startGame();
+					this.game.startGame(config);
 				}
 			}
 		})

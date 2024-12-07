@@ -32,4 +32,19 @@ const quizSchema = new mongoose.Schema({
 }, { timestamps: true }); // Automatically manage createdAt and updatedAt fields
 
 
+// This is an experiment with adding methods to this model to include reading/writing to the DB
+// That way we only need to include this Model and it will encapsulate all the DB operations
+// This is a good idea because it keeps all the DB operations in one place
+quizSchema.statics.getQuizByID = async function(quizID) {
+    try {
+        const quiz = await this.findById(quizID);
+        if (!quiz) {
+            throw new Error('Quiz not found');
+        }
+        return quiz;
+    } catch (error) {
+        throw new Error('Error retrieving quiz data: ' + error.message);
+    }
+}
+
 module.exports = mongoose.model('Quiz', quizSchema);

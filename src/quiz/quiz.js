@@ -101,8 +101,9 @@ class Quiz {
     }
 
     buttonStart = () => {
-        console.log('buttonStart');
-        this.socket.emit('host:requeststart', 'quiz');
+        const urlParams = new URLSearchParams(window.location.search);
+        console.log('buttonStart:', urlParams);
+        this.socket.emit('host:requeststart', { quizID: urlParams.get('q') });
     }
     buttonEnd = () => {
         console.log('buttonEnd:', this.socket);

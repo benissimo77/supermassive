@@ -1,6 +1,5 @@
 const Game = require('./server.game.js');
-const parseQuizFromCSV = require('../readcsv.js');
-const { BodyUpdateMemberV1WorkspaceMembersPostWorkspaceRole } = require('elevenlabs/api/index.js');
+const QuizModel = require('../models/mongo.quiz.js');
 
 const QuizState = {
     INIT: 'INIT',
@@ -28,8 +27,7 @@ class QuizStateMachine {
     }
 
     start() {
-        // this.transitionTo(QuizState.INTRO_QUIZ);
-        this.transitionTo(QuizState.INTRO_ROUND);
+        this.transitionTo(QuizState.INTRO_QUIZ);
     }
 
 	// General purpose function which advamces the state machine to the next state
@@ -551,15 +549,21 @@ class Quiz extends Game {
 	}
 	// startGame is a required function for a class that extends Game
 	// Called by room when it receives a host:requeststart from the host - this is the entry point to the game
-	startGame() {
+	async startGame(config) {
 		// Game start logic for game 1
-		console.log('Quiz: startGame')
+		console.log('Quiz: startGame:', config)
 
 		// Initialize player scores to 0
 		this.players.forEach(player => {
 			player.score = 0;
 		});
 
+		// Config should pass a quiz ID to select the quiz to load
+		// We load the quiz from DB using the passed ID (see api.quiz.js)
+		if (config.quizID) {
+			// Load the quiz from DB
+			this.quizData = await QuizModel.getQuizByID(config.quizID);
+		}
 		// Load the quiz from file and start the state machine
 		// parseQuizFromCSV('quiz1.v1').then((quiz) => {
 		// 	this.quizData = quiz;

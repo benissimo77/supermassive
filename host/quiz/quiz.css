@@ -104,15 +104,15 @@ body {
     position:absolute;
     width: 1880px;
     left: 1920px;
-    background-color: rgba(240,0,0, 0.3);
-    border:1px solid red;
+    /* background-color: rgba(240,0,0, 0.3);
+    border:1px solid red; */
 }
 #racetrack-lanes {
     position:absolute;
     width: 1880px;
     left: 0px;
-    background-color: rgba(0, 240,0, 0.3);
-    border:1px solid green;
+    /* background-color: rgba(0, 240,0, 0.3);
+    border:1px solid green; */
 }
 
 /* PLAYER */
@@ -545,7 +545,7 @@ body {
     display: none;      /* Default it is not shown since it takes up a lot of space */
     justify-content: center;
     align-items: center;
-    border:1px solid white;
+    /* border:1px solid white; */
 }
 #question-image.active {
     display:flex;

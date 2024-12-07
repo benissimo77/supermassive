@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const hostQuizButton = document.getElementById('host-quiz');
     hostQuizButton.addEventListener('click', hostQuiz);
-    
+
     const addRoundButton = document.getElementById('add-round');
     addRoundButton.addEventListener('click', addRoundToDOM);
 
@@ -139,6 +139,14 @@ document.addEventListener('DOMContentLoaded', () => {
         createQuizFromJSON( {title: 'New Quiz', description:'Add additional info here - prizes, rounds...', rounds:[]} );
     }
 
+    function hostQuiz() {
+        const quizId = document.getElementById('quiz-id').value;
+        if (quizId) {
+            window.location.href = `/host/quiz?q=${quizId}`;
+        } else {
+            alert('Please save the quiz before hosting it');
+        }
+    }
     // Function to save a quiz
     async function saveQuiz(event) {
         event.preventDefault(); // Prevent the default form submission

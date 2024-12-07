@@ -86,7 +86,7 @@ function parseQuestion(questionArray) {
     if ((answers.length > 0) && (answers[answers.length-1].startsWith('{'))) {
         ret.overrides = JSON.parse(answers.pop());
     }
-    ret.answers = answers;
+    ret.options = answers;
     return ret;
 }
 

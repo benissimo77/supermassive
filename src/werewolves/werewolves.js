@@ -35,9 +35,9 @@ function onDisconnect(socket) {
     console.log('onDisconnect:', socket);
 }
 
-const onHostConnect = function(room, players) {
-    console.log('onHostConnect:', room, players);
-    dom.DOMaddPlayers(players);
+const onHostConnect = function(payload) {
+    console.log('onHostConnect:', payload.room, payload.players);
+    dom.DOMaddPlayers(payload.players);
     dom.TLgameState().play();
 }
 const onPlayerConnect = function(player) {

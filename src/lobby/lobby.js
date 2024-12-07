@@ -78,7 +78,7 @@ const DOMaddRoomName = function(room) {
 // Accepts an element and generates a random tween to a new location - callback added to tween so that it repeats
 // Note although the canvas is 1920x1080 we adjust x and y range to allow for the width and height of the player
 function addRandomMovement(element) {
-    console.log('addRandomMovement:', element.getAttribute('id') );
+    // console.log('addRandomMovement:', element.getAttribute('id') );
     gsap.to(element, {
         x: gsap.utils.random(0,1820),
         y: canvasAdjustY( gsap.utils.random(80,1080) ),

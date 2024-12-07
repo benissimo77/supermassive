@@ -1,3 +1,16 @@
+* {
+    box-sizing: border-box;
+}
+
+:root {
+    --color-background: darkblue;
+    --color-background-rgb: rgb(0,0,180);
+    --color-button: rgb(0,0, 90);
+    --color-text: gold; 
+    --color-input-bg: white;
+
+    --scale-factor:1;
+}
 
 body {
     /* Prevent scrollbars from appearing */
@@ -34,14 +47,17 @@ body {
     width: 100%;
     height: 100%;
     background-color: rgb(0, 0, 0); /* Semi-transparent black overlay */ 
-    opacity: 1; /* Adjust the opacity as needed */
-    z-index: -1; /* Ensure the overlay is behind the content */
+    opacity: 1; /* Faded alpha during onload function */
+    z-index: -1; /* Ensure the overlay is behind the content but in front of the background*/
 }
 
 
 #wrapper {
     position: relative;
     transform-origin: top left;
+    transform: scale(var(--scale-factor));
+    width:1920px;
+    /* height will be set in resize function */
 }
 
 
@@ -52,21 +68,21 @@ body {
 /* top and height will be set by the window resize event since affected by window innerheight */
 
 #offscreen {
-    z-index: -1;
+    z-index: 1;
     position:absolute;
     transform-origin: top left;
     left:-960px;
     width:520px;
 }
 
-/* playerlist is a container for all LIVING players */
+/* playerlist is a container for all players */
 #playerlist {
     position: absolute;
     transform-origin: top left;
-    z-index:-1;
-    left: 10px;
-    width:1900px;
-    background-color: rgba(0,0,0,0.3);
+    z-index: 1;
+    left: 0;
+    width:1920px;
+    background-color: rgba(240,240,240,0.3);
     /* border: 1px solid red; */
     /* The above transform-origin is useful to allow rotation around top left corner (origin)
 
@@ -75,72 +91,28 @@ body {
     /* scale:0.5; */
 }
 
-/* panels to hold the players after they have been killed by wolves or by villagers */
-/* width 312 as this is 0.6 of 520 (killed players have a scale of 0.6 applied) */
-#nightphase {
-    z-index:-1;
+/* Race is used to position the players in a bar chart race */
+#racetrack {
     position:absolute;
-    transform-origin: top left;
-    left: 1580px;
-    width: 320px;
-    background-color: rgba(255,0,0,0.3);
-    border: 1px solid #fff;
-    padding: 12px 12px;
-    display: flex;
-    flex-direction: column;
+    width: 1880px;
+    left: 20px;
+    z-index:1;
+    /* background-color: rgba(240,0,0, 0.3);
+    border:1px solid red; */
 }
-#dayphase {
-    z-index:-1;
+#racetrack-markers {
     position:absolute;
-    transform-origin: top left;
-    left: 1240px;
-    width: 320px;
-    background-color: rgba(0,255,0,0.3);
-    border: 1px solid #fff;
-    padding: 12px 12px;
-    display: flex;
-    flex-direction: column;
+    width: 1880px;
+    left: 1920px;
+    background-color: rgba(240,0,0, 0.3);
+    border:1px solid red;
 }
-#killedbywolves {
-    position: relative;
-    background-color: rgba(255,0,0,0.3);
-    border: 1px dashed #fff;
-    flex-grow: 1;
-}
-#killedbyvillagers {
-    position: relative;
-    background-color: rgba(0,255,0,0.3);
-    border: 1px dashed #fff;
-    flex-grow: 1;
-}
-.paneltop {
-    margin:auto;
-}
-/* voters and the candidates for voting */
-/* voters are scaled to 0.75, candidates are scaled to 1.5 */
-#voters {
-    z-index: -1;
-    position: absolute;
-    transform-origin: top left;
+#racetrack-lanes {
+    position:absolute;
+    width: 1880px;
     left: 0px;
-    width: 320px;
-    background-color: rgba(0,128,128,0.3);
-}
-#candidates {
-    z-index: -1;
-    position: absolute;
-    transform-origin: top left;
-    left: 1100px;
-    width: 720px;
-    background-color: rgba(128,0,128,0.3);
-}
-#safe {
-    z-index: -1;
-    position: absolute;
-    transform-origin: top left;
-    left: 10px;
-    width:1900px;
-    background-color: rgba(128,128,0,0.3);
+    background-color: rgba(0, 240,0, 0.3);
+    border:1px solid green;
 }
 
 /* PLAYER */
@@ -176,6 +148,14 @@ body {
     -webkit-filter: drop-shadow(5px 5px 5px #222222);
     filter: drop-shadow(5px 5px 5px #222222);}
 
+.bar {
+    position:absolute;
+    left: -5px;
+    top: -32px;
+    height:64px;
+    background-color: rgb(16, 180, 235);
+}
+
 .playernamepanel {
     z-index: -1;
     position:absolute;
@@ -187,9 +167,11 @@ body {
     background-color: gray;
     vertical-align: baseline;
     max-width: 480px;
+    transition: box-shadow 0.3s ease;
 }
 .playernamepanel.answered {
     background-color: green;
+    border-color: #ffc;
     box-shadow: 0 0 10px rgba(255, 255, 255, 0.5), /* Outer glow */
                 0 0 20px rgba(255, 255, 255, 0.4), 
                 0 0 30px rgba(255, 255, 255, 0.3), 
@@ -201,6 +183,7 @@ body {
 }
 
 .playername {
+    position: relative;
     font-family: "Titan One", sans-serif;
     font-size:40px;
     margin-left: 100px;
@@ -212,7 +195,39 @@ body {
     color:darkblue;
     vertical-align:bottom;
 }
+.playerscore {
+    position: relative;
+    bottom:92px;
+    text-align:right;
+    font-family:'Courier New', Courier, monospace;
+    font-weight: bold;
+    font-size: 40px;
+    color: white;
+}
 
+/* MARKER */
+.marker {
+    position: absolute;
+}
+.marker-line {
+    position: absolute;
+    width: 2px; /* Width of the vertical line */
+    height: 32px; /* Height of the vertical line */
+    background-color: white; /* Color of the line */
+    top:0;
+    left: 50%; /* Center the line horizontally */
+    transform: translateX(-50%); /* Adjust to center the line */
+}
+
+.marker-distance {
+    position: absolute;
+    font-size: 32px; /* Font size of the score */
+    text-align: center; /* Center the text */
+    left: 50%; /* Center the text horizontally */
+    bottom: 100%; /* Position the text above the line */
+    transform: translateX(-50%); /* Adjust to center the text */
+    margin-bottom: 5px; /* Optional: Add some space between the text and the line */
+}
 
 /* INFORMATION/INSTRUCTION PANELS */
 #gameoptions {
@@ -281,25 +296,29 @@ body {
     margin-bottom: 40px;
     color: white;
 }
-#panel-autoresponse {
+#information-panel {
+    position:absolute;
     flex-direction: column;
     font-size: 5rem;
     left: 240px;
     width: 1440px;
     padding:70px;
     border-radius: 30px;
-    text-align: center;
+    background-color: rgba(0,0,0, 0.3);
+    border:2px solid gold;
+    z-index:12;
 }
-#panel-autoresponse-title {
+#information-panel-title {
     font-size: 72px;
     margin-bottom: 40px;
+    justify-self: center;
+    align-self: center;
 }
-#panel-autoresponse-description {
+#information-panel-description {
     font-size: 48px;
     margin-bottom: 40px;
     color: white;
 }
-
 
 /* Similar for payload panels since they all behave in a similar way  */
 .payload {
@@ -325,6 +344,7 @@ body {
     top: 60px;
     font-size: 48px;
 }
+
 /* Space for the question */
 #panel-question {
     position: absolute;
@@ -335,11 +355,6 @@ body {
     /* border: #0000 1px solid; */
     text-align: center;
     flex-direction: column;
-}
-#question-number {
-    font-size: 48px;
-    text-align:right;
-    margin-bottom: 48px;
 }
 #question {
     font-size: 96px;
@@ -390,8 +405,6 @@ body {
     0 0 20px rgba(255, 255, 255, 0.4), 
     0 0 30px rgba(255, 255, 255, 0.3), 
     0 0 40px rgba(255, 255, 255, 0.2);
-
-
 }
 
 /* TIMER */
@@ -449,7 +462,7 @@ body {
     height:200px;
     margin:0;
     padding:0;
-    z-index: 999;
+    z-index: 998;
     font-size: 32px;
 }
 #payloadlist .payload textarea {
@@ -484,4 +497,154 @@ body {
 .outline {
     -webkit-text-stroke: 2px;
     -webkit-text-stroke-color: black;
+}
+
+/* UPDATED QUESTION STYLES */
+
+#buttonlist button {
+    font-size:12px;
+    margin-right:2px;
+}
+#question-panel {
+    position:absolute;
+    transform-origin: top left;
+    left: 100px;
+    width: 1720px;
+    /* background-color: rgba(0,0,240, 0.3);
+    border: 1px solid yellow; */
+    z-index: 10;
+
+    /* Suggested by v0 for a flexible layout */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    /* height:100%;  Height will be set in the window resize function */
+}
+#question-number-title {
+    font-size: 48px;
+    text-align:right;
+    margin-bottom: 48px;
+}
+#question-number {
+    color: white;
+}
+
+#question-text {
+    padding: 20px 60px;
+    /* border:1px solid orange; */
+    font-size: 72px;
+    margin-bottom: 24px;
+    line-height:1.4em;
+}
+/* Note: this selector expects the image-selector to be an image not custom HTML element */
+#question-image {
+    width: 100%;
+    height: 100%;
+    position: relative; /* Ensure the container is positioned */
+    overflow: hidden;   /* Prevent overflow of child elements */
+    display: none;      /* Default it is not shown since it takes up a lot of space */
+    justify-content: center;
+    align-items: center;
+    border:1px solid white;
+}
+#question-image.active {
+    display:flex;
+}
+#image-selector {
+    width: 100%;    /* Ensure the image does not exceed the container width */
+    height: 100%;   /* Ensure the image does not exceed the container height */
+    cursor: crosshair;
+    border: 1px solid red;
+    object-fit: contain; /* Scale the image to fit within the container while maintaining aspect ratio */
+}
+
+#question-audio {
+    margin-bottom: 20px;
+}
+#player-overlay {
+    position:fixed;
+    width:200px;
+    height:200px;
+    background-color: rgba(0,0,0,0.7);
+    font-size:64px;
+}
+#question-options-wrapper {
+    display:flex;
+    flex-grow:1;
+    justify-content: center;
+    align-items: center;
+}
+#question-options {
+    display:grid;
+    justify-content: center;
+}
+.question-options-1col {
+    grid-template-columns: repeat(1, 1fr); /* Responsive columns */
+    gap: 0; /* Space between buttons */
+}
+.question-options-2col {
+    grid-template-columns: repeat(2, 1fr); /* Responsive columns */
+    gap: 40px; /* Space between buttons */
+}
+.question-options-3col {
+    grid-template-columns: repeat(3, 1fr); /* Responsive columns */
+    gap: 30px; /* Space between buttons */
+}
+.question-options-4col {
+    grid-template-columns: repeat(4, 1fr); /* Responsive columns */
+    gap: 20px; /* Space between buttons */
+}
+.question-options-1col .option {
+    width:960px;
+    min-height:90px;
+}
+.question-options-2col .option {
+    width:640px;
+    min-height:120px;
+}
+.question-options-3col .option {
+    width:520px;
+    min-height:120px;
+}
+.question-options-4col .option {
+    width:400px;
+    min-height:120px;
+}
+#question-options button {
+    background-color: var(--color-button);
+    color: white;
+    border: 3px solid gold;
+    border-radius: 12px;
+    font-size:48px;
+    padding: 10px 20px;
+    cursor: pointer;
+}
+#question-options .droppable {
+    background-color: rgba(0,0,0, 0);
+    border: 3px dashed grey;
+}
+#question-options .droppable.dragover {
+    background-color: rgba(0,0,0, 0);
+    border: 3px dashed gold;
+}
+#question-options .correct {
+    background-color: #28a745;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.5), /* Outer glow */
+    0 0 20px rgba(255, 255, 255, 0.4), 
+    0 0 30px rgba(255, 255, 255, 0.3), 
+    0 0 40px rgba(255, 255, 255, 0.2);
+}
+
+#question-options button.label {
+    background-color: rgba(0,0,0, 0);
+    border: 3px dashed rgba(0,0,0, 0);
+    color: gold;
+    padding: 0;
+    font-size:40px;
+}
+#question-options label {
+    color: orange;
+    font-size: 40px;
+    text-align:center;
+    justify-self: center;
 }

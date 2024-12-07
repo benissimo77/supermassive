@@ -1,11 +1,11 @@
 // server.js
 const http = require('http')
-const { app, sessionMiddleware } = require('./app');
+const { app, sessionMiddleware } = require('./server/app');
 
 const server = http.createServer(app);
 
 // load the socket server (note the syntax of socketserver.js - permits passing in the server)
-const io = require('./socketserver')(server)
+const io = require('./server/socketserver')(server)
 
 // From https://socket.io/how-to/use-with-express-session
 io.engine.use(sessionMiddleware);

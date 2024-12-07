@@ -5,18 +5,30 @@
     box-sizing: border-box;
 }
 
-html, body {
-    /* Prevent scrollbars from appearing */
-    overflow: hidden;
-    /* font-family: "Titan One", sans-serif; */
-    font-family: "Lilita One", sans-serif;
-    background-color:#051C55; /* dark blue */
-    color:darkorange;
-    transform-origin: top left;
-    margin:0;
-    padding:0;
-    font-size:1rem;
+:root {
+    --color-background: rgb(5, 28, 85);
+    --color-background-rgb: rgb(5, 28, 85);
+    --color-button: rgb(0,0, 90);
+    --color-button-hover: green;
+    --color-text: darkorange; 
+    --color-input-bg: white;
+
+    --scale-factor:1;
+}
+html,body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
     height: 100%;
+    overflow: hidden;
+}
+body {
+    font-family: "Lilita One", sans-serif;
+    background-color:var(--color-background); /* dark blue */
+    color:var(--color-text);
+    display:flex;
+    justify-content: center;
+    align-items: center;
 }
 
 /* CONTAINERS */
@@ -31,88 +43,6 @@ html, body {
     transform-origin: top left;
     left:-960px;
     width:520px;
-}
-
-/* playerlist is a container for all LIVING players */
-#playerlist {
-    z-index:-1;
-    position:absolute;
-    transform-origin: top left;
-    left:0;
-    width:520px;
-    background-color: rgba(0,0,0,0.3);
-    /* The above transform-origin is useful to allow rotation around top left corner (origin)
-
-    /* Its possible to scale ALL players but this affects their positioning canvas must also be scaled */
-    /* Set this property programmatically - leaving here for testing: */
-    /* scale:0.5; */
-}
-/* panels to hold the players after they have been killed by wolves or by villagers */
-/* width 312 as this is 0.6 of 520 (killed players have a scale of 0.6 applied) */
-#nightphase {
-    z-index:-1;
-    position:absolute;
-    transform-origin: top left;
-    left: 1580px;
-    width: 320px;
-    background-color: rgba(255,0,0,0.3);
-    border: 1px solid #fff;
-    padding: 12px 12px;
-    display: flex;
-    flex-direction: column;
-}
-#dayphase {
-    z-index:-1;
-    position:absolute;
-    transform-origin: top left;
-    left: 1240px;
-    width: 320px;
-    background-color: rgba(0,255,0,0.3);
-    border: 1px solid #fff;
-    padding: 12px 12px;
-    display: flex;
-    flex-direction: column;
-}
-#killedbywolves {
-    position: relative;
-    background-color: rgba(255,0,0,0.3);
-    border: 1px dashed #fff;
-    flex-grow: 1;
-}
-#killedbyvillagers {
-    position: relative;
-    background-color: rgba(0,255,0,0.3);
-    border: 1px dashed #fff;
-    flex-grow: 1;
-}
-.paneltop {
-    margin:auto;
-}
-/* voters and the candidates for voting */
-/* voters are scaled to 0.75, candidates are scaled to 1.5 */
-#voters {
-    z-index: -1;
-    position: absolute;
-    transform-origin: top left;
-    left: 0px;
-    width: 320px;
-    background-color: rgba(0,128,128,0.3);
-}
-#candidates {
-    z-index: -1;
-    position: absolute;
-    transform-origin: top left;
-    left: 1100px;
-    width: 720px;
-    background-color: rgba(128,0,128,0.3);
-}
-#safe {
-    z-index: -1;
-    position: absolute;
-    transform-origin: top left;
-    left: 10px;
-    width:1900px;
-    background-color: rgba(128,128,0,0.3);
 }
 
 /* PLAYER */
@@ -240,43 +170,36 @@ html, body {
 /* Copilot suggests: this works pretty well... */
 .panel {
     display: none; /* Panels are hidden by default */
-    padding: 40px;
+    /* padding: 40px; */
     justify-content: center;
     align-items: center;
     height: 100vh; /* Full viewport height */
+    width: 100vw; /* Full viewport width */
     /* border:#FF8C00 1px solid; */
   }
   
   .panel.active {
     display: flex; /* Show the active panel */
   }
-  
-  .button-container {
-    display: flex;
-    flex-direction: column;
-    gap: 8vh;
-    /* border:#33FF33 1px solid; */
-  }
-  
-  .button-container button {
-    flex: 1 1 100%; /* Each button takes full width */
-    margin: 0;
-    padding: 15px;
-    font-size: var(--button-font-size, 30px); /* Use custom property for font size */
-    background-color: #007bff;
-    color:white;
-    border: 2px solid white;
-    border-radius: 10px;
-    text-align: center;
-    box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.3), inset -2px -2px 5px rgba(255, 255, 255, 0.5);
-  }
-  
-  /* Not really needed for mobile but good for testing */
-  .button-container button:hover {
-    background-color: #0056b3;
-  }
+
   /* End copilot suggests */
   
+#panel-rotate {
+    position:absolute;
+    top:0;
+    left:0;
+    bottom:0;
+    right:0;
+    background-color: var(--color-background);
+    color: var(--color-text);
+    display: none;
+    flex-direction: column;
+    justify-content:center;
+    align-items:center;
+    z-index:999;
+}
+
+
 /* TIMER */
 /* From https://alvarotrigo.com/blog/how-to-make-a-progress-bar-in-css/ */
 #timer {
@@ -339,4 +262,144 @@ html, body {
 .outline {
     -webkit-text-stroke: 2px;
     -webkit-text-stroke-color: black;
+}
+
+
+/* ALIGNED WITH HOST DISPLAY */
+#question-options-wrapper {
+    display:flex;
+    flex-grow:1;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(240,0,0, 0.2);
+    border:1px solid red;
+}
+#question-options {
+    display:grid;
+    gap: 5vh 5vw;
+    background-color: rgba(240,0,0, 0.2);
+    border:1px solid green;
+}
+/* Single column layout for small screens and portrait mode */
+@media (max-width: 600px) {
+    #question-options {
+        grid-template-columns: 1fr;
+    }
+}
+/* Two column layout for larger screens and landscape mode */
+@media (min-width: 601px) {
+    #question-options {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* Each of these answer-specific CSS selectors */
+#submit-button {
+    position:absolute;
+    left:20px;
+    top:20px;
+    display: none;
+    font-size:4vh;
+    min-width:10vw;
+    min-height:6vh;
+}
+#submit-button.active {
+    display: block;
+}
+
+#answer-text-input {
+    font-size: 10vh;
+    text-align: center;
+    width: 60%;
+}
+
+#answer-image-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    top:0;
+    left:0;
+    /* This reproducces the effect of object-fit:contain */
+    display: flex; /* Show the image container */
+    justify-content: center;
+    align-items: center;
+    background-color: blue;
+}
+#answer-image {
+    max-width: 100%;
+    max-height: 100%;
+    cursor: crosshair;
+    border:1px solid black;
+}
+
+.question-options-1col {
+    grid-template-columns: repeat(1, 1fr); /* Responsive columns */
+    gap: 0; /* Space between buttons */
+}
+.question-options-2col {
+    grid-template-columns: repeat(2, 1fr); /* Responsive columns */
+    gap: 40px; /* Space between buttons */
+}
+.question-options-3col {
+    grid-template-columns: repeat(3, 1fr); /* Responsive columns */
+    gap: 30px; /* Space between buttons */
+}
+.question-options-4col {
+    grid-template-columns: repeat(4, 1fr); /* Responsive columns */
+    gap: 20px; /* Space between buttons */
+}
+.question-options-1col .option {
+    width:960px;
+    min-height:90px;
+}
+.question-options-2col .option {
+    width:640px;
+    min-height:120px;
+}
+.question-options-3col .option {
+    width:520px;
+    min-height:120px;
+}
+.question-options-4col .option {
+    width:400px;
+    min-height:120px;
+}
+#question-options button {
+    font-size:5vh;
+    min-width:40vw;
+    min-height:10vh;
+}
+button {
+    background-color: var(--color-button);
+    color: white;
+    border: 3px solid gold;
+    border-radius: 12px;
+    padding: 10px 20px;
+    cursor: pointer;
+}
+button.hover {
+    background-color: var(--color-button-hover);
+}
+
+#question-options .droppable {
+    background-color: rgba(0,0,0, 0);
+    border: 3px dashed grey;
+}
+#question-options .droppable.dragover {
+    background-color: rgba(0,0,0, 0);
+    border: 3px dashed gold;
+}
+
+button.label {
+    background-color: rgba(0,0,0, 0);
+    border: 3px dashed rgba(0,0,0, 0);
+    color: gold;
+    padding: 0;
+    font-size:40px;
+}
+#question-options label {
+    color: orange;
+    font-size: 40px;
+    text-align:center;
+    justify-self: center;
 }

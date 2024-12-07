@@ -4,6 +4,10 @@ import gsap from 'gsap';
 
 // At some point variants of the below functions should be loaded...
 import { dom } from './dom.quiz.js';
+import { ImageSelector } from '../ImageSelector2.js';
+import { Overlay } from '../Overlay.js';
+import { AudioPlayer } from '../AudioPlayer.js';
+
 // import { AudioManager } from '../audiomanager.js';
 // import { musicTracks, effectTracks, narratorTracks } from './audio.werewolves.js';
 
@@ -15,20 +19,33 @@ class Quiz {
         this.socket = socket;
 
         this.events = {
-            // 'connect': [this.onConnect, 'Connect', {}],
-            // 'disconnect': [this.onDisconnect, 'Disconnect', {}],
-            // 'hostconnect': [this.onHostConnect, 'Host Connect', {}],
-            // 'playerconnect': [this.onPlayerConnect, 'Player Connect', {name:'Player Name', avatar:'12140600', socketid:1}],
-            // 'playerdisconnect': [this.onPlayerDisconnect, 'Player Disconnect', {}],
-            'server:introquiz': [this.onIntroQuiz, 'Intro Quiz', {"title":"Quiz Title","description":"Quiz Instructions"}],
-            'server:introround': [this.onIntroRound, 'Intro Round', {title: 'Round Title', description: 'Round Instructions'}],
-            'server:question': [this.onQuestion, 'Question', {question: 'This is a typical length question - how does it look?', answers: [{id:'answer-1', answer:'Answer 1'}, {id:'answer-2',answer:'Answer 2'}, {id:'answer-3', answer:'Answer 3'}, {id:'answer-4', answer:'Answer 4'} ] } ],
-            'server:questionanswered': [this.onQuestionAnswered, 'Question Answered', {}],
-            'server:endquestion': [this.onEndQuestion, 'End Question', {}],
-            'server:endround': [this.onEndRound, 'End Round', {}],
-            'server:endquiz': [this.onEndQuiz, 'End Quiz', {}],
-            'server:starttimer': [this.onStartTimer, 'Start Timer', {duration:10}],
-            'server:loadgame': [this.onLoadGame, 'Load Game', {}],
+            // Connection events
+            'connect': [this.onConnect, false, 'Connect', {}],
+            'disconnect': [this.onDisconnect, false, 'Disconnect', {}],
+            'hostconnect': [this.onHostConnect, true, 'Host Connect', {room:'QUIZ', players:[{name:'Player One', avatar:'12138743', socketid:1, sessionID:1},{name:'Player Two', avatar:'12140600', socketid:2, sessionID:2},{name:'Player Three', avatar:'12140600', socketid:3,sessionID:3}] } ],
+            'playerconnect': [this.onPlayerConnect, false, 'Player Connect', {room: 'QUIZ', player: {name:'Player One', avatar:'12140600', socketid:1, sessionID:"X1" } } ],
+            'playerdisconnect': [this.onPlayerDisconnect, false, 'Player Disconnect', {}],
+            
+            // Quiz events
+            'server:introquiz': [this.onIntroQuiz, false, 'Intro Quiz', {"title":"Quiz Title","description":"Quiz Instructions"}],
+            'server:introround': [this.onIntroRound, false, 'Intro Round', {title: 'Round Title', description: 'Round Instructions'}],
+            'server:question': [this.onQuestion, true, 'Question', {
+                "type": "draw",
+                "text": "Old-skool draw the answer!",
+                "image": null,
+                "audio": "",
+                "answer": "This is what you should have drawn..."
+              }],
+            'server:questionanswered': [this.onQuestionAnswered, false, 'Question Answered', {}],
+            'server:showanswer': [this.onShowAnswer, true, 'Show Answer', {}],
+            'server:updatescores': [this.onUpdateScores, true, 'Update Scores', { scores: {"1":10, "2":0, "3":0 } } ],
+            'server:endquestion': [this.onEndQuestion, true, 'End Question', {}],
+            'server:endround': [this.onEndRound, true, 'End Round', {}],
+            'server:endquiz': [this.onEndQuiz, true, 'End Quiz', {}],
+            
+            // Additional
+            'server:starttimer': [this.onStartTimer, false, 'Start Timer', {duration:10}],
+            'server:loadgame': [this.onLoadGame, false, 'Load Game', {}],
         }
 
         this.init();
@@ -39,7 +56,10 @@ class Quiz {
         dom.init();
         this.attachSocketEvents(this.socket);
         this.attachButtonEventHandlers(this.events);
-        console.log('Quiz started');
+
+        // Request the server loads the quiz (if not already loaded)
+        this.socket.emit('host:requestgame', 'quiz');
+        console.log('Quiz.init done');
     }
 
     // end - perform cleanup
@@ -65,6 +85,8 @@ class Quiz {
         socket.on('server:introround', this.onIntroRound);
         socket.on('server:question', this.onQuestion);
         socket.on('server:questionanswered', this.onQuestionAnswered)
+        socket.on('server:showanswer', this.onShowAnswer);
+        socket.on('server:updatescores', this.onUpdateScores);
         socket.on('server:endquestion', this.onEndQuestion);
         socket.on('server:endround', this.onEndRound);
         socket.on('server:endquiz', this.onEndQuiz);
@@ -89,44 +111,48 @@ class Quiz {
     buttonHostReady = () => {
         console.log('buttonHostReady:');
         // clear up all possible audio/visuals
-        dom.DOMhideAllPanels();
-        this.socket.emit('host:response');
+        dom.TLhideAllPanels()
+        .add( () => this.socket.emit('host:response') )
+        .play();
     }
 
     // attachButtonEvents - attach event handlers to the buttons
     // These are the specific event handlers for buttons that are displayed on the host screen
     // Most likely will be used during testing - ideally the host screen will be a display-only screen, controlled by the server
     attachButtonEventHandlers(events) {
-        console.log('attachButtonEventHandlers:', events);
+        console.log('attachButtonEventHandlers:', this.events);
     
-        for (var eventname in events) {
+        for (var eventname in this.events) {
             console.log('attachButtonEventHandlers:', eventname, events[eventname]);
 
             const event = events[eventname];
-            const button = this.createEventButton(eventname, event);
-            const payload = this.createPayloadButton(eventname, event);
 
-            // Place two buttons into buttonlist - one for the event and one for the payload
-            // Payload button should be arrange to go on top of the event button
-            document.getElementById('buttonlist').appendChild(payload);
-            document.getElementById('buttonlist').appendChild(button);
-
-            button.addEventListener('click', (e) => { this.triggerSocketEvent(e) });
-            payload.addEventListener('click', (e) => { this.togglePayload(e); })
+            if (event[1]) {
+                const button = this.createEventButton(eventname, event);
+                const payload = this.createPayloadButton(eventname, event);
+    
+                // Place two buttons into buttonlist - one for the event and one for the payload
+                // Payload button should be arrange to go on top of the event button
+                document.getElementById('buttonlist').appendChild(payload);
+                document.getElementById('buttonlist').appendChild(button);
+    
+                button.addEventListener('click', (e) => { this.triggerSocketEvent(e) });
+                payload.addEventListener('click', (e) => { this.togglePayload(e); })    
+            }
         }
 
         // 
         // Additional button handlers needed by the host - this should go in a separate function if it is required in production mode
         document.getElementById("buttonHostReady").addEventListener('click', this.buttonHostReady);
         document.getElementById("buttonStart").addEventListener('click', this.buttonStart);
-        
+                
     }        
 
     createEventButton(eventname, event) {
         const button = document.createElement('button');
         button.id = `button-${eventname}`;
         button.classList.add('event-button');
-        button.innerHTML = event[1];
+        button.innerHTML = event[2];
         return button;
     }
     createPayloadButton(eventname, event) {
@@ -135,7 +161,7 @@ class Quiz {
         payload.id = `payload-${eventname}`;
         payload.classList.add('payload');
         const textarea = payload.appendChild(document.createElement('textarea'));
-        textarea.value = JSON.stringify(event[2]);
+        textarea.value = JSON.stringify(event[3]);
         document.getElementById('payloadlist').appendChild(payload);
 
         const payloadButton = document.createElement('button');
@@ -152,7 +178,8 @@ class Quiz {
         const payloadText = payload.querySelector('textarea').value;
         const payloadObject = JSON.parse(payloadText);
         console.log('triggerSocketEvent:', eventname, payloadObject);
-        this.socket.trigger(eventname, payloadObject);
+        // This feature relies on the server have a triggerserverevent catch which sends the data straight back
+        this.socket.emit("triggersocketevent", { eventname: eventname, payload: payloadObject });
     }
 
     togglePayload = (e) => {
@@ -181,9 +208,9 @@ class Quiz {
     }
     
     // CONNECT/DISCONNECT GAME-SPECIFIC EVENTS
-    onHostConnect = (room, players) => {
-        console.log('onHostConnect:', room, players);
-        dom.DOMaddPlayers(players);
+    onHostConnect = (payload) => {
+        console.log('onHostConnect:', payload.room, payload.players);
+        dom.DOMaddPlayers(payload.players);
         dom.TLgameState().play();
     }
     onPlayerConnect = (player) => {
@@ -191,9 +218,9 @@ class Quiz {
         dom.DOMaddPlayer(player);
         dom.TLgameState().play();
     }
-    onPlayerDisconnect = (socketid) => {
-        console.log('onPlayerDisconnect:', socketid);
-        dom.DOMremovePlayer(socketid);
+    onPlayerDisconnect = (sessionID) => {
+        console.log('onPlayerDisconnect:', sessionID);
+        dom.DOMremovePlayer(sessionID);
     }
     
     // GAME-SPECIFIC EVENTS
@@ -205,15 +232,23 @@ class Quiz {
     // Note: slightly hacky but this function also removes the connection panel
     onIntroQuiz = (payload) => {
         console.log('onIntroQuiz:', payload);
-        dom.DOMpanelResponse(payload);
+        dom.TLpanelSlideUp()
+        .add( dom.TLpanelSlideDown(payload) )
+        .add( () => {
+            this.socket.emit('host:response');
+        })
+        .play();
     }
 
     // onIntroRound
     // Display the round instructions on the screen
-    // This is a simple fade in/out of the instructions panel
+    // This is a simple slide in/out of the instructions panel
     onIntroRound = (payload) => {
         console.log('onIntroRound:', payload);
-        dom.TLpanelAutoResponse(payload)
+        dom.TLpanelSlideUp()
+        .add(dom.TLhideAllPanels(), "<")
+        .add(dom.TLflyOutRacetrack(), "<")
+        .add(dom.TLpanelSlideDown(payload))
         .add( () => {
             this.socket.emit('host:response');
         })
@@ -225,8 +260,12 @@ class Quiz {
     // This is a simple fade in/out of the question panel
     // NOTE: importantly the socket event that called this is expecting a response before it starts the timer...
     onQuestion = (question) => {
-        dom.TLpanelQuestion(question)
+        console.log('onQuestion:', question);
+        gsap.killTweensOf("#question-panel");
+        dom.TLpanelSlideUp()
+        .add(dom.TLpanelQuestion(question))
         .add( () => {
+            console.log('onQuestion: sending hostresponse');
             this.socket.emit('host:response');
         })
         .play();
@@ -235,9 +274,13 @@ class Quiz {
     // onQuestionAnswered
     onQuestionAnswered = (payload) => {
         console.log('onQuestionAnswered:', payload);
-        dom.DOMsetPlayerNamePanel(payload.socketid);
+        dom.DOMsetPlayerNamePanel(payload.sessionID);
     }
 
+    onShowAnswer = (payload) => {
+        console.log('onShowAnswer:', payload);
+        dom.DOMshowAnswer(payload);
+    }
     // onEndQuestion
     // Clear up after the question has been answered (or time run out)
     onEndQuestion = () => {
@@ -260,14 +303,26 @@ class Quiz {
         .play();
     }
 
+    // onUpdateScores
+    // Passed a new object containing the players and their new scores
+    // Timeline updates the bars for each player using the racing-bars library
+    onUpdateScores = (payload) => {
+        console.log('onUpdateScores:', payload);
+        dom.TLupdateScores(payload.scores)
+        .add( () => {
+            console.log('onUpdateScores:: race animation ended');
+        });
+    }
+
     // onEndQuiz
     // endRound should already have left the panels in a good state... only thing left here is to announce the winner...
     onEndQuiz = (results) => {
         console.log('onEndQuiz:', results);
-        dom.TLendQuiz().play()
-        .then( () => {
+        dom.TLendQuiz()
+        .add( () => {
             this.socket.emit('host:response');
-        });
+        })
+        .play();
     }
 
     // OTHER MISCELLANEOUS EVENTS
@@ -284,11 +339,11 @@ class Quiz {
     // onLoadGame
     onLoadGame = (game) => {
         console.log('onLoadGame:');
-        const tl = dom.TLgameOver();
-        tl.add( () => {
-            window.location.href = `./${game}.html`;
-        });
-        tl.play();
+        // const tl = dom.TLgameOver();
+        // tl.add( () => {
+        //     window.location.href = `./${game}.html`;
+        // });
+        // tl.play();
     }
     
 }
@@ -329,12 +384,20 @@ window.onload = function() {
     // If in development mode then use the dummy socket object
     // If in production mode then use the real socket object
     let socket;
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === 'developmentX') {
         socket = new Socket();
     } else {
         socket = io();
     }
     const quiz = new Quiz(socket);
+
+        // Add general keypress handler to send all keypresses to the server
+    // This is a simple way to allow the host to control the game
+    window.addEventListener('keydown', (e) => {
+        console.log('keypress:', e.key);
+        socket.emit('host:keypress', e.key);
+    });
+
     console.log('window.onload: completed:', socket);
 };
 
@@ -344,16 +407,14 @@ class Socket {
         this.connected = false;
         this.events = {};
     }
-    emit(event, payload) {
-        console.log('Socket.emit:', event, payload ? payload : '');
-    }
+
     on(event, callback) {
         console.log('Socket.on:', event);
         this.events[event] = callback;
     }
-    trigger(event, payload) {
-        console.log('Socket.trigger:', event, payload);
-        this.events[event](payload);
+    emit(event, { eventObj }) {
+        console.log('Socket.trigger:', eventObj.eventname, eventObj.payload);
+        this.events[eventObj.eventname](eventObj.payload);
     }
     getSocket() {
         return this.socket;

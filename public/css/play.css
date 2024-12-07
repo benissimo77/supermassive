@@ -1,5 +1,5 @@
 body {
-    font-family: "Verdana", sans-serif;
+    font-family: "Poppins", sans-serif;
     font-size: 2rem;
     background-color:#0c48df; /* dark blue */
     color:darkorange;
@@ -132,7 +132,7 @@ div.gallery img {
 }
 
 button {
-  font-family: "Titan One", sans-serif;
+  font-family: 'Poppins', sans-serif;
   background-color:#4B538B;   
   color:#FF8C00 ;  /* Spanish orange */ 
   border: 1px solid #FF8C00; /* Spanish orange */

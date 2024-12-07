@@ -50,28 +50,53 @@ module.exports = function (server) {
 
 	io.on('connection', (socket) => {
 
+		// Really need to clean up this logic it seems crazy complex for something so simple as:
+		// 1. DEV - allow to override room/name/sessionid
+		// 2. PROD - force strict login only via play form and authenticated host
+
+		// Set up for PRODUCTION
+		// If DEVELOPMENT selectively override things that have been supplied
+
 		// For regular (production) use we will grab required data from session cookie
+		// Routes file will add host/room details during authentication
+		// Player route will add room/name/avatar details when user POSTs form
 		const session = socket.request.session;
 
+		let userObj = session;
+
 		// For developement use we will grab required data from the URL query string
-		const referer = socket.handshake.headers.referer.split('?')[1] || '';
-		const params = referer && referer.split('&');
-		const urlParams = new URLSearchParams(referer);
+		if (process.env.NODE_ENV === 'development') {
+			const queryString = socket.handshake.headers.referer.split('?')[1] || '';
+			const urlParams = new URLSearchParams(queryString);
+	
+			// Copy each entry from urlParams into userObj - allows to overwrite with my own versions
+			// BUT FIRST - remove host property since I might be sharing this session with the host
+			if (userObj.host) {
+				delete userObj.host;
+			}
+			userObj = {
+				...userObj, // Keep existing properties
+				...Object.fromEntries(urlParams) // Add new properties from urlParams
+			};
+		}
 
-		// All-important is this line to create a userObj, either from query or from session (ideally merge)
-		let userObj = Object.fromEntries(urlParams);
-
-		// Session is already in the correct format - use it if URL query string doesn't have the required data
-		// Note: this can be hacked if the user simply adds room to their URL - but that's not a big deal for now 
-		if (!userObj.room) {
-			userObj = session;
+		// Finally add the session and socket IDs
+		// Need the ability to overrise session ID for development to allow multiple sessions from same browser
+		if (!userObj.sessionID) {
+			userObj.sessionID = socket.request.sessionID;
 		}
 
 		// Add socket.id to the userObj - then it has everything
 		userObj.socketid = socket.id;
 
 		// console.log('io.connect: userObj:', userObj);
-		console.log('io.connection:', socket.id, session, referer, params, urlParams);
+		console.log('io.connection:', session, userObj);
+
+		// If we don't have a room via either the session or the URL then ignore this connection
+		if (!userObj.room) {
+			console.log('No room defined - give up');
+			return;
+		}
 
 		if (!rooms[userObj.room]) {
 			rooms[userObj.room] = new Room(io, userObj.room);
@@ -93,5 +118,10 @@ module.exports = function (server) {
 		console.log('io.disconnect:', socket.id);
 	})
 
+	// Send keep-alive (ping) message to all connected clients every 60 seconds
+	setInterval(() => {
+		io.emit('server:ping');
+		console.log('io.ping:', new Date());
+	}, 60000); // 1 minute
 	return io;
 }

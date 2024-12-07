@@ -1,5 +1,5 @@
 // Models - note this should be placed into the werewolves file since it is game-specific
-const { Player, Phases, Roles } = require('./server/models/allModels');
+const { Player, Phases, Roles } = require('./models/allModels');
 const { mongoose } = require('./db');
 
 
@@ -13,6 +13,7 @@ class Room {
 		this.id = id;
 		this.host = undefined;
 		this.game = undefined;
+		this.gamename = undefined;
 		this.players = [];
 
 	}
@@ -20,7 +21,7 @@ class Room {
 	// we say user because at this point we don't know if they are a player or a host/moderator/viewer etc...
 	addUserToRoom(socket, userObj) {
 
-		console.log('Room::addUserToRoom:', this.id, userObj.name, userObj.host, userObj.sessionid);
+		console.log('Room::addUserToRoom:', this.id, userObj.name, userObj.host, userObj.sessionID);
 
 		// Instantly add this user's socket to this room
 		socket.join(this.id);
@@ -28,13 +29,13 @@ class Room {
 		// host value in player object must evaluate to truth (eg = 1)
 		if (userObj.host) {
 			// perform host initialisation...
-			console.log('user is host:', userObj.room, userObj.sessionid);
+			console.log('user is host:', userObj.room, userObj.sessionID);
 			this.host = userObj;
-			this.#io.to(socket.id).emit('hostconnect', this.id, this.getConnectedPlayers());
+			this.#io.to(socket.id).emit('hostconnect', {room: this.id, players: this.getConnectedPlayers() } );
 			this.attachHostEvents(socket);
 		} else {
 
-			var player = this.getPlayerBySessionId(userObj.sessionid);
+			var player = this.getPlayerBysessionID(userObj.sessionID);
 			if (player) {
 				console.log('player already exists:', player);
 				player.disconnected = false;
@@ -80,7 +81,10 @@ class Room {
 			console.log('socket.disconnect:', socket.id, reason);
 			this.removePlayer(socket.id);
 		})
-		
+		socket.on('consolelog', (data) => {
+			console.log('Message from:', socket.id);
+			console.dir(data);
+		})
 		// console.log('userJoinRoom ending: ', this.players);
 	}
 
@@ -88,8 +92,15 @@ class Room {
 
 		socket.on('host:requestgame', (game) => {
 			console.log('host:requestgame:', game);
-			const NewGame = require(`./server/games/server.${game}.js`);
+
+			// We might already be in this game - do nothing if this is the case
+			if (this.gamename && this.gamename == game) {
+				return;
+			}
+
+			const NewGame = require(`./games/server.${game}.js`);
 			this.game = new NewGame(this);
+			this.gamename = game;
 
 			// there might need to be some more checks here to make sure the game is valid and the initial conditions for playing have been met
 			// eg there should be enough players to start the game
@@ -98,7 +109,7 @@ class Room {
 			const valid = this.game.checkGameRequirements();
 			console.log('Game is valid:', valid);
 			if (valid || true) {
-				this.emitToHosts('server:loadgame', game);
+				// this.emitToHosts('server:loadgame', game);
 				this.emitToAllPlayers('server:loadgame', game);
 			}
 		})
@@ -142,11 +153,25 @@ class Room {
 				this.hostResponseHandler(socket, response);
 			}
 		})
+		socket.on('host:keypress', (key) => {
+			console.log('host:keypress:', key);
+			if (this.hostKeypressHandler) {
+				this.hostKeypressHandler(socket, key);
+			}
+		})
+		
 		// General purpose test event - can be used as a scratch to quickly check some functionality server-side
 		socket.on('buttontest', (data) => {
 			console.log('Host:: buttontest:', data);
 			// this.#io.to(socket.id).emit('nightkill', [ this.players[0].socketid, this.players[1].socketid ] );
 			this.emitToAllPlayers('server:loadgame', 'werewolves');
+		})
+		// Similar to above - can be used to simulate a socket event from the server
+		// Simply echoes directly back to the host whatever event was passed
+		socket.on('triggersocketevent', (data) => {
+			console.log('triggersocketevent:', data.eventname, data.payload);
+			this.emitToHosts(data.eventname, data.payload, true)
+			this.emitToAllPlayers(data.eventname, data.payload);
 		})
 	}
 
@@ -164,6 +189,12 @@ class Room {
 	deregisterHostResponseHandler() {
 		this.hostResponseHandler = null;
 	}
+	registerHostKeypressHandler(handler) {
+		this.hostKeypressHandler = handler;
+	}
+	deregisterHostKeypressHandler() {
+		this.hostKeypressHandler = null;
+	}
 
 	endGame() {
 		console.log('room.endGame: game has ended - clear up');
@@ -172,16 +203,9 @@ class Room {
 		this.emitToAllPlayers('server:loadgame', 'lobby');
 	}
 
-	// emitToHosts
-	// Send an event to all hosts in the room, with the data payload
-	// Optional 'waitForResponse' flag will wait for a response from the host before continuing
 	emitToHosts(event, data, waitForResponse = false) {
+		console.log('emitToHosts:', event, data);
 		this.#io.to(this.host.socketid).emit(event, data);
-		if (waitForResponse) {
-			return new Promise( (resolve, reject) => {
-				this.registerHostResponseHandler(resolve);
-			})
-		}
 	}
 
 	// emitToPlayers
@@ -195,7 +219,9 @@ class Room {
 	emitToAllPlayers(event, data) {
 		const playerSockets = this.players.map( (player) => { return player.socketid } );
 		console.log('emitToAllPlayers:', playerSockets, event, data);
-		this.#io.to(playerSockets).emit(event, data);
+		if (playerSockets.length > 0) {
+			this.#io.to(playerSockets).emit(event, data);
+		}
 	}
 
 	// getClientResponses
@@ -207,127 +233,16 @@ class Room {
 	// 2. Collect responses from the client(s) and store them in an array
 	// 3. When end condition is met, call the callback function with the responses
 	// 4. strategy can also include a timer which allows a time limit to be defined, after which collection ends
+	// NOTE: potential bug in this function if no timeout and client disconnects or can't respond (fn will never resolve)
+	// Always need a way for host to be able to resolve any situation
+	// Modified to work in a more straight-forward way - passes responses back to the game
 	getClientResponses(socketlist, buttonlist, strategy) {
 
-		// Dictionary to hold votes, scoped to this function so all functions inside here can access
-		let responses = {};
-		// ...and the players voting will always be constant, so define here and use throughout (same with voterSockets)
+		console.log('Sending server:request to all clients in :', socketlist);
+		this.#io.to(socketlist).emit('server:request', { type: 'buttonselect', payload: buttonlist } );
 
-		// collectResponses
-		// This function will send an event to all players in the list with a buttonselect request
-		// It will then collect the responses and resolve once end condition has been met
-		const collectResponses = () => {
-
-			return new Promise( (resolve, reject) => {
-				const responseHandler = (socket, response) => {
-					console.log('responseHandler:', socket.id, response, Object.keys(responses).length);
-					responses[socket.id] = response;	// this ensures that we can't vote twice
-					if (strategy.responseHandler) {
-						strategy.responseHandler(socket, response);
-					}
-					if (strategy.endCondition(responses)) {
-						resolve();
-					}
-				}		
-				this.registerClientResponseHandler(responseHandler);
-				console.log('Sending server:request to all clients in :', socketlist);
-				this.#io.to(socketlist).emit('server:request', { type: 'buttonselect', payload: buttonlist } );
-			})
-		}
-		
-		console.log('getClientResponses:', socketlist, buttonlist, strategy);
-		if (strategy.timeoutSeconds && strategy.timeoutSeconds > 0) {
-			this.#io.to(this.host.socketid).emit('server:starttimer',  { duration: strategy.timeoutSeconds } );
-			this.withTimeout(collectResponses(), strategy.timeoutSeconds)
-			.then( () => {
-				console.log('Responses collected:', responses);
-				this.deregisterClientResponseHandler();
-				strategy.callback(responses);
-			})
-		} else {
-			collectResponses()
-			.then( () => {
-				console.log('Responses collected:', responses);
-				this.deregisterClientResponseHandler();
-				strategy.callback(responses);
-			})
-		}
 	}
 
-	collectVotesUnused(playersVoting, playersBeingVotedOn) {
-
-		// map livingPlayers to just get the socketids
-		const playersVotingSockets = playersVoting.map( (player) => { return player.socketid } );
-
-		// initialize the votes array and timerId
-		let votes = [];
-		let timerId = null;
-		const timeoutSeconds = 10;
-
-		const votesCollected = () => {
-
-			// Clean-up: clear the timer and deregister the voteHandler
-			clearTimeout(timerId);
-			this.deregisterClientResponseHandler();
-			this.#io.to(playersVotingSockets).emit("server:request", { type:"timedmessage", payload: { message:"Votes are IN", timer:3 } } );
-			
-			// Now we have to find which player has the most votes
-			// votes is an array of objects with socketid of the voter and response who they voted for
-			// We need to convert this into a map of socketid:total votes
-			const map = votes.map( (vote) => { return vote.response } );
-			const occurences = this.countOccurences(map);
-			const candidates = this.getEntriesWithMaximumOccurences(occurences);
-			console.log('Candidates:', candidates);
-			if (candidates.length == 0) {
-				this.collectVotes(playersVoting, playersBeingVotedOn);
-			} else if (candidates.length > 1) {
-				// There is a draw - need to do something about this
-				console.log('There is a draw');
-				// Need to repeat the vote - build a new buttonlist with just the candidates
-				playersBeingVotedOn = candidates.map( (candidate) => { return this.getPlayerBySocketId(candidate[0]) } );
-				this.#io.to(this.host.socketid).emit('daydraw', votes.map( vote => { return vote.response } ));
-				this.#io.to(this.host.socketid).emit('server:request', { type:'instructions', payload: { message: 'We have a DRAW!<br/><br/>Vote again...' } });
-				this.registerHostResponseHandler( () => { this.collectVotes(playersVoting, playersBeingVotedOn); });
-			} else {
-				// We have a winner
-				const dead = candidates[0][0];
-				this.dayKill(dead);
-				this.#io.to(playersVotingSockets).emit("server:request", { type:"timedmessage", payload: { message:"The people have chosen...", timer:3 } } );
-				this.#io.to(this.host.socketid).emit('daykill', dead);
-			}
-		}
-		const voteHandler = (socket, response) => {
-			votes.push( { socketid: socket.id, response: response.socketid } );
-			console.log('voteHandler:', socket.id, response, votes);
-			const payload = { message: 'You voted:<br/><br/>' + response.name, timer:3 }
-			this.#io.to(socket.id).emit('server:request', { type:'timedmessage', payload: payload } );
-			this.#io.to(this.host.socketid).emit('server:playervoted',  this.getPlayerBySocketId(socket.id) );
-			if (votes.length == playersVoting.length) {
-				// Everyone has voted
-				console.log('All votes are IN:');
-				votesCollected();
-			}
-		}
-
-		// Send the request to all living players and collect responses
-		this.#io.to(playersVotingSockets).emit('server:request', { type: 'buttonselect', payload: playersBeingVotedOn } );
-		this.#io.to(this.host.socketid).emit('server:dayvote',  { voters: playersVoting, votingon: playersBeingVotedOn } );
-		this.registerClientResponseHandler(voteHandler);
-		timerId = setTimeout(votesCollected, timeoutSeconds * 1000);
-		this.#io.to(this.host.socketid).emit('server:starttimer',  { duration: timeoutSeconds } );
-	}
-
-
-	// Helper function to add a timeout to a promise
-	withTimeout(promise, timeoutSeconds) {
-		const timeout = new Promise((resolve) => {
-			let id = setTimeout(() => {
-				clearTimeout(id);
-				resolve('Timed out');
-			}, timeoutSeconds*1000);
-		})
-		return Promise.race([promise, timeout]);
-	}
 	
 	// PLAYER FUNCTIONS
 	// These are defined on the Room but used by all games - functions related to players
@@ -335,8 +250,8 @@ class Room {
 	// Remove a player from the room - only takes effect if game has not started
 	// If game HAS started then we need to handle the player leaving in a different way - maybe just mark them as disconnected
 	removePlayer(socketid) {
+		const player = this.getPlayerBySocketId(socketid);
 		if (this.started) {
-			const player = this.players.find( (player) => player.socketid === socketid );
 			if (player) {
 				player.disconnected = true;
 			}
@@ -344,16 +259,17 @@ class Room {
 			this.players = this.players.filter( (player) => player.socketid != socketid);
 		}
 		// Either way we want to inform the host - we will remove the player from the host display even though we retain the player object
-		if (this.host) {
-			this.#io.to(this.host.socketid).emit('playerdisconnect', socketid);
+		// Note that we pass the players sessionID not their socketid - sockets are used to send the messages, session used to identify users
+		if (this.host && player) {
+			this.#io.to(this.host.socketid).emit('playerdisconnect', player.sessionID);
 		}
 	}
 	getPlayerBySocketId(socketid) {
-		console.log(this.players.find( (player) => player.socketid == socketid ));
+		// console.log(this.players.find( (player) => player.socketid == socketid ));
 		return this.players.find( (player) => player.socketid === socketid )
 	}
-	getPlayerBySessionId(sessionid) {
-		return this.players.find( (player) => player.sessionid === sessionid )
+	getPlayerBysessionID(sessionID) {
+		return this.players.find( (player) => player.sessionID === sessionID )
 	}
 	getConnectedPlayers() {
 		return this.players.filter( (player) => !player.disconnected );

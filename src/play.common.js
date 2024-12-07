@@ -77,6 +77,8 @@ async function stayAwake() {
 				}
 			} else {
 				console.error('Wake Lock API not supported.');
+				socket.emit('consolelog', 'Wake Lock API not supported.');
+				socket.emit('consolelog', navigator);
 			}
 		}
 	} else {
@@ -84,9 +86,12 @@ async function stayAwake() {
 			await lock.release();
 			lock = null;
 			console.log('Screen Wake Lock released:', lock);
+			socket.emit('consolelog', 'Screen Wake Lock released:' + lock);
 		}
 	}
 }
 let lock = null;
 document.addEventListener('visibilitychange', stayAwake);
 stayAwake();
+
+

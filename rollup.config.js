@@ -11,7 +11,7 @@ export default [
         input: "src/quiz/quiz.js", // replace with path to your main JS file
         output: [
             {
-                file: "host/quiz.min.js", // replace with desired output file path
+                file: "host/quiz/quiz.min.js", // replace with desired output file path
                 format: "iife",
                 sourcemap: true,
                 globals: {
@@ -32,7 +32,7 @@ export default [
         input: "src/werewolves/werewolves.js", // replace with path to your main JS file
         output: [
             {
-                file: "host/werewolves.min.js", // replace with desired output file path
+                file: "host/werewolves/werewolves.min.js", // replace with desired output file path
                 format: "iife",
                 sourcemap: true,
                 globals: {
@@ -46,7 +46,22 @@ export default [
         input: "src/lobby/lobby.js", // replace with path to your main JS file
         output: [
             {
-                file: "host/lobby.min.js", // replace with desired output file path
+                file: "host/lobby/lobby.min.js", // replace with desired output file path
+                format: "iife",
+                sourcemap: true,
+                globals: {
+                    io: 'io'
+                }
+            }        
+        ],
+        plugins: [terser(), resolve()]
+    },
+
+    {
+        input: "src/quiz/quizbuilder.js", // replace with path to your main JS file
+        output: [
+            {
+                file: "public/dashboard/quizbuilder.min.js", // replace with desired output file path
                 format: "iife",
                 sourcemap: true,
                 globals: {
@@ -58,6 +73,18 @@ export default [
     },
 
     // Player modules
+    {
+        input: "src/login.js", // replace with path to your main JS file
+        output: [
+            {
+                file: "public/modules/login.min.js", // replace with desired output file path
+                format: "esm",
+                sourcemap: true,
+            }        
+        ],
+        plugins: [terser(), resolve()]
+    },
+
     {
         input: "src/lobby/play.lobby.js", // replace with path to your main JS file
         output: [

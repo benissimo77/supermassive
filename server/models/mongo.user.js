@@ -1,27 +1,37 @@
 const mongoose = require("mongoose");
-const crypto = require("crypto");
+const bcrypt = require("bcrypt");
 
+// userSchema
+// username is optional, but email and password are required
+// email must be unique but it is NOT required because we use it for logging in with Facebook or Google and user might have prevented sharing
+// avatar is optional, but if provided must be a valid URL to an image
+// We try to get avatar from Facebook or Google if available
+// Other facebook/google data is stored in the user's profile as json for analysis later
 const userSchema = mongoose.Schema({
-    username: { type: 'string' },
-    email: { type: 'string', required: true, unique: true },
-    password: { type: 'string', required: true },
-    registrationDate: { type: Date, default: Date.now }
-})
+    registrationDate: { type: Date, default: Date.now },
+    email: { type: 'string', unique: true },
+    password: { type: 'string' },
+    displayname: { type: 'string' },
+    avatar: { type: 'string' },
+
+    googleprofile: { type: 'object' },
+    facebookprofile: { type: 'object' },
+
+    token: { type: 'string', default: null },
+    tokenExpiry: { type: 'date', default: null },
+    emailVerified: { type: Boolean, default: false }
+});
 
 // hash the password
-userSchema.methods.generateHash = function(password) {
-    const salt = crypto.randomBytes(16).toString('hex');
-    const hash = crypto.scryptSync(password, salt, 64).toString('hex');
-    return `${salt}:${hash}`;
+userSchema.methods.generateHashedPassword = function(password) {
+    return bcrypt.hashSync(password, bcrypt.genSaltSync(10));
 };
 
 // checking if password is valid
-userSchema.methods.validatePassword = function(password) {
-    const [salt, hash] = this.password.split(':');
-    console.log('User model:', password, salt, hash);
-    const hashToCompare = crypto.scryptSync(password, salt, 64).toString('hex');
-    return hash === hashToCompare;
+userSchema.methods.verifyPassword = function(password) {
+    return bcrypt.compareSync(password, this.password);
 };
 
 // Export model
-module.exports = mongoose.model('User', userSchema)
+module.exports = mongoose.model('User', userSchema);
+

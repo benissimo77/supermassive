@@ -4,7 +4,7 @@ import gsap from 'gsap';
 
 // At some point variants of the below functions should be loaded...
 import { dom } from './dom.quiz.js';
-import { ImageSelector } from '../ImageSelector2.js';
+import { ImageSelector } from '../ImageSelector.js';
 import { Overlay } from '../Overlay.js';
 import { AudioPlayer } from '../AudioPlayer.js';
 

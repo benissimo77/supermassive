@@ -1,6 +1,5 @@
 const express = require('express');
 const Quiz = require('../models/mongo.quiz');
-const QuizRound = require('../models/mongo.quizround'); // Import the QuizRound model
 
 const router = express.Router();
 

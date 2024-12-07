@@ -561,6 +561,12 @@ body {
 #question-audio {
     margin-bottom: 20px;
 }
+#question-answer {
+    font-size: 72px;
+    color: white;
+    justify-self: center;
+    align-self: center;
+}
 #player-overlay {
     position:fixed;
     width:200px;

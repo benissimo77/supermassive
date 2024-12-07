@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gaming Auth - Login/Sign Up</title>
+    <link rel="stylesheet" href="login.css">
+</head>
+<body>
+    <div class="container">
+        <div class="auth-form">
+            <h2 id="formTitle">Sign in to your account</h2>
+            <div id="socialButtons">
+                <button id="googleLogin" class="btn google" onclick="window.location.href='/auth/google'">
+                    Sign in with Google
+                </button>
+                <button id="facebookLogin" class="btn facebook" onclick="window.location.href='/auth/facebook'">
+                    Sign in with Facebook
+                </button> 
+                <fb:login-button 
+                    scope="public_profile,email"
+                    onlogin="checkLoginState();">
+                </fb:login-button>   
+                <div class="divider">
+                    <span>Or continue with</span>
+                </div>
+            </div>
+            <div id="message" class="message">&nbsp;</div>
+            <form id="authForm">
+                <input type="email" id="email" name="email" placeholder="Email address" value="ben.silburn@gmail.com">
+                <input type="password" id="password" name="password" placeholder="Password" value="123">
+                <button type="submit" id="submitButton" class="btn primary">Sign in</button>
+            </form>
+            <div class="form-links">
+                <div id="switchMessage">Don't have an account?</div>
+                <a href="#" id="switchLink">Sign Up</a>
+                <a href="#" id="forgotPassword">Forgot Password?</a>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

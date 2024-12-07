@@ -6,6 +6,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const createQuizButton = document.getElementById('create-quiz');
     createQuizButton.addEventListener('click', createQuiz);
 
+    const hostQuizButton = document.getElementById('host-quiz');
+    hostQuizButton.addEventListener('click', hostQuiz);
+    
     const addRoundButton = document.getElementById('add-round');
     addRoundButton.addEventListener('click', addRoundToDOM);
 

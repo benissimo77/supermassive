@@ -66,28 +66,31 @@ router.use((req, res, next) => {
     next();
 });
 
+// Problem with all lines below - WHY DID I DO THIS USING HANDLEBARS???
+// One quick decision to allow handlebars to create a dynamic page and suddenly everything is a handlebars template
+// NO NEED FOR THIS!!!
 // Note that this route has a trailing slash - seems that either browser or server is adding slash at the end
-router.get('/dashboard/', (req, res) => {
-	console.log('routes.host.js: /dashboard');
-    res.render('home', { layout: 'dashboard' }); // Use a different layout
-});
-// Repeat above but without the slash... (?)
-router.get('/dashboard', (req, res) => {
-	console.log('routes.host.js: /dashboard');
-    res.render('home', { layout: 'dashboard' }); // Use a different layout
-});
-router.get('/dashboard/home', (req, res) => {
-	console.log('routes.host.js: /dashboard/home');
-    res.render('home', { layout: 'dashboard' }); // Use a different layout
-});
-router.get('/dashboard/quiz', (req, res) => {
-	console.log('routes.host.js: /dashboard/quiz');
-    res.render('quiz', { layout: false }); // Use a different layout
-});
-router.get('/dashboard/sample', (req, res) => {
-	console.log('routes.host.js: /dashboard/sample');
-    res.render('sample', { layout: 'dashboard' }); // Use a different layout
-});
+// router.get('/dashboard/', (req, res) => {
+// 	console.log('routes.host.js: /dashboard');
+//     res.render('home', { layout: 'dashboard' }); // Use a different layout
+// });
+// // Repeat above but without the slash... (?)
+// router.get('/dashboard', (req, res) => {
+// 	console.log('routes.host.js: /dashboard');
+//     res.render('home', { layout: 'dashboard' }); // Use a different layout
+// });
+// router.get('/dashboard/home', (req, res) => {
+// 	console.log('routes.host.js: /dashboard/home');
+//     res.render('home', { layout: 'dashboard' }); // Use a different layout
+// });
+// router.get('/dashboard/quiz', (req, res) => {
+// 	console.log('routes.host.js: /dashboard/quiz');
+//     res.render('quiz', { layout: false }); // Use a different layout
+// });
+// router.get('/dashboard/sample', (req, res) => {
+// 	console.log('routes.host.js: /dashboard/sample');
+//     res.render('sample', { layout: 'dashboard' }); // Use a different layout
+// });
 
 // The problem with the code below is that every request for a page in /dashboard gets rendered as a tempalte
 // But currently all the styles and javascript code is also accessed from /dashbaord (the static folder)
@@ -107,6 +110,17 @@ router.get('/dashboard/sample', (req, res) => {
 //         // Handle invalid page requests
 // 		console.log('Not a page');
 //     }
+// });
+
+// INSTEAD - just serve the static files from the host directory
+router.get('/', (req, res) => {
+	console.log('routes.host.js: /');
+	res.redirect('/host/dashboard');
+});
+// // Repeat above but without the slash... (?)
+// router.get('/dashboard', (req, res) => {
+// 	console.log('routes.host.js: /dashboard');
+//     res.render('home', { layout: 'dashboard' }); // Use a different layout
 // });
 
 

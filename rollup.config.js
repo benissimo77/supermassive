@@ -61,7 +61,7 @@ export default [
         input: "src/quiz/quizbuilder.js", // replace with path to your main JS file
         output: [
             {
-                file: "public/dashboard/quizbuilder.min.js", // replace with desired output file path
+                file: "host/dashboard/quizbuilder.min.js", // replace with desired output file path
                 format: "iife",
                 sourcemap: true,
                 globals: {

@@ -1,2 +1,9 @@
 node_modules/
 audio_test
+.env
+11labs/
+dist/
+puppets/
+src/assets/
+NOTES.TXT
+

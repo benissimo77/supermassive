@@ -511,3 +511,6 @@ class ImageSelector extends HTMLElement {
 }
 
 customElements.define('image-selector', ImageSelector);
+
+// Not really needed since we only need to define the custom element
+export default ImageSelector;

@@ -271,14 +271,14 @@ body {
     flex-grow:1;
     justify-content: center;
     align-items: center;
-    background-color: rgba(240,0,0, 0.2);
-    border:1px solid red;
+    /* background-color: rgba(240,0,0, 0.2);
+    border:1px solid red; */
 }
 #question-options {
     display:grid;
     gap: 5vh 5vw;
-    background-color: rgba(240,0,0, 0.2);
-    border:1px solid green;
+    /* background-color: rgba(240,0,0, 0.2);
+    border:1px solid green; */
 }
 /* Single column layout for small screens and portrait mode */
 @media (max-width: 600px) {

@@ -621,6 +621,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
 
             case 'ordering':
+                baseData.extra = {};
                 baseData.extra.startLabel = questionElement.querySelector('[data-field="order-start"]').value;
                 baseData.extra.endLabel = questionElement.querySelector('[data-field="order-end"]').value;
                 const items = Array.from(questionElement.querySelectorAll('[data-field="order-item"]')).map(input => input.value);

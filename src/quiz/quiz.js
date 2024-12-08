@@ -235,7 +235,7 @@ class Quiz {
         console.log('onIntroQuiz:', payload);
         dom.TLpanelSlideUp()
         .add( dom.TLpanelSlideDown(payload) )
-        .add( dom.flyInRacetrack(), "<" )
+        .add( dom.TLflyInRacetrack(), "<" )
         .add( () => {
             this.socket.emit('host:response');
         })

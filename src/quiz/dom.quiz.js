@@ -1035,6 +1035,7 @@ export const dom = {
     DOMshowAnswer,
     TLhideAllPanels,
     TLflyPanelLeft,
+    TLflyInRacetrack,
     TLflyOutRacetrack,
     TLendQuestion,
     TLarrangePlayersInPanelHorizontal,

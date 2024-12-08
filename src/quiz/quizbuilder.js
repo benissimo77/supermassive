@@ -762,6 +762,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         break;
 
                     case 'ordering':
+                        console.log('Ordering:', questionJSON);
                         contentContainer.querySelector('[data-field="order-start"]').value = questionJSON.extra.startLabel || '';
                         contentContainer.querySelector('[data-field="order-end"]').value = questionJSON.extra.endLabel || '';
                         questionJSON.options.forEach((item, index) => {

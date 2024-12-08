@@ -1,5 +1,11 @@
 const mongoose = require('mongoose');
 
+// Define the schema for matching pairs
+const matchingPairSchema = new mongoose.Schema({
+    left: { type: String },
+    right: { type: String }
+}, { _id: false }); // Prevent automatic _id generation for matching pairs
+
 // Define the Question schema
 const questionSchema = new mongoose.Schema({
     type: { type: String, required: true },
@@ -7,6 +13,8 @@ const questionSchema = new mongoose.Schema({
     image: { type: String },
     audio: { type: String },
     options: [{ type: String }],
+    pairs: [matchingPairSchema], // Array of matching pairs without _id
+    extra: { type: mongoose.Schema.Types.Mixed },   // Misc extra data eg labels for ordering
     answer: { type: mongoose.Schema.Types.Mixed },
 }, { _id: false }); // Prevent automatic _id generation for questions
 

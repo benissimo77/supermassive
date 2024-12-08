@@ -617,12 +617,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     left: questionElement.querySelector(`[data-field="left-${index}"]`).value,
                     right: questionElement.querySelector(`[data-field="right-${index}"]`).value
                 }));
-                baseData.options = pairs.filter( (pair) => { return pair.left != ""; });
+                baseData.pairs = pairs.filter( (pair) => { return pair.left != ""; });
                 break;
 
             case 'ordering':
-                baseData.startLabel = questionElement.querySelector('[data-field="order-start"]').value;
-                baseData.endLabel = questionElement.querySelector('[data-field="order-end"]').value;
+                baseData.extra.startLabel = questionElement.querySelector('[data-field="order-start"]').value;
+                baseData.extra.endLabel = questionElement.querySelector('[data-field="order-end"]').value;
                 const items = Array.from(questionElement.querySelectorAll('[data-field="order-item"]')).map(input => input.value);
                 baseData.options = items.filter( (item) => { return item != ""; });
                 break;
@@ -755,15 +755,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         break;
 
                     case 'matching':
-                        questionJSON.options.forEach((pair, index) => {
+                        questionJSON.pairs.forEach((pair, index) => {
                             contentContainer.querySelector(`[data-field="left-${index + 1}"]`).value = pair.left || '';
                             contentContainer.querySelector(`[data-field="right-${index + 1}"]`).value = pair.right || '';
                         });
                         break;
 
                     case 'ordering':
-                        contentContainer.querySelector('[data-field="order-start"]').value = questionJSON.startLabel || '';
-                        contentContainer.querySelector('[data-field="order-end"]').value = questionJSON.endLabel || '';
+                        contentContainer.querySelector('[data-field="order-start"]').value = questionJSON.extra.startLabel || '';
+                        contentContainer.querySelector('[data-field="order-end"]').value = questionJSON.extra.endLabel || '';
                         questionJSON.options.forEach((item, index) => {
                             contentContainer.querySelectorAll('[data-field="order-item"]')[index].value = item || '';
                         });

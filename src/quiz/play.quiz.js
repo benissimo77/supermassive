@@ -403,11 +403,11 @@ export class Game {
 					break;
 		
 				case "ordering":
-					question.items.forEach( (item, index) => {
+					question.options.forEach( (item, index) => {
 						const button = questionOptions.appendChild(createDraggableButton(item));
 						button.setAttribute("id", "option-" + index);
-						var dropzoneLabel = (index == 0) ? question.startLabel : '';
-						dropzoneLabel = (index == question.items.length - 1) ? question.endLabel : dropzoneLabel;
+						var dropzoneLabel = (index == 0) ? question.extra.startLabel : '';
+						dropzoneLabel = (index == question.items.length - 1) ? question.extra.endLabel : dropzoneLabel;
 						const dropzone = questionOptions.appendChild(createDropzoneButton(dropzoneLabel));
 						dropzone.setAttribute("id", "option-end-" + index);
 					});

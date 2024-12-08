@@ -565,7 +565,7 @@ function TLpanelQuestion(question) {
         case "matching":
             questionOptions.classList.add('question-options-2col');
             tl.add( () => {
-                question.options.forEach( (pair, index) => {
+                question.pairs.forEach( (pair, index) => {
                     const button = questionOptions.appendChild(createDraggableButton(pair.left));
                     button.setAttribute("id", "option-" + index);
                     const dropzone = questionOptions.appendChild(createDropzoneButton(pair.right));
@@ -580,8 +580,8 @@ function TLpanelQuestion(question) {
                 question.options.forEach( (item, index) => {
                     const button = questionOptions.appendChild(createDraggableButton(item));
                     button.setAttribute("id", "option-" + index);
-                    var dropzoneLabel = (index == 0) ? question.startLabel : '';
-                    dropzoneLabel = (index == question.items.length - 1) ? question.endLabel : dropzoneLabel;
+                    var dropzoneLabel = (index == 0) ? question.extra.startLabel : '';
+                    dropzoneLabel = (index == question.items.length - 1) ? question.extra.endLabel : dropzoneLabel;
                     const dropzone = questionOptions.appendChild(createDropzoneButton(dropzoneLabel));
                     dropzone.setAttribute("id", "option-end-" + index);
                 })
@@ -674,8 +674,8 @@ function DOMshowAnswer(question) {
             question.answer.forEach( (item, index) => {
                 const button = questionOptions.appendChild(createDraggableButton(item));
                 button.setAttribute("id", "option-" + index);
-                var dropzoneLabel = (index == 0) ? question.startLabel : '';
-                dropzoneLabel = (index == question.items.length - 1) ? question.endLabel : dropzoneLabel;
+                var dropzoneLabel = (index == 0) ? question.extra.startLabel : '';
+                dropzoneLabel = (index == question.items.length - 1) ? question.extra.endLabel : dropzoneLabel;
                 const dropzone = questionOptions.appendChild(createDropzoneButton(dropzoneLabel));
                 dropzone.setAttribute("id", "option-end-" + index);
             })
@@ -714,9 +714,11 @@ function DOMshowAnswer(question) {
     }
 
     // Also highlight the players who got this answer correct, found in the playersCorrect node
-    question.playersCorrect.forEach( (sessionID) => {
-        DOMsetPlayerNamePanel(sessionID);
-    });
+    if (question.playersCorrect) {
+        question.playersCorrect.forEach( (sessionID) => {
+            DOMsetPlayerNamePanel(sessionID);
+        });    
+    }
 }
 function TLflyPanelLeft(panel) {
     const tl = gsap.timeline();

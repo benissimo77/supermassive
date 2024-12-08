@@ -20,10 +20,7 @@ class QuizStateMachine {
 
     constructor(quiz) {
         this.quiz = quiz;
-        this.state = QuizState.INIT;
-		this.round = null;
-		this.question = null;
-		this.mode = "ask";	// ask or answer - whether we are collecting answers or showing them
+		this.transitionTo(QuizState.INIT);
     }
 
     start() {
@@ -121,6 +118,9 @@ class QuizStateMachine {
         this.state = newState;
         console.log(`Transitioning to state: ${newState}`);
         switch (newState) {
+			case QuizState.INIT:
+				this.quiz.init();
+				break;
             case QuizState.INTRO_QUIZ:
                 this.quiz.introQuiz()
                 break;
@@ -549,6 +549,17 @@ class Quiz extends Game {
 	introduction() {
 		console.log('Quiz: introduction');
 	}
+
+	init() {
+		this.round = null;
+		this.question = null;
+		this.mode = "ask";	// ask or answer - whether we are collecting answers or showing them
+
+		// In this state we are waiting for players to arrive and for the host to start
+		// So we want to display players as they enter, plus the room code and login instructions...
+
+	}
+	
 	// startGame is a required function for a class that extends Game
 	// Called by room when it receives a host:requeststart from the host - this is the entry point to the game
 	async startGame(config) {
@@ -670,8 +681,8 @@ class Quiz extends Game {
 					break;
 
 				case "ordering":
-					var answer = [...this.question.items];
-					this.question.items = shuffleArray(this.question.items);
+					var answer = [...this.question.options];
+					this.question.options = shuffleArray(this.question.options);
 					break;
 
 				default:
@@ -704,12 +715,12 @@ class Quiz extends Game {
 		this.question.results = {};
 
 		let question = {}
+		question.number = this.question.number;
 		question.type = this.question.type;
 		question.image = this.question.image;
 		question.options = this.question.options;
-		question.number = this.question.number;
-		question.items = this.question.items;
 		question.pairs = this.question.pairs;
+		question.extra = this.question.extra;
 		console.log('collectAnwers:', this.question);
 		const responseHandler = (socket, response) => {
 			console.log('quiz.responseHandler:', socket.id, response);

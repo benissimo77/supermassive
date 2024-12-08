@@ -1,4 +1,4 @@
-export default class CanvasDraw extends HTMLElement {
+export class CanvasDraw extends HTMLElement {
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });

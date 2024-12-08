@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (!response.ok) {
                             throw new Error('Network response was not ok');
                         }
-                        document.getElementById('quiz-json').value = JSON.stringify( await response.json(), null, 4 );
+                        // No need to check the response
                     } catch (error) {
                         console.error('Error deleting round:', error);
                     }
@@ -359,7 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <input type="hidden" data-field="point-it-out-endy">
                 `;
                 const pointItOutPreview = contentContainer.querySelector('[data-field="image-selector-preview"]');
-                pointItOutPreview.addEventListener('selection', (event) => imageSelectorSelection(questionElement, event.detail, 'rectangle'));
+                pointItOutPreview.addEventListener('selection', (event) => imageSelectorSelection(questionElement, event.detail, 'point-it-out'));
                 if (questionImage.getAttribute('src')) {
                     setImageSelectorSrc(questionElement, questionImage.getAttribute('src'));
                 }
@@ -508,9 +508,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Similarly to the dropzone method, we also want to hide the dropzone element
     function handleExternalImageURL(event) {
         console.log('handleExternalImageURL:', event.target.value);
-        const questionElement = event.target.closest('.question');
-        setImageSelectorSrc(questionElement, event.target.value);
-        
+        // Just in case user focuses and then blurs without entering a URL
+        if (event.target.value) {
+            const questionElement = event.target.closest('.question');
+            setImageSelectorSrc(questionElement, event.target.value);    
+        }
     }
 
     // setImageSelectorSrc
@@ -533,10 +535,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     function imageSelectorSelection(questionElement, details, type) {
+        console.log('imageSelectorSelection:', questionElement, details, type);
         if (type === 'hotspot') {
             questionElement.querySelector('[data-field="hotspot-x"]').value = details.x;
             questionElement.querySelector('[data-field="hotspot-y"]').value = details.y;
         } else if (type === 'point-it-out') {
+            console.log('update point-it-out:', details);
             questionElement.querySelector('[data-field="point-it-out-startx"]').value = details.start.x;
             questionElement.querySelector('[data-field="point-it-out-starty"]').value = details.start.y;
             questionElement.querySelector('[data-field="point-it-out-endx"]').value = details.end.x;
@@ -672,7 +676,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function importQuizFromURL(url) {
+    async function importQuizFromURL(url) {
 
         fetch(url)
             .then(response => {

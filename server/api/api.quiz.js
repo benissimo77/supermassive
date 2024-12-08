@@ -5,11 +5,14 @@ const router = express.Router();
 
 // Filter out questions from quiz data
 const filterQuestions = (quiz, user) => {
-    quiz.rounds.forEach(round => {
-        if (round.owner.toString() != user) {
+    console.log('1 Filtering questions:', quiz.title, user, quiz.rounds.length, quiz.rounds);
+    quiz.rounds.forEach((round, index) => {
+        if (round.owner && round.owner.toString() != user) {
+            console.log('user NOT owner', round.owner, user);
             round.questions = [];
         }
     });
+    console.log('Done:', quiz);
     return quiz;
 }
 
@@ -120,14 +123,12 @@ router.get('/', async (req, res) => {
             { public: true }
         ]
     }
-    try {
-        const quizzes = await Quiz.find(search);
-        console.log('Quizzes found:', quizzes.length);
+
+    const quizzes = await Quiz.find(search);
+        console.log('Quizzes found:', quizzes.length, req.user);
         const filteredQuizzes = quizzes.map( quiz => filterQuestions(quiz, req.user) );
+        console.log('Filtered:', filteredQuizzes);
         res.status(200).json(filteredQuizzes);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
 });
 
 // Get a specific quiz by ID
@@ -165,8 +166,9 @@ router.delete('/:id/:roundid', async (req, res) => {
         });
         console.log('Searched rounds of quiz, index:', index);
         if (index >= 0) {
-            console.log('Round found, delete:', req.params.roundid, thisQuiz.rounds[index].owner);
-            if (thisQuiz.rounds[index].owner.toString() != req.user) {
+            const thisRound = thisQuiz.rounds[index];
+            console.log('Round found, delete:', req.params.roundid, thisRound.owner);
+            if (thisRound.owner && thisRound.owner.toString() == req.user) {
                 thisQuiz.rounds.splice(index, 1); // Use splice to remove the element from the array
                 thisQuiz.save();
                 console.log('Quiz saved:', thisQuiz);
@@ -174,7 +176,7 @@ router.delete('/:id/:roundid', async (req, res) => {
         } else {
             console.log('Round not found... STOP');
         }
-        res.status(204).json(filterQuestions(thisQuiz, req.user));
+        res.status(204).json();
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

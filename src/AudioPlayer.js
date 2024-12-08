@@ -1,5 +1,5 @@
 // .js
-export default class AudioPlayer extends HTMLElement {
+export class AudioPlayer extends HTMLElement {
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });

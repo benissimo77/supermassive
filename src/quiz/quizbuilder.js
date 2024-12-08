@@ -617,14 +617,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     left: questionElement.querySelector(`[data-field="left-${index}"]`).value,
                     right: questionElement.querySelector(`[data-field="right-${index}"]`).value
                 }));
-                baseData.pairs = pairs.filter( (pair) => { return pair.left != ""; });
+                baseData.options = pairs.filter( (pair) => { return pair.left != ""; });
                 break;
 
             case 'ordering':
                 baseData.startLabel = questionElement.querySelector('[data-field="order-start"]').value;
                 baseData.endLabel = questionElement.querySelector('[data-field="order-end"]').value;
                 const items = Array.from(questionElement.querySelectorAll('[data-field="order-item"]')).map(input => input.value);
-                baseData.items = items.filter( (item) => { return item != ""; });
+                baseData.options = items.filter( (item) => { return item != ""; });
                 break;
 
             case 'hotspot':
@@ -755,7 +755,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         break;
 
                     case 'matching':
-                        questionJSON.pairs.forEach((pair, index) => {
+                        questionJSON.options.forEach((pair, index) => {
                             contentContainer.querySelector(`[data-field="left-${index + 1}"]`).value = pair.left || '';
                             contentContainer.querySelector(`[data-field="right-${index + 1}"]`).value = pair.right || '';
                         });
@@ -764,7 +764,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     case 'ordering':
                         contentContainer.querySelector('[data-field="order-start"]').value = questionJSON.startLabel || '';
                         contentContainer.querySelector('[data-field="order-end"]').value = questionJSON.endLabel || '';
-                        questionJSON.items.forEach((item, index) => {
+                        questionJSON.options.forEach((item, index) => {
                             contentContainer.querySelectorAll('[data-field="order-item"]')[index].value = item || '';
                         });
                         break;

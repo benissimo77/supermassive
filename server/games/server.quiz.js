@@ -532,6 +532,8 @@ class Quiz extends Game {
 			]
 		}
 
+		this.quizData = JSON.parse({"_id":{"$oid":"675333ecfed7cae312249e26"},"title":"The APT 2024 Poker Quiz of the Year","description":"<p>Maybe not quite as prestigious as winning the APT, but it all counts!</p>","owner":{"$oid":"67150d5798c76cabc58b715d"},"public":true,"rounds":[{"title":"Shuffle Up and Deal!","description":"5 quick-fire questions to get you warmed up...","owner":{"$oid":"67150d8c98c76cabc58b7160"},"roundTimer":"10","showAnswer":"round","updateScores":"round","questions":[{"type":"multiple-choice","text":"The WSOP main event took place in July this year, who won?","image":"https://pnimg.net/w/articles/0/669/87b348e5cc.jpg","audio":"","options":["Jonathan Tamayo","Satoshi Nakamoto","Joseph Cheong","Kiet Dang"]},{"type":"text","text":"To the nearest thousand, how many players did he beat to win?","image":null,"audio":"","options":[],"answer":"10000"},{"type":"true-false","text":"True or False, in the final hand of the tournament he won with 8-3 offsuit","image":null,"audio":"","options":[],"answer":"true"},{"type":"multiple-choice","text":"Which APT player is often associated with this professional poker player?","image":"https://tonygpoker.com/wp-content/uploads/2022/07/Tony-Guoga_2022-Triton-Madrid_EV12-Ge%C2%BC100K-Short-Deck-Main-Event_Final-Table_Giron_8JG5573-min.jpg","audio":"","options":["Rory Brosnan","Richard Fox","Miles Phillips","Sean Darby"]},{"type":"multiple-choice","text":"How many times has Fraser won the APT?","image":"","audio":"","options":["2","1","3","Not enough times"]}],"_id":{"$oid":"675354e96be49e8cb1652ec5"}},{"title":"Here comes the flop","description":"Ok, time to start playing! These questions are getting tougher...","owner":{"$oid":"67150d8c98c76cabc58b7160"},"roundTimer":"0","showAnswer":"round","updateScores":"round","questions":[{"type":"ordering","text":"Place the following drawing hands in order, from least outs to most outs","image":null,"audio":"","options":[]},{"type":"point-it-out","text":"On the following poker table, point out which position is known as the Cutoff?","image":"https://fthmb.tqn.com/g0VEpOxRRl6B2XRy96nEqWTvo3c=/768x0/filters:no_upscale()/Texas_Holdem_Poker_Table_with_Blinds.svg-59e2c56d845b3400111dfb4e.png","audio":"","options":[],"answer":{"start":{"x":{"$numberInt":"0"},"y":{"$numberInt":"0"}},"end":{"x":{"$numberInt":"0"},"y":{"$numberInt":"0"}}}},{"type":"multiple-choice","text":"Based on the following chart, roughly what percentage of hands are shaded?","image":"https://www.mypokercoaching.com/wp-content/uploads/2020/03/HJ-poker-position-names-strategy-705x613.jpg","audio":"","options":["20","10","15","25"]},{"type":"text","text":"You have pocket Jacks and go ALL-IN against AK. What are your chances of winning the hand? Round to the nearest %","image":"","audio":"","options":[],"answer":"56"},{"type":"text","text":"You are on the river and, with total air, you make a pot-sized bluff bet. How often do you need the bluff to succeed to break even?","image":"","audio":"","options":[],"answer":"50"}],"_id":{"$oid":"675488de8d4873ed46191eab"}}],"createdAt":{"$date":{"$numberLong":"1733506028462"}},"updatedAt":{"$date":{"$numberLong":"1733593310150"}},"__v":{"$numberInt":"11"}});
+
 	}
 
 	// Add methods for game-specific logic here
@@ -596,6 +598,9 @@ class Quiz extends Game {
 	// Run introductory animation, plus run any set up data tasks
 	introQuiz() {
 		console.log('introQuiz:');
+		this.roundNumber = 0;
+		this.questionNumber = 0;
+
 		this.room.emitToHosts('server:introquiz', { title: this.quizData.title, description: this.quizData.description }, true )
 	}
 
@@ -685,7 +690,7 @@ class Quiz extends Game {
 			this.room.deregisterHostResponseHandler();
 			this.stateMachine.nextState();
 		} );
-		console.log('Sending question to hosts:', this.question);
+		console.log('Sending question to hosts:', this.question, this.questionNumber);
 		this.room.emitToHosts('server:question', this.question, true );
 
 		// Now that we have sent the data we can attach the correct answer to the question object

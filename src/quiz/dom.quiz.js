@@ -565,7 +565,7 @@ function TLpanelQuestion(question) {
         case "matching":
             questionOptions.classList.add('question-options-2col');
             tl.add( () => {
-                question.pairs.forEach( (pair, index) => {
+                question.options.forEach( (pair, index) => {
                     const button = questionOptions.appendChild(createDraggableButton(pair.left));
                     button.setAttribute("id", "option-" + index);
                     const dropzone = questionOptions.appendChild(createDropzoneButton(pair.right));
@@ -577,7 +577,7 @@ function TLpanelQuestion(question) {
         case "ordering":
             questionOptions.classList.add('question-options-2col');
             tl.add( () => {
-                question.items.forEach( (item, index) => {
+                question.options.forEach( (item, index) => {
                     const button = questionOptions.appendChild(createDraggableButton(item));
                     button.setAttribute("id", "option-" + index);
                     var dropzoneLabel = (index == 0) ? question.startLabel : '';

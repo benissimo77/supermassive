@@ -727,6 +727,7 @@ class Quiz extends Game {
 				this.question.results[player.sessionID] = response;
 				this.room.emitToHosts('server:questionanswered', { sessionID: player.sessionID, response: response });
 			}
+			console.log('quiz.responseHandler:', this.question);
 		}
 		const strategy = {
 			responseHandler: responseHandler,

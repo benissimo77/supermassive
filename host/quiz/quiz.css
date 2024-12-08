@@ -518,6 +518,7 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
+    gap: 20px;
     /* height:100%;  Height will be set in the window resize function */
 }
 #question-number-title {
@@ -530,10 +531,9 @@ body {
 }
 
 #question-text {
-    padding: 20px 60px;
+    padding: 0 60px;
     /* border:1px solid orange; */
     font-size: 72px;
-    margin-bottom: 24px;
     line-height:1.4em;
 }
 /* Note: this selector expects the image-selector to be an image not custom HTML element */
@@ -553,13 +553,9 @@ body {
 #image-selector {
     width: 100%;    /* Ensure the image does not exceed the container width */
     height: 100%;   /* Ensure the image does not exceed the container height */
-    cursor: crosshair;
     object-fit: contain; /* Scale the image to fit within the container while maintaining aspect ratio */
 }
 
-#question-audio {
-    margin-bottom: 20px;
-}
 #question-answer {
     font-size: 72px;
     color: white;
@@ -583,6 +579,7 @@ body {
     display:grid;
     justify-content: center;
 }
+/* Not sure about all these... */
 .question-options-1col {
     grid-template-columns: repeat(1, 1fr); /* Responsive columns */
     gap: 0; /* Space between buttons */

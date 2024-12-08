@@ -247,6 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         dropzone.addEventListener('drop', handleDropFiles);
 
+        // Add the question to the DOM (container)
         container.appendChild(questionElement);
 
         addRoundQuestionNumbers();
@@ -653,12 +654,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 baseData.answer = questionElement.querySelector('[data-field="answer"]').value;
                 break;
 
-            case 'image-selector':
-                baseData.answer = {
-                    x: +questionElement.querySelector('[data-field="hotspot-x"]').value,
-                    y: +questionElement.querySelector('[data-field="hotspot-y"]').value
-                };
-                break;
         }
 
         return baseData;
@@ -720,6 +715,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const questionsContainer = roundElement.querySelector('.questions-container');
             roundJSON.questions.forEach(questionJSON => {
+
+                // Add a basic question template to the DOM, which we will then populate with the question data
                 addQuestionToDOM(questionsContainer);
                 const questionElement = questionsContainer.lastElementChild;
 
@@ -731,6 +728,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (questionJSON.image) {
                     setImageSelectorSrc(questionElement, questionJSON.image);
                 }
+
+                // What about audio?
 
                 // Trigger the select chnage event which will insert the correct question type into the questionElement
                 const typeSelect = questionElement.querySelector('.question-type');

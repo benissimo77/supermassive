@@ -984,7 +984,7 @@ function screenSizeBody() {
     gsap.set("#panel-answers", { top: canvasAdjustY(440), height: canvasAdjustY(400) } );
 
     // This is the only one needed - general purpose question (and options panel)
-    gsap.set("#question-panel", { top: canvasAdjustY(90), height: canvasAdjustY(900) } );
+    gsap.set("#question-panel", { top: canvasAdjustY(16), height: canvasAdjustY(1040) } );
     gsap.set("#information-panel", { y: canvasAdjustY(-1080) });
 
     gsap.set("#racetrack", { y: canvasAdjustY(200), height: canvasAdjustY(600) });

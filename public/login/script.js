@@ -50,7 +50,7 @@ const layoutMode = () => {
     const passwordInput = document.getElementById('password');
 
     if (isSignupMode || forgotPasswordMode) {
-        formTitle.textContent = 'Sign up for a new account';
+        formTitle.textContent = 'Create an account';
         submitButton.textContent = 'Sign Up';
         switchButton.textContent = 'Sign In';
         switchMessage.textContent = 'Already have an account?';
@@ -142,10 +142,84 @@ const handleSubmit = async (event) => {
     }
 };
 
+// And similar for handling of password reset form
+const handleReset = async (event) => {
+    event.preventDefault();
+    const form = event.target;
+    const formData = new FormData(form);
+
+    const password = formData.get('password');
+    const confirmPassword = formData.get('password-confirm');
+
+    if (!password-confirm || !password) {
+        displayMessage('Please enter both password and confirm password', true);
+        return;
+    }
+    if (password !== confirmPassword) {
+        displayMessage('Passwords do not match', true);
+        return;
+    }
+
+    // We need to include the token in the form data
+    const token = new URLSearchParams(window.location.search).get('token');
+    if (!token) {
+        displayMessage('Error - please click the link in the set password email', true);
+        return;
+    }
+
+    // Determine the endpoint based on the mode (forgot password, signup or login)
+    const endpoint = '/auth/reset-password';
+    console.log('Submitting to:', endpoint, token, password);
+
+    try {
+        // OK - this is the fetch API, it's a promise so we need to await it
+        const response = await fetch(endpoint, {
+            method: "post",
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ token, password }),
+        });
+
+        const { success, status } = handleResponse(response);
+        console.log('handleSubmit response:', success, status, response);
+
+        if (success) {
+            displayMessage('Password reset successfully. Redirecting to login...', true);
+        } else {
+            // Handle different types of errors based on status codes
+            switch (status) {
+                case 400:
+                    displayMessage("Hmmm... seems the email link has expired. Hang on, we'll redirect you", true);
+                    break;
+                case 401:
+                    displayMessage("Hmmm... that didn't work :(", true);
+                    break;
+                case 409:
+                    displayMessage("Email already in our system :(<br>Have you forgotten your password? Try the link below...", true);
+                    break;
+                case 422:
+                    displayMessage('Invalid input. Please check your email and password.', true);
+                    break;
+                default:
+                    displayMessage('An error occurred. Please try again.', true);
+            }
+        }
+        setTimeout(() => {
+            window.location.href = '/login';
+        }, 6000);
+    
+    } catch (error) {
+        // This catch block will now only handle network errors or JSON parsing errors
+        displayMessage('A network error occurred. Please check your connection and try again.', true);
+        console.error('Network Error:', error);
+    }
+}
+
 const terminateForgotPasswordFlow = () => {
     // TODO: Implement this
     console.log('terminateForgotPasswordFlow');
-    displayMessage('Password reset initiated. Check your email for further instructions.', false);
+    displayMessage('Password reset initiated. Check your email for further instructions.', true);
     // Redirect to login page after 6 seconds
     setTimeout(() => {
         window.location.href = '/login';
@@ -172,5 +246,37 @@ document.addEventListener('DOMContentLoaded', () => {
     // Social login buttons
     if (googleBtn) googleBtn.addEventListener('click', () => handleSocialLogin('google'));
     if (facebookBtn) facebookBtn.addEventListener('click', () => handleSocialLogin('facebook'));
+
+    // Password reset
+    const resetForm = document.getElementById('resetPasswordForm');
+    if (resetForm) {
+        resetForm.addEventListener('submit', handleReset);
+    }
+
+    // We might have a message to display immediately if we arrived here from a redirect
+    const messageElement = document.getElementById('message');
+    const urlParams = new URLSearchParams(window.location.search);
+    const error = urlParams.get('error');
+    if (error) {
+        switch (error) {
+            case 'auth_error':
+                displayMessage('An error occurred during authentication. Please try again.', true);
+                break;
+            case 'auth_failed':
+                displayMessage('Authentication failed. Please try again.', true);
+                break;
+            case 'login_error':
+                displayMessage('An error occurred during login. Please try again.', true);
+                break;
+            case 'profile_error':
+                displayMessage('An error occurred processing your profile. Please try again.', true);
+                break;
+            case 'verification_failed':
+                displayMessage("Verification failed - we suggest you follow the 'Forgot Password' link below", true);
+                break;
+            default:
+                displayMessage('An error occurred. Please try again.', true);
+        }
+    }
 });
 

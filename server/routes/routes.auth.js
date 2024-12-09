@@ -104,7 +104,7 @@ router.get('/verify', async (req, res) => {
       if (err) {
         res.redirect('/login?error=login_error');
       } else {
-        res.redirect('/dashboard');
+        res.redirect('/host/dashboard');
       }
     });
   } else {
@@ -126,7 +126,7 @@ router.post('/forgot-password', async (req, res) => {
 router.post('/reset-password', async (req, res) => {
   try {
     console.log('router: /reset-password :', req.body);
-    const result = await userService.resetPassword(req.body.token, req.body.newPassword);
+    const result = await userService.resetPassword(req.body.token, req.body.password);
     console.log('router: /reset-password result:', result);
     if (result) {
       res.status(200).json(success());
@@ -134,7 +134,7 @@ router.post('/reset-password', async (req, res) => {
       res.status(400).json(error());
     }
   } catch (err) {
-    res.status(400).json(error());
+    res.status(500).json(error());
   }
 });
 

@@ -29,7 +29,10 @@ userSchema.methods.generateHashedPassword = function(password) {
 
 // checking if password is valid
 userSchema.methods.verifyPassword = function(password) {
-    return bcrypt.compareSync(password, this.password);
+    if (this.password) {
+        return bcrypt.compareSync(password, this.password);
+    }
+    return false;
 };
 
 // Export model

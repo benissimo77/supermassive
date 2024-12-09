@@ -63,7 +63,7 @@ const EmailService = {
   // NOTE: this must do similar to above page (collect a new password) but messages are different (new v change)
   sendPasswordResetEmail (to, token) {
     console.log('emailService: sendPasswordResetEmail :', to, token);
-    const resetLink = `${process.env.SERVER_URL}/reset-password.html?token=${token}`;
+    const resetLink = `${process.env.SERVER_URL}/login/resetpassword.html?token=${token}`;
     const htmlContent = emailTemplate({
       emailSubject: 'Reset Your Password',
       appName: 'VideoSwipe',

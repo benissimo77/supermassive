@@ -110,7 +110,13 @@ button:hover {
     border-color: #0f3460;
 }
 
-
+.form-links a {
+    color: rgb(100, 100, 201);
+    font-weight: bold;
+}
+#switchMessage {
+    color: white;
+}
 .switch-form {
     text-align: center;
     margin-top: 1rem;
@@ -128,6 +134,7 @@ button.text:hover {
 }
 
 #message {
+    color: 
     margin-bottom: 10px;
 }
 .error {
@@ -135,6 +142,3 @@ button.text:hover {
     color:red;
 }
 
-#switchMessage > a {
-    color: white;
-}

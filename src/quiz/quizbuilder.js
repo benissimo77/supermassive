@@ -185,15 +185,34 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function addCollapseAll(summaryElement) {
+        summaryElement.addEventListener('click', (event) => {
+            // The click event is fired BEFORE the details element is opened/closed
+            const details = summaryElement.parentNode;
+            console.log('summaryElement:', event.target, details.hasAttribute('open'));
+            if (details.hasAttribute('open')) {
+                const allDetails = details.querySelectorAll('details');
+                allDetails.forEach(detail => {
+                    detail.removeAttribute('open');
+                });
+            }
+        });
+    }
+
     function addRoundToDOM() {
         console.log('addRoundToDOM');
         const roundTemplate = document.getElementById('round-template');
         const roundElement = roundTemplate.content.cloneNode(true);
         const questionsContainer = roundElement.querySelector('.questions-container');
         const addQuestionButton = roundElement.querySelector('.question-btn');
-        
+        const summaryElement = roundElement.querySelector('.header-round');
+
+        // Add event handlers for round elements
         addQuestionButton.addEventListener('click', () => addQuestionToDOM(questionsContainer));
         roundElement.querySelector('.round-title').addEventListener('blur', updateHeaderWithTitle);
+        if (summaryElement) {
+            addCollapseAll(summaryElement);
+        }
 
         roundsContainer.appendChild(roundElement);
 
@@ -697,21 +716,26 @@ document.addEventListener('DOMContentLoaded', () => {
     function createQuizFromJSON(quizJSON) { 
         console.log('createQuizFromJSON:', quizJSON);
         document.getElementById('quiz-json').value = JSON.stringify(quizJSON, null, 2);
-        document.getElementById('quiz-id').value = quizJSON._id;
-        document.getElementById('quiz-owner').value = quizJSON.owner;
+        document.getElementById('quiz-id').value = quizJSON._id || "";
+        document.getElementById('quiz-owner').value = quizJSON.owner || "";
         document.getElementById('quiz-edit').querySelector('.header-title').textContent = quizJSON.title;
         document.getElementById('quiz-title').value = quizJSON.title;
         quill.root.innerHTML = quizJSON.description;
+
+        const summaryElement = document.getElementById('quiz-edit').querySelector('.header-quiz');
+        if (summaryElement) {
+            addCollapseAll(summaryElement);
+        }
 
         roundsContainer.innerHTML = '';
         quizJSON.rounds.forEach(roundJSON => {
             addRoundToDOM();
             const roundElement = roundsContainer.lastElementChild;
-            roundElement.querySelector('.header-title').textContent = roundJSON.title;
-            roundElement.querySelector('.round-title').value = roundJSON.title;
-            roundElement.querySelector('.round-description').value = roundJSON.description;
-            roundElement.querySelector('.round-id').value = roundJSON._id;
-            roundElement.querySelector('.round-owner').value = roundJSON.owner;
+            roundElement.querySelector('.header-title').textContent = roundJSON.title || "";
+            roundElement.querySelector('.round-title').value = roundJSON.title || "";
+            roundElement.querySelector('.round-description').value = roundJSON.description || "";
+            roundElement.querySelector('.round-id').value = roundJSON._id || "";
+            roundElement.querySelector('.round-owner').value = roundJSON.owner || "";
             const rt = roundElement.querySelector('[data-field="round-timer"]');
             roundElement.querySelector('[data-field="round-timer"]').value = roundJSON.roundTimer;
             roundElement.querySelector('[data-field="show-answer"]').value = roundJSON.showAnswer;

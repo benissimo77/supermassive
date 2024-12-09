@@ -30,7 +30,7 @@ class UserService {
   async signUpNewUser(email, verificationToken) {
     console.log('userService: signUpUser :', email);
     try {
-      const user = await this.userModel.create({ email, token: verificationToken });
+      const user = await this.userModel.create({ email, token: verificationToken, tokenExpiry: new Date(Date.now() + 24 * 360 * 1000) });
       return { success: true, user: user };
     } catch (error) {
       console.error('Error signing up new user:', error);

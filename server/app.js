@@ -35,8 +35,8 @@ app.use(express.urlencoded({ extended: true }));
 sessionMiddleware = session({
   secret: 'your_session_secret a very long string of random characters ##%$%^',
   resave: false,
-  saveUninitialized: true,
-  cookie: { secure:false }
+  saveUninitialized: false,
+  cookie: { secure:false, maxAge: 120000 }
 });
 app.use(sessionMiddleware);
 

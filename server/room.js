@@ -42,6 +42,7 @@ class Room {
 				// each re-connection will result in a new socketid
 				player.socketid = socket.id;
 			} else {
+				console.log('New player...');
 				player = new Player(userObj);
 				this.players.push(player);
 			}

@@ -28,6 +28,7 @@ userSchema.methods.generateHashedPassword = function(password) {
 };
 
 // checking if password is valid
+// Note: its possible for a user to not yet have a password, so check for this before running the bcrypt compare
 userSchema.methods.verifyPassword = function(password) {
     if (this.password) {
         return bcrypt.compareSync(password, this.password);

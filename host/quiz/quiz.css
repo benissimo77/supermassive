@@ -426,7 +426,7 @@ body {
       green;
     background: var(--color);
     height: 100%;
-    width: 0%;
+    width: 100%;
   }
 
 

@@ -55,7 +55,13 @@ class Quiz {
     init() {
         dom.init();
         this.attachSocketEvents(this.socket);
-        this.attachButtonEventHandlers(this.events);
+        if (process.env.NODE_ENV === 'developmentX') {
+            this.addDevelopmentButtons(this.events);
+        }
+
+        // Additional button handlers needed by the host dev AND production
+        document.getElementById("buttonHostReady").addEventListener('click', this.buttonHostReady);
+        document.getElementById("buttonStart").addEventListener('click', this.buttonStart);
 
         // Request the server loads the quiz (if not already loaded)
         this.socket.emit('host:requestgame', 'quiz');
@@ -117,14 +123,14 @@ class Quiz {
         .play();
     }
 
-    // attachButtonEvents - attach event handlers to the buttons
-    // These are the specific event handlers for buttons that are displayed on the host screen
+    // addDevelopmentButtons - attach buttons and event handlers
+    // These are the specific event handlers for buttons that are displayed on the host screen during development
     // Most likely will be used during testing - ideally the host screen will be a display-only screen, controlled by the server
-    attachButtonEventHandlers(events) {
-        console.log('attachButtonEventHandlers:', this.events);
+    addDevelopmentButtons(events) {
+        console.log('addDevelopmentButtons:', this.events);
     
         for (var eventname in this.events) {
-            console.log('attachButtonEventHandlers:', eventname, events[eventname]);
+            console.log('addDevelopmentButtons:', eventname, events[eventname]);
 
             const event = events[eventname];
 
@@ -142,11 +148,6 @@ class Quiz {
             }
         }
 
-        // 
-        // Additional button handlers needed by the host - this should go in a separate function if it is required in production mode
-        document.getElementById("buttonHostReady").addEventListener('click', this.buttonHostReady);
-        document.getElementById("buttonStart").addEventListener('click', this.buttonStart);
-                
     }        
 
     createEventButton(eventname, event) {
@@ -279,10 +280,19 @@ class Quiz {
         dom.DOMsetPlayerNamePanel(payload.sessionID);
     }
 
+    // It really seems like showAnswer should not need to show the qeustion again as its already showing...
     onShowAnswer = (payload) => {
         console.log('onShowAnswer:', payload);
+        // dom.TLpanelSlideUp()
+        // .add(dom.TLpanelQuestion(payload), "<")
+        // .add( () => {
+        //     console.log('onShowAnswer: adding answer');
+        //     dom.DOMshowAnswer(payload);
+        // })
+        // .play();
         dom.DOMshowAnswer(payload);
     }
+
     // onEndQuestion
     // Clear up after the question has been answered (or time run out)
     onEndQuestion = () => {
@@ -393,11 +403,11 @@ window.onload = function() {
     }
     const quiz = new Quiz(socket);
 
-        // Add general keypress handler to send all keypresses to the server
+    // Add general keypress handler to send all keypresses to the server
     // This is a simple way to allow the host to control the game
     window.addEventListener('keydown', (e) => {
         console.log('keypress:', e.key);
-        socket.emit('host:keypress', e.key);
+        socket.emit('host:keypress', { key:e.key, shift:e.shiftKey, ctrl:e.ctrlKey, alt:e.altKey });
     });
 
     console.log('window.onload: completed:', socket);

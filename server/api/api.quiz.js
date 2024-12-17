@@ -77,7 +77,8 @@ router.post('/save', async (req, res) => {
             });
             if (index >= 0) {
                 console.log('Round found:', newRound.title, thisQuiz.rounds[index], req.user);
-                if (thisQuiz.rounds[index].owner.toString() == req.user) {
+                // Every round should have an owner - but belt and braces check sometimes it seems to be empty
+                if (thisQuiz.rounds[index].owner && thisQuiz.rounds[index].owner.toString() == req.user) {
                     console.log('We are the owner:', req.user);
                     thisQuiz.rounds[index] = newRound;
                     thisQuiz.rounds[index].owner = req.user;

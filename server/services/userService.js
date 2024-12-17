@@ -83,14 +83,13 @@ class UserService {
     }
   }
 
-  // As far as I can tell this is not used....
+  // As far as I can tell this is not used.... wrong, used when user attempts to login
   async authenticateUser(email, password) {
     console.log('userService: authenticateUser :', email, password);
     try {
       const user = await this.findUserByEmail(email);
       console.log('userService: authenticateUser :', user);
-      if (user && await user.verifyPassword(
-        password)) {
+      if (user && await user.verifyPassword(password)) {
         return user;
       }
       return false;

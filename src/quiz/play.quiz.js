@@ -61,7 +61,16 @@ export class Game {
 		document.body.appendChild(game);
 		game.innerHTML = `
 			<template id="answer-template-text">
+				<label for="answer-text-input">Enter your answer:</label>
 				<input type="text" id="answer-text-input" />
+			</template>
+			<template id="answer-template-number-exact">
+				<p>Enter your answer:</p>
+				<input type="number" id="answer-text-input" />
+			</template>
+			<template id="answer-template-number-closest">
+				<p>Enter your answer:</p>
+				<input type="number" id="answer-text-input" />
 			</template>
 			<template id="answer-template-multiple-choice">
 				<div id="question-options"></div>
@@ -315,6 +324,7 @@ export class Game {
 	// This should (hopefully) make it easier to maintain and update since host/players will share code
 	doQuestion(question) {
 
+		console.log('Player: doQuesion:', question);
 		const panelId = 'panel-question';
 		const questionPanel = document.getElementById(panelId);
 		const questionTemplate = document.getElementById('answer-template-' + question.type);
@@ -358,6 +368,8 @@ export class Game {
 		    // And now for the question-specific content
 			switch (question.type) {
 				case "text":
+				case "number-exact":
+				case "number-closest":
 					// the input element is already defined in the template - just need to make it visible and add event listener
 					document.getElementById('answer-text-input').focus();
 					// Add event listeners for input elements

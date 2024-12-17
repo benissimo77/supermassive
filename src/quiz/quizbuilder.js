@@ -281,6 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Set up some constants for use in the switch statement
         const contentContainer = questionElement.querySelector('.question-specific-content');
         const questionType = questionElement.querySelector('.question-type').value;
+        const questionHint = questionElement.querySelector('.question-type-hint');
         const questionImage = questionElement.querySelector('[data-field="question-image"]');
         console.log('handleQuestionTypeChange:', questionType);
 
@@ -292,7 +293,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 contentContainer.innerHTML = `
                     <label>Answer:</label><input type="text" data-field="answer" placeholder="Enter answer">
                 `;
+                questionHint.textContent = 'Basic question - type the answer';
                 break;
+            case 'number-exact':
+            case 'number-closest':
+                contentContainer.innerHTML = `
+                    <label>Answer:</label><input type="number" data-field="answer" placeholder="Enter answer">
+                `;
+                break
             case 'multiple-choice':
                 contentContainer.innerHTML = `
                         <input class="question-field" type="text" data-field="option-1" placeholder="This is the correct answer">
@@ -315,7 +323,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     </select></p>
                 `;
                 break;
-
             case 'matching':
                 contentContainer.innerHTML = `
                     <div class="question-row">
@@ -340,7 +347,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
                 break;
-
             case 'ordering':
                 contentContainer.innerHTML = `
                         <label>Start:</label><input type="text" data-field="order-start" placeholder="eg Earliest">
@@ -355,7 +361,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                 `;
                 break;
-
             case 'hotspot':
                 contentContainer.innerHTML = `
                     <image-selector data-field="image-selector-preview" class="image-selector-preview" mode="hotspot"></image-selector>
@@ -613,6 +618,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         switch (type) {
             case 'text':
+            case 'number-exact':
+            case 'number-closest':
+            case 'true-false':
                 baseData.answer = questionElement.querySelector('[data-field="answer"]').value;
                 break;
             case 'multiple-choice':
@@ -627,10 +635,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     questionElement.querySelector('[data-field="option-8"]').value
                 ];
                 baseData.options = options.filter( (option) => { return option != ""; } );
-                break;
-
-            case 'true-false':
-                baseData.answer = questionElement.querySelector('[data-field="answer"]').value;
                 break;
 
             case 'picture':
@@ -769,15 +773,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 switch (questionJSON.type) {
                     case 'text':
+                    case 'number-exact':
+                    case 'number-closest':
+                    case 'true-false':
                         contentContainer.querySelector('[data-field="answer"]').value = questionJSON.answer || '';
                         break;
                     case 'multiple-choice':
                         questionJSON.options.forEach((option, index) => {
                             contentContainer.querySelector(`[data-field="option-${index + 1}"]`).value = option || '';
                         });
-                        break;
-                    case 'true-false':
-                        contentContainer.querySelector('[data-field="answer"]').value = questionJSON.correctAnswer || 'true';
                         break;
                     case 'picture':
                         break;

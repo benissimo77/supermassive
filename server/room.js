@@ -154,6 +154,8 @@ class Room {
 				this.hostResponseHandler(socket, response);
 			}
 		})
+		// host:keypress - sent by host when they press a key on their keyboard
+		// key is an object holding the key plus flags to indicate shift, ctrl, alt etc
 		socket.on('host:keypress', (key) => {
 			console.log('host:keypress:', key);
 			if (this.hostKeypressHandler) {

@@ -414,7 +414,7 @@ function TLendRoundOLD(round) {
 function TLendQuiz() {
     const tl = gsap.timeline();
 
-    let bestScore = 0;
+    let bestScore = -1;
     let bestPlayerId = '';
     for (let player of document.querySelectorAll('.player')) {
         const score = parseInt(player.getAttribute('data-score'));
@@ -496,7 +496,7 @@ function TLpanelQuestion(question) {
         gsap.set(questionPanel, { x: 1920 }); 
         questionPanel.innerHTML = '';
         questionPanel.appendChild(questionElement);
-        document.getElementById("question-number").innerHTML = question.number;
+        document.getElementById("question-number").innerHTML = question.questionNumber;
     });
 
     // Fly the question panel in from the right (note the question is not shown yet, only the question number)
@@ -506,10 +506,11 @@ function TLpanelQuestion(question) {
     // Animate the question text, word at a time
     // Note: BUG in GSAP that it can't add a Text tween to a timeline and accurately calculate the duration
     // So the progress(1).progress(0) solves this...
+    const textTweenSpeed = (question.mode == 'ask') ? 1 : 3;
     const textTween = gsap.to(questionText, { text: {
         value: question.text,
         delimiter: "",
-        speed: 1,
+        speed: textTweenSpeed,
         preserveSpaces:true
     }});
     textTween.progress(1).progress(0);
@@ -543,9 +544,13 @@ function TLpanelQuestion(question) {
     // And now for the question-specific content - all added into question-options container
     switch (question.type) {
         case "text":
-        questionOptions.classList.add('question-options-1col');
-        tl.add( () => questionOptions.appendChild(createTextLabel('Type the answer on your phone now!')));
-        break;
+        case "number-exact":
+        case "number-closest":
+            if (question.mode == 'ask') {
+                questionOptions.classList.add('question-options-1col');
+                tl.add( () => questionOptions.appendChild(createTextLabel('Type the answer on your phone now!')));
+            }
+            break;
 
         case "multiple-choice":
             // Add a class to determine whether 1, 2, 3 or 4 column
@@ -590,13 +595,17 @@ function TLpanelQuestion(question) {
 
         case "hotspot":
         case "point-it-out":
-            questionOptions.classList.add('question-options-1col');
-            tl.add( () => { questionOptions.appendChild(createTextLabel('Tap your phone/tablet to mark your answer')) });
+            if (question.mode == 'ask') {
+                questionOptions.classList.add('question-options-1col');
+                tl.add( () => { questionOptions.appendChild(createTextLabel('Tap your phone/tablet to mark your answer')) });
+            }
             break;
 
         case "draw":
-            questionOptions.classList.add('question-options-1col');
-            tl.add( () => questionOptions.appendChild(createTextLabel('Use your phone/tablet to draw your answer')));
+            if (question.mode == 'ask') {
+                questionOptions.classList.add('question-options-1col');
+                tl.add( () => questionOptions.appendChild(createTextLabel('Use your phone/tablet to draw your answer')));
+            }
             break;
     }
 
@@ -659,6 +668,8 @@ function DOMshowAnswer(question) {
     switch (question.type) {
 
         case "text":
+        case "number-exact":
+        case "number-closest":
             document.getElementById('question-answer').innerHTML = question.answer;
             break;
 
@@ -727,7 +738,7 @@ function TLflyPanelLeft(panel) {
 }
 function TLflyPanelDown(panel) {
     const tl = gsap.timeline();
-    tl.to(panel, { y:200, ease: "back.in(1)" });
+    tl.to(panel, { y:120, ease: "back.in(1)" });
     return tl;
 }
 function TLflyPanelUp(panel) {
@@ -742,7 +753,7 @@ function TLpanelSlideDown(instructions) {
         document.getElementById("information-panel-title").innerHTML = instructions.title;
         document.getElementById("information-panel-description").innerHTML = instructions.description;    
     });
-    tl.to(panel, { y: canvasAdjustY(200), ease: "back.in(1)" });
+    tl.to(panel, { y: canvasAdjustY(120), ease: "back.in(1)" });
     return tl;
 }
 function TLpanelSlideUp() {
@@ -984,14 +995,14 @@ function screenSizeBody() {
     gsap.set("#panel-answers", { top: canvasAdjustY(440), height: canvasAdjustY(400) } );
 
     // This is the only one needed - general purpose question (and options panel)
-    gsap.set("#question-panel", { top: canvasAdjustY(16), height: canvasAdjustY(1040) } );
+    gsap.set("#question-panel", { top: canvasAdjustY(16), height: canvasAdjustY(940) } );
     gsap.set("#information-panel", { y: canvasAdjustY(-1080) });
 
-    gsap.set("#racetrack", { y: canvasAdjustY(200), height: canvasAdjustY(600) });
+    gsap.set("#racetrack", { y: canvasAdjustY(480), height: canvasAdjustY(400) });
     gsap.set("#racetrack-markers", { y: 0, height: canvasAdjustY(24) });
     gsap.set("#racetrack-lanes", { y: canvasAdjustY(80), height: canvasAdjustY(600) });
 
-    gsap.set("#timer", { top: canvasAdjustY(940), height: canvasAdjustY(40) } );
+    gsap.set("#timer", { top: canvasAdjustY(1000), height: canvasAdjustY(40) } );
 
     // Test whether setting x,y via GSAP is different to specifying top,left in the CSS
     // YES it does make a difference - executeing gsap.set causes a translate3d to be added to the style, separate to the left/top

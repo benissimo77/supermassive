@@ -4,14 +4,16 @@ const QuizModel = require('../models/mongo.quiz.js');
 const QuizState = {
     INIT: 'INIT',
     INTRO_QUIZ: 'INTRO_QUIZ',
-	END_INTRO_QUIZ: 'END_INTRO_QUIZ',
+	NEXT_ROUND: 'NEXT_ROUND',
+	PREVIOUS_ROUND: 'PREVIOUS_ROUND',
     INTRO_ROUND: 'INTRO_ROUND',
-	END_INTRO_ROUND: 'END_INTRO_ROUND',
+	NEXT_QUESTION: 'NEXT_QUESTION',
+	PREVIOUS_QUESTION: 'PREVIOUS_QUESITON',
     QUESTION: 'QUESTION',
+	END_QUESTION: 'END_QUESTION',
 	COLLECT_ANSWERS: 'COLLECT_ANSWERS',
 	SHOW_ANSWER: 'SHOW_ANSWER',
 	UPDATE_SCORES: 'UPDATE_SCORES',
-	END_QUESTION: 'END_QUESTION',
     END_ROUND: 'END_ROUND',
     END_QUIZ: 'END_QUIZ'
 };
@@ -33,72 +35,81 @@ class QuizStateMachine {
 
 		// This is a simple state machine - the next state is determined by the current state
 		switch (this.state) {
+
+			case QuizState.INIT:
+				this.transitionTo(QuizState.INTRO_QUIZ);
+				break;
 			case QuizState.INTRO_QUIZ:
-				this.transitionTo(QuizState.INTRO_ROUND);
+				this.transitionTo(QuizState.NEXT_ROUND);
 				break;
+
 			case QuizState.INTRO_ROUND:
-				this.transitionTo(QuizState.QUESTION);
+				this.transitionTo(QuizState.NEXT_QUESTION);
 				break;
+
 			case QuizState.QUESTION:
-				if (this.mode == "ask") {
+				if (this.quiz.mode == "ask") {
 					this.transitionTo(QuizState.COLLECT_ANSWERS);
 				} else {
 					this.transitionTo(QuizState.SHOW_ANSWER);
 				}
 				break;
+
 			case QuizState.COLLECT_ANSWERS:
 				// Once we have finished with COLLECT_ANSWERS we know we don't want to collect any more answers
 				// So end the question for all players immediately
 				this.quiz.endQuestion();
-				if (this.round.showAnswer == "question") {
+				if (this.quiz.round.showAnswer == "question") {
 					this.transitionTo(QuizState.SHOW_ANSWER);
 				} else {
-					this.transitionTo(QuizState.QUESTION);
+					this.transitionTo(QuizState.NEXT_QUESTION);
 				}
 				break;
+
 			case QuizState.SHOW_ANSWER:
-				if (this.round.updateScores == "question") {
+				console.log('SHOW_ANSWER:', this.quiz.round.showAnswer, this.quiz.round.updateScores);
+				if (this.quiz.round.updateScores == "question") {
 					this.transitionTo(QuizState.UPDATE_SCORES);
 				} else {
-					this.transitionTo(QuizState.QUESTION);
+					this.transitionTo(QuizState.NEXT_QUESTION);
 				}
 				break;
 
 			case QuizState.UPDATE_SCORES:
 				// After updating scores we either move to next question or to next round
-				if (this.round.updateScores == "question") {
-					this.transitionTo(QuizState.QUESTION);
+				if (this.quiz.round.updateScores == "question") {
+					this.transitionTo(QuizState.NEXT_QUESTION);
 				} else {
-					this.transitionTo(QuizState.INTRO_ROUND);
+					this.transitionTo(QuizState.NEXT_ROUND);
 				}
 				break;
 
 			case QuizState.END_QUESTION:
-				this.transitionTo(QuizState.QUESTION);
+				this.transitionTo(QuizState.NEXT_QUESTION);
 				break;
 
 			// END_ROUND state is entered the moment we run out of questions
 			// However we might still need to show answers and update scores
 			case QuizState.END_ROUND:
-				if (this.mode == "ask") {
-					if (this.round.showAnswer == "round") {
+				if (this.quiz.mode == "ask") {
+					if (this.quiz.round.showAnswer == "round") {
 						console.log('Switching to answer mode...');
-						this.mode = "answer";
+						this.quiz.mode = "answer";
 						this.quiz.questionNumber = 0;
-						this.transitionTo(QuizState.QUESTION);
+						this.transitionTo(QuizState.NEXT_QUESTION);
 					} else {
-						if (this.round.updateScores == "round") {
+						if (this.quiz.round.updateScores == "round") {
 							this.transitionTo(QuizState.UPDATE_SCORES);
 						} else {
-							this.transitionTo(QuizState.INTRO_ROUND);
+							this.transitionTo(QuizState.NEXT_ROUND);
 						}
 					}	
 				} else {
 					// If we reached here in 'answer' mode then we are done with answers - update scores
-					if (this.round.updateScores == "round") {
+					if (this.quiz.round.updateScores == "round") {
 						this.transitionTo(QuizState.UPDATE_SCORES);
 					} else {
-						this.transitionTo(QuizState.INTRO_ROUND);
+						this.transitionTo(QuizState.NEXT_ROUND);
 					}
 				}
 				break;
@@ -111,12 +122,52 @@ class QuizStateMachine {
 	}
 
 	previousState() {
-		this.transitionTo(QuizState.QUESTION);
+		console.log('previousState:', this.state);
+		switch (this.state) {
+
+			case QuizState.INTRO_ROUND:
+				const previousRound = this.quiz.moveToPreviousRound(); // Decrement round number and reset question number
+				if (previousRound) {
+					this.transitionTo(QuizState.QUESTION);
+				} else {
+					this.transitionTo(QuizState.INTRO_QUIZ);
+				}
+				break;
+
+			case QuizState.NEXT_QUESTION:
+			case QuizState.PREVIOUS_QUESTION:
+			case QuizState.QUESTION:
+			case QuizState.COLLECT_ANSWERS:
+			case QuizState.SHOW_ANSWER:
+			case QuizState.UPDATE_SCORES:
+			case QuizState.END_QUESTION:
+			case QuizState.END_ROUND:
+			case QuizState.END_QUIZ:
+				const previousQuestion = this.quiz.moveToPreviousQuestion(); // Decrement question number and get question
+				if (previousQuestion) {
+					this.transitionTo(QuizState.QUESTION);
+				} else {
+					this.transitionTo(QuizState.PREVIOUS_ROUND);
+				}
+				break;
+
+			default:
+				console.error(`Unknown state: ${this.state}`);
+				break;
+
+		}
 	}
 
     transitionTo(newState) {
         this.state = newState;
         console.log(`Transitioning to state: ${newState}`);
+
+		// In case we still have a timer set from previous state (and user has attempted to move on) then clear the timer
+		if (this.quiz.roundTimerID) {
+			clearTimeout(this.quiz.roundTimerID);
+			this.quiz.roundTimerID = null;
+		}
+
         switch (newState) {
 			case QuizState.INIT:
 				this.quiz.init();
@@ -125,25 +176,48 @@ class QuizStateMachine {
                 this.quiz.introQuiz()
                 break;
 
-            case QuizState.INTRO_ROUND:
-				this.mode = "ask";
-				this.round = this.quiz.moveToNextRound(); // Increment round number and reset question number
-				if (this.round) {
-	                this.quiz.introRound()
+			case QuizState.NEXT_ROUND:
+				this.quiz.mode = "ask";
+				if (this.quiz.moveToNextRound()) {
+					this.transitionTo(QuizState.INTRO_ROUND);
 				} else {
 					this.transitionTo(QuizState.END_QUIZ);
 				}
                 break;
 
-            case QuizState.QUESTION:
-                const nextQuestion = this.quiz.moveToNextQuestion(); // Increment question number and get question
-				if (nextQuestion) {
-					this.quiz.doQuestion(this.mode)
+			case QuizState.PREVIOUS_ROUND:
+				if (this.quiz.moveToPreviousRound()) {
+					this.transitionTo(QuizState.INTRO_ROUND);
+				} else {
+					this.transitionTo(QuizState.INTRO_QUIZ);
+				}
+				break;
+
+			case QuizState.INTRO_ROUND:
+				this.quiz.introRound();
+				break;
+
+			case QuizState.PREVIOUS_QUESTION:
+				if (this.quiz.moveToPreviousQuestion()) {
+					this.transitionTo(QuizState.QUESTION);
+				} else {
+					this.transitionTo(QuizState.PREVIOUS_ROUND);
+				}
+				break;
+
+            case QuizState.NEXT_QUESTION:
+                if (this.quiz.moveToNextQuestion()) {
+					this.transitionTo(QuizState.QUESTION);
 				} else {
 					console.log('No more questions - ending round...');
 					this.transitionTo(QuizState.END_ROUND);
 				}
                 break;
+
+			// Tweaked logic QUESTION now expects the question number to be already set correctly
+			case QuizState.QUESTION:
+				this.quiz.doQuestion()
+				break;
 
 			case QuizState.COLLECT_ANSWERS:
 				this.quiz.collectAnswers();
@@ -162,7 +236,7 @@ class QuizStateMachine {
 				break;
 
             case QuizState.END_ROUND:
-                this.quiz.endRound(this.mode)
+                this.quiz.endRound()
                 break;
 
             case QuizState.END_QUIZ:
@@ -188,6 +262,7 @@ class Quiz extends Game {
 		this.maxplayers = 10;
 		this.roundNumber = 0;
 		this.questionNumber = 0;
+		this.roundTimerID = null;
 
 		// Instantiate the State Machine which will manage the game flow
 		this.stateMachine = new QuizStateMachine(this);
@@ -593,13 +668,14 @@ class Quiz extends Game {
 
 	// keyPressHandler
 	// Recieves keypresses from the host and acts
-	keypressHandler(socket, key) {
-		console.log('Quiz::keypressHandler:', key);
+	keypressHandler(socket, keyObject) {
+		console.log('Quiz::keypressHandler:', keyObject);
 		// If right or left arrow then step forward or back in the quiz
-		if (key == 'ArrowRight') {
+		// If CTRL also pressed then jump to end/beginning of the round
+		if (keyObject.key == 'ArrowRight') {
 			this.stateMachine.nextState();
 		}
-		if (key == 'ArrowLeft') {
+		if (keyObject.key == 'ArrowLeft') {
 			this.stateMachine.previousState();
 		}
 	}
@@ -608,8 +684,6 @@ class Quiz extends Game {
 	introQuiz() {
 		console.log('introQuiz:');
 		this.roundNumber = 0;
-		this.questionNumber = 0;
-
 		this.room.emitToHosts('server:introquiz', { title: this.quizData.title, description: this.quizData.description }, true )
 	}
 
@@ -618,6 +692,8 @@ class Quiz extends Game {
 	// Note: this function expects this.round to hold the round to intro (is this the best pattern?)
 	introRound() {
 		console.log('introRound:');
+		this.questionNumber = 0;
+
 		// Check if we are overriding question/answer types for this round (not used yet)
 		const typeOverride = (this.round.type && this.round.type != this.quizData.type);
 
@@ -629,48 +705,75 @@ class Quiz extends Game {
 	// A function that can be called to start a round
 	// Function returns the round data, or null if there are no more rounds
 	moveToNextRound() {
-		this.roundNumber++;
-		this.questionNumber = 0;
-		this.round = (this.roundNumber <= this.quizData.rounds.length) ? this.quizData.rounds[this.roundNumber - 1] : null;
-		return this.round;
+		if (this.roundNumber < this.quizData.rounds.length) {
+			this.round = this.quizData.rounds[this.roundNumber];
+			this.roundNumber++;
+			this.questionNumber = 0;
+			return this.round;
+		}
+		return false;
 	}
 
-	// nextQuestion
+	// moveToPreviousRound - reverse of moveToNextRound
+	moveToPreviousRound() {
+		if (this.roundNumber > 1) {
+			this.roundNumber--;
+			this.round = this.quizData.rounds[this.roundNumber - 1];
+			this.questionNumber = this.round.questions.length;
+			return this.round;
+		}
+		return false;
+	}
+
+		// nextQuestion
 	// Similar to nextRound above - returns the question data or null if there are no more questions in this round
 	moveToNextQuestion() {
 		if (this.questionNumber < this.round.questions.length) {
 			this.question = this.round.questions[this.questionNumber];
-			this.questionNumber++
-		} else {
-			this.question = null;
+			this.questionNumber++;
+			return this.question;			
 		}
-		return this.question;
+		return false;
 	}
 
+
+	// moveToPreviousQuestion - reverse of moveToNextQuestion
+	// At end of rouund this.questionNumber will be the length of the questions array
+	moveToPreviousQuestion() {
+		console.log('moveToPreviousQuestion:', this.questionNumber);
+		if (this.questionNumber > 1) {
+			this.questionNumber--;
+			this.question = this.round.questions[this.questionNumber];
+			return this.question;
+		} else {
+			return this.moveToPreviousRound();
+		}
+	}
 
 	// doQuestion
 	// A general function that will do everything needed to present the supplied question
 	// It doesn't know anything outside of the question it is given
 	// Perform any question-specific set-up (eg setting up the correct answer if needed)
 	// Mode is the form of the question - asking it or showing the question and answer
-	doQuestion(mode) {
-		console.log('doQuestion:', this.question, mode);
+	doQuestion() {
+		this.question = this.round.questions[this.questionNumber -1];
+		console.log('doQuestion:', this.question, this.mode, this.questionNumber);
 
 		var answer = this.question.answer;
 
 		// When asking question we might need to adjust the correct answer based on the question type
 		// Try overwriting the actual quizData with the modified question/answers data
 		// Now I can actually pass the entire question object directly to the client (do later it works right now)
-		if (mode == "ask") {
+		if (this.mode == "ask") {
 
 			switch (this.question.type) {
 
-				case "multiple-choice":
+				case 'multiple-choice':
 					answer = this.question.options[0];
 					this.question.options = shuffleArray(this.question.options);
 					break;
 
-				case "matching":
+				case 'matching':
 					var left = this.question.pairs.map( (pair) => pair.left);
 					var answer = [...left];
 					var shuffledLeft = shuffleArray(left);
@@ -678,7 +781,7 @@ class Quiz extends Game {
 					console.log('Matching:', answer, this.question.pairs);
 					break;
 
-				case "ordering":
+				case 'ordering':
 					var answer = [...this.question.options];
 					this.question.options = shuffleArray(this.question.options);
 					break;
@@ -690,8 +793,9 @@ class Quiz extends Game {
 
 		}
 
-		// Add the question number
-		this.question.number = this.questionNumber;
+		// Add the question number and mode (mode allows us to modify display of the question)
+		this.question.questionNumber = this.questionNumber;
+		this.question.mode = this.mode;
 
 		// This is an exception where we want to automatically move to next state without waiting for host
 		// WHY? Because after asking a question we know we instantly want to either collect answers or show the answer
@@ -713,13 +817,13 @@ class Quiz extends Game {
 		this.question.results = {};
 
 		let question = {}
-		question.number = this.question.number;
+		question.questionNumber = this.question.questionNumber;
 		question.type = this.question.type;
 		question.image = this.question.image;
 		question.options = this.question.options;
 		question.pairs = this.question.pairs;
 		question.extra = this.question.extra;
-		console.log('collectAnwers:', this.question);
+		console.log('collectAnwers:', this.question, question);
 		const responseHandler = (socket, response) => {
 			console.log('quiz.responseHandler:', socket.id, response);
 			const player = this.room.getPlayerBySocketId(socket.id);
@@ -736,6 +840,13 @@ class Quiz extends Game {
 		this.room.registerClientResponseHandler(responseHandler);
 		this.room.emitToAllPlayers("server:question", question);
 
+		if (this.round.roundTimer > 0) {
+			this.roundTimerID = setTimeout( () => {
+				this.roundTimerID = null;
+				this.stateMachine.nextState();
+			}, this.round.roundTimer * 1000);
+			this.room.emitToHosts('server:starttimer', { duration: this.round.roundTimer } );
+		}
 	}
 
 	// showAnswer
@@ -754,8 +865,11 @@ class Quiz extends Game {
 				.map(([key]) => key); // Map the filtered pairs to get only the keys
 		}
 		this.question.playersCorrect = getKeysByValue(this.question.results, this.question.answer);
-		console.dir('showAnswer:', this.question);
 
+		// When showing the answer we def want the mode to be 'answer' - this is not explicitly set when showing answers after every question
+		this.question.mode = 'answer';
+
+		console.dir('showAnswer:', this.question);
 		this.room.emitToHosts('server:showanswer', this.question);
 	}
 	
@@ -783,6 +897,7 @@ class Quiz extends Game {
 			const lastQuestion = (i == this.roundNumber-1) ? this.questionNumber : this.quizData.rounds[i].questions.length;
 			for (var j = 0; j < lastQuestion; j++ ) {
 				const scoreQuestion = this.calculatePlayerScores(this.quizData.rounds[i].questions[j]);
+				console.log('scoreQuestion:', i, j, scoreQuestion);
 				addDictionaries(scores, scoreQuestion);
 			}
 		}
@@ -797,7 +912,6 @@ class Quiz extends Game {
 
 		function createSimpleString(str) {
 			return str
-				.trim() // Remove leading and trailing whitespace
 				.toLowerCase() // Convert to lowercase
 				.replace(/[^a-z0-9-_:.]/g, '') // Remove invalid characters
 				.replace(/\s+/g, ''); // Remove spaces
@@ -806,15 +920,58 @@ class Quiz extends Game {
 		switch (question.type) {
 
 			case 'text':
-			case 'multiple-choice':
-			case 'true-false':
-				const simpleAnswer = createSimpleString(question.answer);
+				const simpleAnswerText = createSimpleString(question.answer);
 				Object.keys(question.results).forEach( (result) => {
-					console.log('this.calculatePlayerScores: ', simpleAnswer, question.results[result]);
-					if (createSimpleString(question.results[result]) == simpleAnswer) {
+					const simpleResult = createSimpleString(question.results[result]);
+					if (levenshteinDistance(simpleAnswerText, simpleResult) < 3) {
 						scores[result] = 1;
 					}
 				});
+				break;
+
+			case 'multiple-choice':
+			case 'true-false':
+			case 'number-exact':
+				const simpleAnswer = createSimpleString(question.answer);
+				Object.keys(question.results).forEach( (result) => {
+					console.log('this.calculatePlayerScores: ', simpleAnswer, question.results[result]);
+					if (createSimpleString(question.results[result]) == simpleAnswerText) {
+						scores[result] = 1;
+					}
+				});
+				break;
+
+			case 'number-closest':
+				// similar to hotspot - calculate distance from correct answer
+				var distances = [];
+				Object.keys(question.results).forEach( (result) => {
+					distances.push( [result, Math.hypot(parseInt(question.results[result]) - parseInt(question.answer) ) ] );
+				});
+				distances = distances.sort(([, valueA], [, valueB]) => valueA - valueB);
+				// Closest gets 2 points, next 1 point. Plus a bonus point to all other values within a threshold of second place
+				// Made more complex because two or more teams could get the same distance - they both need to score the same
+				console.log('updateScores: hotspot:', question.answer, question.results, distances);
+				var nextPlayer = 1;
+				if (distances.length > 0) {
+					scores[distances[0][0]] = 2;
+					for (let i = nextPlayer; i < distances.length; i++) {
+						if (distances[i][1] == distances[0][1]) {
+							scores[distances[i][0]] = 2;
+							nextPlayer++;
+						}
+					}	
+				}
+				// If more than one team was assigned 2 points above then don't award any more points
+				if (distances.length > 1 && nextPlayer == 1) {
+					scores[distances[1][0]] = 1;
+					nextPlayer = 2;
+					for (let i = nextPlayer; i < distances.length; i++) {
+						if (distances[i][1] == distances[1][1]) {
+							scores[distances[i][0]] = 1;
+						}
+					}	
+
+				}
 				break;
 
 			// matching is similar to ordering - except our answer contains a left and right pair
@@ -879,13 +1036,14 @@ class Quiz extends Game {
 		console.log('endQuestion:', this.question);
 		this.room.emitToAllPlayers('server:endquestion');
 		this.room.deregisterClientResponseHandler();
+		// this.room.emitToHosts('server:endquestion');
 	}
 
 	// Called when we've reached the end of the questions in this round
 	// We still need to decide if we need to show answers and/or update scores
 	// Only after those steps have completed (if necessary) will we actually end the round
-	endRound(mode) {
-		console.log('endRound:', mode, this.round);
+	endRound() {
+		console.log('endRound:', this.mode, this.round);
 
 		// TODO - decide whether to mark the answers now or wait...
 		// If marked then add a note to this round to signify it has been marked (so that multiple rounds can be marked together)
@@ -894,9 +1052,9 @@ class Quiz extends Game {
 		}
 
 		// Message partly depends on the mode ask/answer and the round meta-data showAnswer/updateScores
-		if (mode == "ask" && this.round.showAnswer == "round") {
+		if (this.mode == "ask" && this.round.showAnswer == "round") {
 			information.description = "Let's see how you got on - here are the answers...";
-		} else if (mode == "answer" && this.round.updateScores == "round") {
+		} else if (this.mode == "answer" && this.round.updateScores == "round") {
 			information.description = "Ok, let's update the scores";
 		} else {
 			information.description = "Let's move on...";
@@ -905,7 +1063,7 @@ class Quiz extends Game {
 	}
 
 	endQuiz() {
-		console.log('endQuiz:');
+		console.log('endQuiz:', this.quizData);
 		this.room.emitToHosts('server:endquiz', { description: 'END OF THE QUIZ' }, true )
 	}
 
@@ -924,5 +1082,53 @@ function shuffleArray(array) {
 	}
 	return array;
 }
-
+// Helper function to perform a fuzzy string comparison
+function levenshteinDistance(str1, str2) {
+	const len1 = str1.length;
+	const len2 = str2.length;
+	const matrix = Array.from({ length: len1 + 1 }, () => Array(len2 + 1).fill(0));
+  
+	for (let i = 0; i <= len1; i++) matrix[i][0] = i;
+	for (let j = 0; j <= len2; j++) matrix[0][j] = j;
+  
+	for (let i = 1; i <= len1; i++) {
+	  for (let j = 1; j <= len2; j++) {
+		const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+		matrix[i][j] = Math.min(
+		  matrix[i - 1][j] + 1,
+		  matrix[i][j - 1] + 1,
+		  matrix[i - 1][j - 1] + cost
+		);
+	  }
+	}
+	return matrix[len1][len2];
+  }
+  console.log(levenshteinDistance('kitten', 'sitting'));
+  
 module.exports = Quiz;
+
+
+console.log(levenshteinDistance('kitten', 'sitting'));
+
+// Notes:
+// From New York Times Quiz
+// President-elect Donald J. Trump was convicted of falsifying records to cover up a sex scandal that threatened to derail his 2016 presidential campaign. On how many felony counts did a Manhattan jury find Mr. Trump guilty on May 30?
+
+// (Climate) In June, more than 1,300 people died while attending what major event in Saudi Arabia as temperatures surpassed 100 degrees Fahrenheit?
+
+// “Inside Out 2,” the summer’s biggest movie, delivered a fresh crop of emotions for Riley, the Pixar film’s 13-year-old protagonist. What emotion, pictured center above, stole the show in the sequel?
+
+// Unlike his victory in 2016, Mr. Trump did something he didn’t do in his first successful campaign for the White House. What was that?
+
+// Republicans cemented their control of the House of Representatives on Nov. 13, handing them a “governing trifecta” in Washington to enact President-elect Donald J. Trump’s agenda.
+
+// What does a governing trifecta mean?
+
+// Early on Dec. 4, a masked gunman assassinated Brian Thompson on a Midtown Manhattan street. Mr. Thompson was a chief executive in what industry?
+
+// Taylor Swift ended her 21-month-long Eras Tour on Dec. 8, capping another monster year for the pop superstar.
+// Whata was the name of the World Tour?
+
+// In a stunning turn of events after 13 years of civil war, rebels marched into Damascus as Syria’s president fled to Russia. Until Dec. 8, what family had ruled Syria for more than five decades?
+
+// What word was named Oxford’s 2024 Word of the Year?

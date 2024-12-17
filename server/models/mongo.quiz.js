@@ -45,7 +45,10 @@ const quizSchema = new mongoose.Schema({
 // This is a good idea because it keeps all the DB operations in one place
 quizSchema.statics.getQuizByID = async function(quizID) {
     try {
-        const quiz = await this.findById(quizID);
+        // Add lean() to return a plain JS object instead of a Mongoose document
+        // Among other things, this means you can't modify the object and save it back to the DB
+        // If I want to store the results of the quiz they should be stored separately
+        const quiz = await this.findById(quizID).lean();
         if (!quiz) {
             throw new Error('Quiz not found');
         }

@@ -12,26 +12,6 @@
     <!-- Background colour faded from dark blue (lobby) to black in onload -->
     <body style="background-color: darkblue;">
 
-        <template id="question-template">
-            <div id="question-number-title">Question: <span id="question-number"></span></div>
-            <div id="question-text"></div>
-            <div id="question-audio">
-                <!-- player will be dynamically added if necessary -->
-            </div>
-            <div id="question-image">
-                <!-- image selector will be dynamically added if necessary -->
-            </div>
-            <div id="question-answer">
-                <!-- this can be used to display an answer for simple questions that just need a textual answer -->
-            </div>
-            <div id="question-options-wrapper">
-                <div id="question-options"></div>
-            </div>
-        </template>
-        <template id="information-panel-template">
-            
-        </template>
-
         <!-- Background image - inside its own element outside of the wrapper since we don't want it to be concerned with scaling -->
         <div id="background">
             <div id="overlay"></div>
@@ -76,7 +56,33 @@
                 <div id="racetrack-lanes"></div>
             </div>
             
+            <!-- Timer  -->
+            <div id="timer">
+                <div class="timer_progress"></div>
+            </div>
+
         </div> <!-- wrapper -->
+
+        <template id="question-template">
+            <div id="question-number-title">Question: <span id="question-number"></span></div>
+            <div id="question-text"></div>
+            <div id="question-audio">
+                <!-- player will be dynamically added if necessary -->
+            </div>
+            <div id="question-image">
+                <!-- image selector will be dynamically added if necessary -->
+            </div>
+            <div id="question-answer">
+                <!-- this can be used to display an answer for simple questions that just need a textual answer -->
+            </div>
+            <div id="question-options-wrapper">
+                <div id="question-options"></div>
+            </div>
+        </template>
+        <template id="information-panel-template">
+            
+        </template>
+
 
         <script src="/socket.io/socket.io.js"></script>
         <script src="quiz.min.js"></script>

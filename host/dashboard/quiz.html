@@ -161,12 +161,12 @@
                     <select data-field="show-answer">
                         <option value="round" selected>End of round</option>
                         <option value="question">Every question</option>
-                        <option value="no">Combine with next round</option>
+                        <!-- <option value="no">Combine with next round</option> -->
                     </select>
                     <label>Update team scores:</label>
                     <select data-field="update-scores">
                         <option value="round" selected>End of round</option>
-                        <option value="answer">Every question</option>
+                        <option value="question">Every question</option>
                     </select>
                     
                 </div>
@@ -211,14 +211,18 @@
                 <label>Answer Type:</label>
                 <select class="question-type">
                     <option value="text">Text</option>
-                    <option value="multiple-choice">Multiple Choice</option>
+					<option value="number-exact">Number (exact match)</option>
+					<option value="number-closest">Number (closest guess)</option>
                     <option value="true-false">True/False</option>
+                    <option value="multiple-choice">Multiple Choice</option>
+                    <option value="ordering">Place in Order</option>
                     <option value="matching">Matching Pairs</option>
-                    <option value="ordering">Ordering</option>
                     <option value="hotspot">Hotspot</option>
                     <option value="point-it-out">Point It Out</option>
                     <option value="draw">Draw the Answer</option>
                 </select>
+				<!-- Short message to explain the question type -->
+				<p class="question-type-hint"></p>
                 <div class="question-specific-content"></div>
             </div>
         </div>

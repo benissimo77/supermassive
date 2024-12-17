@@ -935,7 +935,7 @@ class Quiz extends Game {
 				const simpleAnswer = createSimpleString(question.answer);
 				Object.keys(question.results).forEach( (result) => {
 					console.log('this.calculatePlayerScores: ', simpleAnswer, question.results[result]);
-					if (createSimpleString(question.results[result]) == simpleAnswerText) {
+					if (createSimpleString(question.results[result]) == simpleAnswer) {
 						scores[result] = 1;
 					}
 				});

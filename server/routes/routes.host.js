@@ -139,7 +139,7 @@ router.get('/admin', (req, res) => {
 
 
 const generateNewRoomName = () => {
-	return 'SNOW';
+	return 'NUTS';
 }
 
 module.exports = router;

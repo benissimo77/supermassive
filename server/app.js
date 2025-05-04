@@ -1,3 +1,5 @@
+"use strict";
+
 console.log('######  app.js is running  ######');
 
 // express server
@@ -17,26 +19,29 @@ const app = express();
 // Note: this is a sample - no need to include it unless its actually needed...
 dbConnect().then((db) => {
   // You can use the `db` object here if needed
-  console.log('MongoDB connection working' );  // Note: don't console.log db it is a huge object
+  console.log('MongoDB connection working');  // Note: don't console.log db it is a huge object
 }).catch((error) => {
   console.error('Failed to connect to MongoDB', error);
 });
 
 // Set up Express Handlebars as the templating engine
-app.engine('handlebars', exphbs.engine);
-app.set('view engine', 'handlebars');
-app.set('views', path.join(__dirname, 'views')); // Directory for Handlebars templates
+// app.engine('handlebars', exphbs.engine);
+// app.set('view engine', 'handlebars');
+// app.set('views', path.join(__dirname, 'views')); // Directory for Handlebars templates
 
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Determine if the app is running in production
+const isProduction = process.env.NODE_ENV === 'production';
+
 // init session cookies
-sessionMiddleware = session({
+const sessionMiddleware = session({
   secret: 'your_session_secret a very long string of random characters ##%$%^',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure:false, maxAge: 120000 }
+  cookie: { secure: isProduction, maxAge: 120000 }
 });
 app.use(sessionMiddleware);
 
@@ -68,6 +73,7 @@ app.use('/host', hostRoutes);
 
 // API ROUTES - not sure if this is needed right now...
 const apiQuiz = require('./api/api.quiz');
+const { strict } = require('assert');
 app.use('/api/quiz', apiQuiz);
 
 

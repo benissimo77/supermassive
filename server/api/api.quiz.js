@@ -16,6 +16,18 @@ const filterQuestions = (quiz, user) => {
     return quiz;
 }
 
+// Middleware to check if the user is a host
+function checkHost(req, res, next) {
+	// console.log('checkHost:', req.session, req.url, req.originalUrl, req.baseUrl, req.path, req.params, req.query);
+	if (req.session && req.session.host) {
+		next();
+	} else {
+        return res.status(404).json({ message: 'No user identified' });
+	}
+}
+
+router.use( [ checkHost ] );
+
 // Create a new quiz
 router.post('/save', async (req, res) => {
 

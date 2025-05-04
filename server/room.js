@@ -1,6 +1,6 @@
 // Models - note this should be placed into the werewolves file since it is game-specific
-const { Player, Phases, Roles } = require('./models/allModels');
-const { mongoose } = require('./db');
+import { Player, Phases, Roles } from './models/allModels.js';
+import { mongoose } from './db.js';
 
 
 class Room {
@@ -31,7 +31,7 @@ class Room {
 			// perform host initialisation...
 			console.log('user is host:', userObj.room, userObj.sessionID);
 			this.host = userObj;
-			this.#io.to(socket.id).emit('hostconnect', {room: this.id, players: this.getConnectedPlayers() } );
+			this.#io.to(socket.id).emit('hostconnect', { room: this.id, players: this.getConnectedPlayers() });
 			this.attachHostEvents(socket);
 		} else {
 
@@ -46,7 +46,7 @@ class Room {
 				player = new Player(userObj);
 				this.players.push(player);
 			}
-			
+
 			// Send message to host (if there is one)
 			if (this.host) {
 				this.#io.to(this.host.socketid).emit('playerconnect', player);
@@ -106,7 +106,7 @@ class Room {
 			// there might need to be some more checks here to make sure the game is valid and the initial conditions for playing have been met
 			// eg there should be enough players to start the game
 			// Maybe delay these checks until the game itself has loaded - maybe host wants to take a look but not play yet...
-			
+
 			const valid = this.game.checkGameRequirements();
 			console.log('Game is valid:', valid);
 			if (valid || true) {
@@ -163,7 +163,7 @@ class Room {
 				this.hostKeypressHandler(socket, key);
 			}
 		})
-		
+
 		// General purpose test event - can be used as a scratch to quickly check some functionality server-side
 		socket.on('buttontest', (data) => {
 			console.log('Host:: buttontest:', data);
@@ -221,7 +221,7 @@ class Room {
 	// emitToAllPlayers
 	// Send an event to all players in the room, with the data payload (note: NOT sent to the host)
 	emitToAllPlayers(event, data) {
-		const playerSockets = this.players.map( (player) => { return player.socketid } );
+		const playerSockets = this.players.map((player) => { return player.socketid });
 		console.log('emitToAllPlayers:', playerSockets, event, data);
 		if (playerSockets.length > 0) {
 			this.#io.to(playerSockets).emit(event, data);
@@ -243,11 +243,11 @@ class Room {
 	getClientResponses(socketlist, buttonlist, strategy) {
 
 		console.log('Sending server:request to all clients in :', socketlist);
-		this.#io.to(socketlist).emit('server:request', { type: 'buttonselect', payload: buttonlist } );
+		this.#io.to(socketlist).emit('server:request', { type: 'buttonselect', payload: buttonlist });
 
 	}
 
-	
+
 	// PLAYER FUNCTIONS
 	// These are defined on the Room but used by all games - functions related to players
 	// removePlayer
@@ -260,7 +260,7 @@ class Room {
 				player.disconnected = true;
 			}
 		} else {
-			this.players = this.players.filter( (player) => player.socketid != socketid);
+			this.players = this.players.filter((player) => player.socketid != socketid);
 		}
 		// Either way we want to inform the host - we will remove the player from the host display even though we retain the player object
 		// Note that we pass the players sessionID not their socketid - sockets are used to send the messages, session used to identify users
@@ -270,13 +270,13 @@ class Room {
 	}
 	getPlayerBySocketId(socketid) {
 		// console.log(this.players.find( (player) => player.socketid == socketid ));
-		return this.players.find( (player) => player.socketid === socketid )
+		return this.players.find((player) => player.socketid === socketid)
 	}
 	getPlayerBysessionID(sessionID) {
-		return this.players.find( (player) => player.sessionID === sessionID )
+		return this.players.find((player) => player.sessionID === sessionID)
 	}
 	getConnectedPlayers() {
-		return this.players.filter( (player) => !player.disconnected );
+		return this.players.filter((player) => !player.disconnected);
 	}
 
 }

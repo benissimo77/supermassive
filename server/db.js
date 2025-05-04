@@ -1,6 +1,8 @@
 // db.js
-const mongoose = require('mongoose');
-require('dotenv').config(); // Load environment variables from .env file
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const mongoDbURI = process.env.MONGODB_URI;
 let db;

@@ -1,14 +1,15 @@
-// server.js
-const http = require('http')
-const { app, sessionMiddleware } = require('./server/app');
+import http from 'http';
+import { app, sessionMiddleware } from './server/app.js';
+import createSocketServer from './server/socketserver.js';
 
 const server = http.createServer(app);
 
-// load the socket server (note the syntax of socketserver.js - permits passing in the server)
-const io = require('./server/socketserver')(server)
+// Load the socket server (note the syntax of socketserver.js - permits passing in the server)
+const io = createSocketServer(server);
 
-// From https://socket.io/how-to/use-with-express-session
+// Use the session middleware with Socket.IO
 io.engine.use(sessionMiddleware);
+
 
 // Copilot says above line is not correct (!) use below instead...
 // Use the session middleware with Socket.IO
@@ -26,9 +27,9 @@ io.engine.use(sessionMiddleware);
 //   next();
 // });
 
+
 // Start the server on port 3000
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
 	console.log(`Server is running on http://localhost:${PORT}`);
 });
-

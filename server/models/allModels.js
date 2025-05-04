@@ -69,31 +69,31 @@ class GameX {
 	}
 
 	getPlayerBySocketId(socketid) {
-		return this.players.find( (player) => player.socketid === socketid )
+		return this.players.find((player) => player.socketid === socketid)
 	}
 
 	getLivingPlayers() {
-		return this.players.filter( (player) => {
+		return this.players.filter((player) => {
 			return (player.alive)
-		 }).map( (player) => {
-			return { socketid:player.socketid, name:player.name }
-		 })
+		}).map((player) => {
+			return { socketid: player.socketid, name: player.name }
+		})
 	}
 	getLivingVillagers() {
-		return this.players.filter( (player) => {
+		return this.players.filter((player) => {
 			return (player.alive & player.role != Roles.WEREWOLF)
-		}).map( (player) => {
-			return { socketid:player.socketid, name:player.name }
+		}).map((player) => {
+			return { socketid: player.socketid, name: player.name }
 		})
 	}
 	getWolves() {
-		return this.players.filter( (player) => {
+		return this.players.filter((player) => {
 			return player.role === Roles.WEREWOLF
 		})
 	}
 	getWolfSockets() {
 		const wolves = this.getWolves();
-		return wolves.map( (wolf) => { return wolf.socketid } );
+		return wolves.map((wolf) => { return wolf.socketid });
 	}
 	wolfKill(socketid) {
 		thisPlayer = this.getPlayerBySocketId(socketid);
@@ -216,4 +216,4 @@ class AsyncTimer {
 }
 
 
-module.exports = { Player, Roles, Phases };
+export { Player, Roles, Phases };

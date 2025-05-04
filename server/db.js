@@ -20,4 +20,4 @@ async function dbConnect() {
     return db;
 }
 
-module.exports = { dbConnect, mongoose };
+export { dbConnect, mongoose };

@@ -1,5 +1,5 @@
-const express = require('express');
-const Quiz = require('../models/mongo.quiz');
+import express from 'express';
+import Quiz from '../models/mongo.quiz.js';
 
 const router = express.Router();
 
@@ -18,15 +18,15 @@ const filterQuestions = (quiz, user) => {
 
 // Middleware to check if the user is a host
 function checkHost(req, res, next) {
-	// console.log('checkHost:', req.session, req.url, req.originalUrl, req.baseUrl, req.path, req.params, req.query);
-	if (req.session && req.session.host) {
-		next();
-	} else {
+    // console.log('checkHost:', req.session, req.url, req.originalUrl, req.baseUrl, req.path, req.params, req.query);
+    if (req.session && req.session.host) {
+        next();
+    } else {
         return res.status(404).json({ message: 'No user identified' });
-	}
+    }
 }
 
-router.use( [ checkHost ] );
+router.use([checkHost]);
 
 // Create a new quiz
 router.post('/save', async (req, res) => {
@@ -49,7 +49,7 @@ router.post('/save', async (req, res) => {
         delete newQuiz._id;
         // Add this user as owner to quiz and all current rounds
         newQuiz.owner = req.user;
-        newQuiz.rounds.forEach( round => {
+        newQuiz.rounds.forEach(round => {
             if (!round.owner) round.owner = req.user;
             if (!round._id) delete round._id;
         });
@@ -60,19 +60,19 @@ router.post('/save', async (req, res) => {
             return res.status(200).json(filterQuestions(thisQuiz, req.user));
         } catch (error) {
             console.log('ERROR:', error);
-            return res.status(500).json({ message: error.message });    
+            return res.status(500).json({ message: error.message });
         }
     }
 
     // Since we must have an _id when we get to this point lets load it and use as a base for further merging
     try {
-        thisQuiz = await Quiz.findById( newQuiz._id );
+        thisQuiz = await Quiz.findById(newQuiz._id);
         if (!thisQuiz) {
             // This should never happen - could be deliberate corrupting the _id field - quietly fail
-            return res.status(201).json({message: 'OK'});
-        }    
-    } catch(error) {
-        return res.status(500).json({message:error.message});
+            return res.status(201).json({ message: 'OK' });
+        }
+    } catch (error) {
+        return res.status(500).json({ message: error.message });
     }
 
     // If this user is NOT the quiz owner then we need to load the original quiz and merge the round data
@@ -80,11 +80,11 @@ router.post('/save', async (req, res) => {
         console.log('Original quiz found:', thisQuiz._id, thisQuiz.title, thisQuiz.owner);
 
         // Add/update additional rounds from new quiz
-        newQuiz.rounds.forEach( async (newRound) => {
+        newQuiz.rounds.forEach(async (newRound) => {
             console.log('Next round:', newRound.title);
 
             // First try to find this round in the existing quiz (will allow us to identify the correct owner from DB)
-            const index = thisQuiz.rounds.findIndex( (thisRound) => {
+            const index = thisQuiz.rounds.findIndex((thisRound) => {
                 return thisRound._id.toString() == newRound._id;
             });
             if (index >= 0) {
@@ -100,7 +100,7 @@ router.post('/save', async (req, res) => {
             } else {
                 console.log('New round, add:', newRound.title);
                 newRound.owner = req.user;
-                thisQuiz.rounds.push( newRound );
+                thisQuiz.rounds.push(newRound);
             }
         })
 
@@ -108,8 +108,8 @@ router.post('/save', async (req, res) => {
         console.log('Owner is updating - complete overwrite', newQuiz.title, newQuiz.rounds.length);
 
         // Must check for any new rounds added and assign them to this user
-        newQuiz.rounds.forEach( round => { if (!round.owner) round.owner = req.user });
-        thisQuiz = new Quiz( newQuiz );
+        newQuiz.rounds.forEach(round => { if (!round.owner) round.owner = req.user });
+        thisQuiz = new Quiz(newQuiz);
     }
 
     try {
@@ -138,10 +138,10 @@ router.get('/', async (req, res) => {
     }
 
     const quizzes = await Quiz.find(search);
-        console.log('Quizzes found:', quizzes.length, req.user);
-        const filteredQuizzes = quizzes.map( quiz => filterQuestions(quiz, req.user) );
-        console.log('Filtered:', filteredQuizzes);
-        res.status(200).json(filteredQuizzes);
+    console.log('Quizzes found:', quizzes.length, req.user);
+    const filteredQuizzes = quizzes.map(quiz => filterQuestions(quiz, req.user));
+    console.log('Filtered:', filteredQuizzes);
+    res.status(200).json(filteredQuizzes);
 });
 
 // Get a specific quiz by ID
@@ -174,7 +174,7 @@ router.delete('/:id/:roundid', async (req, res) => {
         const thisQuiz = await Quiz.findById(req.params.id);
         console.log('Quiz found:', thisQuiz);
         if (!thisQuiz) return res.status(404).json({ message: 'Quiz not found' });
-        const index = thisQuiz.rounds.findIndex( (thisRound) => {
+        const index = thisQuiz.rounds.findIndex((thisRound) => {
             return thisRound._id.toString() == req.params.roundid;
         });
         console.log('Searched rounds of quiz, index:', index);
@@ -195,4 +195,4 @@ router.delete('/:id/:roundid', async (req, res) => {
     }
 });
 
-module.exports = router;
+export default router;

@@ -1,12 +1,9 @@
 const createResponse = (success, statusCode) => {
-    return {
-      success: success,
-      statusCode: statusCode
-    };
+  return {
+    success: success,
+    statusCode: statusCode,
   };
-  
-  module.exports = {
-    success: (statusCode = 200) => createResponse(true, statusCode),
-    error: (statusCode = 400) => createResponse(false, statusCode),
-  };
-  
+};
+
+export const success = (statusCode = 200) => createResponse(true, statusCode);
+export const error = (statusCode = 400) => createResponse(false, statusCode);

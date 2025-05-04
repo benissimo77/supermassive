@@ -57,4 +57,4 @@ passport.use(new FacebookStrategy({
   return done(null, profile);
 }));
 
-module.exports = passport;
+export default passport;

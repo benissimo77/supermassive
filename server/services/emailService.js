@@ -1,18 +1,21 @@
 // services/emailService.js
-const nodemailer = require('nodemailer');
-const handlebars = require('handlebars');
-require('dotenv').config();
-const fs = require('fs');
+import nodemailer from 'nodemailer';
+import handlebars from 'handlebars';
+import dotenv from 'dotenv';
+import fs from 'fs';
+
+dotenv.config();
+
 
 const emailConfig = {
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
-    }
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
   }
+}
 
 const transporter = nodemailer.createTransport(emailConfig);
 
@@ -39,7 +42,7 @@ const EmailService = {
   },
 
   // Welcome email sent to new users in order to verify their account
-  sendVerificationEmail (to, token) {
+  sendVerificationEmail(to, token) {
     const verificationLink = `${process.env.SERVER_URL}/auth/verify?token=${token}`;
     const htmlContent = emailTemplate({
       emailSubject: 'Verify Your Account',
@@ -61,7 +64,7 @@ const EmailService = {
 
   // Password reset email sent to users in order to reset their password
   // NOTE: this must do similar to above page (collect a new password) but messages are different (new v change)
-  sendPasswordResetEmail (to, token) {
+  sendPasswordResetEmail(to, token) {
     console.log('emailService: sendPasswordResetEmail :', to, token);
     const resetLink = `${process.env.SERVER_URL}/login/resetpassword.html?token=${token}`;
     const htmlContent = emailTemplate({
@@ -84,5 +87,4 @@ const EmailService = {
     return result;
   }
 }
-
-module.exports = EmailService;
+export default EmailService;

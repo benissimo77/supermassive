@@ -1,5 +1,5 @@
 // services/userService.js
-const userModel = require('../models/mongo.user');
+import userModel from '../models/mongo.user.js';
 
 class UserService {
   constructor() {
@@ -23,7 +23,7 @@ class UserService {
     if (user && user.tokenExpiry && user.tokenExpiry > Date.now()) {
       return user;
     }
-    return null;  
+    return null;
   }
 
 
@@ -143,4 +143,4 @@ class UserService {
   }
 }
 
-module.exports = new UserService();
+export default new UserService();

@@ -1,25 +1,25 @@
 // ROUTES
 // This file sets up the routes for /host - hosting a game OR general host page showing general host info
 // Must be logged in to view these routes
-const express = require('express');
+import express from 'express';
 const router = express.Router({ strict: true });
 
 const isAuth = (req, res, next) => {
-    if (req.isAuthenticated()) {
-        next();
-    } else {
+	if (req.isAuthenticated()) {
+		next();
+	} else {
 		// res.status(401).json({ msg: 'You are not authorized to view this resource' });
 		res.redirect('/login');
-    }
+	}
 }
 
 const isAdmin = (req, res, next) => {
-    if (req.isAuthenticated() && req.user.admin) {
-        next();
-    } else {
+	if (req.isAuthenticated() && req.user.admin) {
+		next();
+	} else {
 		res.redirect('/login');
-        // res.status(401).json({ msg: 'You are not authorized to view this resource because you are not an admin.' });
-    }
+		// res.status(401).json({ msg: 'You are not authorized to view this resource because you are not an admin.' });
+	}
 }
 
 // Middleware to check if the user is a host
@@ -28,12 +28,12 @@ function checkHost(req, res, next) {
 	if (req.session && req.session.host) {
 		next();
 	} else {
-	  //res.redirect('/login');
-	  // Since user has come via the /host directory and this has been authenticated then user must be a host
-	  req.session.host = 1;
-	  next();
+		//res.redirect('/login');
+		// Since user has come via the /host directory and this has been authenticated then user must be a host
+		req.session.host = 1;
+		next();
 	}
-  }
+}
 
 // Middleware to check if the (host) user is in a room - creates a new room if not
 function checkRoom(req, res, next) {
@@ -55,15 +55,15 @@ function checkRoom(req, res, next) {
 	}
 }
 
-router.use( [isAuth, checkHost, checkRoom] );
+router.use([isAuth, checkHost, checkRoom]);
 
 
 // Before serving static files from the host directory, override some of the files to permit handlebars templating
 
 // Log the incoming request for debugging
 router.use((req, res, next) => {
-    console.log(`Incoming request: ${req.method} ${req.url}`);
-    next();
+	console.log(`Incoming request: ${req.method} ${req.url}`);
+	next();
 });
 
 // Problem with all lines below - WHY DID I DO THIS USING HANDLEBARS???
@@ -142,4 +142,4 @@ const generateNewRoomName = () => {
 	return 'NUTS';
 }
 
-module.exports = router;
+export default router;

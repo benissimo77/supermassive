@@ -1,6 +1,6 @@
-const crypto = require('crypto');
-const userService = require('./userService');
-const emailService = require('./emailService');
+import crypto from 'crypto';
+import userService from './userService.js';
+import emailService from './emailService.js';
 
 class AuthService {
 
@@ -41,4 +41,5 @@ class AuthService {
 
 }
 
-module.exports = new AuthService();
+
+export default new AuthService();

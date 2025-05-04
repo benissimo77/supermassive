@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 // Define the schema for matching pairs
 const matchingPairSchema = new mongoose.Schema({
@@ -35,7 +35,7 @@ const quizSchema = new mongoose.Schema({
     title: { type: String },
     description: { type: String },
     owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    public: { type:mongoose.Schema.Types.Boolean, required: true, default:true },
+    public: { type: mongoose.Schema.Types.Boolean, required: true, default: true },
     rounds: [quizRoundSchema] // Array of rounds
 }, { timestamps: true }); // Automatically manage createdAt and updatedAt fields
 
@@ -43,7 +43,7 @@ const quizSchema = new mongoose.Schema({
 // This is an experiment with adding methods to this model to include reading/writing to the DB
 // That way we only need to include this Model and it will encapsulate all the DB operations
 // This is a good idea because it keeps all the DB operations in one place
-quizSchema.statics.getQuizByID = async function(quizID) {
+quizSchema.statics.getQuizByID = async function (quizID) {
     try {
         // Add lean() to return a plain JS object instead of a Mongoose document
         // Among other things, this means you can't modify the object and save it back to the DB
@@ -58,4 +58,6 @@ quizSchema.statics.getQuizByID = async function(quizID) {
     }
 }
 
-module.exports = mongoose.model('Quiz', quizSchema);
+const Quiz = mongoose.model('Quiz', quizSchema);
+
+export default Quiz;

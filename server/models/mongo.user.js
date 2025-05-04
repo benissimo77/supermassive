@@ -1,5 +1,5 @@
-const mongoose = require("mongoose");
-const bcrypt = require("bcrypt");
+import mongoose from "mongoose";
+import bcrypt from "bcrypt";
 
 // userSchema
 // username is optional, but email and password are required
@@ -23,13 +23,13 @@ const userSchema = mongoose.Schema({
 });
 
 // hash the password
-userSchema.methods.generateHashedPassword = function(password) {
+userSchema.methods.generateHashedPassword = function (password) {
     return bcrypt.hashSync(password, bcrypt.genSaltSync(10));
 };
 
 // checking if password is valid
 // Note: its possible for a user to not yet have a password, so check for this before running the bcrypt compare
-userSchema.methods.verifyPassword = function(password) {
+userSchema.methods.verifyPassword = function (password) {
     if (this.password) {
         return bcrypt.compareSync(password, this.password);
     }
@@ -37,5 +37,5 @@ userSchema.methods.verifyPassword = function(password) {
 };
 
 // Export model
-module.exports = mongoose.model('User', userSchema);
+export default mongoose.model('User', userSchema);
 

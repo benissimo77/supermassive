@@ -1,6 +1,6 @@
 import { ImageSelector } from '../ImageSelector';
-import { FileDropzone } from '../FileDropzone.js';
-import { ImageLibrary } from '../ImageLibrary.js';
+import { FileDropzone } from './FileDropzone.js';
+import { ImageLibrary } from './ImageLibrary.js';
 
 let hasUnsavedChanges = false;
 

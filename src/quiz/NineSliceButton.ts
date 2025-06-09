@@ -1,4 +1,4 @@
-import { BaseScene } from 'src/BaseScene';
+import { BaseScene } from '../BaseScene';
 
 
 export class NineSliceButton extends Phaser.GameObjects.Container {

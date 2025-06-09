@@ -2,8 +2,8 @@ import Phaser from 'phaser';
 import SocketManagerPlugin from './socketManager';
 import WebFontLoaderPlugin from 'phaser3-rex-plugins/plugins/webfontloader-plugin.js';
 
-import { LobbyHostScene } from './LobbyHostScene';
-import { QuizHostScene } from './QuizHostScene';
+import { LobbyHostScene } from './lobby/LobbyHostScene';
+import { QuizHostScene } from './quiz/QuizHostScene';
 
 
 const config: Phaser.Types.Core.GameConfig = {

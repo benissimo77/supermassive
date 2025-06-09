@@ -1,160 +1,122 @@
-import terser from "@rollup/plugin-terser";
-import resolve from '@rollup/plugin-node-resolve';
-import replace from '@rollup/plugin-replace';
-
+import terser from '@rollup/plugin-terser';
 import commonjs from '@rollup/plugin-commonjs';
 import typescript from '@rollup/plugin-typescript';
-
-const isProduction = process.env.NODE_ENV === 'production';
+import { nodeResolve } from '@rollup/plugin-node-resolve';
 
 export default [
-
-    // Host modules
     // {
-    //     input: "src/quiz/quiz.js", // replace with path to your main JS file
+    //     input: "src/moneytree/MoneyTreeScene.ts",
     //     output: [
     //         {
-    //             file: "host/quiz/quiz.min.js", // replace with desired output file path
+    //             name: 'MoneyTree',
+    //             file: path.join(SUPERMASSIVE_OUTPUT, "moneytree.min.js"),
     //             format: "iife",
     //             sourcemap: true,
     //             globals: {
-    //                 io: 'io'
+    //                 io: 'io',
+    //                 phaser: 'Phaser'
     //             }
     //         }
     //     ],
     //     plugins: [
-    //         replace({
-    //             'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
-    //             preventAssignment: true,
+    //         nodeResolve({
+    //             browser: true,
+    //             preferBuiltins: false
     //         }),
-    //         resolve(),
-    //         isProduction && terser()
-    //     ]
+    //         commonjs(),
+    //         typescript({
+    //             tsconfig: './tsconfig.json',
+    //             sourceMap: true,
+    //             inlineSources: true,
+    //             module: "esnext",
+    //             // Override outDir to match your output file location - required to prevent errors during compile
+    //             outDir: '../supermassive/public/modules',
+    //             // Important: don't emit files from TypeScript directly
+    //             emitDeclarationOnly: false,
+    //             declaration: false
+
+    //         }),
+    //         terser()
+    //     ],
+    //     external: ['io', 'phaser']
     // },
+
     {
-        input: "src/werewolves/werewolves.js", // replace with path to your main JS file
+        input: "src/AppHost.ts",
+        treeshake: true,
         output: [
             {
-                file: "host/werewolves/werewolves.min.js", // replace with desired output file path
+                file: "host/modules/phaser.host.lobby.min.js",
+                // file: "public/modules/phaser.host.lobby.min.js",
                 format: "iife",
                 sourcemap: true,
                 globals: {
-                    io: 'io'
+                    io: 'io',
+                    phaser: 'Phaser'
                 }
             }
         ],
-        plugins: [terser(), resolve()]
+        plugins: [
+            nodeResolve({
+                browser: true,
+                preferBuiltins: false,
+                extensions: ['.js', '.ts']  // Explicitly handle TypeScript extensions
+            }),
+            commonjs(),
+            typescript({
+                tsconfig: './tsconfig.json',
+                outDir: './host',
+                noEmit: false,
+                sourceMap: true,
+                inlineSources: true,
+                module: "esnext",
+            }),
+            terser({
+                compress: {
+                    passes: 2  // Additional optimization passes
+                }
+            })
+        ],
+        external: ['io', 'phaser']
     },
-    // {
-    //     input: "src/lobby/gsap.lobby.js", // replace with path to your main JS file
-    //     output: [
-    //         {
-    //             file: "host/lobby/gsap.lobby.min.js", // replace with desired output file path
-    //             format: "iife",
-    //             sourcemap: true,
-    //             globals: {
-    //                 io: 'io'
-    //             }
-    //         }
-    //     ],
-    //     plugins: [terser(), resolve()]
-    // },
 
     {
-        input: "src/quiz/quizbuilder.js", // replace with path to your main JS file
+        input: "src/AppPlay.ts",
+        treeshake: true,
         output: [
             {
-                file: "host/dashboard/quizbuilder.min.js", // replace with desired output file path
+                file: "public/modules/phaser.play.lobby.min.js",
+                // file: "public/modules/phaser.play.lobby.min.js",
                 format: "iife",
                 sourcemap: true,
                 globals: {
-                    io: 'io'
+                    io: 'io',
+                    phaser: 'Phaser'
                 }
             }
         ],
-        plugins: [terser(), resolve()]
-    },
-
-    // Player modules
-    {
-        input: "src/scripts/login.js", // replace with path to your main JS file
-        output: [
-            {
-                file: "public/modules/login.min.js", // replace with desired output file path
-                format: "esm",
-                sourcemap: true,
-            }
-        ],
-        plugins: [terser(), resolve()]
-    },
-
-    {
-        input: "src/scripts/landing.js", // replace with path to your main JS file
-        output: [
-            {
-                file: "public/landing.min.js", // replace with desired output file path
-                format: "esm",
-                sourcemap: true,
-            }
-        ],
-        plugins: [terser(), resolve()]
-    },
-    // {
-    //     input: "src/lobby/play.lobby.js", // replace with path to your main JS file
-    //     output: [
-    //         {
-    //             file: "public/modules/play.lobby.min.js", // replace with desired output file path
-    //             format: "esm",
-    //             sourcemap: true,
-    //             globals: {
-    //                 io: 'io'
-    //             }
-    //         }
-    //     ],
-    //     plugins: [terser(), resolve()]
-    // },
-    // {
-    //     input: "src/quiz/play.quiz.js", // replace with path to your main JS file
-    //     output: [
-    //         {
-    //             file: "public/modules/play.quiz.min.js", // replace with desired output file path
-    //             format: "esm",
-    //             sourcemap: true,
-    //             globals: {
-    //                 io: 'io'
-    //             }
-    //         }
-    //     ],
-    //     plugins: [terser(), resolve()]
-    // },
-    {
-        input: "src/werewolves/play.werewolves.js", // replace with path to your main JS file
-        output: [
-            {
-                file: "public/modules/play.werewolves.min.js", // replace with desired output file path
-                format: "esm",
-                sourcemap: true,
-                globals: {
-                    io: 'io'
+        plugins: [
+            nodeResolve({
+                browser: true,
+                preferBuiltins: false,
+                extensions: ['.js', '.ts']  // Explicitly handle TypeScript extensions
+            }),
+            commonjs(),
+            typescript({
+                tsconfig: './tsconfig.json',
+                outDir: './public/modules',
+                noEmit: false,
+                sourceMap: true,
+                inlineSources: true,
+                module: "esnext"
+            }),
+            terser({
+                compress: {
+                    passes: 2  // Additional optimization passes
                 }
-            }
+            })
         ],
-        plugins: [terser(), resolve()]
-    },
-    // {
-    //     input: "src/play.common.js",
-    //     output: [
-    //         {
-    //             file: "public/modules/play.common.min.js", // replace with desired output file path
-    //             format: "esm",
-    //             sourcemap: true,
-    //             globals: {
-    //                 io: 'io'
-    //             }
-    //         }
-    //     ],
-    //     plugins: [terser(), resolve()]
-    // }
-
+        external: ['io', 'phaser']
+    }
 
 ];

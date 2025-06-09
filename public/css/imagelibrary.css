@@ -1,0 +1,188 @@
+      .image-selector-modal {
+      	position: fixed;
+      	top: 0;
+      	left: 0;
+      	width: 100%;
+      	height: 100%;
+      	background-color: rgba(0, 0, 0, 0.7);
+      	z-index: 1000;
+      	display: none;
+      	justify-content: center;
+      	align-items: center;
+      }
+
+      .image-selector-modal .modal-content {
+      	background-color: #2a2a2a;
+      	color: #e8eaed;
+      	border-radius: 8px;
+      	width: 90%;
+      	max-width: 1400px;
+      	max-height: 96vh;
+      	overflow: hidden;
+      	display: flex;
+      	flex-direction: column;
+      }
+
+      .image-selector-modal .modal-header {
+      	display: flex;
+      	justify-content: space-between;
+      	align-items: center;
+      	padding: 5px 20px;
+      	border-bottom: 1px solid #3c3c3c;
+      }
+
+      .image-selector-modal .modal-header h2 {
+      	margin: 0;
+      	font-size: 1.3rem;
+      }
+
+      .image-selector-modal .close-modal {
+      	background: none;
+      	border: none;
+      	color: #e8eaed;
+      	font-size: 24px;
+      	cursor: pointer;
+      }
+
+      .image-selector-modal .modal-body {
+      	flex: 1;
+      	overflow: auto;
+      	padding: 20px;
+      }
+
+      .image-selector-modal .image-library-container {
+      	display: flex;
+      	flex-direction: column;
+      	gap: 20px;
+      }
+
+      .image-selector-modal .images-grid {
+      	display: grid;
+      	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      	grid-gap: 15px;
+      	min-height: 150px;
+      }
+
+      .image-selector-modal .image-item {
+      	border: 1px solid #3c3c3c;
+      	border-radius: 4px;
+      	overflow: hidden;
+      	cursor: pointer;
+      	transition: transform 0.2s ease;
+      	background-color: #1e1e1e;
+      }
+
+      .image-selector-modal .image-item:hover {
+      	transform: scale(1.03);
+      	border-color: #9aa0a6;
+      }
+
+      .image-selector-modal .image-preview {
+      	height: 120px;
+      	display: flex;
+      	align-items: center;
+      	justify-content: center;
+      	background-color: #1e1e1e;
+      }
+
+      .image-selector-modal .image-preview img {
+      	max-width: 100%;
+      	max-height: 100%;
+      	object-fit: contain;
+      }
+
+.image-selector-modal .image-info {
+  position: relative;
+  padding: 8px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.9rem;
+}
+
+.image-selector-modal .delete-image-btn {
+  position: absolute;
+  right: 0px;
+  top: 0px;
+  background-color: rgb(180, 0, 0);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: none;
+  padding: 0;
+}
+
+.image-selector-modal .image-item:hover .delete-image-btn {
+  display: block;
+}
+
+.image-selector-modal .delete-image-btn:hover {
+  background-color: rgb(255, 0, 0);
+}
+
+      .image-selector-modal .modal-footer {
+      	padding: 15px 20px;
+      	border-top: 1px solid #3c3c3c;
+      	display: flex;
+      	justify-content: flex-start;
+      }
+
+      .image-selector-modal .cancel-btn {
+      	padding: 8px 16px;
+      	border-radius: 4px;
+      	border: none;
+      	cursor: pointer;
+      	background-color: #3c3c3c;
+      	color: #e8eaed;
+      }
+
+      .image-selector-modal .cancel-btn:hover {
+      	background-color: #4c4c4c;
+      }
+
+      .image-selector-modal .dropzone {
+      	border: 2px dashed #3c3c3c;
+      	border-radius: 4px;
+      	padding: 20px;
+      	text-align: center;
+      	background-color: #1e1e1e;
+      	cursor: pointer;
+      	transition: all 0.3s ease;
+      }
+
+      .image-selector-modal .dropzone:hover {
+      	background-color: #252525;
+      	border-color: #00FF00;
+      }
+
+      .image-selector-modal .loading-message {
+      	grid-column: 1 / -1;
+      	text-align: center;
+      	padding: 20px;
+      	color: #9aa0a6;
+      }
+
+      .image-selector-modal .no-images {
+      	grid-column: 1 / -1;
+      	text-align: center;
+      	padding: 20px;
+      	color: #9aa0a6;
+      }
+
+      .image-selector-modal .upload-container {
+      	padding-top: 15px;
+      	border-top: 1px solid #3c3c3c;
+      }
+
+      .image-selector-modal .upload-container h3 {
+      	margin-top: 0;
+      	margin-bottom: 10px;
+      	font-size: 1.1rem;
+      	font-weight: normal;
+      }

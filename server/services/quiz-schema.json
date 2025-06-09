@@ -1,0 +1,411 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "Quiz",
+	"description": "Schema for SuperMassive quiz format",
+	"type": "object",
+	"required": [
+		"title",
+		"rounds"
+	],
+	"properties": {
+		"title": {
+			"type": "string",
+			"description": "The title of the quiz"
+		},
+		"description": {
+			"type": "string",
+			"description": "A description of the quiz"
+		},
+		"rounds": {
+			"type": "array",
+			"description": "The rounds in the quiz",
+			"minItems": 1,
+			"items": {
+				"$ref": "#/definitions/round"
+			}
+		}
+	},
+	"definitions": {
+		"round": {
+			"type": "object",
+			"required": [
+				"title",
+				"questions"
+			],
+			"properties": {
+				"title": {
+					"type": "string",
+					"description": "The title of the round"
+				},
+				"description": {
+					"type": "string",
+					"description": "A description of the round"
+				},
+				"roundTimer": {
+					"type": "string",
+					"description": "Timer for the entire round (in seconds or '0' for no timer)"
+				},
+				"showAnswer": {
+					"type": "string",
+					"enum": [
+						"question",
+						"round"
+					],
+					"description": "When to show answers - after each question or at the end of the round"
+				},
+				"updateScores": {
+					"type": "string",
+					"enum": [
+						"question",
+						"round"
+					],
+					"description": "When to update scores - after each question or at the end of the round"
+				},
+				"questions": {
+					"type": "array",
+					"description": "The questions in the round",
+					"minItems": 1,
+					"items": {
+						"$ref": "#/definitions/question"
+					}
+				}
+			}
+		},
+		"question": {
+			"type": "object",
+			"required": [
+				"type",
+				"text"
+			],
+			"properties": {
+				"type": {
+					"type": "string",
+					"enum": [
+						"multiple-choice",
+						"true-false",
+						"text",
+						"hotspot",
+						"point-it-out",
+						"number-exact",
+						"number-closest",
+						"ordering",
+						"matching",
+						"draw"
+					],
+					"description": "The type of question"
+				},
+				"text": {
+					"type": "string",
+					"description": "The question text"
+				},
+				"image": {
+					"type": [
+						"string",
+						"null"
+					],
+					"description": "URL to image file"
+				},
+				"audio": {
+					"type": [
+						"string",
+						"null"
+					],
+					"description": "URL for YouTube link"
+				}
+			},
+			"allOf": [
+				{
+					"if": {
+						"properties": {
+							"type": {
+								"enum": [
+									"multiple-choice"
+								]
+							}
+						}
+					},
+					"then": {
+						"required": [
+							"options"
+						],
+						"properties": {
+							"options": {
+								"type": "array",
+								"minItems": 2,
+								"items": {
+									"type": "string"
+								}
+							}
+						}
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"type": {
+								"enum": [
+									"true-false"
+								]
+							}
+						}
+					},
+					"then": {
+						"required": [
+							"answer"
+						],
+						"properties": {
+							"answer": {
+								"type": "string",
+								"enum": [
+									"true",
+									"false"
+								],
+								"description": "The correct answer"
+							}
+						}
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"type": {
+								"enum": [
+									"text",
+									"number-exact",
+									"number-matching"
+								]
+							}
+						}
+					},
+					"then": {
+						"required": [
+							"answer"
+						],
+						"properties": {
+							"answer": {
+								"type": "string",
+								"description": "The correct answer text"
+							}
+						}
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"type": {
+								"enum": [
+									"hotspot"
+								]
+							}
+						}
+					},
+					"then": {
+						"required": [
+							"answer"
+						],
+						"properties": {
+							"answer": {
+								"type": "object",
+								"required": [
+									"x",
+									"y"
+								],
+								"properties": {
+									"x": {
+										"type": "number"
+									},
+									"y": {
+										"type": "number"
+									}
+								}
+							}
+						}
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"type": {
+								"enum": [
+									"point-it-out"
+								]
+							}
+						}
+					},
+					"then": {
+						"required": [
+							"answer"
+						],
+						"properties": {
+							"answer": {
+								"type": "object",
+								"required": [
+									"start",
+									"end"
+								],
+								"properties": {
+									"start": {
+										"type": "object",
+										"required": [
+											"x",
+											"y"
+										],
+										"properties": {
+											"x": {
+												"type": "number"
+											},
+											"y": {
+												"type": "number"
+											}
+										}
+									},
+									"end": {
+										"type": "object",
+										"required": [
+											"x",
+											"y"
+										],
+										"properties": {
+											"x": {
+												"type": "number"
+											},
+											"y": {
+												"type": "number"
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"type": {
+								"enum": [
+									"number-closest"
+								]
+							}
+						}
+					},
+					"then": {
+						"required": [
+							"answer"
+						],
+						"properties": {
+							"answer": {
+								"type": "string",
+								"description": "The correct numeric answer as a string"
+							}
+						}
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"type": {
+								"enum": [
+									"ordering"
+								]
+							}
+						}
+					},
+					"then": {
+						"required": [
+							"items",
+							"extra"
+						],
+						"properties": {
+							"items": {
+								"type": "array",
+								"minItems": 2,
+								"items": {
+									"type": "string"
+								}
+							},
+							"extra": {
+								"type": "object",
+								"required": [
+									"startLabel",
+									"endLabel"
+								],
+								"properties": {
+									"startLabel": {
+										"type": "string",
+										"minLength": 1,
+										"description": "Label for the start of the ordering"
+									},
+									"endLabel": {
+										"type": "string",
+										"minLength": 1,
+										"description": "Label for the end of the ordering"
+									}
+								}
+							}
+						}
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"type": {
+								"enum": [
+									"matching"
+								]
+							}
+						}
+					},
+					"then": {
+						"required": [
+							"pairs"
+						],
+						"properties": {
+							"pairs": {
+								"type": "array",
+								"minItems": 2,
+								"items": {
+									"type": "object",
+									"required": [
+										"left",
+										"right"
+									],
+									"properties": {
+										"left": {
+											"type": "string"
+										},
+										"right": {
+											"type": "string"
+										}
+									}
+								}
+							}
+						}
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"type": {
+								"enum": [
+									"draw"
+								]
+							}
+						}
+					},
+					"then": {
+						"required": [
+							"answer"
+						],
+						"properties": {
+							"answer": {
+								"type": "string",
+								"description": "The expected drawing description"
+							}
+						}
+					}
+				}
+			]
+		}
+	}
+}

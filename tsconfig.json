@@ -1,0 +1,40 @@
+{
+    "compilerOptions": {
+        "target": "ES2020",
+        "sourceMap": true,
+        "useDefineForClassFields": true,
+        "forceConsistentCasingInFileNames": true,
+        "baseUrl": ".",
+        "module": "ESNext",
+        "outDir": "./",
+        "lib": [
+            "ES2020",
+            "DOM",
+            "DOM.Iterable"
+        ],
+        "skipLibCheck": true,
+        "allowJs": true,
+        /* Bundler mode */
+        "moduleResolution": "bundler",
+        "resolveJsonModule": true,
+        "isolatedModules": true,
+        "noEmit": true,
+        /* Strictness - change these for production (be more strict) */
+        "noImplicitAny": false,
+        "strictNullChecks": false,
+        /* Linting */
+        "strict": true,
+        "noUnusedLocals": false,
+        "noUnusedParameters": false,
+        "noFallthroughCasesInSwitch": true,
+        "strictPropertyInitialization": false
+    },
+    "include": [
+        "src"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "src/moneytree"
+    ]
+}

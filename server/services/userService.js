@@ -1,9 +1,9 @@
 // services/userService.js
-import userModel from '../models/mongo.user.js';
+import UserModel from '../models/mongo.user.js';
 
 class UserService {
   constructor() {
-    this.userModel = userModel;
+    this.userModel = UserModel;
   }
 
   async findUserByEmail(email) {

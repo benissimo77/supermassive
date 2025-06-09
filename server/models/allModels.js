@@ -3,7 +3,7 @@
 class Player {
 	constructor(obj) {
 		// Socket related - socket can change during session if player disconnects/reconnects
-		this.socketid = obj.socketid;
+		this.socketID = obj.socketID;
 		// Session ID is assigned on entry - remains constant use this to reference player
 		this.sessionID = obj.sessionID;
 		// Player data

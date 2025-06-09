@@ -12,7 +12,9 @@ const questionSchema = new mongoose.Schema({
     text: { type: String },
     image: { type: String },
     audio: { type: String },
+    video: { type: String },
     options: [{ type: String }],
+    items: [{ type:String }],
     pairs: [matchingPairSchema], // Array of matching pairs without _id
     extra: { type: mongoose.Schema.Types.Mixed },   // Misc extra data eg labels for ordering
     answer: { type: mongoose.Schema.Types.Mixed },
@@ -36,8 +38,9 @@ const quizSchema = new mongoose.Schema({
     description: { type: String },
     owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     public: { type: mongoose.Schema.Types.Boolean, required: true, default: true },
+    validation: [ {type: Object} ],
     rounds: [quizRoundSchema] // Array of rounds
-}, { timestamps: true }); // Automatically manage createdAt and updatedAt fields
+}, { timestamps: false }); // Automatically manage createdAt and updatedAt fields - OFF for now...
 
 
 // This is an experiment with adding methods to this model to include reading/writing to the DB

@@ -2,7 +2,7 @@ import passport from 'passport';
 import { Strategy as LocalStrategy } from 'passport-local';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { Strategy as FacebookStrategy } from 'passport-facebook';
-import * as userService from './services/userService.js';
+import userService from './services/userService.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -14,7 +14,7 @@ passport.serializeUser((user, done) => {
 });
 
 passport.deserializeUser((user, done) => {
-  console.log('passport.deserializeUser:', user);
+  // console.log('passport.deserializeUser:', user);
   done(null, user);
 });
 

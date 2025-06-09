@@ -20,7 +20,7 @@ socket.on('server:loadgame', (game) => {
 async function loadGame(game) {
 
 	try {
-		const module = await import(`./modules/play.${game}.min.js`);
+		const module = await import(`./play.${game}.min.js`);
 
 		// If import successful then we are good to go - check if there is a game already loaded
 		if (window.currentGame) {
@@ -31,7 +31,7 @@ async function loadGame(game) {
 		// load CSS - fpr now we always load a CSS file and its always named the same as the game name
 		loadCSS(game);
 		const newGame = new module.Game(socket);
-  
+
 		// Store the game instance for later use
 		window.currentGame = newGame;
 
@@ -40,15 +40,15 @@ async function loadGame(game) {
 		// TODO: Display status to the user...
 	}
 }
-  
+
 function unloadGame() {
 	if (window.currentGame) {
 		window.currentGame.end();
 		delete window.currentGame;
 		unloadCSS();
 	}
-  }
-  
+}
+
 function loadCSS(href) {
 	const link = document.createElement('link');
 	link.rel = 'stylesheet';
@@ -56,7 +56,7 @@ function loadCSS(href) {
 	link.id = 'dynamic-css'; // Give an ID to easily find and remove it later
 	document.head.appendChild(link);
 }
-  
+
 function unloadCSS() {
 	const link = document.getElementById('dynamic-css');
 	if (link) {

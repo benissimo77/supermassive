@@ -32,6 +32,18 @@ export default function createSocketServer(server) {
 	};
 
 	io.on('connection', (socket) => {
+
+		// ADDED PURELY FOR MONEYTREE - not needed after this
+		//
+		socket.on('client:saveresults', (results) => {
+			console.log('Client save results:', results);
+			io.emit('connection', 'Caught results:', results);
+		});
+		//
+		//
+		//
+		//
+
 		const session = socket.request.session;
 		let userObj = session;
 
@@ -54,14 +66,14 @@ export default function createSocketServer(server) {
 		if (!userObj.sessionID) {
 			userObj.sessionID = socket.request.sessionID;
 		}
-		userObj.socketid = socket.id;
+		userObj.socketID = socket.id;
 
 		console.log('io.connection:', session, userObj);
 
 		// If no room is defined, ignore the connection
 		if (!userObj.room) {
-			console.log('No room defined - give up');
-			return;
+			console.log('No room defined - fallback to default room __default');
+			userObj.room = '__default__';
 		}
 
 		// Create a new room if it doesn't exist
@@ -77,6 +89,7 @@ export default function createSocketServer(server) {
 	io.on('disconnection', (socket) => {
 		console.log('io.disconnect:', socket.id);
 	});
+
 
 	// Send keep-alive (ping) message to all connected clients every 60 seconds
 	setInterval(() => {

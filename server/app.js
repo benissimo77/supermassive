@@ -1,20 +1,20 @@
 import express from 'express';
 import session from 'express-session';
-import { create } from 'express-handlebars';
+import MongoStore from 'connect-mongo';
 import passport from './passport.js';
 import { dbConnect } from './db.js';
-import path from 'path';
 import { fileURLToPath } from 'url';
 
 // ROUTES
 import indexRoutes from './routes/routes.public.js';
 import hostRoutes from './routes/routes.host.js';
 import loginRoutes from './routes/routes.auth.js';
+
 import apiQuiz from './api/api.quiz.js';
+import apiImage from './api/api.image.js';
 
 // Get __dirname in ES modules
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 console.log('######  app.js is running  ######');
 
@@ -42,12 +42,24 @@ app.use(express.urlencoded({ extended: true }));
 // Determine if the app is running in production
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Initialize session cookies
+// Initialize session cookies with MongoDB store
 const sessionMiddleware = session({
-  secret: 'your_session_secret a very long string of random characters ##%$%^',
+  secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: isProduction, maxAge: 120000 },
+  cookie: {
+    secure: isProduction,
+    maxAge: 7 * 24 * 60 * 60 * 1000
+  },
+  // Add MongoDB store
+  store: MongoStore.create({
+    // Use the same MongoDB connection as your app
+    mongoUrl: process.env.MONGODB_URI,
+    collectionName: 'sessions',
+    ttl: 7 * 24 * 60 * 60,
+    touchAfter: 24 * 60 * 60, // Only update if 24 hours passed
+    autoRemove: 'native' // Use MongoDB's TTL index for cleanup
+  })
 });
 app.use(sessionMiddleware);
 
@@ -65,5 +77,6 @@ app.use('/host', hostRoutes);
 
 // API ROUTES
 app.use('/api/quiz', apiQuiz);
+app.use('/api/image', apiImage);
 
 export { app, sessionMiddleware };

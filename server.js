@@ -30,6 +30,24 @@ io.engine.use(sessionMiddleware);
 
 // Start the server on port 3000
 const PORT = process.env.PORT || 3000;
+// server.listen(PORT, () => {
+// 	console.log(`Server is running on http://localhost:${PORT}`);
+// });
+
 server.listen(PORT, () => {
-	console.log(`Server is running on http://localhost:${PORT}`);
+
+	console.log(`Server is running on:`);
+	console.log(`- Local: http://localhost:${PORT}`);
+	console.log(`You can connect from your phone using the Network URL`);
+});
+
+
+['SIGINT', 'SIGTERM'].forEach(signal => {
+	process.on(signal, () => {
+		console.log(`${signal} received, shutting down gracefully`);
+		server.close(() => {
+			console.log('Server closed');
+			process.exit(0);
+		});
+	});
 });

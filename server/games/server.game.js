@@ -9,51 +9,50 @@
 // Game class also provides a set of functions that need not be overridden, these perform typical functions that are common to all games.
 
 
-class Game {
-    constructor(room) {
-      if (new.target === Game) {
-        throw new TypeError("Cannot construct Game instances directly");
-      }
-  
-      if (this.startGame === undefined || this.startGame === Game.prototype.startGame) {
-        throw new TypeError("Must override method startGame");
-      }
-  
-      if (this.endGame === undefined || this.endGame === Game.prototype.endGame) {
-        throw new TypeError("Must override method endGame");
-      }
+export default class Game {
+  constructor(room) {
+    if (new.target === Game) {
+      throw new TypeError("Cannot construct Game instances directly");
+    }
 
-      if (this.introduction === undefined || this.introduction === Game.prototype.introduction) {
-        throw new TypeError("Must override method introduction");
-      }
-      if (this.checkGameRequirements === undefined || this.checkGameRequirements === Game.prototype.checkGameRequirements) {
-        throw new TypeError("Must override method checkGameRequirements");
-      }
+    if (this.startGame === undefined || this.startGame === Game.prototype.startGame) {
+      throw new TypeError("Must override method startGame");
+    }
 
-      // Perform typical startup functions that all games will likely use
-      this.room = room;
-      this.players = room.players;
-      this.started = false;
+    if (this.endGame === undefined || this.endGame === Game.prototype.endGame) {
+      throw new TypeError("Must override method endGame");
+    }
 
-      room.clientResponseHandler = null;
-      room.hostResponseHandler = null;
-  
+    if (this.introduction === undefined || this.introduction === Game.prototype.introduction) {
+      throw new TypeError("Must override method introduction");
     }
-  
-    introduction() {
-      // Placeholder method
+    if (this.checkGameRequirements === undefined || this.checkGameRequirements === Game.prototype.checkGameRequirements) {
+      throw new TypeError("Must override method checkGameRequirements");
     }
-    checkGameRequirements() {
-      // Placeholder method
-    }
-    startGame() {
-      // Placeholder method
-    }
-  
-    endGame() {
-      // Placeholder method
-    }
+
+    // Perform typical startup functions that all games will likely use
+    this.room = room;
+    this.players = room.players;
+    this.started = false;
+
+    room.clientResponseHandler = null;
+    room.hostResponseHandler = null;
+
   }
-  
-  module.exports = Game;
-  
+
+  introduction() {
+    // Placeholder method
+  }
+  checkGameRequirements() {
+    // Placeholder method
+  }
+  startGame() {
+    // Placeholder method
+  }
+
+  endGame() {
+    // Placeholder method
+  }
+}
+
+

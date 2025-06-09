@@ -1,37 +1,40 @@
-const Game = require('./server.game.js');
-const QuizModel = require('../models/mongo.quiz.js');
+import Game from './server.game.js';
+import QuizModel from '../models/mongo.quiz.js';
 
 const QuizState = {
-    INIT: 'INIT',
-    INTRO_QUIZ: 'INTRO_QUIZ',
+	INIT: 'INIT',
+	INTRO_QUIZ: 'INTRO_QUIZ',
 	NEXT_ROUND: 'NEXT_ROUND',
 	PREVIOUS_ROUND: 'PREVIOUS_ROUND',
-    INTRO_ROUND: 'INTRO_ROUND',
+	INTRO_ROUND: 'INTRO_ROUND',
 	NEXT_QUESTION: 'NEXT_QUESTION',
-	PREVIOUS_QUESTION: 'PREVIOUS_QUESITON',
-    QUESTION: 'QUESTION',
+	PREVIOUS_QUESTION: 'PREVIOUS_QUESTION',
+	QUESTION: 'QUESTION',
 	END_QUESTION: 'END_QUESTION',
 	COLLECT_ANSWERS: 'COLLECT_ANSWERS',
 	SHOW_ANSWER: 'SHOW_ANSWER',
 	UPDATE_SCORES: 'UPDATE_SCORES',
-    END_ROUND: 'END_ROUND',
-    END_QUIZ: 'END_QUIZ'
+	END_ROUND: 'END_ROUND',
+	END_QUIZ: 'END_QUIZ'
 };
 
 class QuizStateMachine {
 
-    constructor(quiz) {
-        this.quiz = quiz;
+	constructor(quiz) {
+		this.quiz = quiz;
+		this.direction = 'forward';
 		this.transitionTo(QuizState.INIT);
-    }
+	}
 
-    start() {
-        this.transitionTo(QuizState.INTRO_QUIZ);
-    }
+	start() {
+		this.transitionTo(QuizState.INTRO_QUIZ);
+	}
 
 	// General purpose function which advamces the state machine to the next state
 	// Next state is determined by the current state
 	nextState() {
+
+		this.direction = 'forward';
 
 		// This is a simple state machine - the next state is determined by the current state
 		switch (this.state) {
@@ -103,7 +106,7 @@ class QuizStateMachine {
 						} else {
 							this.transitionTo(QuizState.NEXT_ROUND);
 						}
-					}	
+					}
 				} else {
 					// If we reached here in 'answer' mode then we are done with answers - update scores
 					if (this.quiz.round.updateScores == "round") {
@@ -123,6 +126,8 @@ class QuizStateMachine {
 
 	previousState() {
 		console.log('previousState:', this.state);
+		this.direction = 'backward';
+
 		switch (this.state) {
 
 			case QuizState.INTRO_ROUND:
@@ -158,9 +163,9 @@ class QuizStateMachine {
 		}
 	}
 
-    transitionTo(newState) {
-        this.state = newState;
-        console.log(`Transitioning to state: ${newState}`);
+	transitionTo(newState) {
+		this.state = newState;
+		console.log(`Transitioning to state: ${newState}`);
 
 		// In case we still have a timer set from previous state (and user has attempted to move on) then clear the timer
 		if (this.quiz.roundTimerID) {
@@ -168,13 +173,13 @@ class QuizStateMachine {
 			this.quiz.roundTimerID = null;
 		}
 
-        switch (newState) {
+		switch (newState) {
 			case QuizState.INIT:
 				this.quiz.init();
 				break;
-            case QuizState.INTRO_QUIZ:
-                this.quiz.introQuiz()
-                break;
+			case QuizState.INTRO_QUIZ:
+				this.quiz.introQuiz()
+				break;
 
 			case QuizState.NEXT_ROUND:
 				this.quiz.mode = "ask";
@@ -183,7 +188,7 @@ class QuizStateMachine {
 				} else {
 					this.transitionTo(QuizState.END_QUIZ);
 				}
-                break;
+				break;
 
 			case QuizState.PREVIOUS_ROUND:
 				if (this.quiz.moveToPreviousRound()) {
@@ -205,14 +210,14 @@ class QuizStateMachine {
 				}
 				break;
 
-            case QuizState.NEXT_QUESTION:
-                if (this.quiz.moveToNextQuestion()) {
+			case QuizState.NEXT_QUESTION:
+				if (this.quiz.moveToNextQuestion()) {
 					this.transitionTo(QuizState.QUESTION);
 				} else {
 					console.log('No more questions - ending round...');
 					this.transitionTo(QuizState.END_ROUND);
 				}
-                break;
+				break;
 
 			// Tweaked logic QUESTION now expects the question number to be already set correctly
 			case QuizState.QUESTION:
@@ -235,22 +240,22 @@ class QuizStateMachine {
 				this.quiz.endQuestion()
 				break;
 
-            case QuizState.END_ROUND:
-                this.quiz.endRound()
-                break;
+			case QuizState.END_ROUND:
+				this.quiz.endRound()
+				break;
 
-            case QuizState.END_QUIZ:
-                this.quiz.endQuiz();
-                break;
+			case QuizState.END_QUIZ:
+				this.quiz.endQuiz();
+				break;
 
-            default:
-                console.error(`Unknown state: ${newState}`);
-        }
-    }
+			default:
+				console.error(`Unknown state: ${newState}`);
+		}
+	}
 }
 
 
-class Quiz extends Game {
+export default class Quiz extends Game {
 
 	constructor(room) {
 		super(room);
@@ -275,129 +280,228 @@ class Quiz extends Game {
 			"title": "Sample Quiz",
 			"description": "<p>This is a sample quiz to get you started.</p>",
 			"rounds": [
-			{
-				"title": "General Knowledge",
-				"description": "Test your general knowledge!",
-				"roundTimer": "0",
-				"showAnswer": "round",
-				"updateScores": "round",
-				"questions": [
-					{
-						"type": "matching",
-						"text": "Match left to right",
-						"image": null,
-						"audio": "",
-						"pairs": [
-						  {
-							"left": "Left 1",
-							"right": "Right 1"
-						  },
-						  {
-							"left": "Left 2",
-							"right": "Right 2"
-						  },
-						  {
-							"left": "Left 3",
-							"right": "Right 3"
-						  },
-						  {
-							"left": "Left 4",
-							"right": "Right 4"
-						  },
-						  {
-							"left": "Left 5",
-							"right": "Right 5"
-						  }
-						]
-					  },
-					  {
-						"type": "ordering",
-						"text": "Place in order",
-						"image": null,
-						"audio": "",
-						"startLabel": "Earliest",
-						"endLabel": "Latest",
-						"items": [
-						  "1990",
-						  "1995",
-						  "2000",
-						  "2004",
-						  "2012"
-						]
-					  },
-				]
-			},
-			{
-				title: 'General Ignorance II',
-				description: 'Just your basic general knowledge questions. Four possible answers, how much do you know?',
-				roundTimer: "0",
-				showAnswer: "round",
-				updateScores: "round",
-				questions: [
 				{
-					"type": "text",
-					"text": "What is the capital of France?",
-					"image": null,
-					"audio": "https://youtu.be/VtM1Jlfx_eA?si=slW5pOj-snu9OnKX",
-					"answer": "Paris"
-				},
-				{
-					"type": "multiple-choice",
-					"text": "Which planet is known as the Red Planet?",
-					"image": "https://placehold.co/600x400",
-					"audio": "https://music.youtube.com/watch?v=3vqAuQIMPLw&si=hCJzroE2YrIoSE0_",
-					"options": [
-					  "Mars",
-					  "Venus",
-					  "Jupiter",
-					  "Saturn"
+					title: 'General Ignorance II',
+					description: 'Four possible answers, how much do you know?',
+					roundTimer: "0",
+					showAnswer: "question",
+					updateScores: "question",
+					questions: [
+						{
+							"type": "hotspot",
+							"text": "HOTSPOT!",
+							"image": "data:image/png;base64,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",
+							"audio": "",
+							"answer": {
+								"x": 100,
+								"y": 985
+							}
+						},
+						{
+							"type": "point-it-out",
+							"text": "Point out the top corner...",
+							"image": "data:image/png;base64,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",
+							"audio": "",
+							"answer": {
+								"start": {
+									"x": 80,
+									"y": 80
+								},
+								"end": {
+									"x": 320,
+									"y": 320
+								}
+							}
+						},
+						{
+							type: "number-closest",
+							text: "Who is closest to 2.5?",
+							image: null,
+							answer: "2.5"
+						},
+
 					]
-				  },
-				  {
-					"type": "true-false",
-					"text": "True or False: this is a question?",
-					"image": null,
-					"audio": "",
-					"answer": "true"
-				  },
-				  {
-					"type": "hotspot",
-					"text": "HOTSPOT!",
-					"image": "data:image/png;base64,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",
-					"audio": "",
-					"answer": {
-					  "x": 287,
-					  "y": 98
-					}
-				  },
-				  {
-					"type": "point-it-out",
-					"text": "Point out the top corner...",
-					"image": "data:image/png;base64,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",
-					"audio": "",
-					"answer": {
-					  "start": {
-						"x": 80,
-						"y": 80
-					  },
-					  "end": {
-						"x": 320,
-						"y": 320
-					  }
-					}
-				  },
-				  {
-					"type": "draw",
-					"text": "Old-skool draw the answer!",
-					"image": null,
-					"audio": "",
-					"answer": "This is what you should have drawn..."
-				  }
-				]
-			  }
+				},
+
+				{
+					title: 'General Ignorance II',
+					description: 'Just your basic general knowledge questions. Four possible answers, how much do you know?',
+					roundTimer: "0",
+					showAnswer: "round",
+					updateScores: "round",
+					questions: [
+						{
+							type: 'multiple-choice',
+							text: 'Who wrote the play "Romeo and Juliet"?',
+							options: ['William Shakespeare', 'Charles Dickens', 'Jane Austen', 'Mark Twain']
+						},
+						{
+							type: 'multiple-choice',
+							text: 'Who wrote the play "Romeo and Juliet"?',
+							image: "https://placehold.co/1280x720",
+							options: ['William Shakespeare', 'Charles Dickens', 'Jane Austen', 'Mark Twain but now a lot longer... to test adjustment']
+						},
+						{
+							type: "text",
+							text: "What is the capital of France?",
+							image: null,
+							audio: "https://youtu.be/VtM1Jlfx_eA?si=slW5pOj-snu9OnKX",
+							answer: "Paris"
+						},
+						{
+							"type": "true-false",
+							"text": "True or False: this is a question?",
+							"image": null,
+							"audio": "",
+							"answer": "true"
+						},
+						{
+							"type": "ordering",
+							"text": "Place in order",
+							"image": null,
+							"audio": "",
+							"startLabel": "Earliest",
+							"endLabel": "Latest",
+							"items": [
+								"1990",
+								"1995",
+								"2000",
+								"2004",
+								"2012"
+							]
+						},
+						{
+							"type": "point-it-out",
+							"text": "Point out the top corner...",
+							"image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAADICAIAAABJdyC1AAAACXBIWXMAAC4jAAAuIwF4pT92AAAJBElEQVR4nO3bIY9mZwGG4W+bKhQJ/IWmZM0GBALRZpvUsMmYramhAlu3FShq2zAOi9maMd2KJkWyP6EZMwgMeDSbkBIQaxAV9yNOvvma63L91BGnz7vvuTMPPn726kRw++T53eMXH37y9bkf5ALcXF/963d/++13fz33g1yAm+srL1X3xrkf4GI8+uajhy+fnvspLsOrz//+o8/eOvdTXIy7xy/O/QgXw2BVd49fPPrmo3M/xWX42VdX536Ei/Hw5dPbJ8/P/RQXw2BVr6+E536Ky/Dj3//83I9wMZyCE4M1cBJGt0+euz5HTsGJweIQ//n0n+d+hMtg3CcGq/JWTb791Z/O/QgXw62wM1iVStiphBO3ws5gVSphpxJ2KuHEYFUqYacSdk7BicEaOAkjH5I7p+DEYHEIlTAy7hODVXmrJiph51bYGaxKJexUwolbYWewKpWwUwk7lXBisCqVsFMJO6fgxGANnISRD8mdU3BisDiEShgZ94nBqrxVE5WwcyvsDFalEnYq4cStsDNYlUrYqYSdSjgxWJVK2KmEnVNwYrAGTsLIh+TOKTgxWBxCJYyM+8RgVd6qiUrYuRV2BqtSCTuVcOJW2BmsSiXsVMJOJZwYrEol7FTCzik4MVgDJ2HkQ3LnFJwYLA6hEkbGfWKwKm/VRCXs3Ao7g1WphJ1KOHEr7AxWpRJ2KmGnEk4MVqUSdiph5xScGKyBkzDyIblzCk4MFodQCSPjPjFYlbdqohJ2boWdwapUwk4lnLgVdgarUgk7lbBTCScGq1IJO5WwcwpODNbASRj5kNw5BScGi0OohJFxnxisyls1UQk7t8LOYFUqYacSTtwKO4NVqYSdStiphBODVamEnUrYOQUnBmvgJIx8SO6cghODxSFUwsi4TwxW5a2aqISdW2FnsCqVsFMJJ26FncGqVMJOJexUwonBqlTCTiXsnIITgzVwEkY+JHdOwYnB4hAqYWTcJwar8lZNVMLOrbAzWJVK2KmEE7fCzmBVKmGnEnYq4cRgVSphpxJ2TsGJwRo4CSMfkjun4MRgcQiVMDLuE4NVeasmKmHnVtgZrEol7FTCiVthZ7AqlbBTCTuVcGKwKpWwUwk7p+DEYA2chJEPyZ1TcGKwOIRKGBn3icGqvFUTlbBzK+wMVqUSdirhxK2wM1iVStiphJ1KODFYlUrYqYSdU3BisAZOwsiH5M4pODFYHEIljIz7xGBV3qqJSti5FXYGq1IJO5Vw4lbYGaxKJexUwk4lnBisSiXsVMLOKTgxWAMnYeRDcucUnBgsDqESRsZ9YrAqb9VEJezcCjuDVamEnUo4cSvsDFalEnYqYacSTgxWpRJ2KmHnFJwYrIGTMPIhuXMKTgwWh1AJI+M+MViVt2qiEnZuhZ3BqlTCTiWcuBV2BqtSCTuVsFMJJwarUgk7lbBzCk4M1sBJGPmQ3DkFJwaLQ6iEkXGfGKzKWzVRCTu3ws5gVSphpxJO3Ao7g1WphJ1K2KmEE4NVqYSdStg5BScGa+AkjHxI7pyCE4PFIVTCyLhPDFblrZqohJ1bYWewKpWwUwknboWdwapUwk4l7FTCyZun0+nuvS9vf/3F6/9++JcPHv35N3753l9unzy/V89zb3/59xdvnk6nm+ure/I89/yXk/8H8y8PfvLf9+/bM93PX+7e+/L0f87+PPf8l5/+4+33//iH+/M8fvlh/PLg42evTgSv/73w4Sdfn/tBLsDN9dXb77z7i18+O/eDXICb66uHL5/62hC9ce4HuBi+uE9Uws5adQarUgk7lXCiEnYGq1IJO5WwUwknBqvyt4SdvyXsnIITgzVwEkb+3KRzCk4MFofwt4SRcZ8YrMpbNVEJO7fCzmBVKmGnEk7cCjuDVamEnUrYqYQTg1WphJ1K2DkFJwZr4CSMfEjunIITg8UhVMLIuE8MVuWtmqiEnVthZ7AqlbBTCSduhZ3BqlTCTiXsVMKJwapUwk4l7JyCE4M1cBJGPiR3TsGJweIQKmFk3CcGq/JWTVTCzq2wM1iVStiphBO3ws5gVSphpxJ2KuHEYFUqYacSdk7BicEaOAkjH5I7p+DEYHEIlTAy7hODVXmrJiph51bYGaxKJexUwolbYWewKpWwUwk7lXBisCqVsFMJO6fgxGANnISRD8mdU3BisDiEShgZ94nBqrxVE5WwcyvsDFalEnYq4cStsDNYlUrYqYSdSjgxWJVK2KmEnVNwYrAGTsLIh+TOKTgxWBxCJYyM+8RgVd6qiUrYuRV2BqtSCTuVcOJW2BmsSiXsVMJOJZwYrEol7FTCzik4MVgDJ2HkQ3LnFJwYLA6hEkbGfWKwKm/VRCXs3Ao7g1WphJ1KOHEr7AxWpRJ2KmGnEk4MVqUSdiph5xScGKyBkzDyIblzCk4MFodQCSPjPjFYlbdqohJ2boWdwapUwk4lnLgVdgarUgk7lbBTCScGq1IJO5WwcwpODNbASRj5kNw5BScGi0OohJFxnxisyls1UQk7t8LOYFUqYacSTtwKO4NVqYSdStiphBODVamEnUrYOQUnBmvgJIx8SO6cghODxSFUwsi4TwxW5a2aqISdW2FnsCqVsFMJJ26FncGqVMJOJexUwonBqlTCTiXsnIITgzVwEkY+JHdOwYnB4hAqYWTcJwar8lZNVMLOrbAzWJVK2KmEE7fCzmBVKmGnEnYq4cRgVSphpxJ2TsGJwRo4CSMfkjun4MRgcQiVMDLuE4NVeasmKmHnVtgZrEol7FTCiVthZ7AqlbBTCTuVcGKwKpWwUwk7p+DEYA2chJEPyZ1TcGKwOIRKGBn3icGqvFUTlbBzK+wMVqUSdirhxK2wM1iVStiphJ1KODFYlUrYqYSdU3BisAZOwsiH5M4pODFYHEIljIz7xGBV3qqJSti5FXYGq1IJO5Vw4lbYGaxKJexUwk4lnBisSiXsVMLOKTgxWAMnYeRDcucUnBgsDqESRsZ9YrAqb9VEJezcCjuDVamEnUo4cSvsDFalEnYqYacSTgxWpRJ2KmHnFJwYrIGTMPIhuXMKTgwWh1AJI+M+MViVt2qiEnZuhZ3BqlTCTiWcuBV2/wMs2dQSqm6k3gAAAABJRU5ErkJggg==",
+							"audio": "",
+							"answer": {
+								"start": {
+									"x": 80,
+									"y": 80
+								},
+								"end": {
+									"x": 320,
+									"y": 320
+								}
+							}
+						},
+						{
+							"type": "matching",
+							"text": "Match left to right",
+							"image": null,
+							"audio": "",
+							"pairs": [
+								{
+									"left": "Left 1",
+									"right": "Right 1"
+								},
+								{
+									"left": "Left 2",
+									"right": "Right 2"
+								},
+								{
+									"left": "Left 3",
+									"right": "Right 3"
+								},
+								{
+									"left": "Left 4",
+									"right": "Right 4"
+								},
+								{
+									"left": "Left 5",
+									"right": "Right 5"
+								}
+							]
+						},
+						{
+							"type": "true-false",
+							"text": "True or False: this is a question?",
+							"image": null,
+							"audio": "",
+							"answer": "true"
+						},
+						{
+							"type": "ordering",
+							"text": "Place in order",
+							"image": null,
+							"audio": "",
+							"startLabel": "Earliest",
+							"endLabel": "Latest",
+							"items": [
+								"1990",
+								"1995",
+								"2000",
+								"2004",
+								"2012"
+							]
+						},
+						{
+							"type": "draw",
+							"text": "Old-skool draw the answer!",
+							"image": null,
+							"audio": "",
+							"answer": "This is what you should have drawn..."
+						}
+					]
+				},
+
+				{
+					"title": "General Knowledge",
+					"description": "Test your general knowledge!",
+					"roundTimer": "0",
+					"showAnswer": "round",
+					"updateScores": "round",
+					"questions": [
+						{
+							"type": "matching",
+							"text": "Match left to right",
+							"image": null,
+							"audio": "",
+							"pairs": [
+								{
+									"left": "Left 1",
+									"right": "Right 1"
+								},
+								{
+									"left": "Left 2",
+									"right": "Right 2"
+								},
+								{
+									"left": "Left 3",
+									"right": "Right 3"
+								},
+								{
+									"left": "Left 4",
+									"right": "Right 4"
+								},
+								{
+									"left": "Left 5",
+									"right": "Right 5"
+								}
+							]
+						},
+						{
+							"type": "ordering",
+							"text": "Place in order",
+							"image": null,
+							"audio": "",
+							"startLabel": "Earliest",
+							"endLabel": "Latest",
+							"items": [
+								"1990",
+								"1995",
+								"2000",
+								"2004",
+								"2012"
+							]
+						},
+					]
+				}
+
 			]
-		  }
-		
+		}
+
 		// Build a model JSON structure to represent a quiz
 		// This will likely change a lot - but make a start, this becomes the way to store an entire quiz as an object
 		// Quiz can then be loaded from a file or a database and everything needed is contained in the JSON
@@ -410,7 +514,7 @@ class Quiz extends Game {
 		// Questions and Rounds are not numbered, so in theory they can be shudffled or presented in any order
 		// The order of the rounds might be important - but the order of the questions within a round is not
 		// Basic type the answers are an array, the first answer is always the correct one - quiz shuffles the answers before sending
-		
+
 		// Declare this as V2 so we don't use it at the moment...
 		this.quizDataV2 = {
 			title: 'The Veluwe Weekend Mega-Quiz!',
@@ -429,14 +533,14 @@ class Quiz extends Game {
 							"image": "data:image/png;base64,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",
 							"audio": "",
 							"answer": {
-							  "start": {
-								"x": 80,
-								"y": 80
-							  },
-							  "end": {
-								"x": 320,
-								"y": 320
-							  }
+								"start": {
+									"x": 80,
+									"y": 80
+								},
+								"end": {
+									"x": 320,
+									"y": 320
+								}
 							}
 						},
 					]
@@ -684,7 +788,7 @@ class Quiz extends Game {
 	introQuiz() {
 		console.log('introQuiz:');
 		this.roundNumber = 0;
-		this.room.emitToHosts('server:introquiz', { title: this.quizData.title, description: this.quizData.description }, true )
+		this.room.emitToHosts('server:introquiz', { title: this.quizData.title, description: this.quizData.description }, true)
 	}
 
 	// introRound
@@ -698,7 +802,7 @@ class Quiz extends Game {
 		const typeOverride = (this.round.type && this.round.type != this.quizData.type);
 
 		// Return the Promise from emitToHosts back to the caller
-		this.room.emitToHosts('server:introround', { roundnumber: this.roundNumber, title: this.round.title, description: this.round.description, duration: 8 }, true )
+		this.room.emitToHosts('server:introround', { roundnumber: this.roundNumber, title: this.round.title, description: this.round.description, duration: 8 }, true)
 	}
 
 	// nextRound
@@ -725,13 +829,13 @@ class Quiz extends Game {
 		return false;
 	}
 
-		// nextQuestion
+	// nextQuestion
 	// Similar to nextRound above - returns the question data or null if there are no more questions in this round
 	moveToNextQuestion() {
 		if (this.questionNumber < this.round.questions.length) {
 			this.question = this.round.questions[this.questionNumber];
 			this.questionNumber++;
-			return this.question;			
+			return this.question;
 		}
 		return false;
 	}
@@ -750,83 +854,116 @@ class Quiz extends Game {
 		}
 	}
 
+	// copyQuestionForMutating
+	// Used when asking questions - make a full copy of the question which will be used for sending to host/players
+	// Copy is mutated to eg shuffle option arrays for variety
+	// Plus copy can have answer removed if necessary
+	prepareMutatedQuestion(question) {
+
+		let localQuestion = structuredClone(question);
+
+		// When asking question we might need to adjust the correct answer based on the question type
+		// Try overwriting the actual quizData with the modified question/answers data
+		// Now I can actually pass the entire question object directly to the client (do later it works right now)
+		switch (localQuestion.type) {
+
+			case 'multiple-choice':
+				question.answer = localQuestion.options[0];
+				question.optionsShuffled = shuffleArray(localQuestion.options);
+				break;
+
+			case 'matching':
+				var left = localQuestion.pairs.map((pair) => pair.left);
+				question.answer = [...left];
+				var shuffledLeft = shuffleArray(left);
+				localQuestion.pairs.forEach((pair, index) => { pair.left = shuffledLeft[index] });
+				console.log('Matching:', question.answer, localQuestion.pairs);
+				question.pairsShuffled = localQuestion.pairs;
+				break;
+
+			case 'ordering':
+				question.answer = [...localQuestion.items];
+				localQuestion.items = shuffleArray(localQuestion.items);
+				question.itemsShuffled = localQuestion.items;
+				break;
+
+			default:
+				// all other question types the answer field is used
+				break;
+		}
+
+	}
+
 	// doQuestion
 	// A general function that will do everything needed to present the supplied question
 	// It doesn't know anything outside of the question it is given
 	// Perform any question-specific set-up (eg setting up the correct answer if needed)
 	// Mode is the form of the question - asking it or showing the question and answer
 	doQuestion() {
-		this.question = this.round.questions[this.questionNumber -1];
-		console.log('doQuestion:', this.question, this.mode, this.questionNumber);
 
-		var answer = this.question.answer;
+		// this.question holds a pointer into the master quizData to allow mutating for storing results
+		this.question = this.round.questions[this.questionNumber - 1];
 
-		// When asking question we might need to adjust the correct answer based on the question type
-		// Try overwriting the actual quizData with the modified question/answers data
-		// Now I can actually pass the entire question object directly to the client (do later it works right now)
-		if (this.mode == "ask") {
-
-			switch (this.question.type) {
-
-				case 'multiple-choice':
-					answer = this.question.options[0];
-					this.question.options = shuffleArray(this.question.options);
-					break;
-
-				case 'matching':
-					var left = this.question.pairs.map( (pair) => pair.left);
-					var answer = [...left];
-					var shuffledLeft = shuffleArray(left);
-					this.question.pairs.forEach( (pair, index) => { pair.left = shuffledLeft[index] });
-					console.log('Matching:', answer, this.question.pairs);
-					break;
-
-				case 'ordering':
-					var answer = [...this.question.options];
-					this.question.options = shuffleArray(this.question.options);
-					break;
-
-				default:
-					// all other question types the answer field is used
-					break;
-			}
-
-		}
-
-		// Add the question number and mode (mode allows us to modify display of the question)
+		// Add the general quiz state to the question - do this before copying the question
 		this.question.questionNumber = this.questionNumber;
-		this.question.mode = this.mode;
+
+		// Prepare the question by mutating answer options
+		// Function also sets up the question.answer since sometimes the answer is derived from the question data (eg first item in options array)
+		this.prepareMutatedQuestion(this.question);
+
+		let localQuestion = structuredClone(this.question);
+		localQuestion.mode = 'ask';
+		localQuestion.direction = this.stateMachine.direction;
+		localQuestion.options = this.question.optionsShuffled;
+		localQuestion.items = this.question.itemsShuffled;
+		localQuestion.pairs = this.question.pairsShuffled;
+		delete localQuestion.answer;
+		delete localQuestion.optionsShuffled;
+		delete localQuestion.itemsShuffled;
+		delete localQuestion.pairsShuffled;
+
 
 		// This is an exception where we want to automatically move to next state without waiting for host
 		// WHY? Because after asking a question we know we instantly want to either collect answers or show the answer
-		this.room.registerHostResponseHandler( () => {
+		this.room.registerHostResponseHandler(() => {
 			this.room.deregisterHostResponseHandler();
 			this.stateMachine.nextState();
-		} );
-		console.log('Sending question to hosts:', this.question, this.questionNumber);
-		this.room.emitToHosts('server:question', this.question, true );
+		});
+		console.log('doQuestion:', this.mode, this.questionNumber, this.question, localQuestion);
+		this.room.emitToHosts('server:question', localQuestion, true);
 
-		// Now that we have sent the data we can attach the correct answer to the question object
-		this.question.answer = answer;
-		console.log('Setting correct answer:', this.question);
 	}
 
 	collectAnswers() {
 
 		// Prepare a question object holding only the data needed for the players
-		this.question.results = {};
+		// IMPORTANT: don't initialise this otherwise we can't go back and re-visit questions
+		if (!this.question.results) {
+			this.question.results = {};
+		}
 
-		let question = {}
-		question.questionNumber = this.question.questionNumber;
-		question.type = this.question.type;
-		question.image = this.question.image;
-		question.options = this.question.options;
-		question.pairs = this.question.pairs;
-		question.extra = this.question.extra;
-		console.log('collectAnwers:', this.question, question);
+		// Prepare a local copy of the question for sending to players
+		// Note: could use the StructuredClone method above but for players its easier to build from scratch
+		let localQuestion = {}
+		localQuestion.mode = 'ask';
+		localQuestion.direction = this.stateMachine.direction;
+		localQuestion.questionNumber = this.question.questionNumber;
+		localQuestion.type = this.question.type;
+		localQuestion.options = this.question.optionsShuffled;
+		localQuestion.items = this.question.itemsShuffled;
+		localQuestion.startLabel = this.question.startLabel;
+		localQuestion.endLabel = this.question.endLabel;
+		localQuestion.pairs = this.question.pairsShuffled;
+		localQuestion.extra = this.question.extra;
+		// Include the image if it is required for the answer (hotspot, point-it-out)
+		if (localQuestion.type == 'hotspot' || localQuestion.type == 'point-it-out') {
+			localQuestion.image = this.question.image;
+		}
+
+		console.log('collectAnwers:', this.question, localQuestion);
 		const responseHandler = (socket, response) => {
 			console.log('quiz.responseHandler:', socket.id, response);
-			const player = this.room.getPlayerBySocketId(socket.id);
+			const player = this.room.getPlayerBySocketID(socket.id);
 			if (player) {
 				this.question.results[player.sessionID] = response;
 				this.room.emitToHosts('server:questionanswered', { sessionID: player.sessionID, response: response });
@@ -838,14 +975,14 @@ class Quiz extends Game {
 			timeoutSeconds: 10
 		}
 		this.room.registerClientResponseHandler(responseHandler);
-		this.room.emitToAllPlayers("server:question", question);
+		this.room.emitToAllPlayers("server:question", localQuestion);
 
 		if (this.round.roundTimer > 0) {
-			this.roundTimerID = setTimeout( () => {
+			this.roundTimerID = setTimeout(() => {
 				this.roundTimerID = null;
 				this.stateMachine.nextState();
 			}, this.round.roundTimer * 1000);
-			this.room.emitToHosts('server:starttimer', { duration: this.round.roundTimer } );
+			this.room.emitToHosts('server:starttimer', { duration: this.round.roundTimer });
 		}
 	}
 
@@ -856,6 +993,12 @@ class Quiz extends Game {
 		// For some question types (eg hotspot) the determining of the correct answer is harder
 		// For now lets just do it with the basic questions and add other types later...
 		// Calculate the player answers and append to this.question for completion
+		let localQuestion = structuredClone(this.question);
+		localQuestion.mode = 'answer';
+		localQuestion.direction = this.stateMachine.direction;
+		localQuestion.options = this.question.optionsShuffled;
+		localQuestion.items = this.question.itemsShuffled;
+		localQuestion.pairs = this.question.pairsShuffled;
 
 		// Who got the right answer? Just a Boolean true/false at this stage not a points thing
 		// Function to filter keys based on the value
@@ -866,13 +1009,10 @@ class Quiz extends Game {
 		}
 		this.question.playersCorrect = getKeysByValue(this.question.results, this.question.answer);
 
-		// When showing the answer we def want the mode to be 'answer' - this is not explicitly set when showing answers after every question
-		this.question.mode = 'answer';
-
-		console.dir('showAnswer:', this.question);
-		this.room.emitToHosts('server:showanswer', this.question);
+		console.dir('showAnswer:', localQuestion);
+		this.room.emitToHosts('server:showanswer', localQuestion);
 	}
-	
+
 	// updateScores
 	// We have shown the correct answer to the players, now time to update the scores
 	// Note: we only calculate the scores at this point since some scoring relies on knowing all the player results (eg hotspot)
@@ -890,41 +1030,57 @@ class Quiz extends Game {
 			}
 		}
 
-		// we iterate through all questions performing the calculation on each question
+		// we iterate through ALL questions up to current question performing the calculation on each question
 		// Note: this doesn't attempt to maintain a running total - simply regenerate the totals whenever needed (simpler)
+		// AND force every player to have 0 to start - force 0
 		var scores = {};
+		this.players.forEach(player => {
+			scores[player.sessionID] = 0;
+		});
 		for (var i = 0; i < this.roundNumber; i++) {
-			const lastQuestion = (i == this.roundNumber-1) ? this.questionNumber : this.quizData.rounds[i].questions.length;
-			for (var j = 0; j < lastQuestion; j++ ) {
+			const lastQuestion = (i == this.roundNumber - 1) ? this.questionNumber : this.quizData.rounds[i].questions.length;
+			for (var j = 0; j < lastQuestion; j++) {
 				const scoreQuestion = this.calculatePlayerScores(this.quizData.rounds[i].questions[j]);
-				console.log('scoreQuestion:', i, j, scoreQuestion);
 				addDictionaries(scores, scoreQuestion);
+				console.log('Round Question:', i, j);
+				console.log('Results:', this.quizData.rounds[i].questions[j].results);
+				console.log('Question:', scoreQuestion);
+				console.log('Scores:', scores);
 			}
 		}
 		console.log('updateScores:', scores);
-		this.room.emitToHosts('server:updatescores', { 'scores': scores } );
+		this.room.emitToHosts('server:updatescores', { 'scores': scores });
 	}
 
+	// calculatePlayerScores
+	// For a single question we have all the player's answers stored in question.results
+	// This is a dictionary, keyed on player sessionID, with the value being the answer
+	// Each question type has its own scoring method - principle is the same:
+	// Loop through the keys of the results dictionary calculating a score for each player
 	calculatePlayerScores(question) {
 		console.log('calculatePlayerScores:', question);
 
 		var scores = {};
 
 		function createSimpleString(str) {
+			if (str === null || str === undefined) {
+				return '';
+			}
+			str = String(str);
 			return str
 				.toLowerCase() // Convert to lowercase
 				.replace(/[^a-z0-9-_:.]/g, '') // Remove invalid characters
 				.replace(/\s+/g, ''); // Remove spaces
 		}
-		
+
 		switch (question.type) {
 
 			case 'text':
 				const simpleAnswerText = createSimpleString(question.answer);
-				Object.keys(question.results).forEach( (result) => {
-					const simpleResult = createSimpleString(question.results[result]);
+				Object.keys(question.results).forEach((sessionID) => {
+					const simpleResult = createSimpleString(question.results[sessionID]);
 					if (levenshteinDistance(simpleAnswerText, simpleResult) < 3) {
-						scores[result] = 1;
+						scores[sessionID] = 1;
 					}
 				});
 				break;
@@ -933,44 +1089,56 @@ class Quiz extends Game {
 			case 'true-false':
 			case 'number-exact':
 				const simpleAnswer = createSimpleString(question.answer);
-				Object.keys(question.results).forEach( (result) => {
-					console.log('this.calculatePlayerScores: ', simpleAnswer, question.results[result]);
-					if (createSimpleString(question.results[result]) == simpleAnswer) {
-						scores[result] = 1;
+				Object.keys(question.results).forEach((sessionID) => {
+					console.log('this.calculatePlayerScores: ', simpleAnswer, question.results[sessionID]);
+					if (createSimpleString(question.results[sessionID]) == simpleAnswer) {
+						scores[sessionID] = 1;
 					}
 				});
 				break;
 
 			case 'number-closest':
-				// similar to hotspot - calculate distance from correct answer
+				// Calculate distance from correct answer using objects with named properties
 				var distances = [];
-				Object.keys(question.results).forEach( (result) => {
-					distances.push( [result, Math.hypot(parseInt(question.results[result]) - parseInt(question.answer) ) ] );
+				Object.keys(question.results).forEach((sessionID) => {
+					distances.push({
+						sessionID: sessionID,
+						distance: Math.abs(parseFloat(question.results[sessionID]) - parseFloat(question.answer))
+					});
 				});
-				distances = distances.sort(([, valueA], [, valueB]) => valueA - valueB);
-				// Closest gets 2 points, next 1 point. Plus a bonus point to all other values within a threshold of second place
-				// Made more complex because two or more teams could get the same distance - they both need to score the same
-				console.log('updateScores: hotspot:', question.answer, question.results, distances);
+
+				// Sort by distance (ascending)
+				distances = distances.sort((a, b) => a.distance - b.distance);
+
+				// Closest gets 2 points, next 1 point
+				console.log('number-closest:', question.answer, question.results, distances);
+
 				var nextPlayer = 1;
 				if (distances.length > 0) {
-					scores[distances[0][0]] = 2;
+					scores[distances[0].sessionID] = 2;
+
+					// Award 2 points to any players tied for first place
 					for (let i = nextPlayer; i < distances.length; i++) {
-						if (distances[i][1] == distances[0][1]) {
-							scores[distances[i][0]] = 2;
+						if (distances[i].distance === distances[0].distance) {
+							scores[distances[i].sessionID] = 2;
 							nextPlayer++;
 						}
-					}	
+					}
 				}
-				// If more than one team was assigned 2 points above then don't award any more points
-				if (distances.length > 1 && nextPlayer == 1) {
-					scores[distances[1][0]] = 1;
-					nextPlayer = 2;
-					for (let i = nextPlayer; i < distances.length; i++) {
-						if (distances[i][1] == distances[1][1]) {
-							scores[distances[i][0]] = 1;
-						}
-					}	
 
+				// If more than one team was assigned 2 points above then don't award any more points
+				if (distances.length > 1 && nextPlayer === 1) {
+					scores[distances[1].sessionID] = 1;
+					nextPlayer = 2;
+
+					// Award 1 point to any players tied for second place
+					if (distances.length > 2) {
+						for (let i = nextPlayer; i < distances.length; i++) {
+							if (distances[i].distance === distances[1].distance) {
+								scores[distances[i].sessionID] = 1;
+							}
+						}
+					}
 				}
 				break;
 
@@ -979,31 +1147,31 @@ class Quiz extends Game {
 			// question.answer holds the correct order
 			case 'ordering':
 			case 'matching':
-				Object.keys(question.results).forEach( (result) => {
-					const length = Math.min(question.answer.length, question.results[result].length);
+				Object.keys(question.results).forEach((sessionID) => {
+					const length = Math.min(question.answer.length, question.results[sessionID].length);
 					var score = 0;
-					console.log('this.calculatePlayerScores: ordering:', question.answer, question.results[result]);					
+					console.log('this.calculatePlayerScores: ordering:', question.answer, question.results[sessionID]);
 					for (let i = 0; i < length; i++) {
-						console.log(question.answer[i], question.results[result][i]);
-						if (question.answer[i] == question.results[result][i]) {
+						console.log(question.answer[i], question.results[sessionID][i]);
+						if (question.answer[i] == question.results[sessionID][i]) {
 							score++; // Increment score for matching elements
 						}
 					}
 					// You don't score for the final item since this is a given
 					if (score == question.answer.length) score--;
-					scores[result] = score;
+					scores[sessionID] = score;
 				});
 				break;
 
 			case 'hotspot':
 				// We would usually use a dictionary but since we have to sort the distances we use an array instead
 				var distances = [];
-				Object.keys(question.results).forEach( (result) => {
-					distances.push( [result, Math.hypot(parseInt(question.results[result].x) - question.answer.x, parseInt(question.results[result].y) - question.answer.y) ]);
+				Object.keys(question.results).forEach((sessionID) => {
+					distances.push([sessionID, Math.hypot(parseInt(question.results[sessionID].x) - question.answer.x, parseInt(question.results[sessionID].y) - question.answer.y)]);
 				});
 				distances = distances.sort(([, valueA], [, valueB]) => valueA - valueB);
 				// Closest gets 2 points, next 1 point. Plus a bonus point to all other values within a threshold of second place
-				console.log('updateScores: hotspot:', question.answer, question.results, distances);
+				console.log('hotspot:', question.answer, question.results, distances);
 				if (distances.length > 0) {
 					scores[distances[0][0]] = 2;
 				}
@@ -1014,11 +1182,11 @@ class Quiz extends Game {
 
 			case 'point-it-out':
 				// This is simpler than hotspot since its just a right/wrong answer based on the rectangle hit area
-				Object.keys(question.results).forEach( (result) => {
+				Object.keys(question.results).forEach((result) => {
 					if ((question.results[result].x >= question.answer.start.x) &
-					(question.results[result].x <= question.answer.end.x) &
-					(question.results[result].y >= question.answer.start.y) &
-					(question.results[result].y <= question.answer.end.y)) {
+						(question.results[result].x <= question.answer.end.x) &
+						(question.results[result].y >= question.answer.start.y) &
+						(question.results[result].y <= question.answer.end.y)) {
 						scores[result] = 1;
 					}
 				});
@@ -1028,7 +1196,7 @@ class Quiz extends Game {
 
 		return scores;
 	}
-	
+
 	// endQuestion
 	// General-purpose function to tidy up after a question has been asked and answers given
 	// Specifically: deregister the client responder so we don't catch unwanted answers in between other states
@@ -1048,7 +1216,7 @@ class Quiz extends Game {
 		// TODO - decide whether to mark the answers now or wait...
 		// If marked then add a note to this round to signify it has been marked (so that multiple rounds can be marked together)
 		var information = {
-			title:'End of Round'
+			title: 'End of Round'
 		}
 
 		// Message partly depends on the mode ask/answer and the round meta-data showAnswer/updateScores
@@ -1059,12 +1227,12 @@ class Quiz extends Game {
 		} else {
 			information.description = "Let's move on...";
 		}
-		this.room.emitToHosts('server:endround', information )
+		this.room.emitToHosts('server:endround', information)
 	}
 
 	endQuiz() {
 		console.log('endQuiz:', this.quizData);
-		this.room.emitToHosts('server:endquiz', { description: 'END OF THE QUIZ' }, true )
+		this.room.emitToHosts('server:endquiz', { description: 'END OF THE QUIZ' }, true)
 	}
 
 	getPlayers() {
@@ -1087,25 +1255,22 @@ function levenshteinDistance(str1, str2) {
 	const len1 = str1.length;
 	const len2 = str2.length;
 	const matrix = Array.from({ length: len1 + 1 }, () => Array(len2 + 1).fill(0));
-  
+
 	for (let i = 0; i <= len1; i++) matrix[i][0] = i;
 	for (let j = 0; j <= len2; j++) matrix[0][j] = j;
-  
+
 	for (let i = 1; i <= len1; i++) {
-	  for (let j = 1; j <= len2; j++) {
-		const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
-		matrix[i][j] = Math.min(
-		  matrix[i - 1][j] + 1,
-		  matrix[i][j - 1] + 1,
-		  matrix[i - 1][j - 1] + cost
-		);
-	  }
+		for (let j = 1; j <= len2; j++) {
+			const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+			matrix[i][j] = Math.min(
+				matrix[i - 1][j] + 1,
+				matrix[i][j - 1] + 1,
+				matrix[i - 1][j - 1] + cost
+			);
+		}
 	}
 	return matrix[len1][len2];
-  }
-  console.log(levenshteinDistance('kitten', 'sitting'));
-  
-module.exports = Quiz;
+}
 
 
 console.log(levenshteinDistance('kitten', 'sitting'));

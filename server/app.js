@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import session from 'express-session';
 import MongoStore from 'connect-mongo';
@@ -17,6 +20,16 @@ import apiImage from './api/api.image.js';
 const __filename = fileURLToPath(import.meta.url);
 
 console.log('######  app.js is running  ######');
+
+// Check essential environment variables
+const requiredEnvVars = ['MONGODB_URI', 'SESSION_SECRET'];
+const missing = requiredEnvVars.filter(varName => !process.env[varName]);
+
+if (missing.length > 0) {
+  console.error(`Missing required environment variables: ${missing.join(', ')}`);
+  process.exit(1); // Exit with error code
+}
+
 
 // Initialize the Express app
 const app = express();

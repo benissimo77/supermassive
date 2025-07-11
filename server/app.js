@@ -64,15 +64,6 @@ const sessionMiddleware = session({
     secure: isProduction,
     maxAge: 7 * 24 * 60 * 60 * 1000
   },
-  // Add MongoDB store
-  store: MongoStore.create({
-    // Use the same MongoDB connection as your app
-    mongoUrl: process.env.MONGODB_URI,
-    collectionName: 'sessions',
-    ttl: 7 * 24 * 60 * 60,
-    touchAfter: 24 * 60 * 60, // Only update if 24 hours passed
-    autoRemove: 'native' // Use MongoDB's TTL index for cleanup
-  })
 });
 app.use(sessionMiddleware);
 

@@ -37,18 +37,7 @@ class Room {
 			this.attachHostEvents(socket);
 		} else {
 
-			var player = this.getPlayerBySessionID(userObj.sessionID);
-			if (player) {
-				console.log('player already exists:', player);
-				player.connected = true;
-				// each re-connection will result in a new socketID
-				player.socketID = socket.id;
-			} else {
-				player = new Player(userObj);
-				player.connected = true;
-				this.players.push(player);
-				console.log('New player...', player, '\nCurrent players:', this.players.length);
-			}
+			var player = this.addUserAsPlayer(socket, userObj);
 
 			// Send message to host (if there is one)
 			if (this.host) {
@@ -91,6 +80,22 @@ class Room {
 			console.dir(data);
 		})
 		// console.log('userJoinRoom ending: ', this.players);
+	}
+
+	addUserAsPlayer(socket, userObj) {
+		var player = this.getPlayerBySessionID(userObj.sessionID);
+		if (player) {
+			console.log('player already exists:', player);
+			player.connected = true;
+			// each re-connection will result in a new socketID
+			player.socketID = socket.id;
+		} else {
+			player = new Player(userObj);
+			player.connected = true;
+			this.players.push(player);
+			console.log('New player...', player, '\nCurrent players:', this.players.length);
+		}
+		return player;
 	}
 
 	attachHostEvents(socket) {
@@ -149,11 +154,27 @@ class Room {
 			if (this.game) {
 				const valid = this.game.checkGameRequirements();
 				console.log('Game is valid:', valid);
+
 				if (valid) {
+
+					// This might be the best place to check for a single-player mode
+					// Maybe the game config will include a flag to indicate if this is allowed - for now assume it is
+					if (this.players.length == 0) {
+						var player = this.addUserAsPlayer(socket, this.host);
+						console.log('No players in game - SINGLE-PLAYER MODE:', player);
+
+						// Send message to host (if there is one)
+						if (this.host) {
+							this.#io.to(this.host.socketID).emit('playerconnect', player);
+						}
+
+					}
+
 					this.game.startGame(config);
 				}
 			}
 		})
+
 		socket.on('host:requestend', () => {
 			console.log('host:requestend:', socket.id, this.game, this.getPlayerBySocketID(socket.id));
 			if (this.game) {
@@ -248,6 +269,11 @@ class Room {
 	// Send an event to all players in the room, with the data payload (note: NOT sent to the host)
 	emitToAllPlayers(event, data) {
 		const playerSockets = this.players.map((player) => { return player.socketID });
+
+		// In single-player mode the host WILL be in the players array but we DON'T want to send the event to them
+		if (this.host && playerSockets.includes(this.host.socketID)) {
+			playerSockets.splice(playerSockets.indexOf(this.host.socketID), 1);
+		}
 		console.log('emitToAllPlayers:', playerSockets, event, data);
 		if (playerSockets.length > 0) {
 			this.#io.to(playerSockets).emit(event, data);

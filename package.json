@@ -14,7 +14,8 @@
     "deploy:host-modules": "scp host/modules/*.min.js nodejs@videoswipe.net:~/supermassive/host/modules",
     "deploy:dashboard": "scp host/dashboard/*.min.js nodejs@videoswipe.net:~/supermassive/host/dashboard",
     "deploy:assets": "scp -r public/assets nodejs@videoswipe.net:~/supermassive/public/",
-    "deploy": "npm-run-all deploy:public-modules deploy:host-modules deploy:dashboard deploy:assets"
+    "deploy": "npm-run-all deploy:public-modules deploy:host-modules deploy:dashboard deploy:assets",
+    "push": "scp server/app.js nodejs@videoswipe.net:~/supermassive/server && scp server/routes/routes.auth.js nodejs@videoswipe.net:~/supermassive/server/routes"
   },
   "author": "",
   "license": "ISC",

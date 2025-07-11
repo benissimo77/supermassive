@@ -5,9 +5,9 @@ import express from 'express';
 const router = express.Router({ strict: true });
 
 const isAuth = (req, res, next) => {
-	console.log('isAuth:', req.user, req.session, req.isAuthenticated());
+	// console.log('isAuth:', req.user, req.session, req.isAuthenticated());
 	if (req.isAuthenticated()) {
-		console.log('User is authenticated:', req.user);
+		console.log('isAuth:: User is authenticated:', req.user);
 		next();
 	} else {
 		// res.status(401).json({ msg: 'You are not authorized to view this resource' });
@@ -26,13 +26,15 @@ const isAdmin = (req, res, next) => {
 
 // Middleware to check if the user is a host
 function checkHost(req, res, next) {
-	console.log('checkHost:', req.session, req.url, req.originalUrl, req.baseUrl, req.path, req.params, req.query);
+	// console.log('checkHost:', req.session, req.url, req.originalUrl, req.baseUrl, req.path, req.params, req.query);
 	if (req.session && req.session.host) {
+		console.log('checkHost:: User is a host:', req.session.host);
 		next();
 	} else {
 		//res.redirect('/login');
 		// Since user has come via the /host directory and this has been authenticated then user must be a host
 		req.session.host = 1;
+		console.log('checkHost:: User is not a host, setting host:', req.session.host);
 		next();
 	}
 }
@@ -42,7 +44,7 @@ function checkRoom(req, res, next) {
 	// console.log('checkRoom:', req.baseUrl, req.originalUrl, req.url, req.path, req.params, req.query);
 
 	// In development we want to be able to override the room name by adding directly to query
-	console.log(process.env.NODE_ENV, req.query);
+	// console.log(process.env.NODE_ENV, req.query);
 	if (process.env.NODE_ENV === 'development') {
 		if (req.query.room) {
 			req.session.room = req.query.room;
@@ -56,13 +58,6 @@ function checkRoom(req, res, next) {
 		next();
 	}
 }
-
-// Log the incoming request for debugging
-router.use((req, res, next) => {
-	console.log(`HOST ROUTE:: Incoming request: ${req.method} ${req.url}`);
-	console.log('Content-Security-Policy:', res.getHeader('Content-Security-Policy'));
-	next();
-});
 
 router.use([isAuth, checkHost, checkRoom]);
 
@@ -143,7 +138,7 @@ router.get('/admin', (req, res) => {
 
 
 const generateNewRoomName = () => {
-	return 'NUTS';
+	return 'NUTS5';
 }
 
 export default router;

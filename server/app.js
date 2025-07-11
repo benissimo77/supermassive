@@ -16,9 +16,6 @@ import loginRoutes from './routes/routes.auth.js';
 import apiQuiz from './api/api.quiz.js';
 import apiImage from './api/api.image.js';
 
-// Get __dirname in ES modules
-const __filename = fileURLToPath(import.meta.url);
-
 console.log('######  app.js is running  ######');
 
 // Check essential environment variables
@@ -55,6 +52,12 @@ app.use(express.urlencoded({ extended: true }));
 // Determine if the app is running in production
 const isProduction = process.env.NODE_ENV === 'production';
 
+// This is required when running behind a reverse proxy such as nginx (and that took my six hours to figure out)
+if (isProduction) {
+  app.set('trust proxy', 1);
+  console.log('Trust proxy enabled for production');
+}
+
 // Initialize session cookies with MongoDB store
 const sessionMiddleware = session({
   secret: process.env.SESSION_SECRET,
@@ -62,8 +65,6 @@ const sessionMiddleware = session({
   saveUninitialized: false,
   cookie: {
     secure: isProduction,
-    httpOnly: false,
-    sameSite: 'none',
     maxAge: 7 * 24 * 60 * 60 * 1000
   },
   // Add MongoDB store
@@ -85,125 +86,172 @@ app.use(passport.session());
 // Serve static files from the public directory
 app.use(express.static('public'));
 
-// Add after your session middleware, before your routes
-app.use((req, res, next) => {
-  // Only log for authentication-related paths
-  if (req.path.includes('/auth/') || req.path.includes('/host/')) {
-    console.log(`[Cookie Debug] ${req.method} ${req.path}`);
-    console.log(`- Has cookies: ${!!req.headers.cookie}`);
-    console.log(`- Session ID: ${req.sessionID || 'none'}`);
-  }
-  next();
-});
-// Add after your session middleware
-app.use((req, res, next) => {
-  if (req.path.includes('/auth/login')) {
-    // Store the original end method
-    const originalEnd = res.end;
-    
-    // Override end method
-    res.end = function(chunk, encoding) {
-      // Log headers before response is sent
-      console.log('\n=== RESPONSE HEADERS ===');
-      console.log('URL:', req.method, req.originalUrl);
-      console.log('Set-Cookie header:', res.getHeader('Set-Cookie'));
-      console.log('=======================\n');
-      
-      // Call the original end method
-      return originalEnd.call(this, chunk, encoding);
-    };
-  }
-  next();
-});
-// Add to app.js
-app.get('/test-cookie', (req, res) => {
-  // Set multiple test cookies with different settings
-  
-  // Test cookie 1: Standard secure cookie
-  res.cookie('test1', 'value1', {
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    secure: true,
-    httpOnly: false,
-    sameSite: 'none',
-    maxAge: 3600000,
-      // Add MongoDB store
-  store: MongoStore.create({
-    // Use the same MongoDB connection as your app
-    mongoUrl: process.env.MONGODB_URI,
-    collectionName: 'sessions',
-    ttl: 7 * 24 * 60 * 60,
-    touchAfter: 24 * 60 * 60, // Only update if 24 hours passed
-    autoRemove: 'native' // Use MongoDB's TTL index for cleanup
-  })
 
-  });
-  
-  // Test cookie 2: Non-secure cookie (shouldn't work on HTTPS)
-  res.cookie('test2', 'value2', {
-    secure: false,
-    httpOnly: false,
-    maxAge: 3600000
-  });
-  
-  // Test cookie 3: Different SameSite setting
-  res.cookie('test3', 'value3', {
+// Direct cookie setting (works)
+app.get('/test-direct-cookie', (req, res) => {
+  console.log('Setting direct cookie...');
+  res.cookie('direct-test', 'direct-value', {
     secure: true,
     httpOnly: false,
-    sameSite: 'lax',
+    maxAge: 3600000
+  });
+  res.send('Direct cookie set, check your Application tab');
+});
+
+// Session cookie setting (doesn't work)
+app.get('/test-session-cookie', (req, res) => {
+  console.log('Setting session cookie...');
+  // Set some value in session
+  req.session.testValue = 'session-value-' + Date.now();
+  
+  // Force session save
+  req.session.save((err) => {
+    if (err) {
+      console.error('Session save error:', err);
+      return res.send('Session save failed: ' + err.message);
+    }
+    console.log('Session saved, headers:', res.getHeaderNames());
+    res.send('Session cookie should be set, check your Application tab');
+  });
+});
+// Add this diagnostic route
+app.get('/session-internals', (req, res) => {
+  // Check key express-session variables
+  const session = req.session;
+  
+  const diagnostics = {
+    sessionID: req.sessionID,
+    sessionExists: !!session,
+    isNew: session?.isNew,
+    isSaved: !session?.isNew,
+    isModified: session?._isModified,
+    isPopulated: !!Object.keys(session || {}).length,
+    cookieOptions: session?.cookie,
+    saveMethod: !!session?.save,
+    resHasCookieMethod: !!res.cookie,
+    setHeaderMethod: !!res.setHeader
+  };
+  
+  console.log('Session internals:', diagnostics);
+  
+  res.json(diagnostics);
+});
+// Add this test route
+app.get('/test-session-save', (req, res) => {
+  // Set a session value
+  req.session.testTimestamp = Date.now();
+  
+  console.log('Before save:');
+  console.log('- Session ID:', req.sessionID);
+  console.log('- Session is new:', req.session.isNew);
+  console.log('- Session cookie:', req.session.cookie);
+  
+  // Save with detailed tracking
+  req.session.save((err) => {
+    if (err) {
+      console.error('Save error:', err);
+      return res.status(500).send('Save failed: ' + err.message);
+    }
+    
+    console.log('After save:');
+    console.log('- Session ID:', req.sessionID);
+    console.log('- Session is new:', req.session.isNew);
+    console.log('- Cookie in header:', res.getHeader('set-cookie'));
+    
+    // Try forcing a cookie directly after session save
+    res.cookie('post-session-test', 'value', {
+      secure: true,
+      httpOnly: false,
+      maxAge: 3600000
+    });
+    
+    console.log('After extra cookie:');
+    console.log('- Cookies in header:', res.getHeader('set-cookie'));
+    
+    res.send(`
+      <html>
+        <head><title>Session Save Test</title></head>
+        <body>
+          <h1>Session Save Test</h1>
+          <p>Session ID: ${req.sessionID}</p>
+          <p>Timestamp: ${req.session.testTimestamp}</p>
+          <p>Check console logs and Application tab</p>
+        </body>
+      </html>
+    `);
+  });
+});
+app.get('/test-auth-process', (req, res) => {
+  // Simulate a user object
+  const user = { id: '12345', email: 'test@example.com' };
+  
+  // This is basically what passport.logIn does
+  req.login(user, (err) => {
+    if (err) {
+      console.error('Login error:', err);
+      return res.status(500).send('Login failed: ' + err.message);
+    }
+    
+    console.log('After login:');
+    console.log('- User:', req.user);
+    console.log('- Session:', req.session);
+    console.log('- Authenticated:', req.isAuthenticated());
+    
+    // Explicitly save the session
+    req.session.save((err) => {
+      if (err) {
+        console.error('Session save error:', err);
+        return res.status(500).send('Session save failed: ' + err.message);
+      }
+      
+      console.log('After session save:');
+      console.log('- Cookie header:', res.getHeader('set-cookie'));
+      
+      res.send(`
+        <html>
+          <head><title>Auth Test</title></head>
+          <body>
+            <h1>Auth Test</h1>
+            <p>User: ${JSON.stringify(req.user)}</p>
+            <p>Authenticated: ${req.isAuthenticated()}</p>
+            <p>Check console logs and Application tab</p>
+          </body>
+        </html>
+      `);
+    });
+  });
+});
+app.get('/compare-headers', (req, res) => {
+  // First, set a direct cookie
+  res.cookie('direct-cookie', 'value', {
+    secure: true,
+    httpOnly: false,
     maxAge: 3600000
   });
   
-  // Return the response headers for debugging
-  const headers = res.getHeaders();
-  
-  res.send(`
-    <html>
-      <head>
-        <title>Cookie Test</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 20px; }
-          .success { color: green; }
-          .failure { color: red; }
-        </style>
-      </head>
-      <body>
-        <h1>Cookie Test</h1>
-        
-        <h2>Response Headers:</h2>
-        <pre>${JSON.stringify(headers, null, 2)}</pre>
-        
-        <h2>Cookies Set:</h2>
-        <div id="cookies">Checking...</div>
-        
-        <script>
-          // Display all cookies
-          function showCookies() {
-            const cookieDiv = document.getElementById('cookies');
-            const cookies = document.cookie;
-            
-            if (cookies) {
-              cookieDiv.innerHTML = '<p class="success">Cookies found:</p><ul>';
-              cookies.split(';').forEach(cookie => {
-                cookieDiv.innerHTML += '<li>' + cookie.trim() + '</li>';
-              });
-              cookieDiv.innerHTML += '</ul>';
-            } else {
-              cookieDiv.innerHTML = '<p class="failure">No cookies found!</p>';
-            }
-          }
+  // Then set a session value and save
+  req.session.compareTest = Date.now();
+  req.session.save((err) => {
+    if (err) console.error('Session save error:', err);
+    
+    // Get all response headers
+    const headers = res.getHeaders();
+    
+    res.send(`
+      <html>
+        <head><title>Header Comparison</title></head>
+        <body>
+          <h1>Response Headers</h1>
+          <pre>${JSON.stringify(headers, null, 2)}</pre>
           
-          // Run on page load
-          showCookies();
-          
-          // Check again after a short delay
-          setTimeout(showCookies, 500);
-        </script>
-      </body>
-    </html>
-  `);
+          <h2>Set-Cookie Header</h2>
+          <pre>${JSON.stringify(res.getHeader('set-cookie'), null, 2)}</pre>
+        </body>
+      </html>
+    `);
+  });
 });
+
 
 // ROUTES
 app.use('/', indexRoutes);

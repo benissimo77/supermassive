@@ -134,7 +134,7 @@ button.text:hover {
 }
 
 #message {
-    color: 
+    color: --base-clr;
     margin-bottom: 10px;
 }
 .error {

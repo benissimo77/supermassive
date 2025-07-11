@@ -35,7 +35,7 @@ class AuthController {
                     await userService.addProfileData(user);
 
                     // Redirect to a success page or dashboard
-                    return res.redirect('/dashboard');
+                    return res.redirect('/host/dashboard');
                 } catch (error) {
                     console.error('Error processing profile:', error);
                     return res.redirect('/login?error=profile_error');

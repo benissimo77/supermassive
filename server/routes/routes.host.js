@@ -57,16 +57,17 @@ function checkRoom(req, res, next) {
 	}
 }
 
+// Log the incoming request for debugging
+router.use((req, res, next) => {
+	console.log(`HOST ROUTE:: Incoming request: ${req.method} ${req.url}`);
+	next();
+});
+
 router.use([isAuth, checkHost, checkRoom]);
 
 
 // Before serving static files from the host directory, override some of the files to permit handlebars templating
 
-// Log the incoming request for debugging
-router.use((req, res, next) => {
-	console.log(`Incoming request: ${req.method} ${req.url}`);
-	next();
-});
 
 // Problem with all lines below - WHY DID I DO THIS USING HANDLEBARS???
 // One quick decision to allow handlebars to create a dynamic page and suddenly everything is a handlebars template

@@ -24,7 +24,7 @@ const isAdmin = (req, res, next) => {
 
 // Middleware to check if the user is a host
 function checkHost(req, res, next) {
-	// console.log('checkHost:', req.session, req.url, req.originalUrl, req.baseUrl, req.path, req.params, req.query);
+	console.log('checkHost:', req.session, req.url, req.originalUrl, req.baseUrl, req.path, req.params, req.query);
 	if (req.session && req.session.host) {
 		next();
 	} else {

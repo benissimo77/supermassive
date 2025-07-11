@@ -116,6 +116,7 @@ class QuizStateMachine {
 					}
 				}
 				break;
+
 			case QuizState.END_QUIZ:
 				this.transitionTo(QuizState.END_QUIZ);
 				break;
@@ -177,6 +178,7 @@ class QuizStateMachine {
 			case QuizState.INIT:
 				this.quiz.init();
 				break;
+
 			case QuizState.INTRO_QUIZ:
 				this.quiz.introQuiz()
 				break;
@@ -288,6 +290,46 @@ export default class Quiz extends Game {
 					updateScores: "question",
 					questions: [
 						{
+							"type": "draw",
+							"text": "Old-skool draw the answer!",
+							"image": null,
+							"audio": "",
+							"answer": "This is what you should have drawn..."
+
+						},
+						{
+							type: "text",
+							text: "What is the capital of France?",
+							image: null,
+							audio: "https://youtu.be/VtM1Jlfx_eA?si=slW5pOj-snu9OnKX",
+							answer: "Paris"
+						},
+						{
+							"type": "true-false",
+							"text": "True or False: this is a question?",
+							"image": null,
+							"audio": "",
+							"answer": "true"
+						},
+						{
+							type: 'multiple-choice',
+							text: 'Who wrote the play "Romeo and Juliet"?',
+							options: ['William Shakespeare', 'Charles Dickens', 'Jane Austen', 'Mark Twain']
+						},
+						{
+							type: "number-closest",
+							text: "Who is closest to 2.5?",
+							image: null,
+							answer: "2.5"
+						},
+						{
+							type: "text",
+							text: "What is the capital of France?",
+							image: null,
+							audio: "https://youtu.be/VtM1Jlfx_eA?si=slW5pOj-snu9OnKX",
+							answer: "Paris"
+						},
+						{
 							"type": "hotspot",
 							"text": "HOTSPOT!",
 							"image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAAGQCAIAAABkkLjnAAAACXBIWXMAAC4jAAAuIwF4pT92AAAInElEQVR4nO3ZsYredRqG4e8TttFCF2EPQLBwYJlaFosN2ESIRdLYKPbpYu/CFrtFTmCLLcwW0yiCEDuTU3BA0gnWOQCncdEi5bpwP1jMN3Jd3fxI8S9ueObNHO8/uDrQXDy888EnX133V9wML133B9wwz/76xXV/ws0grMHZ07uX73123V9xMwhrcP74o+v+hBtDWAM72AlrcPneZ2dP7173V9wMwtpYw0hYG2sYCWvgKuyENbCDnbAGdrAT1sBV2AlrYw0jYW2sYSSsgauwE9bADnbCGtjBTlgDV2EnrI01jIS1sYaRsAauwk5YAzvYCWtgBzthDVyFnbA21jAS1sYaRsIauAo7YQ3sYCesgR3shDVwFXbC2ljDSFgbaxgJa+Aq7IQ1sIOdsAZ2sBPWwFXYCWtjDSNhbaxhJKyBq7AT1sAOdsIa2MFOWANXYSesjTWMhLWxhpGwBq7CTlgDO9gJa2AHO2ENXIWdsDbWMBLWxhpGwhq4CjthDexgJ6yBHeyENXAVdsLaWMNIWBtrGAlr4CrshDWwg52wBnawE9bAVdgJa2MNI2FtrGEkrIGrsBPWwA52whrYwU5YA1dhJ6yNNYyEtbGGkbAGrsJOWAM72AlrYAc7YQ1chZ2wNtYwEtbGGkbCGrgKO2EN7GAnrIEd7IQ1cBV2wtpYw0hYG2sYCWvgKuyENbCDnbAGdrAT1sBV2AlrYw0jYW2sYSSsgauwE9bADnbCGtjBTlgDV2EnrI01jIS1sYaRsAauwk5YAzvYCWtgBzthDVyFnbA21jAS1sYaRsIauAq74zvf/Ov86w+f3fr88vajF09nT+558fIbX1669i+4WS+Hw+GkvudkX473H1wdaC4e3jl7etfv74XfsTaqioS1cRVGwhq4CjthDexgJ6yBHeyENfC3wk5YG2sYCWtjDSNhDVyFnbAGdrAT1sAOdsIauAo7YW2sYSSsjTWMhDVwFXbCGtjBTlgDO9gJa+Aq7IS1sYaRsDbWMBLWwFXYCWtgBzthDexgJ6yBq7AT1sYaRsLaWMNIWANXYSesgR3shDWwg52wBq7CTlgbaxgJa2MNI2ENXIWdsAZ2sBPWwA52whq4CjthbaxhJKyNNYyENXAVdsIa2MFOWAM72Alr4CrshLWxhpGwNtYwEtbAVdgJa2AHO2EN7GAnrIGrsBPWxhpGwtpYw0hYA1dhJ6yBHeyENbCDnbAGrsJOWBtrGAlrYw0jYQ1chZ2wBnawE9bADnbCGrgKO2FtrGEkrI01jIQ1cBV2whrYwU5YAzvYCWvgKuyEtbGGkbA21jAS1sBV2AlrYAc7YQ3sYCesgauwE9bGGkbC2ljDSFgDV2EnrIEd7IQ1sIOdsAauwk5YG2sYCWtjDSNhDVyFnbAGdrAT1sAOdsIauAo7YW2sYSSsjTWMhDVwFXbCGtjBTlgDO9gJa+Aq7IS1sYaRsDbWMBLWwFXYCWtgBzthDexgJ6yBq7AT1sYaRse33/n7t3/598v/ePPFz2dP7v30t+de/t/Ln77/82sf//F0vudkX46v//zu4XC4+ucPb335/qufnl/efvTiX3j535cfL/77/I3vTud7TvnleP/B1YHs4uGdDz756rq/4gbwO9bAVdgJa+Aq7IS1cRVGwtpYw0hYA38r7IQ1sIOdsAZ2sBPWwFXYCWtjDSNhbaxhJKyBq7AT1sAOdsIa2MFOWANXYSesjTWMhLWxhpGwBq7CTlgDO9gJa2AHO2ENXIWdsDbWMBLWxhpGwhq4CjthDexgJ6yBHeyENXAVdsLaWMNIWBtrGAlr4CrshDWwg52wBnawE9bAVdgJa2MNI2FtrGEkrIGrsBPWwA52whrYwU5YA1dhJ6yNNYyEtbGGkbAGrsJOWAM72AlrYAc7YQ1chZ2wNtYwEtbGGkbCGrgKO2EN7GAnrIEd7IQ1cBV2wtpYw0hYG2sYCWvgKuyENbCDnbAGdrAT1sBV2AlrYw0jYW2sYSSsgauwE9bADnbCGtjBTlgDV2EnrI01jIS1sYaRsAauwk5YAzvYCWtgBzthDVyFnbA21jAS1sYaRsIauAo7YQ3sYCesgR3shDVwFXbC2ljDSFgbaxgJa+Aq7IQ1sIOdsAZ2sBPWwFXYCWtjDSNhbaxhJKyBq7AT1sAOdsIa2MFOWANXYSesjTWMhLWxhpGwBq7CTlgDO9gJa2AHO2ENXIWdsDbWMBLWxhpGwhq4CjthDexgJ6yBHeyOtx7/5/L2oxc/nD25d/71h89ufe7lV18Oh8PZ07t/uHrlRL7nlF+Or//87ul8jZffzcvx/oOrA83Fwzvnjz/yX1mF37EGrsJOWANXYSesgauwE9bA3wo7YW2sYSSsjTWMhDVwFXbCGtjBTlgDO9gJa+Aq7IS1sYaRsDbWMBLWwFXYCWtgBzthDexgJ6yBq7AT1sYaRsLaWMNIWANXYSesgR3shDWwg52wBq7CTlgbaxgJa2MNI2ENXIWdsAZ2sBPWwA52whq4CjthbaxhJKyNNYyENXAVdsIa2MFOWAM72Alr4CrshLWxhpGwNtYwEtbAVdgJa2AHO2EN7GAnrIGrsBPWxhpGwtpYw0hYA1dhJ6yBHeyENbCDnbAGrsJOWBtrGAlrYw0jYQ1chZ2wBnawE9bADnbCGrgKO2FtrGEkrI01jIQ1cBV2whrYwU5YAzvYCWvgKuyEtbGGkbA21jAS1sBV2AlrYAc7YQ3sYCesgauwE9bGGkbC2ljDSFgDV2EnrIEd7IQ1sIOdsAauwk5YG2sYCWtjDSNhDVyFnbAGdrAT1sAOdsIauAo7YW2sYSSsjTWMhDVwFXbCGtjBTlgDO9gJa+Aq7IS1sYaRsDbWMBLWwFXYCWtgBzthDexgJ6yBq7AT1sYaRsLaWMNIWANXYSesgR3shDWwg52wBq7CTlgbaxgJa2MNI2ENXIWdsAZ2sPsFDlLVXPOGSogAAAAASUVORK5CYII=",
@@ -296,6 +338,21 @@ export default class Quiz extends Game {
 								"x": 100,
 								"y": 985
 							}
+						},
+						{
+							"type": "ordering",
+							"text": "Place in order",
+							"image": null,
+							"audio": "",
+							"startLabel": "Earliest",
+							"endLabel": "Latest",
+							"items": [
+								"1990",
+								"1995",
+								"2000",
+								"2004",
+								"2012"
+							]
 						},
 						{
 							"type": "point-it-out",
@@ -312,12 +369,6 @@ export default class Quiz extends Game {
 									"y": 320
 								}
 							}
-						},
-						{
-							type: "number-closest",
-							text: "Who is closest to 2.5?",
-							image: null,
-							answer: "2.5"
 						},
 
 					]
@@ -741,7 +792,7 @@ export default class Quiz extends Game {
 	// Called by room when it receives a host:requeststart from the host - this is the entry point to the game
 	async startGame(config) {
 		// Game start logic for game 1
-		console.log('Quiz: startGame:', config)
+		console.log('Quiz: startGame:', config, this.players);
 
 		// Initialize player scores to 0
 		this.players.forEach(player => {
@@ -752,8 +803,19 @@ export default class Quiz extends Game {
 		// We load the quiz from DB using the passed ID (see api.quiz.js)
 		if (config.quizID) {
 			// Load the quiz from DB
-			this.quizData = await QuizModel.getQuizByID(config.quizID);
+			// Since this is a DB operation we better catch errors
+			try {
+				const thisQuizData = await QuizModel.getQuizByID(config.quizID);
+				if (thisQuizData) {
+					this.quizData = thisQuizData;
+					console.log('Quiz::startGame: loaded quiz data:', this.quizData);
+				}
+			} catch (error) {
+				console.error('Quiz::startGame: no quiz data found for ID:', config.quizID);
+				console.log('Quiz::startGame: using default quiz data instead');
+			}	
 		}
+
 		// Load the quiz from file and start the state machine
 		// parseQuizFromCSV('quiz1.v1').then((quiz) => {
 		// 	this.quizData = quiz;
@@ -922,7 +984,6 @@ export default class Quiz extends Game {
 		delete localQuestion.itemsShuffled;
 		delete localQuestion.pairsShuffled;
 
-
 		// This is an exception where we want to automatically move to next state without waiting for host
 		// WHY? Because after asking a question we know we instantly want to either collect answers or show the answer
 		this.room.registerHostResponseHandler(() => {
@@ -944,6 +1005,7 @@ export default class Quiz extends Game {
 
 		// Prepare a local copy of the question for sending to players
 		// Note: could use the StructuredClone method above but for players its easier to build from scratch
+		// Though I'm not sure about that now - looks like quite a lot of code duplication
 		let localQuestion = {}
 		localQuestion.mode = 'ask';
 		localQuestion.direction = this.stateMachine.direction;
@@ -951,8 +1013,6 @@ export default class Quiz extends Game {
 		localQuestion.type = this.question.type;
 		localQuestion.options = this.question.optionsShuffled;
 		localQuestion.items = this.question.itemsShuffled;
-		localQuestion.startLabel = this.question.startLabel;
-		localQuestion.endLabel = this.question.endLabel;
 		localQuestion.pairs = this.question.pairsShuffled;
 		localQuestion.extra = this.question.extra;
 		// Include the image if it is required for the answer (hotspot, point-it-out)
@@ -987,7 +1047,7 @@ export default class Quiz extends Game {
 	}
 
 	// showAnswer
-	// Assumes the question is already displayed on the host screen, adds to it with the answer and the players who got the answer right
+	// Sends the full question to server (and maybe players) with the correct answer plus results
 	showAnswer() {
 
 		// For some question types (eg hotspot) the determining of the correct answer is harder
@@ -1000,17 +1060,53 @@ export default class Quiz extends Game {
 		localQuestion.items = this.question.itemsShuffled;
 		localQuestion.pairs = this.question.pairsShuffled;
 
-		// Who got the right answer? Just a Boolean true/false at this stage not a points thing
-		// Function to filter keys based on the value
-		function getKeysByValue(obj, value) {
-			return Object.entries(obj) // Convert the object into an array of [key, value] pairs
-				.filter(([key, val]) => val === value) // Filter pairs where the value matches the specified value
-				.map(([key]) => key); // Map the filtered pairs to get only the keys
-		}
-		this.question.playersCorrect = getKeysByValue(this.question.results, this.question.answer);
-
+		// Don't forget to include the question results
+		localQuestion.results = this.question.results;
 		console.dir('showAnswer:', localQuestion);
 		this.room.emitToHosts('server:showanswer', localQuestion);
+
+		// Special case for draw questions - we show all answers on the host screen but send each player a different player's answer and get them to score it
+		if (this.question.type === 'draw') {
+			this.submitToPlayersForScoring(localQuestion);
+		}
+	}
+
+	// submitToPlayersForScoring
+	// For draw questions we want to divide up all the answers and distribute them to players for scoring
+	submitToPlayersForScoring(question) {
+
+		// We need to send each player a different answer to score, from the players who answered the question
+		const players = question.results ? this.room.players.filter(player => question.results[player.sessionID]) : [];
+		console.log('server.quiz:: submitToPlayersForScoring: players:', players.length, players);
+		if (players.length === 0) {
+			console.log('server.quiz:: submitToPlayersForScoring: no players answered the question, skipping draw scoring');
+			return;
+		}
+		// For now we just send the second player answer to the first player, third to the second, etc.
+		// Last player gets the first player's answer
+		// First set up a response handler to collect the scores
+		const responseHandler = (socket, response) => {
+			console.log('server.quiz::submitToPlayersForScoring: responseHandler:', socket.id, response);
+			const player = this.room.getPlayerBySocketID(socket.id);
+			// We need to map this response back to the correct player
+			if (player && question.results[player.sessionID]) {
+				const index = players.findIndex(p => p.sessionID === player.sessionID);
+				if (index >= 0) {
+					const targetPlayer = players[index + 1] || players[0];
+					question.results[targetPlayer.sessionID].score = response;
+				}
+				console.log('server.quiz::submitToPlayersForScoring: updated question results:', question.results);
+			}
+		}
+
+		players.forEach((player, index) => {
+			const playerAnswer = question.results[player.sessionID];
+			const targetPlayer = players[index - 1] || players[players.length - 1];
+			console.log('server.quiz::submitToPlayersForScoring: sending answer to player:', player.sessionID, 'target:', targetPlayer, 'answer:', playerAnswer);
+			if (playerAnswer) {
+				this.room.emitToPlayers([targetPlayer.socketID], 'server:drawquestionscore', { playerAnswer });
+			}
+		});
 	}
 
 	// updateScores
@@ -1182,12 +1278,20 @@ export default class Quiz extends Game {
 
 			case 'point-it-out':
 				// This is simpler than hotspot since its just a right/wrong answer based on the rectangle hit area
-				Object.keys(question.results).forEach((result) => {
-					if ((question.results[result].x >= question.answer.start.x) &
-						(question.results[result].x <= question.answer.end.x) &
-						(question.results[result].y >= question.answer.start.y) &
-						(question.results[result].y <= question.answer.end.y)) {
-						scores[result] = 1;
+				Object.keys(question.results).forEach((sessionID) => {
+					if ((question.results[sessionID].x >= question.answer.start.x) &
+						(question.results[sessionID].x <= question.answer.end.x) &
+						(question.results[sessionID].y >= question.answer.start.y) &
+						(question.results[sessionID].y <= question.answer.end.y)) {
+						scores[sessionID] = 1;
+					}
+				});
+				break;
+
+			case 'draw':
+				Object.keys(question.results).forEach((sessionID) => {
+					if (question.results[sessionID].score) {
+						scores[sessionID] = question.results[sessionID].score;
 					}
 				});
 				break;

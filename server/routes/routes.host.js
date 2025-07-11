@@ -5,7 +5,9 @@ import express from 'express';
 const router = express.Router({ strict: true });
 
 const isAuth = (req, res, next) => {
+	console.log('isAuth:', req.session, req.url, req.originalUrl, req.baseUrl, req.path, req.params, req.query);
 	if (req.isAuthenticated()) {
+		console.log('User is authenticated:', req.user);
 		next();
 	} else {
 		// res.status(401).json({ msg: 'You are not authorized to view this resource' });

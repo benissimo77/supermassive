@@ -63,8 +63,18 @@ const sessionMiddleware = session({
   cookie: {
     secure: isProduction,
     httpOnly: false,
+    sameSite: 'none',
     maxAge: 7 * 24 * 60 * 60 * 1000
   },
+  // Add MongoDB store
+  store: MongoStore.create({
+    // Use the same MongoDB connection as your app
+    mongoUrl: process.env.MONGODB_URI,
+    collectionName: 'sessions',
+    ttl: 7 * 24 * 60 * 60,
+    touchAfter: 24 * 60 * 60, // Only update if 24 hours passed
+    autoRemove: 'native' // Use MongoDB's TTL index for cleanup
+  })
 });
 app.use(sessionMiddleware);
 
@@ -117,13 +127,23 @@ app.get('/test-cookie', (req, res) => {
     secure: true,
     httpOnly: false,
     sameSite: 'none',
-    maxAge: 3600000
+    maxAge: 3600000,
+      // Add MongoDB store
+  store: MongoStore.create({
+    // Use the same MongoDB connection as your app
+    mongoUrl: process.env.MONGODB_URI,
+    collectionName: 'sessions',
+    ttl: 7 * 24 * 60 * 60,
+    touchAfter: 24 * 60 * 60, // Only update if 24 hours passed
+    autoRemove: 'native' // Use MongoDB's TTL index for cleanup
+  })
+
   });
   
   // Test cookie 2: Non-secure cookie (shouldn't work on HTTPS)
   res.cookie('test2', 'value2', {
     secure: false,
-    httpOnly: true,
+    httpOnly: false,
     maxAge: 3600000
   });
   

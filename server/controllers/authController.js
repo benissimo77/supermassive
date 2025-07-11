@@ -56,8 +56,10 @@ class AuthController {
 
     async login(req, res) {
         console.log('authController: /login :', req.user);
-        extendUserSession(req);
+        console.log('Initial session:', JSON.stringify(req.session));
+
         if (req.user) {
+            extendUserSession(req);
             console.log('User logged in:', req.user.email || req.user.id);
             res.status(200).json(success());
         } else {

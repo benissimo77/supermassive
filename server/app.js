@@ -62,6 +62,7 @@ const sessionMiddleware = session({
   saveUninitialized: false,
   cookie: {
     secure: isProduction,
+    httpOnly: false,
     maxAge: 7 * 24 * 60 * 60 * 1000
   },
 });
@@ -122,7 +123,7 @@ app.get('/test-cookie', (req, res) => {
   // Test cookie 2: Non-secure cookie (shouldn't work on HTTPS)
   res.cookie('test2', 'value2', {
     secure: false,
-    httpOnly: false,
+    httpOnly: true,
     maxAge: 3600000
   });
   

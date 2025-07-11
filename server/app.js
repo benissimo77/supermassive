@@ -22,7 +22,7 @@ const __filename = fileURLToPath(import.meta.url);
 console.log('######  app.js is running  ######');
 
 // Check essential environment variables
-const requiredEnvVars = ['MONGODB_URI', 'SESSION_SECRET'];
+const requiredEnvVars = ['NODE_ENV','MONGODB_URI', 'SESSION_SECRET'];
 const missing = requiredEnvVars.filter(varName => !process.env[varName]);
 
 if (missing.length > 0) {

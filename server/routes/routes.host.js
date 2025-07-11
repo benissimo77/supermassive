@@ -60,6 +60,7 @@ function checkRoom(req, res, next) {
 // Log the incoming request for debugging
 router.use((req, res, next) => {
 	console.log(`HOST ROUTE:: Incoming request: ${req.method} ${req.url}`);
+	console.log('Content-Security-Policy:', res.getHeader('Content-Security-Policy'));
 	next();
 });
 

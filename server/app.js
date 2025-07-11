@@ -93,6 +93,102 @@ app.use((req, res, next) => {
   }
   next();
 });
+// Add after your session middleware
+app.use((req, res, next) => {
+  if (req.path.includes('/auth/login')) {
+    // Store the original end method
+    const originalEnd = res.end;
+    
+    // Override end method
+    res.end = function(chunk, encoding) {
+      // Log headers before response is sent
+      console.log('\n=== RESPONSE HEADERS ===');
+      console.log('URL:', req.method, req.originalUrl);
+      console.log('Set-Cookie header:', res.getHeader('Set-Cookie'));
+      console.log('=======================\n');
+      
+      // Call the original end method
+      return originalEnd.call(this, chunk, encoding);
+    };
+  }
+  next();
+});
+// Add to app.js
+app.get('/test-cookie', (req, res) => {
+  // Set multiple test cookies with different settings
+  
+  // Test cookie 1: Standard secure cookie
+  res.cookie('test1', 'value1', {
+    secure: true,
+    httpOnly: false,
+    sameSite: 'none',
+    maxAge: 3600000
+  });
+  
+  // Test cookie 2: Non-secure cookie (shouldn't work on HTTPS)
+  res.cookie('test2', 'value2', {
+    secure: false,
+    httpOnly: false,
+    maxAge: 3600000
+  });
+  
+  // Test cookie 3: Different SameSite setting
+  res.cookie('test3', 'value3', {
+    secure: true,
+    httpOnly: false,
+    sameSite: 'lax',
+    maxAge: 3600000
+  });
+  
+  // Return the response headers for debugging
+  const headers = res.getHeaders();
+  
+  res.send(`
+    <html>
+      <head>
+        <title>Cookie Test</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          .success { color: green; }
+          .failure { color: red; }
+        </style>
+      </head>
+      <body>
+        <h1>Cookie Test</h1>
+        
+        <h2>Response Headers:</h2>
+        <pre>${JSON.stringify(headers, null, 2)}</pre>
+        
+        <h2>Cookies Set:</h2>
+        <div id="cookies">Checking...</div>
+        
+        <script>
+          // Display all cookies
+          function showCookies() {
+            const cookieDiv = document.getElementById('cookies');
+            const cookies = document.cookie;
+            
+            if (cookies) {
+              cookieDiv.innerHTML = '<p class="success">Cookies found:</p><ul>';
+              cookies.split(';').forEach(cookie => {
+                cookieDiv.innerHTML += '<li>' + cookie.trim() + '</li>';
+              });
+              cookieDiv.innerHTML += '</ul>';
+            } else {
+              cookieDiv.innerHTML = '<p class="failure">No cookies found!</p>';
+            }
+          }
+          
+          // Run on page load
+          showCookies();
+          
+          // Check again after a short delay
+          setTimeout(showCookies, 500);
+        </script>
+      </body>
+    </html>
+  `);
+});
 
 // ROUTES
 app.use('/', indexRoutes);

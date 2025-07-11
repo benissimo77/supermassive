@@ -119,6 +119,9 @@ app.get('/test-cookie', (req, res) => {
   
   // Test cookie 1: Standard secure cookie
   res.cookie('test1', 'value1', {
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
     secure: true,
     httpOnly: false,
     sameSite: 'none',

@@ -61,7 +61,16 @@ class AuthController {
         if (req.user) {
             extendUserSession(req);
             console.log('User logged in:', req.user.email || req.user.id);
-            res.status(200).json(success());
+            // Explicitly save the session
+            req.session.save((err) => {
+                if (err) {
+                    console.error('Session save error:', err);
+                    return res.status(500).json(error('Session error'));
+                }
+                console.log('Session saved successfully:', JSON.stringify(req.session));
+                res.status(200).json(success('Logged in successfully', { user: req.user }));
+            });
+
         } else {
             console.log('User not logged in');
             res.status(400).json(error());

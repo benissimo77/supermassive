@@ -8,7 +8,7 @@ If valid game is loaded as a new scene and started
 Scene is able to return back to the lobby, game is destroyed
 */
 
-import { BaseScene } from '../BaseScene';
+import { BaseScene } from 'src/BaseScene';
 
 // I have a Player class which uses Phaser objects but DOMPlayer is slightly smoother with animations
 // Note: it needs its own setScale function to ensure correct scaling...

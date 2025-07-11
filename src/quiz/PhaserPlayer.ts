@@ -109,7 +109,10 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 
 		}, scene);
 
-		// Start loading the avatar image
+		// Start loading the avatar image - workaround for situation where avatar is not supplied (eg host as player)
+		if (!playerConfig.avatar) {
+			playerConfig.avatar = 'default';
+		}
 		scene.load.image(playerConfig.avatar, `/img/avatar-100/image-from-rawpixel-id-${playerConfig.avatar}-original.png`);
 		scene.load.start();
 	}

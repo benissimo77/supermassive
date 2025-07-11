@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,6 +13,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
     <header id="main-header">
         <div class="container">
@@ -35,11 +37,24 @@
             <div class="hero-overlay"></div>
 
             <div class="container">
-                <h1>Your next game night just got better...</h1>
-                <p>Join thousands of players in fast-paced, hilarious games you can enjoy from anywhere.</p>
-                <div class="cta-buttons">
-                    <a class="btn btn-primary btn-large" href="play">Start Playing Now</a>
-                    <a class="btn btn-secondary btn-large">Learn More</a>
+                <h1>Your next quiz night just got better...</h1>
+                <p>Create, share and play interactive quizzes with friends, family, or colleagues</p>
+
+                <div class="two-column-layout">
+                    <div class="column column-right">
+                        <i class="fas fa-gamepad column-icon"></i>
+                        <h2 class="card-title">Join a Quiz</h2>
+                        <p class="card-text">Use your phone or tablet to join a quiz room and prepare to compete</p>
+                        <a class="btn btn-secondary btn-large">Start Playing Now</a>
+                    </div>
+                    <div class="column column-left">
+                        <i class="fas fa-chalkboard-teacher column-icon"></i>
+                        <h2 class="card-title">Host a Quiz</h2>
+                        <p class="card-text">Connect your laptop to the big screen, invite players to join you and
+                            unleash your inner Monty Hall</p>
+                        <a class="btn btn-primary btn-large">Start Hosting Now</a>
+                    </div>
+
                 </div>
             </div>
         </section>
@@ -49,131 +64,71 @@
                 <h1>How It Works</h1>
                 <img src="img/videoswipe-instructions.png" alt="How It Works">
             </div>
+
             <!-- Only have a single wave divider in each section -->
             <div class="wave-divider">
                 <svg viewBox="0 0 1440 300" preserveAspectRatio="none">
-                    <path class="wave1" d="M0,50 C360,20 1080,80 1440,50 C1800,25 2520,75 2880,50 L2880,300 L0,300 Z"></path>
-                    <path class="wave2" d="M0,100 C360,60 1080,140 1440,100 C1800,60 2520,140 2880,100 L2880,300 L0,300 Z"></path>
-                    <path class="wave3" d="M0,150 C360,90 1080,190 1440,150 C1800,90 2520,190 2880,150 L2880,300 L0,300 Z"></path>
-                    <path class="wave4" d="M0,200 C360,120 1080,260 1440,200 C1800,120 2520,260 2880,200 L2880,300 L0,300 Z"></path>
-                    <path class="wave5" d="M0,250 C360,150 1080,350 1440,250 C1800,150 2520,350 2880,250 L2880,300 L0,300 Z"></path>
+                    <path class="wave1" d="M0,50 C360,20 1080,80 1440,50 C1800,25 2520,75 2880,50 L2880,300 L0,300 Z">
+                    </path>
+                    <path class="wave2"
+                        d="M0,100 C360,60 1080,140 1440,100 C1800,60 2520,140 2880,100 L2880,300 L0,300 Z"></path>
+                    <path class="wave3"
+                        d="M0,150 C360,90 1080,190 1440,150 C1800,90 2520,190 2880,150 L2880,300 L0,300 Z"></path>
+                    <path class="wave4"
+                        d="M0,200 C360,120 1080,260 1440,200 C1800,120 2520,260 2880,200 L2880,300 L0,300 Z"></path>
+                    <path class="wave5"
+                        d="M0,250 C360,150 1080,350 1440,250 C1800,150 2520,350 2880,250 L2880,300 L0,300 Z"></path>
 
                 </svg>
             </div>
         </section>
 
-        <section id="games" class="section-blue">
+        <section id="play-create-share" class="section-dark">
+
             <div class="container">
-                <h2>Popular Games</h2>
-                <div class="games-grid">
-                    <div class="game-card">
-                        <img src="img/CGDream-In A Modern, Stylish Living Room, A Diverse Group .png" alt="Game 1">
-                        <h3>Awesome Game 1</h3>
-                        <p>Experience the thrill of our most popular party game!</p>
-                        <div class="game-meta">
-                            <span><i class="fas fa-users"></i> 2-8 players</span>
-                            <span><i class="fas fa-clock"></i> 15-30 min</span>
-                            <span><i class="fas fa-star"></i> 4.9/5</span>
+
+                <div class="two-column-layout two-column-text-right">
+                    <div class="column column-left">
+
+                        <div class="block-text">
+                            <span class="play-word">Play</span><br /><span class="create-word">Create</span><br /><span
+                                class="share-word">Share</span>
                         </div>
-                        <button class="btn btn-primary">Play Now</button>
                     </div>
-                    <div class="game-card">
-                        <img src="/placeholder.svg?height=300&width=400&text=Game+2" alt="Game 2">
-                        <h3>Awesome Game 2</h3>
-                        <p>Challenge your friends in this exciting strategy game!</p>
-                        <div class="game-meta">
-                            <span><i class="fas fa-users"></i> 3-6 players</span>
-                            <span><i class="fas fa-clock"></i> 20-40 min</span>
-                            <span><i class="fas fa-star"></i> 4.8/5</span>
+
+                    <div class="column column-right">
+                        <ul>
+                            <li>Grab and go from our wide selection of oven-ready quizzes</li>
+                            <li>Perm your own quiz from our database of battle-tested questions</li>
+                            <li>Mix in your own questions for that personal touch</li>
+                            <li>Share your creations and spread the <span class="fas fa-heart"></span></li>
+                            <li>Feel the dopamine hit as your quizzes collect plays and ratings</li>
+                            <li><span class="pro">PRO QUIZZERS</span>: Compete with other teams, and climb the
+                                leaderboards, in our LIVE quiz events</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <p>and now also...</p>
+
+                <div class="two-column-layout two-column-text-right">
+                    <div class="column column-left">
+                        <div class="block-text">
+                            <span class="try-word">Try</span>
                         </div>
-                        <button class="btn btn-primary">Play Now</button>
                     </div>
-                    <div class="game-card">
-                        <img src="/placeholder.svg?height=300&width=400&text=Game+3" alt="Game 3">
-                        <h3>Awesome Game 3</h3>
-                        <p>Test your knowledge in this fast-paced quiz game!</p>
-                        <div class="game-meta">
-                            <span><i class="fas fa-users"></i> 2-10 players</span>
-                            <span><i class="fas fa-clock"></i> 10-20 min</span>
-                            <span><i class="fas fa-star"></i> 4.7/5</span>
-                        </div>
-                        <button class="btn btn-primary">Play Now</button>
+                    <div class="column column-right">
+                        <ul>
+                            <li>Test-drive our interactive LIVE demo and see the whole system in action!</li>
+                            <li>Experience both hosting and playing in real-time</li>
+                            <li>Step through a sample quiz and see what all the fuss is about</li>
+                        </ul>
                     </div>
                 </div>
-            </div>
-        </section>
 
 
-        <section id="how-it-works-OLD" class="section-dark">
-            <div class="container">
-                <div class="punch-through-text-container">
-                    <h2 class="punch-through-text">Another approach</h2>
-                </div>
-                <div class="gradient-text">
-                    <h2 style="font-size:96px;">Another approach</h2>
-                    <p>This uses a background image in the content and transparent text for the punch through effect</p>
-                </div>
-                <div class="animated-gradient-text">
-                    <h2 style="font-size:96px;">Another approach</h2>
-                    <p>This uses a background image in the content and transparent text for the punch through effect</p>
-                </div>
-                
-                <div class="steps-grid">
-                    <div class="step">
-                        <div class="step-number">1</div>
-                        <h3>Sign Up</h3>
-                        <p>Create your free account in seconds. No credit card required.</p>
-                    </div>
-                    <div class="step">
-                        <div class="step-number">2</div>
-                        <h3>Choose a Game</h3>
-                        <p>Browse our selection of fun party games for all group sizes.</p>
-                    </div>
-                    <div class="step">
-                        <div class="step-number">3</div>
-                        <h3>Invite Friends</h3>
-                        <p>Share a link or code with friends to join your game room.</p>
-                    </div>
-                    <div class="step">
-                        <div class="step-number">4</div>
-                        <h3>Have Fun!</h3>
-                        <p>Enjoy fast-paced, hilarious games with your friends online.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
 
-        <section id="testimonials" class="section-light">
-            <div class="parallax-bg"></div>
-            <div class="container">
-                <h2>What Players Say</h2>
-                <div class="testimonials-grid">
-                    <div class="testimonial">
-                        <img src="/placeholder.svg?height=100&width=100&text=User+1" alt="User 1" class="avatar">
-                        <blockquote>"This platform has revolutionized our game nights! The games are so much fun and easy to play with friends, even when we're apart."</blockquote>
-                        <cite>Happy Gamer 1</cite>
-                        <p class="user-type">Casual Player</p>
-                    </div>
-                    <div class="testimonial">
-                        <img src="/placeholder.svg?height=100&width=100&text=User+2" alt="User 2" class="avatar">
-                        <blockquote>"I love how easy it is to set up a game. Within minutes, I'm playing and laughing with friends from all over the world."</blockquote>
-                        <cite>Happy Gamer 2</cite>
-                        <p class="user-type">Social Butterfly</p>
-                    </div>
-                    <div class="testimonial">
-                        <img src="/placeholder.svg?height=100&width=100&text=User+3" alt="User 3" class="avatar">
-                        <blockquote>"The variety of games keeps things fresh. There's always something new to try, and the community is fantastic!"</blockquote>
-                        <cite>Happy Gamer 3</cite>
-                        <p class="user-type">Game Enthusiast</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="how-it-works2" class="section-dark">
-            <div class="container">
-                <h2 class="gradient-text">How It Works</h2>
-                <div class="steps-grid">
+                <!-- <div class="steps-grid">
                     <div class="step">
                         <div class="step-number">1</div>
                         <h3>Sign Up</h3>
@@ -194,32 +149,14 @@
                         <h3>Have Fun!</h3>
                         <p>Enjoy fast-paced, hilarious games with your friends online.</p>
                     </div>
+                </div> -->
+
+                <div class="section-subtitle">
+                    <a href="./demo" class="btn btn-primary btn-large">Try the Demo</a>
                 </div>
-                <h2 class="gradient-text">How It Works</h2>
-                <div class="steps-grid">
-                    <div class="step">
-                        <div class="step-number">1</div>
-                        <h3>Sign Up</h3>
-                        <p class="gradient-text">Create your free account in seconds. No credit card required.</p>
-                    </div>
-                    <div class="step">
-                        <div class="step-number">2</div>
-                        <h3>Choose a Game</h3>
-                        <p>Browse our selection of fun party games for all group sizes.</p>
-                    </div>
-                    <div class="step">
-                        <div class="step-number">3</div>
-                        <h3>Invite Friends</h3>
-                        <p>Share a link or code with friends to join your game room.</p>
-                    </div>
-                    <div class="step">
-                        <div class="step-number">4</div>
-                        <h3>Have Fun!</h3>
-                        <p>Enjoy fast-paced, hilarious games with your friends online.</p>
-                    </div>
-                </div>
+
             </div>
-                <!-- <div class="wave-divider">
+            <!-- <div class="wave-divider">
                     <svg viewBox="0 0 1440 120" preserveAspectRatio="none">
                         <path class="wave wave1" d="M0,0 C480,120 960,120 1440,0 L1440,120 L0,120 Z"></path>
                     </svg>
@@ -239,33 +176,136 @@
                 </div> -->
         </section>
 
+        <section id="question-types" class="section-light">
+            <div class="container">
+
+                <h2 class="gradient-text">CAN WE ASK YOU SOMETHING?</h2>
+
+                <h2><span class="gradient-text">VideoSwipe </span><span class="reverse-gradient-text">White</span></h2>
+
+                <h2 style="position:relative;" class="gradient-text">
+                    <div style="position:absolute; top:0; left:0; width:100%; height:100%; text-shadow: 0 0 3px #ff0000, 0 0 5px #0000ff; z-index:-1;">VideoSwipe</div>
+                    <div style="z-index:-2;" class="gradient-text">VideoSwipe <span class="white-shadow">White</span><br/>&nbsp;</div>
+                </h2>
+
+                <h3 class="column-title">What do you think of multiple-choice quiz questions?</h3>
+                <p>
+                    A. They're the bedrock of a good quiz<br />
+                    B. They're a bit, you know, basic...<br />
+                    C. There must be better ways of asking questions<br />
+                    D. Like moving things around the screen, or sliding or swiping<br />
+                    E. Or dragging? Or dropping?<br />
+                </p>
+
+            </div>
+
+            <!-- Break out of the container for this part so it can fill the screen width -->
+            <div class="two-column-layout two-column-text-right">
+                <div class="column column-left">
+                    <center>
+                        <br/><br/><bn/>These are the stadium-filling global rock legends Coldplay<br/>Which one is the drummer?<br/>
+                    <img src="img/coldplay-band.webp" alt="Coldplay Question">
+                    </center>
+                </div>
+
+                <div class="column column-right">
+                    <h3 class="column-title">We agree!</h3>
+                    <p class="column-text">
+                        Sure, we love a good multiple-choice question (some might say they're the bedrock of a good
+                        quiz) but we designed VideoSwipe with your modern phone in mind, elevating the humble quiz to
+                        the status of interactive social game.
+                    </p>
+                    <p>But don't take our word for it&nbsp;&nbsp;
+                        <a href="./demo" class="btn btn-primary btn-large">Try it out!</a>
+                    </p>
+                </div>
+            </div>
+
+        </section>
+
         <section id="leaderboards" class="section-dark">
             <div class="container">
-                <h2 class="section-title">Leaderboards & Trophies</h2>
+
+                <div class="fancy-divider">
+                    <span class="divider-line"></span>
+                    <i class="fas fa-heart"></i>
+                    <span class="divider-line"></span>
+                </div>
+
+                <div class="animated-gradient-text">
+                    <h2 class="section-title">Popular quizzes this month</h2>
+                </div>
+
+                <div class="games-grid">
+                    <div class="game-card">
+                        <img src="img/rotation-phone.png" alt="Game 1">
+                        <h3>Awesome Game 1</h3>
+                        <p>Experience the thrill of our most popular party game!</p>
+                        <div class="game-meta">
+                            <span><i class="fas fa-users"></i> 2-8 players</span>
+                            <span><i class="fas fa-clock"></i> 15-30 min</span>
+                            <span><i class="fas fa-star"></i> 4.9/5</span>
+                        </div>
+                        <a class="btn btn-primary">Play Now</a>
+                    </div>
+                    <div class="game-card">
+                        <img src="/placeholder.svg?height=300&width=400&text=Game+2" alt="Game 2">
+                        <h3>Awesome Game 2</h3>
+                        <p>Challenge your friends in this exciting strategy game!</p>
+                        <div class="game-meta">
+                            <span><i class="fas fa-users"></i> 3-6 players</span>
+                            <span><i class="fas fa-clock"></i> 20-40 min</span>
+                            <span><i class="fas fa-star"></i> 4.8/5</span>
+                        </div>
+                        <a class="btn btn-primary">Play Now</a>
+                    </div>
+                    <div class="game-card">
+                        <img src="/placeholder.svg?height=300&width=400&text=Game+3" alt="Game 3">
+                        <h3>Awesome Game 3</h3>
+                        <p>Test your knowledge in this fast-paced quiz game!</p>
+                        <div class="game-meta">
+                            <span><i class="fas fa-users"></i> 2-10 players</span>
+                            <span><i class="fas fa-clock"></i> 10-20 min</span>
+                            <span><i class="fas fa-star"></i> 4.7/5</span>
+                        </div>
+                        <a class="btn btn-primary">Play Now</a>
+                    </div>
+                </div>
+
+
+                <div class="fancy-divider">
+                    <span class="divider-line"></span>
+                    <i class="fas fa-trophy"></i>
+                    <span class="divider-line"></span>
+                </div>
+
+                <div class="animated-gradient-text">
+                    <h2 class="section-title">Leaderboards & Trophies</h2>
+                </div>
                 <div class="leaderboard-grid">
                     <div class="leaderboard-card">
                         <h3 class="leaderboard-title">Total Game Nights Hosted</h3>
                         <div class="leaderboard-window">
                             <ul class="leaderboard-list">
                                 <li class="leaderboard-item">
-                                    <img src="img/avatar-100/image-from-rawpixel-id-12143497-original.png" alt="Player 1"
-                                        class="player-avatar">
+                                    <img src="img/avatar-100/image-from-rawpixel-id-12143497-original.png"
+                                        alt="Player 1" class="player-avatar">
                                     <span class="player-name">GameMaster42</span>
                                     <span class="player-rank badge elite">Elite</span>
                                     <div class="player-stars">★★★★★</div>
                                     <span class="player-score">142</span>
                                 </li>
                                 <li class="leaderboard-item">
-                                    <img src="img/avatar-100/image-from-rawpixel-id-12215207-original.png" alt="Player 2"
-                                        class="player-avatar">
+                                    <img src="img/avatar-100/image-from-rawpixel-id-12215207-original.png"
+                                        alt="Player 2" class="player-avatar">
                                     <span class="player-name">HostWithMost</span>
                                     <span class="player-rank badge commando">Commando</span>
                                     <div class="player-stars">★★★★☆</div>
                                     <span class="player-score">128</span>
                                 </li>
                                 <li class="leaderboard-item">
-                                    <img src="img/avatar-100/image-from-rawpixel-id-12660677-original.png" alt="Player 3"
-                                        class="player-avatar">
+                                    <img src="img/avatar-100/image-from-rawpixel-id-12660677-original.png"
+                                        alt="Player 3" class="player-avatar">
                                     <span class="player-name">PartyStarter99</span>
                                     <span class="player-rank badge master">Master</span>
                                     <div class="player-stars">★★★★☆</div>
@@ -279,24 +319,24 @@
                         <div class="leaderboard-window">
                             <ul class="leaderboard-list">
                                 <li class="leaderboard-item">
-                                    <img src="img/avatar-100/image-from-rawpixel-id-12791500-original.png" alt="Player 4"
-                                        class="player-avatar">
+                                    <img src="img/avatar-100/image-from-rawpixel-id-12791500-original.png"
+                                        alt="Player 4" class="player-avatar">
                                     <span class="player-name">GamerGuru</span>
                                     <span class="player-rank badge jedi">Jedi</span>
                                     <div class="player-stars">★★★★★</div>
                                     <span class="player-score">1,287</span>
                                 </li>
                                 <li class="leaderboard-item">
-                                    <img src="img/avatar-100/image-from-rawpixel-id-13100182-original.png" alt="Player 5"
-                                        class="player-avatar">
+                                    <img src="img/avatar-100/image-from-rawpixel-id-13100182-original.png"
+                                        alt="Player 5" class="player-avatar">
                                     <span class="player-name">PlayAllDay</span>
                                     <span class="player-rank badge sage">Sage</span>
                                     <div class="player-stars">★★★★☆</div>
                                     <span class="player-score">1,156</span>
                                 </li>
                                 <li class="leaderboard-item">
-                                    <img src="img/avatar-100/image-from-rawpixel-id-12143497-original.png" alt="Player 6"
-                                        class="player-avatar">
+                                    <img src="img/avatar-100/image-from-rawpixel-id-12143497-original.png"
+                                        alt="Player 6" class="player-avatar">
                                     <span class="player-name">GameOn24/7</span>
                                     <span class="player-rank badge wizard">Wizard</span>
                                     <div class="player-stars">★★★★☆</div>
@@ -306,13 +346,22 @@
                         </div>
                     </div>
                 </div>
-        
+
+                <div class="fancy-divider">
+                    <span class="divider-line"></span>
+                    <i class="fas fa-star"></i>
+                    <span class="divider-line"></span>
+                </div>
+
                 <div class="trophy-showcase">
-                    <h2 class="section-title">All-Time High Score</h2>
+                    <div class="animated-gradient-text">
+                        <h2 class="section-title">All-Time High Score</h2>
+                    </div>
                     <div class="champion-card-border">
                         <div class="champion-card">
                             <div class="champion-info">
-                                <img src="img/avatar-100/image-from-rawpixel-id-13100182-original.png" alt="Champion" class="champion-avatar">
+                                <img src="img/avatar-100/image-from-rawpixel-id-13100182-original.png" alt="Champion"
+                                    class="champion-avatar">
                                 <div class="champion-details">
                                     <span class="player-name">UltimateGamer99</span>
                                     <span class="player-rank badge legendary">Legendary</span>
@@ -343,14 +392,117 @@
             </div>
         </section>
 
-        <section id="cta" class="section-dark">
+        <section id="features" class="section-light">
+            <div class="container">
+                <h2 class="section-title">VideoSwipe by the numbers</h2>
+
+                <div class="two-column-layout two-column-text-left">
+                    <div class="column">
+                        <h3 class="column-title">Crafted for Social Experiences</h3>
+                        <p class="column-text">Unlike educational quiz tools, VideoSwipe is designed specifically for
+                            social entertainment. Our platform optimizes for fun, engagement, and memorable moments with
+                            friends and family.</p>
+                        <ul class="feature-list">
+                            <li>Real-time multiplayer interaction</li>
+                            <li>TV-optimized interface for group viewing</li>
+                            <li>Dramatic reveal animations for excitement</li>
+                            <li>Host controls for perfect pacing</li>
+                        </ul>
+                    </div>
+
+                    <div class="column">
+                        <div class="stat-container">
+                            <div class="stat-number">96%</div>
+                            <div class="stat-label">User satisfaction</div>
+                        </div>
+                        <div class="stat-container">
+                            <div class="stat-number">15+</div>
+                            <div class="stat-label">Question types</div>
+                        </div>
+                        <div class="stat-container">
+                            <div class="stat-number">2-20</div>
+                            <div class="stat-label">Players supported</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- <section id="testimonials" class="section-light">
+            <div class="parallax-bg"></div>
+            <div class="container">
+                <div class="animated-gradient-text">
+                    <h2 class="section-title">What Players Say</h2>
+                </div>
+
+                <div class="testimonials-grid">
+                    <div class="testimonial-card">
+                        <div class="testimonial-header">
+                            <img src="/placeholder.svg?height=100&width=100&text=User+1" alt="User 1"
+                                class="player-avatar">
+                            <div class="testimonial-user-info">
+                                <span class="player-name">Jane Wilson</span>
+                                <span class="player-rank badge elite">Quiz Master</span>
+                                <div class="player-stars">★★★★★</div>
+                            </div>
+                        </div>
+                        <blockquote>"This platform has revolutionized our game nights! The quizzes are so engaging and
+                            easy to play with friends, even when we're apart."</blockquote>
+                        <div class="testimonial-meta">
+                            <span><i class="fas fa-gamepad"></i> Casual Player</span>
+                            <span><i class="fas fa-trophy"></i> 24 Quizzes Hosted</span>
+                        </div>
+                    </div>
+                    <div class="testimonial-card">
+                        <div class="testimonial-header">
+                            <img src="/placeholder.svg?height=100&width=100&text=User+1" alt="User 1"
+                                class="player-avatar">
+                            <div class="testimonial-user-info">
+                                <span class="player-name">Jane Wilson</span>
+                                <span class="player-rank badge elite">Quiz Master</span>
+                                <div class="player-stars">★★★★★</div>
+                            </div>
+                        </div>
+                        <blockquote>"I love how easy it is to set up a game. Within minutes, I'm playing and laughing
+                            with friends from all over the world"</blockquote>
+                        <div class="testimonial-meta">
+                            <span><i class="fas fa-gamepad"></i> Casual Player</span>
+                            <span><i class="fas fa-trophy"></i> 24 Quizzes Hosted</span>
+                        </div>
+                    </div>
+                    <div class="testimonial-card">
+                        <div class="testimonial-header">
+                            <img src="/placeholder.svg?height=100&width=100&text=User+1" alt="User 1"
+                                class="player-avatar">
+                            <div class="testimonial-user-info">
+                                <span class="player-name">Jane Wilson</span>
+                                <span class="player-rank badge elite">Quiz Master</span>
+                                <div class="player-stars">★★★★★</div>
+                            </div>
+                        </div>
+                        <blockquote>"The variety of games keeps things fresh. There's always something new to try, and
+                            the community is fantastic!"</blockquote>
+                        <div class="testimonial-meta">
+                            <span><i class="fas fa-gamepad"></i> Casual Player</span>
+                            <span><i class="fas fa-trophy"></i> 24 Quizzes Hosted</span>
+                        </div>
+                    </div>
+
+                    <!-- Repeat for other testimonials with similar structure -->
+        </div>
+        </div>
+        </section>
+        -->
+
+        <!-- <section id="cta" class="section-dark">
             <div class="parallax-bg"></div>
             <div class="container">
                 <h2>Ready to Start Playing?</h2>
                 <p>Join thousands of players and start your gaming adventure today!</p>
-                <button class="btn btn-primary btn-large">Get Started Now <i class="fas fa-chevron-right"></i></button>
+                <a class="btn btn-primary btn-large">Get Started Now <i class="fas fa-chevron-right"></i></a>
             </div>
-        </section>
+        </section> -->
+
     </main>
 
     <footer id="main-footer" class="section-dark">
@@ -393,4 +545,5 @@
 
     <script src="landing.min.js"></script>
 </body>
+
 </html>

@@ -1,21 +1,25 @@
 import SocketManagerPlugin from './socketManager';
 import { Socket } from 'socket.io-client';
-
 import { PlayerConfig } from './DOMPlayer';
-
 
 export abstract class BaseScene extends Phaser.Scene {
     private static currentHeight = 1080;
     protected socket: Socket;
     private resizeHandler: (gameSize: Phaser.Structs.Size) => void;
     private shutdownHandler: () => void;
+    public rexUI!: any;
+    public rexToggleSwitch!: any;
 
     protected playerConfigs: Map<string, PlayerConfig> = new Map<string, PlayerConfig>();
 
     // TYPE is the type of screen we are showing, currently 'play' or 'host' (maybe 'admin', 'viewer' later)
     public TYPE: string;
+    // Store a flag for single player mode - maybe there is a better way to do this but see how far we get with this
+    public singlePlayerMode: boolean = false;
+    
     // The labelConfig is used for text styles in the scene, can be overridden by child scenes
     public labelConfig: Phaser.Types.GameObjects.Text.TextStyle;
+
 
     init(): void {
         console.log(`${this.scene.key}:: BaseScene.init: hello`);
@@ -45,6 +49,9 @@ export abstract class BaseScene extends Phaser.Scene {
         if (!socket) throw new Error('Socket not initialized');
         this.socket = socket;
 
+        // rexUI plugin is a scene plugin and available immediately as this.rexUI
+        console.log(`${this.scene.key}:: BaseScene.init: plugins:`, this.rexUI);
+
         // This is useful for debugging but quite noisy
         // this.socket.onAny((event, ...args) => {
         //     console.log('BaseScene:: Socket event:', event, args);
@@ -68,10 +75,10 @@ export abstract class BaseScene extends Phaser.Scene {
     }
 
     protected handlePlayerConnect(playerConfig: PlayerConfig): void {
-        console.log('BaseScene:: handlePlayerConnect:', playerConfig.socketID, playerConfig.name, playerConfig.avatar);
 
         // Store the player config in the map
         this.playerConfigs.set(playerConfig.sessionID, playerConfig);
+        console.log('BaseScene:: handlePlayerConnect:', { playerConfigs:this.playerConfigs });
 
     }
     protected handlePlayerDisconnect(sessionID: string): void {

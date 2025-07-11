@@ -2,7 +2,7 @@ import { BaseScene } from 'src/BaseScene';
 
 
 export class NineSliceDropZone extends Phaser.GameObjects.Container {
-
+    declare public scene: BaseScene;
     private normalSlice: Phaser.GameObjects.NineSlice;
     private hoverSlice: Phaser.GameObjects.NineSlice;
     private text: Phaser.GameObjects.Text;

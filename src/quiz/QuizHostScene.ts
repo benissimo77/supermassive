@@ -1,7 +1,9 @@
 import gsap from 'gsap';
 
-import { BaseScene } from "../BaseScene";
-import { SocketDebugger } from "../SocketDebugger";
+declare const __DEV__: boolean;
+
+import { BaseScene } from "src/BaseScene";
+import { SocketDebugger } from "src/SocketDebugger";
 
 import { QuestionFactory } from "./questions/QuestionFactory";
 import { BaseQuestion } from "./questions/BaseQuestion";
@@ -9,12 +11,17 @@ import { Racetrack } from "./Racetrack";
 import { PlayerConfig, PhaserPlayer } from './PhaserPlayer';
 import { YouTubePlayerUI } from './YouTubePlayerUI';
 
+import { SoundManager } from 'src/audio/SoundManager';
+import { SoundSettingsPanel } from 'src/ui/SoundSettingsPanel';
+
 export class QuizHostScene extends BaseScene {
 
     static readonly KEY = 'QuizHostScene';
 
     private socketDebugger: SocketDebugger;
 
+    private soundManager: SoundManager;
+    private soundSettings: SoundSettingsPanel;
     private questions: any[] = [];
     private currentQuestion: BaseQuestion;
     private currentRound: any = null;
@@ -29,7 +36,11 @@ export class QuizHostScene extends BaseScene {
     private timerBar: Phaser.GameObjects.Graphics;
     private timerText: Phaser.GameObjects.Text;
     private scoreBoard: Phaser.GameObjects.Container;
+
+    // Containers - created once in order to set the ordering
+    private playerContainer: Phaser.GameObjects.Container;
     private UIContainer: Phaser.GameObjects.Container;
+    private questionContainer: Phaser.GameObjects.Container;
 
     // For key press handling
     private lastKeyTime: number = 0;
@@ -43,12 +54,17 @@ export class QuizHostScene extends BaseScene {
     }
 
     init(): void {
+
         super.init();
 
+        console.log('QuizHostScene:: init.');
+
+        // for host the TYPE will be 'host' or 'solo'
         this.TYPE = 'host';
         this.playerScores = new Map();
         this.playerAnswers = new Map();
         this.questionFactory = new QuestionFactory(this);
+        this.soundManager = SoundManager.getInstance(this);
 
         // Text labels config object - can be overridden but this provides a base
         this.labelConfig = {
@@ -72,18 +88,25 @@ export class QuizHostScene extends BaseScene {
     preload(): void {
 
         // Load common assets for all question types
-        // this.load.image('quiz-background', 'img/quiz/background.jpg');
-        this.load.image('quiz-background', 'img/quiz/kling-background.png');
-        // this.load.image('quiz-background', 'assets/img/grid1920x1080.png');
-        this.load.image('simple-button', 'assets/img/simplebutton.png');
-        this.load.image('simple-button-hover', 'assets/img/simplebutton-hover.png');
-        this.load.image('dropzone', 'assets/img/dropzone.png');
+        // this.load.image('quiz-background', '/img/quiz/background.jpg');
+        this.load.image('quiz-background', '/img/quiz/kling-background.png');
+        // this.load.image('quiz-background', '/assets/img/grid1920x1080.png');
+        this.load.image('simple-button', '/assets/img/simplebutton.png');
+        this.load.image('simple-button-hover', '/assets/img/simplebutton-hover.png');
+        this.load.image('dropzone', '/assets/img/dropzone.png');
 
-        this.load.image('player-play', 'assets/img/YouTubePlayerButtons_90px_0002_play.png');
-        this.load.image('player-pause', 'assets/img/YouTubePlayerButtons_90px_0001_pause.png');
-        this.load.image('player-replay', 'assets/img/YouTubePlayerButtons_90px_0000_replay.png');
+        this.load.image('player-play', '/assets/img/YouTubePlayerButtons_90px_0002_play.png');
+        this.load.image('player-pause', '/assets/img/YouTubePlayerButtons_90px_0001_pause.png');
+        this.load.image('player-replay', '/assets/img/YouTubePlayerButtons_90px_0000_replay.png');
 
-        this.load.image('crosshair', 'img/crosshair40.png');
+        this.load.image('crosshair', '/img/crosshair40.png');
+
+        // Audio assets - theme music
+        this.load.audio('quiz-music-intro', '/assets/audio/modern-beat-jingle-intro-149598.mp3');
+        // Audio - voice
+        this.load.audio('quiz-voice-intro', '/assets/audio/quiz-intro-Gabriella.mp3');
+        // Audio SFX
+        this.load.audio('answer-correct', '/assets/audio/moneytree-answercorrect.wav');
 
         // Load custom fonts
         this.load.rexWebFont({
@@ -95,6 +118,13 @@ export class QuizHostScene extends BaseScene {
     }
 
     create(): void {
+
+        if (this.rexUI) {
+            // Create your UI components
+            console.log('Rex UI Plugin loaded successfully');
+        } else {
+            console.error('Rex UI Plugin not loaded properly');
+        }
 
         // Create background
         const background: Phaser.GameObjects.Image = this.add.image(0, 0, 'quiz-background').setOrigin(0, 0);
@@ -115,8 +145,27 @@ export class QuizHostScene extends BaseScene {
         this.racetrack.setPosition(0, this.getY(640));
         // this.scoreRacetrack.setVisible(false);
 
+        // Create the UI container for all UI elements
+        this.playerContainer = this.add.container(0, 0);
+        this.UIContainer = this.add.container(0, 0);
+        this.questionContainer = this.add.container(0, 0);
+
+        // Add a settings button to open the panel
+        this.soundSettings = new SoundSettingsPanel(this);
+        this.add.existing(this.soundSettings);
+
+        const settingsButton = this.add.image(1800, this.getY(80), 'player-play')
+            .setInteractive({ useHandCursor: true })
+            .on('pointerup', () => {
+                console.log('Settings button clicked');
+                this.soundSettings.toggle();
+            });
+
+        // Start background music - this works
+        // this.soundManager.playMusic('quiz-intro-music', { fadeIn: 2000 });
+
         // Only create the debugger in debug mode
-        const debugMode = new URLSearchParams(window.location.search).has('debug');
+        const debugMode = __DEV__;
         if (debugMode) {
             this.socketDebugger = new SocketDebugger(this, this.socket);
         }
@@ -126,7 +175,11 @@ export class QuizHostScene extends BaseScene {
 
         // We might want to run some kind of introduction - think opening credits of a TV quiz show
         // But since I don't have this yet, let's just show the quiz intro
-        this.socket.emit('host:requeststart', {});
+		const urlParams = new URLSearchParams(window.location.search);
+		const quizID = urlParams.get('q');
+		// Provide ability to go instantly to a quiz with a known ID
+        this.socket.emit('host:requeststart', { quizID: quizID });
+
     }
 
 
@@ -134,9 +187,10 @@ export class QuizHostScene extends BaseScene {
 
         // Player connect/disconnect - these are caught by BaseScene but quiz can also take action
         this.socket.on('playerconnect', (playerConfig: PlayerConfig) => {
+            console.log('QuizHostScene:: playerconnect :', { playerConfigs: this.getPlayerConfigsAsArray() });
             const thisPlayer: PhaserPlayer = this.addPlayer(playerConfig);
             this.racetrack.addPlayersToTrack(this.getPlayerConfigsAsArray());
-            console.log('QuizHostScene:: playerconnect:', playerConfig.name, playerConfig.avatar);
+            console.log(' DEBUG: - added to racetrack...');
             // this.animatePlayer(thisPlayer);
         });
 
@@ -277,6 +331,9 @@ export class QuizHostScene extends BaseScene {
     }
 
     private showQuizIntro(title: string, description: string): void {
+
+        // This works...
+        // this.soundManager.playMusic('quiz-music-intro', { volume: 0.5 });
 
         // Clear previous UI
         this.clearUI();
@@ -445,8 +502,9 @@ export class QuizHostScene extends BaseScene {
             } else {
                 this.currentQuestion.x = -1920;
             }
-            // Make sure it's added to the scene
+            // Make sure it's added to the scene, and to the question container (for depth management)
             this.add.existing(this.currentQuestion);
+            this.questionContainer.add(this.currentQuestion);
 
             gsap.to(this.currentQuestion, {
                 duration: 1,
@@ -457,6 +515,14 @@ export class QuizHostScene extends BaseScene {
                     this.socket.emit('host:response');
                 }
             });
+
+            // This code taken from QuizPlayScene - the way to submit an answer (for single-player mode when hosting)
+            this.currentQuestion.onAnswer((answer: any) => {
+                console.log('QuizJHostScene:: answer:', answer);
+                // Send the answer to the server
+                this.socket.emit('client:response', answer);
+            });
+
         }
 
     }
@@ -486,8 +552,8 @@ export class QuizHostScene extends BaseScene {
             width: 0,
             duration: duration * 1000,
             onUpdate: (tween) => {
-                const value:number|null = tween.getValue();
-                const width = Math.max(0, value ?? 0);
+                const value = tween.getValue();
+                const width = Math.max(0, value);
 
                 // Change color as time decreases
                 let color;
@@ -521,9 +587,9 @@ export class QuizHostScene extends BaseScene {
         // Additional timer update logic if needed
     }
 
-    private updatePlayerAnswer(playerId: string, answer: any): void {
+    private updatePlayerAnswer(playerID: string, answer: any): void {
         if (this.currentQuestion) {
-            // this.currentQuestion.updatePlayerAnswer(playerId, answer);
+            // this.currentQuestion.updatePlayerAnswer(playerID, answer);
         }
     }
 
@@ -542,17 +608,17 @@ export class QuizHostScene extends BaseScene {
         tl.play();
 
         // Store scores internally for other uses
-        // Object.entries(scores).forEach(([playerId, score]) => {
-        //     this.playerScores.set(playerId, score);
+        // Object.entries(scores).forEach(([playerID, score]) => {
+        //     this.playerScores.set(playerID, score);
         // });
     }
 
 
-    private getPlayerName(playerId: string): string {
+    private getPlayerName(playerID: string): string {
         // Placeholder - you would look up the actual player name
         // based on their ID in your player tracking system
         // For now just return a placeholder
-        return `Player ${playerId.substring(0, 4)}`;
+        return `Player ${playerID.substring(0, 4)}`;
     }
 
     private endRound(data: any): void {
@@ -642,10 +708,10 @@ export class QuizHostScene extends BaseScene {
         let winner = '';
         let highScore = 0;
 
-        this.playerScores.forEach((score, playerId) => {
+        this.playerScores.forEach((score, playerID) => {
             if (score > highScore) {
                 highScore = score;
-                winner = this.getPlayerName(playerId);
+                winner = this.getPlayerName(playerID);
             }
         });
 
@@ -662,8 +728,8 @@ export class QuizHostScene extends BaseScene {
         const sortedScores = Array.from(this.playerScores.entries())
             .sort((a, b) => b[1] - a[1]);
 
-        sortedScores.forEach(([playerId, score], index) => {
-            const player = this.getPlayerName(playerId);
+        sortedScores.forEach(([playerID, score], index) => {
+            const player = this.getPlayerName(playerID);
             const scoreText = this.add.text(960, this.getY(y + index * 40), `${index + 1}. ${player}: ${score}`)
                 .setFontSize(this.getY(32))
                 .setFontFamily('Arial')
@@ -681,7 +747,7 @@ export class QuizHostScene extends BaseScene {
             .setOrigin(0.5)
             .setInteractive({ useHandCursor: true })
             .on('pointerdown', () => {
-                this.scene.start('Lobby');
+                this.scene.start('LobbyHostScene');
             });
 
         this.UIContainer.add([titleText, winnerText, backButton]);
@@ -700,6 +766,7 @@ export class QuizHostScene extends BaseScene {
         }
         if (this.currentQuestion) {
             this.currentQuestion.destroy();
+            this.questionContainer.removeAll(true);
         }
     }
 
@@ -711,13 +778,3 @@ export class QuizHostScene extends BaseScene {
 
 }
 
-const config: Phaser.Types.Core.GameConfig = {
-    type: Phaser.AUTO,
-    width: 1920,
-    height: 1080,
-    scale: {
-        mode: Phaser.Scale.RESIZE
-    },
-    scene: QuizHostScene,
-    parent: 'container'
-};

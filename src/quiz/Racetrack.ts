@@ -3,7 +3,7 @@ import { PhaserPlayer, PlayerConfig } from "src/quiz/PhaserPlayer";
 import { gsap } from "gsap";
 
 export class Racetrack extends Phaser.GameObjects.Container {
-
+    public scene: BaseScene;
     private playerMarkers: Map<string, Phaser.GameObjects.Container> = new Map();
     private playerScores: Map<string, number> = new Map();
     private playerConfigs: Map<string, PlayerConfig> = new Map();
@@ -68,8 +68,8 @@ export class Racetrack extends Phaser.GameObjects.Container {
             false
         );
 
-        console.log('Racetrack::initialize:', playerConfigs.length, this.trackHeight, playerStart, playerSpacing, this.lanesContainer.y, this.y);
-
+        console.log('Racetrack::addPlayersToTrack:', { playerConfigs });
+        
         // Sort players by score
         playerConfigs.sort((a, b) => {
             const domA: PhaserPlayer = this.scene.getPlayerBySessionID(a.sessionID) as PhaserPlayer;

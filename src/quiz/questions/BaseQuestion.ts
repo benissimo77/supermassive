@@ -1,11 +1,12 @@
 import { BaseScene } from "src/BaseScene";
+import { DebugUtils as console } from 'src/scripts/DebugUtils';
+
 import { YouTubePlayerUI } from '../YouTubePlayerUI';
 
 // Some defaults to get us started (these are all logical units)
 const QUESTIONIMAGE_HEIGHT = 720;
 const QUESTIONVIDEO_HEIGHT = 480;
 const QUESTIONAUDIO_HEIGHT = 120;
-const QUESTIONANSWER_HEIGHT = 180;
 
 // Positioning Logic:
 // For PLAYER mode its simple: answers 1080, question 0
@@ -51,10 +52,10 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
         if (this.questionData.type === 'hotspot' || this.questionData.type === 'point-it-out') {
             return QUESTIONIMAGE_HEIGHT;
         }
-        if (this.questionData.image) {
+        if (this.questionData.image && this.questionData.image.length > 0) {
             return 240;
         }
-        if (this.questionData.video) {
+        if (this.questionData.video && this.questionData.video.length > 0) {
             return 360;
         }
         return 640;
@@ -80,24 +81,33 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
         let imageHeight = 0;
         let videoHeight = 0;
         let audioHeight = 0;
-        if (this.questionData.image) {
+        if (this.questionData.image && this.questionData.image.length > 0) {
             imageHeight = QUESTIONIMAGE_HEIGHT;
         }
-        if (this.questionData.video) {
-            videoHeight = QUESTIONVIDEO_HEIGHT;
-        }
-        if (this.questionData.audio) {
+        if (this.questionData.audio && this.questionData.audio.length > 0) {
             audioHeight = QUESTIONAUDIO_HEIGHT;
+            // If we have image AND audio then we need to shrink the image height
             imageHeight -= audioHeight;
             imageHeight = Math.max(0, imageHeight);
         }
-        let textHeight = questionHeight - imageHeight - videoHeight - audioHeight;
+        if (this.questionData.video && this.questionData.video.length > 0) {
+            videoHeight = QUESTIONVIDEO_HEIGHT;
+        }
 
-        console.log('BaseQuestion::display:', this.questionData.mode, this.scene.TYPE, { questionHeight, textHeight, audioHeight, videoHeight, imageHeight });
+        // Space available for text is the remainder of the vertical space
+        // Extra complexity: for hotspot and point-it-out the image is handled by child/answer so remove from calculation
+        let textHeight = questionHeight - imageHeight - videoHeight - audioHeight;
+        if (this.questionData.type === 'hotspot' || this.questionData.type === 'point-it-out') {
+            // For hotspot and point-it-out we don't display the image here, so text takes all remaining space
+            textHeight = questionHeight - videoHeight - audioHeight;
+        }
+
+        console.log('BaseQuestion::display:', this.questionData.mode, this.scene.TYPE, { answerHeight, questionHeight, textHeight, audioHeight, videoHeight, imageHeight });
+        console.log('BaseQuestion::display: questionData:', this.questionData);
 
         // If we are in ask mode then we need to clear the question and show the new one
         // If we are in answer mode we can assume we already have the question displayed - just show the answer
-        if (this.scene.TYPE == 'host' && this.questionData.mode == 'ask') {
+        if (this.questionData.mode == 'ask' && this.sceneTYPE != 'play') {
 
             // Clear previous content - Phaser built-in method
             this.removeAll(true);
@@ -173,12 +183,14 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
 
 
         // Create answer content - this will likely be different based on question type, overridden by concrete classes
-        // NOTE: this function clears and then writes directly into this.answerContainer
+        // NOTE: this function writes directly into this.answerContainer
         // NOTE2: this works for HOST and PLAY mode - answerHeight/questionHeight are set correctly at the top to ensure layout works
-        this.createAnswerUI(answerHeight);
+        this.answerContainer.removeAll(true);
         this.answerContainer.x = 960;
         this.answerContainer.y = this.scene.getY(questionHeight);
         this.add(this.answerContainer);
+
+        this.createAnswerUI(answerHeight);
 
         // Debug - add a small cross at the origin of the answer container
         const debugCross = this.scene.add.rectangle(0, 0, 10, 10, 0xff0000).setOrigin(0.5);

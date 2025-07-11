@@ -1,8 +1,8 @@
-import { BaseScene } from '../BaseScene';
+import { BaseScene } from 'src/BaseScene';
 
 
 export class NineSliceButton extends Phaser.GameObjects.Container {
-
+    declare public scene: BaseScene;
     private normalSlice: Phaser.GameObjects.NineSlice;
     private hoverSlice: Phaser.GameObjects.NineSlice;
     private text: Phaser.GameObjects.Text;
@@ -60,13 +60,13 @@ export class NineSliceButton extends Phaser.GameObjects.Container {
         const debugRect = this.scene.add.rectangle(0, 0, 5, 5, 0xffff00, 1).setOrigin(0.5);
         this.add(debugRect);
 
-        // Add hover effect - but calling class will decide if this is interactive or not
-        this.on('pointerover', this.onPointerOver, this);
-        this.on('pointerout', this.onPointerOut, this);
-
         // When making a container interactive we must set the size of the container
         // This function also adjusts the text size to fit the button
         this.setButtonSize(buttonWidth, buttonHeight);
+
+        // Add hover effect - but calling class will decide if this is interactive or not
+        this.on('pointerover', this.onPointerOver, this);
+        this.on('pointerout', this.onPointerOut, this);
 
         // Add to scene
         scene.add.existing(this);
@@ -87,12 +87,13 @@ export class NineSliceButton extends Phaser.GameObjects.Container {
         this.hoverSlice.setSize(width, height);
         this.setSize(width, height);
         this.text.setWordWrapWidth(width - 40);
-
+        
         console.log('NineSliceButton::setButtonSize:', width, height, this.width, this.height);
 
         // Call recursive function to adjust text height until it fits neatly
         this.adjustTextSize(height / 2);
     }
+
     public setButtonText(text: string): this {
         this.text.setText(text);
         this.adjustTextSize(this.height / 2);

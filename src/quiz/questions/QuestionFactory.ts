@@ -7,9 +7,8 @@ import OrderingQuestion from "./Ordering";
 import TextQuestion from "./Text";
 import NumberQuestion from "./Number";
 import HotspotQuestion from "./Hotspot";
+import DrawQuestion from "./Draw";
 
-// import PointItOutQuestion from "./QuestionPointItOut";
-// import DrawQuestion from "./QuestionDraw";
 
 export class QuestionFactory {
     private scene: BaseScene;
@@ -30,6 +29,7 @@ export class QuestionFactory {
             ['matching', OrderingQuestion],
             ['hotspot', HotspotQuestion],
             ['point-it-out', HotspotQuestion],
+            ['draw', DrawQuestion],
         ]);
     }
 

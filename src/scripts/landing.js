@@ -7,8 +7,8 @@ document.addEventListener('DOMContentLoaded', function() {
         backgroundColor: "rgba(26, 0, 51, 0.8)",
         backdropFilter: "blur(10px)",
         scrollTrigger: {
-            start: "top+=800",
-            end: "top+=1000",
+            start: "top+=200",
+            end: "top+=600",
             scrub: true
         }
     });
@@ -18,11 +18,11 @@ document.addEventListener('DOMContentLoaded', function() {
     gsap.registerPlugin(ScrollTrigger);
 
     // Hero section parallax effect
-    gsap.to('#hero', {
+    gsap.to('.gradient-text', {
         backgroundPosition: '50% 100%',
         ease: 'none',
         scrollTrigger: {
-            trigger: '#hero',
+            trigger: '#how-it-works',
             start: 'top top',
             end: 'bottom top',
             scrub: true

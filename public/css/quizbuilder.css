@@ -235,6 +235,13 @@ details summary {
           font-weight: bold;
         }
 
+        /* Hint text displayed below the answer type */
+        .question-type-hint {
+            display: block;
+            font-size: 0.9em;
+            color: var(--color-text-label);
+        }
+
         /* For fields that should take half width */
         .half-width {
             flex: 1 1 calc(50% - 15px) !important;

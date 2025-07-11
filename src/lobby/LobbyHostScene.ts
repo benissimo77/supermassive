@@ -7,16 +7,18 @@ Host can select a game
 If valid game is loaded as a new scene and started
 Scene is able to return back to the lobby, game is destroyed
 */
-
-import { BaseScene } from '../BaseScene';
+import { BaseScene } from 'src/BaseScene';
+import { SoundManager } from 'src/audio/SoundManager';
+import { ThemeManager } from 'src/ui/ThemeManager';
 
 // I have a Player class which uses Phaser objects but DOMPlayer is slightly smoother with animations
 // Note: it needs its own setScale function to ensure correct scaling...
 import { PlayerConfig, DOMPlayer } from '../DOMPlayer';
 
+
 export class LobbyHostScene extends BaseScene {
 
-	static readonly KEY = 'LobbyHostScene';
+	static readonly KEY: string = 'LobbyHostScene';
 
 	// Game name to scene key mapping
 	private gameToSceneMap: Record<string, string> = {
@@ -27,8 +29,14 @@ export class LobbyHostScene extends BaseScene {
 
 	private players: Map<string, DOMPlayer> = new Map<string, DOMPlayer>();
 
+	private soundManager: SoundManager;
+	private themeManager: ThemeManager;
+	private soundPanel: Phaser.GameObjects.Container;
+
 	constructor() {
 		super({ key: LobbyHostScene.KEY });
+		this.soundManager = SoundManager.getInstance(this);
+		this.themeManager = ThemeManager.getInstance();
 	}
 
 	// Note the order here - init comes first THEN preload THEN create...
@@ -59,8 +67,8 @@ export class LobbyHostScene extends BaseScene {
 		// 	console.log('Loader load error:', file);
 		// });
 
-		this.setupSocketListeners();
-
+		this.setupSocketListeners();		
+		
 	}
 
 	preload(): void {
@@ -89,6 +97,16 @@ export class LobbyHostScene extends BaseScene {
 		// Output the list of scenes...
 		const loadedScenes = this.scene.manager.scenes;
 		console.log('loaded scenes:', loadedScenes, 'scenemanager keys:', this.scene.manager.keys);
+
+		// Provide ability to go instantly to a quiz with a known ID
+		const urlParams = new URLSearchParams(window.location.search);
+		const quizID = urlParams.get('q');
+		// Provide ability to go instantly to a quiz with a known ID
+		if (quizID) {
+			console.log(`LobbyHostScene::init: quizID provided: ${quizID}`);
+			this.socket.emit('host:requestgame', 'quiz', { quizID: quizID });
+		}
+
 
 		// Testing of correct canvas scaling / positioning
 		this.add.rectangle(0, 0, 200, 100, 0xff0000).setOrigin(0, 0);
@@ -125,6 +143,91 @@ export class LobbyHostScene extends BaseScene {
 		dropzone.setScale(800 / dropzone.width, this.getY(80) / dropzone.height);
 		dropzone.setOrigin(0.5);
 		dropzone.setTint(0xFF0000);
+
+		this.rexUI.add.menu({
+			x: 960,
+			y: this.getY(700),
+			orientation: 'y',
+			background: this.rexUI.add.roundRectangle(0, 0, 0, 0, 20, 0x333333),
+
+			items: [
+				{ name: 'New Game', scene: 'LobbyHostScene' },
+				{ name: 'Continue', scene: 'QuizHostScene' },
+				{ name: 'Settings', scene: 'SettingsScene' },
+				{ name: 'Help', scene: 'HelpScene' }
+			],
+			createButtonCallback: (item, i) => {
+				return this.rexUI.add.label({
+					background: this.rexUI.add.roundRectangle(0, 0, 20, 40, 10, 0x7b5e9c),
+					text: this.add.text(0, 0, item.name, { fontSize: '20px' }),
+					space: { left: 10, right: 10, top: 10, bottom: 10 }
+				});
+			},
+			easeIn: {
+				duration: 500,
+				orientation: 'y'
+			}
+		})
+			.layout()
+			.on('button.click', (button, index, pointer, event) => {
+				const item = button.getData('item');
+				this.scene.start(item.scene);
+			});
+
+		// Create an animated score counter
+		const scoreBar = this.rexUI.add.numberBar({
+			x: 100,
+			y: this.getY(700),
+			width: 200,
+			background: this.rexUI.add.roundRectangle(0, 0, 0, 0, 10, 0x333333),
+			icon: this.add.image(0, 0, 'star'),
+			slider: {
+				track: this.rexUI.add.roundRectangle(0, 0, 0, 0, 10, 0x7b5e9c),
+				indicator: this.rexUI.add.roundRectangle(0, 0, 0, 0, 10, 0x5e9c7b),
+				input: 'none',
+			},
+			text: this.add.text(0, 0, '0', { fontSize: '24px' }),
+			space: { left: 10, right: 10, top: 10, bottom: 10, icon: 10 },
+			value: 0
+		})
+			.layout();
+
+		// Animate score change
+		this.tweens.add({
+			targets: scoreBar,
+			value: 100,
+			duration: 1000,
+			ease: 'Cubic.easeOut',
+			onUpdate: () => {
+				console.log('Tweening scoreBar:', scoreBar.value);
+				scoreBar.layout();
+			}
+		});
+
+		// No need to call layout() on circularProgress it seems to figure that out
+		const timer = this.rexUI.add.circularProgress({
+			x: 400,
+			y: this.getY(700),
+			radius: 50,
+			trackColor: 0x333333,
+			barColor: 0x7b5e9c,
+			centerColor: 0x000000,
+			thickness: 20,
+			value: 1
+		})
+
+		// Create countdown effect
+		this.tweens.add({
+			targets: timer,
+			value: 0,
+			duration: 10000, // 10 seconds
+			onUpdate: () => {
+				// timer.layout();
+			},
+			onComplete: () => {
+				// Time's up logic
+			}
+		});
 
 		// Experiments with buttons/text - good for quiz
 		const questionText = "By using a base scene that interacts with the SocketPlugin, you can effectively manage shared functionality across multiple scenes without directly handling the socket instance in each scene. This keeps your code organized and leverages the power of Phaser's plugin system. If you have any further questions or need additional assistance, feel free to ask!";
@@ -181,7 +284,133 @@ export class LobbyHostScene extends BaseScene {
 
 		// Last thing to do is to call the server to let them know we are ready
 		this.socket.emit('host:ready', { socketID: this.socket.id });
+
+		this.testSizer();
 	}
+
+	private testSizer(): void {
+		// Create a sizer with defined width
+		const testSizer = this.rexUI.add.sizer({
+			x: 960,
+			y: 200,
+			width: 600,
+			height: 200,
+			orientation: 'vertical',
+			space: { item: 10 }
+		});
+
+		// Set background to see the sizer boundaries
+		testSizer.addBackground(
+			this.rexUI.add.roundRectangle(0, 0, 0, 0, 10, 0x333333)
+		);
+
+		// Add label aligned left
+		const leftLabel = this.rexUI.add.label({
+			background: this.rexUI.add.roundRectangle(0, 0, 0, 0, 10, 0xff0000),
+			text: this.add.text(0, 0, 'Left Aligned and more', { fontSize: '24px', align: 'right' }),
+			space: { left: 10, right: 10, top: 5, bottom: 5 }
+		});
+		testSizer.add(leftLabel, { align: 'left' });
+
+		// Add label aligned center
+		const centerLabel = this.rexUI.add.label({
+			background: this.rexUI.add.roundRectangle(0, 0, 0, 0, 10, 0x00ff00),
+			text: this.add.text(0, 0, 'Center Aligned', { fontSize: '24px' }),
+			space: { left: 10, right: 10, top: 5, bottom: 5 }
+		});
+		testSizer.add(centerLabel, { align: 'center' });
+
+		// Add label aligned right
+		const rightLabel = this.rexUI.add.label({
+			background: this.rexUI.add.roundRectangle(0, 0, 0, 0, 10, 0x0000ff),
+			text: this.add.text(0, 0, 'Right Aligned', { fontSize: '24px' }),
+			space: { left: 10, right: 10, top: 5, bottom: 5 }
+		});
+		testSizer.add(rightLabel, { align: 'right' });
+
+		testSizer.layout();
+
+	}
+
+
+	private createToggle(text: string, initialValue: boolean, onChange: (value: boolean) => void): any {
+		// Create a horizontal sizer for the toggle and its label
+		const toggleContainer = this.rexUI.add.sizer({
+			orientation: 'horizontal',
+			space: { item: 10 }
+		});
+
+		// Add the label
+		toggleContainer.add(
+			this.add.text(0, 0, text)
+		);
+
+		// Track width and height
+		const trackWidth = 60;
+		const trackHeight = 30;
+
+		// Create the track
+		const track = this.rexUI.add.roundRectangle(
+			0, 0, trackWidth, trackHeight, trackHeight / 2,
+			0x4e4e4e
+		);
+
+		// Create the thumb that slides
+		const thumb = this.add.circle(
+			initialValue ? trackWidth / 4 : -trackWidth / 4, 0,
+			trackHeight / 2 - 4,
+			initialValue ? 0x00ff00 : 0xff0000
+		);
+
+		// Create container for track and thumb
+		const toggleSwitch = this.add.container(0, 0, [track, thumb]);
+		toggleSwitch.setSize(trackWidth, trackHeight);
+
+		// Store current value
+		let value = initialValue;
+
+		// Make toggle interactive
+		track.setInteractive({ useHandCursor: true })
+			.on('pointerdown', () => {
+				// Toggle the value
+				value = !value;
+
+				// Animate the thumb
+				this.tweens.add({
+					targets: thumb,
+					x: value ? trackWidth / 4 : -trackWidth / 4,
+					duration: 150,
+					ease: 'Power2'
+				});
+
+				// Change thumb color
+				thumb.setFillStyle(value ? 0x00ff00 : 0xff0000);
+
+				// Call the callback
+				onChange(value);
+			});
+
+		// Add the toggle switch to the container
+		toggleContainer.add(toggleSwitch);
+
+		// Layout and return
+		return toggleContainer.layout();
+	}
+
+	private toggleSoundPanelSimple(): void {
+		// Toggle visibility
+		this.soundPanel.setVisible(!this.soundPanel.visible);
+	}
+
+	// Experiment with resizing the panel
+	public resizeSoundPanel(width: number, height: number): void {
+		// Set a new size for the panel
+		this.soundPanel.setSize(width, height);
+
+		// Re-layout with new size
+		this.soundPanel.layout();
+	}
+
 
 	setupSocketListeners(): void {
 		console.log('Lobby.setupSocketListeners: hello.');
@@ -307,8 +536,8 @@ export class LobbyHostScene extends BaseScene {
 						duration: 5000,
 						ease: 'Cubic.easeInOut',
 						onUpdate: (tween: Phaser.Tweens.Tween) => {
-							const v:number|null = tween.getValue();
-							container.setScale(v?? 1);
+							const v: number | null = tween.getValue();
+							container.setScale(v ?? 1);
 						},
 
 					});
@@ -328,7 +557,6 @@ export class LobbyHostScene extends BaseScene {
 			this.animatePlayer(player);
 		});
 	}
-
 
 
 	logDisplaySizes(): void {

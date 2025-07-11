@@ -1,8 +1,9 @@
+import { gsap } from "gsap";
 import { BaseQuestion } from "./BaseQuestion";
 import { NineSliceButton } from "src/quiz/NineSliceButton";
 
 // NOTE: there is little difference between ordering and matching questions
-//      so we can use the same class for both types of questions
+// so we use the same class for both types of questions
 export default class OrderingQuestion extends BaseQuestion {
 
     private buttons: Map<string, NineSliceButton> = new Map<string, NineSliceButton>();
@@ -22,10 +23,7 @@ export default class OrderingQuestion extends BaseQuestion {
      */
     protected createAnswerUI(answerHeight: number): void {
 
-
         console.log('OrderingQuestion::createAnswerUI:', this.questionData.mode, this.scene.TYPE, answerHeight);
-
-        this.answerContainer.removeAll(true);
 
         // Separate the difference between ordering and matching questions
         // We need two things:
@@ -40,8 +38,11 @@ export default class OrderingQuestion extends BaseQuestion {
         let labels: string[];
         if (this.questionData.type == 'ordering') {
             labels = this.questionData.items.map(item => '');
-            labels[0] = this.questionData.startLabel;
-            labels[labels.length - 1] = this.questionData.endLabel;
+            // For ordering questions we have a start and end label
+            if (this.questionData.extra) {
+                labels[0] = this.questionData.extra.startLabel;
+                labels[labels.length - 1] = this.questionData.extra.endLabel;
+            }
         } else {
             labels = this.questionData.pairs.map(pair => pair.right);
         }
@@ -108,13 +109,14 @@ export default class OrderingQuestion extends BaseQuestion {
             this.answerContainer.add([dropzone, label]);
         });
 
-        // Add submit button
+        // Add submit button (always 200x80 for consistency across all questions)
         this.submitButton = new NineSliceButton(this.scene, 'Submit');
-        this.submitButton.setButtonSize(320, this.scene.getY(buttonHeight));
+        this.submitButton.setButtonSize(200, 80);
         this.submitButton.setPosition(-480, (answerHeight) / 2);
         this.submitButton.setVisible(false);
         this.submitButton.on('pointerup', () => {
             console.log('OrderingQuestion::createAnswerUI: Submit button clicked');
+            this.makeButtonsNonInteractive();
             // Collect the answers from the dropzones
             const answers: string[] = [];
             this.dropzones.forEach((dropzone, index) => {
@@ -127,7 +129,21 @@ export default class OrderingQuestion extends BaseQuestion {
             });
             console.log('OrderingQuestion::createAnswerUI: Collected answers:', answers);
             this.submitAnswer(answers);
-            this.makeButtonsNonInteractive();
+
+            // Juice - animate the buttons out
+            const tl = gsap.timeline();
+            tl.to(this.submitButton, {
+                y: 2000,
+                duration: 0.5,
+                ease: 'back.in'
+            });
+            tl.to(this.answerContainer, {
+                x: -2000,
+                duration: 0.5,
+                ease: 'power2.in'
+            });
+            tl.play();
+
         });
         this.submitButton.setInteractive({ useHandCuror: true });
 
@@ -138,7 +154,7 @@ export default class OrderingQuestion extends BaseQuestion {
         this.answerContainer.add(debugRect);
 
         // Make interactive if we are in ask mode and player screen
-        if (this.questionData.mode == 'ask' && this.scene.TYPE == 'play') {
+        if (this.questionData.mode == 'ask' && this.scene.TYPE != 'host') {
             this.makeButtonsInteractive();
             this.addSceneInputHandlers();
         }
@@ -170,11 +186,6 @@ export default class OrderingQuestion extends BaseQuestion {
                 }
             });
         }
-
-
-        // TESTING - make interactive
-        this.makeButtonsInteractive();
-        this.addSceneInputHandlers();
 
     }
 

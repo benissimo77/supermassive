@@ -1,4 +1,5 @@
-import { BaseScene } from "../BaseScene";
+import { BaseScene } from "src/BaseScene";
+import { SoundManager } from "src/audio/SoundManager";
 
 declare global {
     interface Window {
@@ -155,6 +156,11 @@ export class YouTubePlayerUI {
                 if (iframe && iframe.tagName === 'IFRAME') {
                     console.log('YouTube player iframe seems ok:', iframe);
                     this.eventEmitter.emit('ready', this);
+
+                    // Regiseter player with soundManager for volume control
+                    const soundManager = SoundManager.getInstance(this.scene);
+                    soundManager.registerYouTubePlayer(this.player);
+       
                 } else {
                     console.warn('YouTube player iframe not ready yet, trying again in 100ms');
                 }
@@ -415,6 +421,9 @@ export class YouTubePlayerUI {
                 console.warn('Error destroying YouTube player:', e);
             }
         }
+
+        const soundManager = SoundManager.getInstance(this.scene);
+        soundManager.unregisterYouTubePlayer();
 
         const iframe: HTMLElement | null= document.getElementById(this.uniqueId);
         if (iframe) {

@@ -1,3 +1,4 @@
+import { gsap } from "gsap";
 import { BaseQuestion } from "./BaseQuestion";
 import { NineSliceButton } from "../NineSliceButton";
 
@@ -18,8 +19,6 @@ export default class TrueFalseQuestion extends BaseQuestion {
      * If mode = 'ask' AND we are player screen then make interactive and collect player input
      */
     protected createAnswerUI(answerHeight: number): void {
-
-        this.answerContainer.removeAll(true);
 
         // This code copied directly from MultipleChoiceQuestion - should work for now
         let paddingHeight: number = answerHeight / 8;
@@ -53,7 +52,7 @@ export default class TrueFalseQuestion extends BaseQuestion {
             this.answerContainer.add(newButton);
 
             // Make interactive if we are in ask mode and player screen
-            if (this.questionData.mode == 'ask' && this.scene.TYPE == 'play') {
+            if (this.questionData.mode == 'ask' && this.scene.TYPE != 'host') {
                 this.makeButtonsInteractive();
             }
             // If we are in answer mode then we show the correct answer
@@ -69,10 +68,29 @@ export default class TrueFalseQuestion extends BaseQuestion {
 
         this.buttons.forEach((button, option) => {
 
-            button.setInteractive({ userHandCuror: true });
+            button.setInteractive({ useHandCuror: true });
             button.on('pointerup', () => {
                 this.submitAnswer(option);
                 this.makeButtonsNonInteractive();
+                button.bringToTop(this.answerContainer);
+                this.buttons.forEach( b => {
+                    console.log('TrueFalseQuestion::makeButtonsInteractive:', b, b === button);
+                    button.removeAllListeners();
+                    if (b === button) {
+                        gsap.to(b, {
+                            y: -2000,
+                            duration: 0.5,
+                            ease: 'power2.in',
+                            delay: 0.8
+                        })
+                    } else {
+                        gsap.to(b, {
+                            x: -2000,
+                            duration: 1,
+                            ease: 'power2.out'
+                        });
+                    }
+                });
             });
         });
     }

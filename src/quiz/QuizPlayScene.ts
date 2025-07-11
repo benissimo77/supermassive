@@ -1,10 +1,10 @@
-import { BaseScene } from "../BaseScene";
-import { SocketDebugger } from "../SocketDebugger";
+import { BaseScene } from "src/BaseScene";
+import { SocketDebugger } from "src/SocketDebugger";
 
 import { QuestionFactory } from "./questions/QuestionFactory";
 import { BaseQuestion } from "./questions/BaseQuestion";
 
-import { PlayerConfig } from "../DOMPlayer";
+import { PlayerConfig } from "src/DOMPlayer";
 
 
 export class QuizPlayScene extends BaseScene {

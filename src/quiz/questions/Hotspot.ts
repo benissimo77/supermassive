@@ -1,3 +1,4 @@
+import { gsap } from "gsap";
 import { BaseQuestion } from "./BaseQuestion";
 import { NineSliceButton } from "../NineSliceButton";
 
@@ -22,54 +23,73 @@ export default class HotSpotQuestion extends BaseQuestion {
      */
     protected createAnswerUI(answerHeight: number): void {
 
+        // This should never happen...
+        if (!this.questionData.image || this.questionData.image.length === 0) {
+            console.error('HotspotQuestion::createAnswerUI: No image provided in questionData');
+            return;
+        }
 
         console.log('HotspotQuestion::createAnswerUI:', this.questionData.mode, this.scene.TYPE, answerHeight);
 
-        this.answerContainer.removeAll(true);
         this.hotspotContainer = this.scene.add.container(0, 0);
         this.answerContainer.add(this.hotspotContainer);
 
-        // Create answer options - answerHeight is total amount of space available but we must allow some padding top and bottom
-        // For text questions its pretty simple - will likely have full height of 1080px since only displayed on player screen
         // ASK MODE:
-        // For HOST we display a message 'Type your answer'
-        // PLAYER we display a text field and a keyboard
+        // - HOST and PLAYER display image
+        // - PLAYER or singlePlayerMode make image interactive
         // ANSWER MODE:
-        // For HOST we display the answer text (in place of 'Type your answer')
+        // - HOST display image and add crosshairs at player answers plus correct answer
 
-        if (this.scene.TYPE == 'play' || 1) {
+        // Load the image for the hotspot
+        // This code taken from BaseQuestion
+        // Image is added with an origin of (0.5,0) - centered horizontally and anchored at the top
+        this.addQuestionImage()
+            .then((image: Phaser.GameObjects.Image) => {
+                this.image = image;
+                this.configureImageSize(image, answerHeight);
+                image.setPosition(0, 0);
+                this.hotspotContainer.add(image);
 
-            // Load the image for the hotspot
-            // This code taken from BaseQuestion
-            if (this.questionData.image) {
-                this.addQuestionImage()
-                    .then((image: Phaser.GameObjects.Image) => {
-                        this.image = image;
-                        this.configureImageSize(image, answerHeight);
-                        image.setPosition(0, 0);
-                        this.hotspotContainer.add(image);
-                        if (this.questionData.mode === 'ask') {
-                            // Make the image interactive for hotspot selection
-                            this.makeImageInteractive(image);
-                            this.addSubmitButton(answerHeight);
-                        } else {
-                            this.showResults(answerHeight);
-                        }
-                    })
-                    .catch((error: Error) => {
-                        console.error('Error loading question image:', error);
-                    });
-            }
-
-
-        }
-
+                if (this.questionData.mode === 'ask') {
+                    if (this.scene.TYPE == 'host') {
+                        // for host we just display the image and that is that
+                    } else {
+                        this.makeImageInteractive(image);
+                        this.addSubmitButton(answerHeight);
+                    }
+                } else {
+                    this.showResults(answerHeight);
+                }
+            })
+            .catch((error: Error) => {
+                console.error('Error loading question image:', error);
+            });
 
         // DEBUG - add rectangle to originof the answer container
         const debugRect = this.scene.add.rectangle(0, 0, 5, 5, 0xff0000, 0.5).setOrigin(0.5);
         this.hotspotContainer.add(debugRect);
     }
 
+    private submitImage(): void {
+        this.image.disableInteractive();
+        this.submitButton.disableInteractive();
+        this.submitAnswer(this.crosshairPos);
+
+        // Juice - animate the canvas and buttons out
+        const tl = gsap.timeline();
+        tl.to(this.submitButton, {
+            y:2000,
+            duration: 0.5,
+            ease: 'back.in'
+        });
+        tl.to(this.hotspotContainer, {
+            x: 2000,
+            duration: 0.5,
+            ease: 'back.in'
+        });
+        tl.play();
+
+    }
 
     private makeImageInteractive(image: Phaser.GameObjects.Image): void {
         image.setInteractive({ useHandCursor: true });
@@ -97,14 +117,13 @@ export default class HotSpotQuestion extends BaseQuestion {
     private addSubmitButton(answerHeight: number): void {
         // Add a SUBMIT button - move to bottom corner to give more space for text display
         this.submitButton = new NineSliceButton(this.scene, 'Submit');
-        this.submitButton.setButtonSize(320, 120);
+        this.submitButton.setButtonSize(200, 80);
         this.submitButton.setPosition(960 - 160 - 20, this.scene.getY(answerHeight - 80));
         this.submitButton.setVisible(false);
         this.submitButton.setInteractive({ useHandCursor: true });
         this.submitButton.on('pointerup', () => {
             console.log('HotspotQuestion::createAnswerUI: Submit button clicked:', this.crosshairPos);
-            this.submitAnswer(this.crosshairPos);
-            this.makeImageNonInteractive();
+            this.submitImage();
         });
         this.hotspotContainer.add(this.submitButton);
     }
@@ -204,10 +223,6 @@ export default class HotSpotQuestion extends BaseQuestion {
         rect.strokeRect(imageStartX, imageStartY, rectWidth, rectHeight);
 
         return rect;
-    }
-
-    private makeImageNonInteractive(): void {
-        this.image.disableInteractive();
     }
 
     public destroy(): void {

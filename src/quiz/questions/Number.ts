@@ -1,3 +1,4 @@
+import { gsap } from "gsap";
 import { BaseQuestion } from "./BaseQuestion";
 import { NineSliceButton } from "../NineSliceButton";
 
@@ -23,8 +24,6 @@ export default class NumberQuestion extends BaseQuestion {
 
         console.log('NumberQuestion::createAnswerUI:', this.questionData.mode, this.scene.TYPE, answerHeight);
 
-        this.answerContainer.removeAll(true);
-
         // Create answer options - answerHeight is total amount of space available but we must allow some padding top and bottom
         // For text questions its pretty simple - will likely have full height of 1080px since only displayed on player screen
         // ASK MODE:
@@ -33,33 +32,19 @@ export default class NumberQuestion extends BaseQuestion {
         // ANSWER MODE:
         // For HOST we display the answer text (in place of 'Type your answer')
 
-        if (this.scene.TYPE == 'host') {
+        if (this.questionData.mode == 'ask') {
 
-            let labelString: string = '';
-            if (this.questionData.mode == 'ask') {
-                labelString = 'Type your answer';
-            } else {
-                labelString = this.questionData.answer || 'No answer provided';
-            }
-            const labelStyle: Phaser.Types.GameObjects.Text.TextStyle = {
-                fontSize: this.scene.getY(48)
-            }
-            const labelConfig: Phaser.Types.GameObjects.Text.TextStyle = Object.assign({}, this.scene.labelConfig, labelStyle);
-            const labelText: Phaser.GameObjects.Text = this.scene.add.text(0, answerHeight / 2, labelString, labelConfig)
-                .setOrigin(0.5);
-
-            this.answerContainer.add(labelText);
-
-        } else {
-
-            const numRows: number = 4;
-            const rowHeight: number = 150;
-            const keyboardTop: number = answerHeight - numRows * rowHeight;
+            // Perform some calculations to determine vertical positions
+            // We have a total of answerHeight available for the keyboard and answer text
+            // Four rows of buttons plus another row for the answer text + half a row height top and bottom (= 6 rows)
+            const numRows: number = 6;
+            const rowHeight: number = answerHeight / numRows;
+            const buttonHeight: number = this.scene.getY(rowHeight * 0.9);
 
             // Create a text field to hold the current answer
-            const answerY: number = keyboardTop / 3;
+            const answerY: number = rowHeight / 2;
             const answerStyle: Phaser.Types.GameObjects.Text.TextStyle = {
-                fontSize: this.scene.getY(96)
+                fontSize: this.scene.getY(rowHeight * 0.8),
             }
             const answerConfig: Phaser.Types.GameObjects.Text.TextStyle = Object.assign({}, this.scene.labelConfig, answerStyle);
             this.answerText = this.scene.add.text(0, this.scene.getY(answerY), '', answerConfig)
@@ -69,19 +54,23 @@ export default class NumberQuestion extends BaseQuestion {
 
             // Create a keybaord - maybe make this a separate class at some point?
             // Create the 26 buttons to provide text input since I can't figure out how to make the DOM input field work properly
+            const keyboardContainer: Phaser.GameObjects.Container = this.scene.add.container(0, 0);
             const keyboardButtons: string[] = ['789', '456', '123', '-0.'];
 
             keyboardButtons.forEach((row, rowIndex) => {
                 row.split('').forEach((char, charIndex) => {
                     const button: NineSliceButton = new NineSliceButton(this.scene, char);
-                    button.setButtonSize(120, 120);
-                    button.setPosition(-320 + (rowIndex * 24) + (charIndex * 150), this.scene.getY(keyboardTop + 150 * rowIndex));
+                    button.setButtonSize(buttonHeight, buttonHeight);
+                    button.setPosition(-320 + (rowIndex * 24) + (charIndex * (buttonHeight + 24)), this.scene.getY(rowHeight * 2 + rowHeight * rowIndex));
                     button.setInteractive({ useHandCuror: true });
                     button.on('pointerup', () => {
                         if (char === '-') {
                             // If '-' is pressed, ensure it is at the start of the text
                             if (this.answerText.text.length === 0 || this.answerText.text[0] !== '-') {
                                 this.answerText.setText('-' + this.answerText.text);
+                            } else if (this.answerText.text[0] === '-') {
+                                // If '-' is already at the start, remove it
+                                this.answerText.setText(this.answerText.text.slice(1));
                             }
                         } else if (char === '.') {
                             // If '.' is pressed, ensure it is only added if there is no decimal point
@@ -96,35 +85,89 @@ export default class NumberQuestion extends BaseQuestion {
                         this.answerText.setText(this.answerText.text.slice(0, 10));
                     });
                     this.keys.set(char, button);
-                    this.answerContainer.add(button);
+                    keyboardContainer.add(button);
                 });
             });
 
             // Add a BACKSPACE button to the right of the top row of keys
             const backspaceButton: NineSliceButton = new NineSliceButton(this.scene, 'DELETE');
-            backspaceButton.setButtonSize(120 + 150, 120);
-            backspaceButton.setPosition(-320 + (0 * 45) + (3 * 150) + 75, this.scene.getY(keyboardTop));
+            backspaceButton.setButtonSize(buttonHeight + 150, buttonHeight);
+            backspaceButton.setPosition(-320 + (0 * 45) + (3 * (buttonHeight + 24)) + 75, this.scene.getY(rowHeight * 2));
             backspaceButton.setInteractive({ useHandCuror: true });
             backspaceButton.on('pointerup', () => {
                 this.answerText.setText(this.answerText.text.slice(0, -1));
             });
             this.keys.set('DELETE', backspaceButton);
-            this.answerContainer.add(backspaceButton);
+            keyboardContainer.add(backspaceButton);
+
+            this.answerContainer.add(keyboardContainer);
 
             // Add a SUBMIT button - move to bottom corner to give more space for text display
             this.submitButton = new NineSliceButton(this.scene, 'Submit');
-            this.submitButton.setButtonSize(320, 120);
+            this.submitButton.setButtonSize(200, 80);
             this.submitButton.setPosition(960 - 160 - 20, this.scene.getY(answerHeight - 80));
             this.submitButton.setVisible(true);
             this.submitButton.setInteractive({ useHandCuror: true });
             this.submitButton.on('pointerup', () => {
                 console.log('TextQuestion::createAnswerUI: Submit button clicked');
-                const answer = this.answerText ? this.answerText.text.trim() : '';
-                this.submitAnswer(answer);
+                let answer = this.answerText ? this.answerText.text.trim() : '0';
+                if (answer === '-') {
+                    answer = '0';
+                }
                 this.makeButtonsNonInteractive();
+                this.submitAnswer(answer);
+
+                // Juice - animate the canvas and buttons out
+                const tl = gsap.timeline();
+                tl.to(this.submitButton, {
+                    y: 2000,
+                    duration: 0.5,
+                    ease: 'back.in'
+                });
+                tl.to(keyboardContainer.getAll(), {
+                    x: -2000,
+                    duration: 0.5,
+                    ease: 'power2.in',
+                    stagger: 0.05
+                }, "<");
+                tl.to(this.answerText, {
+                    scale: 2,
+                    duration: 1,
+                    ease: 'back.out'
+                }); 
+                tl.to(this.answerText, {
+                    y: -2000,
+                    duration: 0.5,
+                    ease: 'power2.in'
+                });   
+                tl.play();
+
             });
+            this.keys.set('SUBMIT', this.submitButton);
             this.answerContainer.add(this.submitButton);
 
+            // Tweak to the above display for HOST screen - minimal change just disable keyboard and hide submit button
+            if (this.scene.TYPE == 'host') {
+                this.makeButtonsNonInteractive();
+                this.submitButton.setVisible(false);
+            }
+
+        } else {
+
+            // TYPE host and solo we display the answer
+            if (this.scene.TYPE != 'play') {
+
+                const labelString = this.questionData.answer || 'No answer provided';
+                const labelStyle: Phaser.Types.GameObjects.Text.TextStyle = {
+                    fontSize: this.scene.getY(96)
+                }
+                const labelConfig: Phaser.Types.GameObjects.Text.TextStyle = Object.assign({}, this.scene.labelConfig, labelStyle);
+                const labelText: Phaser.GameObjects.Text = this.scene.add.text(0, answerHeight / 2, labelString, labelConfig)
+                    .setOrigin(0.5);
+
+                this.answerContainer.add(labelText);
+
+            }
 
         }
 

@@ -229,9 +229,9 @@ document.addEventListener('DOMContentLoaded', () => {
 	}
 
 	function hostQuiz() {
-		const quizId = document.getElementById('quiz-id').value;
-		if (quizId) {
-			window.location.href = `/host/quiz?q=${quizId}`;
+		const quizID = document.getElementById('quiz-id').value;
+		if (quizID) {
+			window.location.href = `/host/lobby?host=1&q=${quizID}`;
 		} else {
 			alert('Please save the quiz before hosting it');
 		}
@@ -374,15 +374,24 @@ document.addEventListener('DOMContentLoaded', () => {
 				contentContainer.innerHTML = `
                     <label>Answer:</label><input type="text" data-field="answer" placeholder="Enter answer">
                 `;
-				questionHint.textContent = 'Basic question - type the answer';
+				questionHint.textContent = 'Basic question - players type the answer via an on-screen keyboard';
 				break;
 			case 'number-exact':
-			case 'number-closest':
+				questionHint.textContent = 'Answer is numeric - players must get the answer exactly right to score the points';
 				contentContainer.innerHTML = `
                     <label>Answer:</label><input type="number" data-field="answer" placeholder="Enter answer">
                 `;
 				break
+
+			case 'number-closest':
+				questionHint.textContent = 'Answer is numeric - players who get closest to the answer score the points';
+				contentContainer.innerHTML = `
+                    <label>Answer:</label><input type="number" data-field="answer" placeholder="Enter answer">
+                `;
+				break
+	
 			case 'multiple-choice':
+				questionHint.textContent = 'Players select an answer from the provided options';
 				contentContainer.innerHTML = `
                         <input class="question-field" type="text" data-field="option-1" placeholder="This is the correct answer">
                         <input class="question-field" type="text" data-field="option-2" placeholder="Enter option">
@@ -397,6 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
 				break;
 			case 'true-false':
+				questionHint.textContent = 'Only two possible answers here...';
 				contentContainer.innerHTML = `
                     <label>Answer:</label><select data-field="answer">
                         <option value="true">True</option>
@@ -405,6 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
 				break;
 			case 'matching':
+				questionHint.textContent = 'Players drag items from the left to the matching option on the right (max 5 pairs, can be less just leave empty if not needed)';
 				contentContainer.innerHTML = `
                     <div class="question-row">
                         <input class="question-field" type="text" data-field="left-1" placeholder="Left item 1">
@@ -429,9 +440,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
 				break;
 			case 'ordering':
+				questionHint.textContent = 'Players drag items into the correct order';
 				contentContainer.innerHTML = `
-                        <label>Start:</label><input type="text" data-field="order-start" placeholder="eg Earliest">
-                        <label>End:</label><input type="text" data-field="order-end" placeholder="eg Latest">
+                        <label>Start label:</label><input type="text" data-field="order-start" placeholder="eg Earliest">
+                        <label>End label:</label><input type="text" data-field="order-end" placeholder="eg Latest">
                         <label>Items to Order (enter in correct order):</label>
                         <div class="ordering-items">
                             <input type="text" data-field="order-item" placeholder="Item 1">
@@ -443,6 +455,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
 				break;
 			case 'hotspot':
+				questionHint.textContent = 'Players select a point on the picture - closest players score the points (select picture on the left column then mark a X at the correct point)';
 				contentContainer.innerHTML = `
                     <image-selector data-field="image-selector-preview" class="image-selector-preview" mode="hotspot"></image-selector>
                     <input type="hidden" data-field="hotspot-x">
@@ -456,6 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				break;
 
 			case 'point-it-out':
+				questionHint.textContent = 'Similar to hotspot, except players score if they are within the selected rectangular area (select picture on the left column then drag a rectangle on the picture)';
 				contentContainer.innerHTML = `
                     <image-selector data-field="image-selector-preview" class="image-selector-preview" mode="rectangle"></image-selector>
                     <input type="hidden" data-field="point-it-out-startx">
@@ -471,6 +485,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				break;
 
 			case 'draw':
+				questionHint.textContent = 'Players draw or write the answer on their screen - teams mark each others answers';
 				contentContainer.innerHTML = `
                     <label>Answer</label><input type="text" data-field="answer" placeholder="Enter answer">
                 `;
@@ -1263,6 +1278,10 @@ document.addEventListener('DOMContentLoaded', () => {
 				}
 
 				// What about audio?
+				if (questionJSON.audio) {
+					const audioInput = questionElement.querySelector('[data-field="question-audio"]');
+					audioInput.value = questionJSON.audio;
+				}
 
 				// Trigger the select chnage event which will insert the correct question type into the questionElement
 				const typeSelect = questionElement.querySelector('.question-type');

@@ -58,8 +58,10 @@ class AuthController {
         console.log('authController: /login :', req.user);
         extendUserSession(req);
         if (req.user) {
+            console.log('User logged in:', req.user.email || req.user.id);
             res.status(200).json(success());
         } else {
+            console.log('User not logged in');
             res.status(400).json(error());
         }
     }

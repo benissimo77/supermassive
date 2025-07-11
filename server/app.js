@@ -83,6 +83,17 @@ app.use(passport.session());
 // Serve static files from the public directory
 app.use(express.static('public'));
 
+// Add after your session middleware, before your routes
+app.use((req, res, next) => {
+  // Only log for authentication-related paths
+  if (req.path.includes('/auth/') || req.path.includes('/host/')) {
+    console.log(`[Cookie Debug] ${req.method} ${req.path}`);
+    console.log(`- Has cookies: ${!!req.headers.cookie}`);
+    console.log(`- Session ID: ${req.sessionID || 'none'}`);
+  }
+  next();
+});
+
 // ROUTES
 app.use('/', indexRoutes);
 app.use('/auth', loginRoutes);

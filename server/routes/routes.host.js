@@ -5,7 +5,7 @@ import express from 'express';
 const router = express.Router({ strict: true });
 
 const isAuth = (req, res, next) => {
-	console.log('isAuth:', req.session, req.url, req.originalUrl, req.baseUrl, req.path, req.params, req.query);
+	console.log('isAuth:', req.user, req.session, req.isAuthenticated());
 	if (req.isAuthenticated()) {
 		console.log('User is authenticated:', req.user);
 		next();

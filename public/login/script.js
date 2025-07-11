@@ -116,7 +116,7 @@ const handleSubmit = async (event) => {
                 terminateForgotPasswordFlow();
             } else {
                 // If it's a successful login or registration, redirect to dashboard
-                window.location.href = '/host/dashboard';
+                // window.location.href = '/host/dashboard';
                 console.log('Redirecting to dashboard');
             }
         } else {

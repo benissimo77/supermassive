@@ -1,6 +1,6 @@
 import { gsap } from "gsap";
 import { BaseQuestion } from "./BaseQuestion";
-import { NineSliceButton } from "../NineSliceButton";
+import { NineSliceButton } from "src/ui/NineSliceButton";
 
 export default class TextQuestion extends BaseQuestion {
 
@@ -21,43 +21,78 @@ export default class TextQuestion extends BaseQuestion {
      */
     protected createAnswerUI(answerHeight: number): void {
 
-        console.log('TextQuestion::createAnswerUI:', this.questionData.mode, this.scene.TYPE, answerHeight);
+        console.log('TextQuestion::createAnswerUI:', this.questionData.mode, this.scene.TYPE, answerHeight, this.scene.getScaleFactor(), answerHeight * this.scene.getScaleFactor());
 
         // Create answer options - answerHeight is total amount of space available but we must allow some padding top and bottom
-        // For text questions its pretty simple - will likely have full height of 1080px since only displayed on player screen
         // ASK MODE:
         // HOST display message 'Type your answer'
         // PLAY/SOLO display text field and a keyboard
         // ANSWER MODE:
         // HOST/SOLO display the answer text (in place of 'Type your answer')
 
+        // Calculations for the keyboard size and layout:
+        // Expand to fill the screen width, keep the keyboard justified to the bottom of the screen
+        // Since we can calculate exactly what the height of the keyboard will be (since we know the key size based on width)
+        // We just create at that size, and only in cases where vertical height is less than that we adjust it...
+
+        // On very wide screens, height will max out and then keyboard will be centred but get no larger
+        // So if calculated size based on width ends up too high then height becomes limiting factor
+        // Top third of screen (360) reserved for answer text, bottom two thirds (720)for keyboard
+        // So the maximum size of a key is either the width divided by 16 (for ~14 keys plus padding) or the height divided by 6 (for 6 rows)
+
         if (this.questionData.mode == 'ask') {
-        
-            const numRows: number = 6;
-            const rowHeight: number = answerHeight / numRows;
-            const buttonHeight: number = this.scene.getY(rowHeight * 0.9);
-            const keyboardTop: number = answerHeight - numRows * rowHeight;
+
+            // answerTextHeight defined as a var since as a final step if we have plenty of vertical space we adjust it to make keyboard look better
+            var answerTextHeight:number = answerHeight / 3;
+            const numRows: number = 4;
+            const keyboardAvailableHeight: number = answerHeight - answerTextHeight;
+
+            // Longest row is the top row, so make the button widths based on fitting this row
+            // The buttons will be square so use the row height for both width and height
+            // And since we know the buttonHeight (same as width) we calculate exact height of entire keyboard
+            // And adjust if total height is less than available
+            var buttonWidth: number = 1920/16;
+            var rowPadding:number = buttonWidth * 0.2;
+            var rowHeight: number = buttonWidth + rowPadding;
+            var keyboardHeight: number = rowHeight * numRows + rowPadding * 2;  // rowPadding * 2 gives a bit more space at the bottom
+
+            console.log('TextQuestion::createAnswerUI: keyboardHeight:', keyboardHeight, 'availableHeight:', keyboardAvailableHeight, 'getY(available):', this.scene.getY(keyboardAvailableHeight), 'total space:', this.scene.getY(1080));
+
+            // keyboardHeight is physical pixels, availableHeight is in logical pixels - so convert before comparing heights
+            if (keyboardHeight / this.scene.getScaleFactor() > keyboardAvailableHeight) {
+                // If the calculated height is more than available, then use the available height and reverse the calculations above
+                // only thing not perfectly reversed is the bottom padding since that is harder to derive so just use 48px
+                rowHeight = (this.scene.getY(keyboardAvailableHeight) - 48) / numRows;
+                rowPadding = rowHeight / 6;
+                buttonWidth = rowHeight - rowPadding;
+                keyboardHeight = rowHeight * numRows + rowPadding * 2; // rowPadding * 2 gives a bit more space at the bottom
+                console.log('TextQuestion::createAnswerUI - CHANGE! :', 'keyboardHeight:', keyboardHeight, 'availableHeight:', keyboardAvailableHeight, 'getY(available):', this.scene.getY(keyboardAvailableHeight), 'total space:', this.scene.getY(1080));
+            }
+
+            answerTextHeight = answerHeight - (keyboardHeight / this.scene.getScaleFactor());
+            console.log('TextQuestion::createAnswerUI: buttonWidth:', buttonWidth, 'rowHeight:', rowHeight, 'keyboardHeight:', keyboardHeight, 'answerTextHeight:', answerTextHeight, 'scaleFactor:', this.scene.getScaleFactor());
 
             // Create a text field to hold the current answer
-            const answerY: number = rowHeight / 2;
+            const answerTextY: number = answerTextHeight / 2;
             const answerStyle: Phaser.Types.GameObjects.Text.TextStyle = {
-                fontSize: this.scene.getY(rowHeight * 0.8),
+                fontSize: this.scene.getY(answerTextHeight * 0.2),
             }
             const answerConfig: Phaser.Types.GameObjects.Text.TextStyle = Object.assign({}, this.scene.labelConfig, answerStyle);
-            this.answerText = this.scene.add.text(0, this.scene.getY(answerY), '', answerConfig)
+            this.answerText = this.scene.add.text(0, this.scene.getY(answerTextY), '', answerConfig)
                 .setOrigin(0.5);
 
             this.answerContainer.add([this.answerText]);
 
             // Create a keybaord - maybe make this a separate class at some point?
             // Create the 26 buttons to provide text input since I can't figure out how to make the DOM input field work properly
+            // NOTE: this keyboard actually uses physical pixels for positioning and sizing (only the initial height is logical)
             const keyboardButtons: string[] = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
 
             keyboardButtons.forEach((row, rowIndex) => {
                 row.split('').forEach((char, charIndex) => {
                     const button: NineSliceButton = new NineSliceButton(this.scene, char);
-                    button.setButtonSize(buttonHeight, buttonHeight);
-                    button.setPosition(-800 + (rowIndex * 45) + (charIndex * (buttonHeight + 24)), this.scene.getY(rowHeight * 2 + rowHeight * rowIndex);
+                    button.setButtonSize(buttonWidth, buttonWidth);
+                    button.setPosition(-800 + (rowIndex * 45) + (charIndex * (buttonWidth + 24)), this.scene.getY(answerTextHeight) + rowHeight / 2 + rowHeight * rowIndex);
                     button.setInteractive({ useHandCuror: true });
                     button.on('pointerup', () => {
                         this.answerText.setText(this.answerText.text + char);
@@ -70,8 +105,8 @@ export default class TextQuestion extends BaseQuestion {
             });
             // Add a BACKSPACE button to the right of the top row of keys
             const backspaceButton: NineSliceButton = new NineSliceButton(this.scene, 'DELETE');
-            backspaceButton.setButtonSize(buttonHeight + 150, buttonHeight);
-            backspaceButton.setPosition(-800 + (0 * 45) + (10 * (buttonHeight + 24)) + (buttonHeight + 24), this.scene.getY(rowHeight * 2));
+            backspaceButton.setButtonSize(buttonWidth + 150, buttonWidth);
+            backspaceButton.setPosition(-800 + (0 * 45) + (10 * (buttonWidth + 24)) + (buttonWidth + 24), this.scene.getY(answerTextHeight) + rowHeight / 2);
             backspaceButton.setInteractive({ useHandCuror: true });
             backspaceButton.on('pointerup', () => {
                 this.answerText.setText(this.answerText.text.slice(0, -1));
@@ -81,8 +116,8 @@ export default class TextQuestion extends BaseQuestion {
 
             // Add a SPACE bar
             const spaceButton: NineSliceButton = new NineSliceButton(this.scene, 'SPACE');
-            spaceButton.setButtonSize(600, buttonHeight);
-            spaceButton.setPosition(-60, this.scene.getY(rowHeight * 2 + rowHeight * keyboardButtons.length));
+            spaceButton.setButtonSize(600, buttonWidth);
+            spaceButton.setPosition(-60, this.scene.getY(answerTextHeight) + rowHeight / 2 + rowHeight * keyboardButtons.length);
             spaceButton.setInteractive({ useHandCuror: true });
             spaceButton.on('pointerup', () => {
                 this.answerText.setText(this.answerText.text + ' ');

@@ -14,15 +14,31 @@ router.post('/play', (req, res) => {
 	req.session.name = req.body.name;
 	req.session.avatar = req.body.avatar;
 	req.session.host = false;
-	// const redirect = 'play';
-	// console.log('Validated - redirecting to:', redirect);
-	// res.redirect(redirect);
-	res.sendFile('play.html', { root: './public' });
+
+	// If we have a room then redirect according to the URL pattern
+	if (req.session.room) {
+		res.redirect('/play/' + req.session.room);
+	}
+	// ... and if we don't have a room then there is no point in continuing... simply go back to index.html
+	res.sendFile('index.html', { root: './public' });
 })
 
 
 // // And a route for the expected shape of the URL when a player wants to play a game (ROOM/NAME)
 // // Passed here via successful redirect from above POST request, also useful if the user refreshes the page in their browser
+router.get('/play/:room', (req, res) => {
+	console.log('routes.get /play/:room:', req.params, req.session, req.query, req.originalUrl);
+
+	// Validation - we want to protect against attack by passing any room name (must have gone via the POST above)
+	if (req.params.room && req.params.room.length > 3 && req.session.name && req.session.avatar) {
+		// If we have a room then go to phaserplay.html
+		res.sendFile('phaserplay.html', { root: './public' });
+	} else {
+		// If above validation fails there is no point in continuing... simply go back to play/index.html
+		res.redirect('/play');
+	}
+});
+
 // router.get('/play', (req, res) => {
 // 	console.log('routes.get /play:', req.params, req.session, req.query, req.originalUrl);
 // perform validation on room / name here...

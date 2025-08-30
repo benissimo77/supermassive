@@ -51,14 +51,14 @@ export class QuizPlayScene extends BaseScene {
     preload(): void {
 
         // Load common assets for all question types
-        this.load.image('quiz-background', 'img/quiz/background.jpg');
-        this.load.image('simple-button', 'assets/img/simplebutton.png');
-        this.load.image('simple-button-hover', 'assets/img/simplebutton-hover.png');
-        this.load.image('dropzone', 'assets/img/dropzone.png');
-        // this.load.image('answer-button', 'assets/quiz-button.png');
-        // this.load.image('player-marker', 'assets/player-marker.png');
+        this.load.image('quiz-background', '/img/quiz/background.jpg');
+        this.load.image('simple-button', '/assets/img/simplebutton.png');
+        this.load.image('simple-button-hover', '/assets/img/simplebutton-hover.png');
+        this.load.image('dropzone', '/assets/img/dropzone.png');
+        // this.load.image('answer-button', '/assets/quiz-button.png');
+        // this.load.image('player-marker', '/assets/player-marker.png');
 
-        this.load.image('crosshair', 'img/crosshair40.png');
+        this.load.image('crosshair', '/img/crosshair40.png');
 
 
         // Load custom fonts

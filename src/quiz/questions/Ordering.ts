@@ -1,6 +1,6 @@
 import { gsap } from "gsap";
 import { BaseQuestion } from "./BaseQuestion";
-import { NineSliceButton } from "src/quiz/NineSliceButton";
+import { NineSliceButton } from "src/ui/NineSliceButton";
 
 // NOTE: there is little difference between ordering and matching questions
 // so we use the same class for both types of questions

@@ -1,6 +1,6 @@
 import { gsap } from "gsap";
 import { BaseQuestion } from "./BaseQuestion";
-import { NineSliceButton } from "../NineSliceButton";
+import { NineSliceButton } from "src/ui/NineSliceButton";
 
 export default class MultipleChoiceQuestion extends BaseQuestion {
 

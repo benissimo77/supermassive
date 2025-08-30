@@ -1,8 +1,10 @@
 import { gsap } from "gsap";
 
 import { BaseQuestion } from "./BaseQuestion";
-import { NineSliceButton } from "../NineSliceButton";
+import { NineSliceButton } from "src/ui/NineSliceButton";
 import { BaseScene } from "src/BaseScene";
+import { PlayerConfig } from "../PhaserPlayer";
+
 
 export default class DrawQuestion extends BaseQuestion {
     private drawingContainer: Phaser.GameObjects.Container;
@@ -627,15 +629,18 @@ export default class DrawQuestion extends BaseQuestion {
         }
 
         // Add player name
-        const playerName = this.scene.getPlayerBySessionID(sessionID)?.name || `Player ${sessionID}`;
-        const label = this.scene.add.text(0, height + this.scene.getY(16), playerName, {
-            fontSize: this.scene.getY(24),
-            fontFamily: '"Titan One", Arial',
-            color: '#ffffff',
-            align: 'center'
-        }).setOrigin(0, 0.5);
-
-        container.add(label);
+        const playerConfig: PlayerConfig | undefined = this.scene.getPlayerConfigBySessionID(sessionID);
+        console.log('DrawQuestion::createDrawingThumbnail - playerConfig:', playerConfig);
+        if (playerConfig) {
+            const playerName = playerConfig.name || `Player ${sessionID}`;
+            const label = this.scene.add.text(0, height + this.scene.getY(16), playerName, {
+                fontSize: this.scene.getY(24),
+                fontFamily: '"Titan One", Arial',
+                color: '#ffffff',
+                align: 'center'
+            }).setOrigin(0, 0.5);
+            container.add(label);
+        }
 
         return container;
     }

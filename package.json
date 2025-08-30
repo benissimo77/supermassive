@@ -9,6 +9,7 @@
     "server:debug": "nodemon --inspect=9229 server.js",
     "rollup": "rollup -c rollup.config.dev.js -w",
     "build": "rollup -c rollup.config.prod.js",
+    "rollup:phaser": "rollup -c ./rollup.config.phaser.js -w",
     "rollup:server": "rollup -c ./rollup.config.server.js -w",
     "deploy:public-modules": "scp public/modules/*.min.js nodejs@videoswipe.net:~/supermassive/public/modules",
     "deploy:host-modules": "scp host/modules/*.min.js nodejs@videoswipe.net:~/supermassive/host/modules",

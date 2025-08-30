@@ -69,8 +69,8 @@ export class LobbyPlayScene extends BaseScene {
 
 		console.log('Lobby.preload: hello.');
 
-		this.load.image('playernamepanel', 'assets/rounded-rect-grey-480x48x14.png');
-		this.load.image('avatar', 'assets/avatar-100/image-from-rawpixel-id-12138743-original.png');
+		this.load.image('playernamepanel', '/assets/rounded-rect-grey-480x48x14.png');
+		this.load.image('avatar', '/assets/avatar-100/image-from-rawpixel-id-12138743-original.png');
 
 		this.load.rexWebFont({
 			google: {

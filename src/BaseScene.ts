@@ -7,6 +7,7 @@ export abstract class BaseScene extends Phaser.Scene {
     protected socket: Socket;
     private resizeHandler: (gameSize: Phaser.Structs.Size) => void;
     private shutdownHandler: () => void;
+    private overlay: Phaser.GameObjects.Rectangle | null = null;
     public rexUI!: any;
     public rexToggleSwitch!: any;
 
@@ -16,7 +17,7 @@ export abstract class BaseScene extends Phaser.Scene {
     public TYPE: string;
     // Store a flag for single player mode - maybe there is a better way to do this but see how far we get with this
     public singlePlayerMode: boolean = false;
-    
+
     // The labelConfig is used for text styles in the scene, can be overridden by child scenes
     public labelConfig: Phaser.Types.GameObjects.Text.TextStyle;
 
@@ -74,11 +75,45 @@ export abstract class BaseScene extends Phaser.Scene {
 
     }
 
+    create(): void {
+        console.log(`${this.scene.key}:: BaseScene.create: hello`);
+
+        this.game.events.on('hidden', () => {
+            console.log('Game lost focus');
+            // Pause game, mute audio, etc.
+            this.scene.pause();
+
+            // Add overlay to highlight that game can no longer be controlled
+            this.overlay = this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0x000000, 0.1);
+        });
+
+        this.game.events.on('visible', () => {
+            console.log('Game gained focus');
+            // Resume game, unmute audio, etc.
+            this.scene.resume();
+            // Remove the overlay if it exists
+            if (this.overlay) {
+                this.overlay.destroy();
+                this.overlay = null;
+            }
+        });
+
+
+        // Set the label config for text styles
+        this.labelConfig = {
+            fontFamily: 'Arial',
+            fontSize: '24px',
+            color: '#ffffff',
+            align: 'center',
+            wordWrap: { width: 600, useAdvancedWrap: true }
+        };
+
+    }
     protected handlePlayerConnect(playerConfig: PlayerConfig): void {
 
         // Store the player config in the map
         this.playerConfigs.set(playerConfig.sessionID, playerConfig);
-        console.log('BaseScene:: handlePlayerConnect:', { playerConfigs:this.playerConfigs });
+        console.log('BaseScene:: handlePlayerConnect:', { playerConfigs: this.playerConfigs });
 
     }
     protected handlePlayerDisconnect(sessionID: string): void {
@@ -102,7 +137,9 @@ export abstract class BaseScene extends Phaser.Scene {
         });
         return playerConfigsArray;
     }
-
+    getPlayerConfigBySessionID(sessionID: string): PlayerConfig | undefined {
+        return this.playerConfigs.get(sessionID);
+    }
 
     handleResize(gameSize: Phaser.Structs.Size): void {
         console.log(`${this.scene.key}:: BaseScene.handleResize:`, gameSize.width, gameSize.height);
@@ -126,9 +163,9 @@ export abstract class BaseScene extends Phaser.Scene {
         BaseScene.currentHeight = newHeight;
     }
 
-    getY(originalY: number): number {
+    getY(logicalY: number): number {
         const scaleFactor = this.getScaleFactor();
-        return originalY * scaleFactor;
+        return logicalY * scaleFactor;
     }
 
     // getScaleFactor - this hardcodes 1080 as the logical height

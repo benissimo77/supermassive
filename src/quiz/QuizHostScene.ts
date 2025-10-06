@@ -89,7 +89,7 @@ export class QuizHostScene extends BaseScene {
 
         // Load common assets for all question types
         // this.load.image('quiz-background', '/img/quiz/background.jpg');
-        this.load.image('quiz-background', '/img/quiz/kling-background.png');
+        this.load.image('quiz-background', '/img/quiz/background.png');
         // this.load.image('quiz-background', '/assets/img/grid1920x1080.png');
         this.load.image('simple-button', '/assets/img/simplebutton.png');
         this.load.image('simple-button-hover', '/assets/img/simplebutton-hover.png');

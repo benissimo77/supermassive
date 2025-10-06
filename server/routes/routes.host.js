@@ -138,7 +138,7 @@ router.get('/admin', (req, res) => {
 
 
 const generateNewRoomName = () => {
-	return 'NUTS';
+	return 'GOLF';
 }
 
 export default router;

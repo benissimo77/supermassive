@@ -17,7 +17,8 @@
     "deploy:assets": "scp -r public/assets nodejs@videoswipe.net:~/supermassive/public/",
     "deploy": "npm-run-all deploy:public-modules deploy:host-modules deploy:dashboard deploy:assets",
     "push": "scp server/app.js nodejs@videoswipe.net:~/supermassive/server && scp server/routes/routes.auth.js nodejs@videoswipe.net:~/supermassive/server/routes",
-    "migrate-quiz": "node server/scripts/migrateQuiz.js"
+    "migrate-quiz": "node server/scripts/migrateQuiz.js",
+    "password-hash": "node server/scripts/passwordHash.js"
   },
   "author": "",
   "license": "ISC",

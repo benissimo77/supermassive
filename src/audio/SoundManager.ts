@@ -21,6 +21,7 @@ export interface Track {
     fadeIn?: number;
     fadeOut?: number;
     loop?: boolean;
+    ducking?: boolean;
     volume?: number;
     sound?: Phaser.Sound.BaseSound;
 }
@@ -141,9 +142,11 @@ export class SoundManager {
      */
     private crossFade(fromKey: string, toKey: string, toTrack: Track): void {
         this.isCrossFading = true;
-        const fromSound = this.tracks.get(fromKey);
+        const fromSound: Track | undefined = this.tracks.get(fromKey);
+        const fromSoundInstance = fromSound?.sound;
 
-        if (!fromSound) {
+        // If the fromSound is missing or has no sound instance, just start the new track
+        if (!fromSound || !fromSoundInstance) {
             this.startTrack(toKey, toTrack);
             this.isCrossFading = false;
             return;
@@ -151,11 +154,11 @@ export class SoundManager {
 
         // Start fading out current track
         this.scene.tweens.add({
-            targets: fromSound,
+            targets: fromSoundInstance,
             volume: 0,
             duration: toTrack.fadeOut,
             onComplete: () => {
-                fromSound.stop();
+                fromSoundInstance.stop();
                 this.tracks.delete(fromKey);
 
                 // Check if another music change was requested during crossfade
@@ -343,7 +346,7 @@ export class SoundManager {
      * Check if a specific track is currently playing
      */
     isPlaying(key: string): boolean {
-        const sound = this.tracks.get(key).sound;
+        const sound = this.tracks.get(key)?.sound || null;
         return sound ? sound.isPlaying : false;
     }
 
@@ -369,7 +372,7 @@ export class SoundManager {
      */
     registerYouTubePlayer(player: any): void {
         this.youtubePlayer = player;
-    
+
         // Set initial volume based on current settings
         this.youtubePlayer.setVolume(this.volumeLevels.music * 100);
     }

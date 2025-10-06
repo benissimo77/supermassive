@@ -2,6 +2,13 @@ import { BaseScene } from "src/BaseScene";
 import { PhaserPlayer, PlayerConfig } from "src/quiz/PhaserPlayer";
 import { gsap } from "gsap";
 
+enum RacetrackState {
+    IN,
+    OUT,
+    ANIMATINGIN,
+    ANIMATINGOUT
+}
+
 export class Racetrack extends Phaser.GameObjects.Container {
     public scene: BaseScene;
     private playerMarkers: Map<string, Phaser.GameObjects.Container> = new Map();
@@ -17,6 +24,7 @@ export class Racetrack extends Phaser.GameObjects.Container {
     private lanesContainer: Phaser.GameObjects.Container;
     private markers: Phaser.GameObjects.Container[] = [];
     private racetrackScale: number;
+    private racetrackState: RacetrackState = RacetrackState.IN;
 
     constructor(scene: BaseScene, width: number, height: number) {
 
@@ -69,7 +77,7 @@ export class Racetrack extends Phaser.GameObjects.Container {
         );
 
         console.log('Racetrack::addPlayersToTrack:', { playerConfigs });
-        
+
         // Sort players by score
         playerConfigs.sort((a, b) => {
             const domA: PhaserPlayer = this.scene.getPlayerBySessionID(a.sessionID) as PhaserPlayer;
@@ -93,22 +101,33 @@ export class Racetrack extends Phaser.GameObjects.Container {
 
     public flyIn(): gsap.core.Timeline {
         const duration = 1;
-        const tl = gsap.timeline();
-
-        // Start off-screen
-        this.x = this.trackWidth;
+        const tl = gsap.timeline({
+            onComplete: () => {
+                this.racetrackState = RacetrackState.IN;
+            }
+        });
 
         // Animate in
-        tl.to(this, { x: 0, duration, ease: "power2.out" });
-
+        if (this.racetrackState === RacetrackState.OUT || this.racetrackState === RacetrackState.ANIMATINGOUT) {
+            this.racetrackState = RacetrackState.ANIMATINGIN;
+            tl.to(this, { x: 0, duration, ease: "power2.out" });
+        }
         return tl;
     }
 
     public flyOut(): gsap.core.Timeline {
         const duration = 1;
-        const tl = gsap.timeline();
+        const tl = gsap.timeline({
+            onComplete: () => {
+                this.racetrackState = RacetrackState.OUT;
+            }
+        });
 
-        tl.to(this, { x: this.trackWidth, duration, ease: "power2.in" });
+        // Animate out
+        if (this.racetrackState === RacetrackState.IN || this.racetrackState === RacetrackState.ANIMATINGIN) {
+            this.racetrackState = RacetrackState.ANIMATINGOUT;
+            tl.to(this, { x: this.trackWidth, duration, ease: "power2.in" });
+        }
 
         return tl;
     }
@@ -234,7 +253,7 @@ export class Racetrack extends Phaser.GameObjects.Container {
 
     private createDistanceMarkers(): void {
         // Create markers every 10 points up to 50, then every 25
-        const distances = [1, 2, 3, 4, 5, 10, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 125, 150, 175, 200];
+        const distances = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 125, 150, 175, 200];
 
         distances.forEach(distance => {
             const marker = this.createMarker(distance);

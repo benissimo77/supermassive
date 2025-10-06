@@ -1,5 +1,7 @@
 import { gsap } from "gsap";
+import { BaseScene } from "src/BaseScene";
 import { BaseQuestion } from "./BaseQuestion";
+import { HotspotQuestionData, HotspotResultData } from "./QuestionTypes";
 import { NineSliceButton } from "src/ui/NineSliceButton";
 
 export default class HotSpotQuestion extends BaseQuestion {
@@ -8,10 +10,16 @@ export default class HotSpotQuestion extends BaseQuestion {
     private hotspotContainer: Phaser.GameObjects.Container;
     private image: Phaser.GameObjects.Image;
     private crosshair: Phaser.GameObjects.Image;
-    private crosshairPos: { x: number, y: number } | null = null;
+    private crosshairPos: { x: integer, y: integer } | null = null;
+    protected questionData: HotspotQuestionData;
 
     protected getAnswerUIWidth(): number {
         return 600;
+    }
+
+    // Override the constructor to use specific question data type
+    constructor(scene: BaseScene, questionData: HotspotQuestionData) {
+        super(scene, questionData);
     }
 
     /**
@@ -78,7 +86,7 @@ export default class HotSpotQuestion extends BaseQuestion {
         // Juice - animate the canvas and buttons out
         const tl = gsap.timeline();
         tl.to(this.submitButton, {
-            y:2000,
+            y: 2000,
             duration: 0.5,
             ease: 'back.in'
         });
@@ -127,7 +135,7 @@ export default class HotSpotQuestion extends BaseQuestion {
         });
         this.hotspotContainer.add(this.submitButton);
     }
-    
+
     private showResults(answerHeight: number): void {
 
         // First mark all the guesses made by the players

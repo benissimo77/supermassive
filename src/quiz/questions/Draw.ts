@@ -1,8 +1,8 @@
 import { gsap } from "gsap";
 
+import { BaseScene } from "src/BaseScene";
 import { BaseQuestion } from "./BaseQuestion";
 import { NineSliceButton } from "src/ui/NineSliceButton";
-import { BaseScene } from "src/BaseScene";
 import { PlayerConfig } from "../PhaserPlayer";
 
 
@@ -68,91 +68,91 @@ export default class DrawQuestion extends BaseQuestion {
     // Above two objects are positioned together so that input and output are aligned
     private setupDrawingCanvas(answerHeight: number): void {
 
-    // Create a container for all drawing-related elements
-    this.drawingContainer = this.scene.add.container(-960, 0);
-    this.answerContainer.add(this.drawingContainer);
+        // Create a container for all drawing-related elements
+        this.drawingContainer = this.scene.add.container(-960, 0);
+        this.answerContainer.add(this.drawingContainer);
 
-    // Use full screen dimensions (consistent with other questions)
-    const canvasWidth = 1920;
-    const canvasHeight = this.scene.getY(answerHeight);
+        // Use full screen dimensions (consistent with other questions)
+        const canvasWidth = 1920;
+        const canvasHeight = this.scene.getY(answerHeight);
 
-    // Create a white background for the canvas that is ALSO interactive
-    // Allow 120px (logical) for the control panel on the left
-    // Note: there is a reason why we create a rectangle here AND a canvas graphics object
-    // The rectangle has a function getBounds() which gives us the position on the screen, ideal for aligning with pointer coordindates
-    this.background = this.scene.add.rectangle(120, 0, canvasWidth-120, canvasHeight, 0xDDDDDD);
-    this.background.setOrigin(0, 0);
-    this.background.setInteractive({ useHandCursor: true });
-    this.drawingContainer.add(this.background);
-    
-    // Create the drawing canvas using Phaser Graphics
-    this.canvas = this.scene.add.graphics({ x: 120, y: 0 });
-    this.drawingContainer.add(this.canvas);
+        // Create a white background for the canvas that is ALSO interactive
+        // Allow 120px (logical) for the control panel on the left
+        // Note: there is a reason why we create a rectangle here AND a canvas graphics object
+        // The rectangle has a function getBounds() which gives us the position on the screen, ideal for aligning with pointer coordindates
+        this.background = this.scene.add.rectangle(120, 0, canvasWidth - 120, canvasHeight, 0xDDDDDD);
+        this.background.setOrigin(0, 0);
+        this.background.setInteractive({ useHandCursor: true });
+        this.drawingContainer.add(this.background);
 
-    // If we're in answer mode, disable drawing and show the submitted drawing
-    if (this.questionData.mode === 'answer') {
-        this.displaySubmittedDrawing();
-        return;
-    }
+        // Create the drawing canvas using Phaser Graphics
+        this.canvas = this.scene.add.graphics({ x: 120, y: 0 });
+        this.drawingContainer.add(this.canvas);
 
-    // Add event listeners directly to the background rectangle
-    this.background.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-        this.isDrawing = true;
-        this.currentStroke = [];
-        this.addPointToStroke(pointer);
-    });
+        // If we're in answer mode, disable drawing and show the submitted drawing
+        if (this.questionData.mode === 'answer') {
+            this.displaySubmittedDrawing();
+            return;
+        }
 
-    this.background.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-        if (this.isDrawing) {
+        // Add event listeners directly to the background rectangle
+        this.background.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+            this.isDrawing = true;
+            this.currentStroke = [];
             this.addPointToStroke(pointer);
-            this.renderStroke();
-        }
-    });
+        });
 
-    this.background.on('pointerup', () => {
-        if (this.isDrawing) {
-            this.isDrawing = false;
-            if (this.currentStroke.length > 1) {
-                // Save the stroke to our drawing data
-                this.drawingData.push({
-                    type: 'stroke',
-                    points: [...this.currentStroke],
-                    color: this.currentColor,
-                    lineWidth: this.currentLineWidth
-                });
+        this.background.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+            if (this.isDrawing) {
+                this.addPointToStroke(pointer);
+                this.renderStroke();
             }
-            this.currentStroke = [];
-        }
-    });
+        });
 
-    this.background.on('pointerout', () => {
-        if (this.isDrawing) {
-            this.isDrawing = false;
-            if (this.currentStroke.length > 1) {
-                // Save the stroke to our drawing data
-                this.drawingData.push({
-                    type: 'stroke',
-                    points: [...this.currentStroke],
-                    color: this.currentColor,
-                    lineWidth: this.currentLineWidth
-                });
+        this.background.on('pointerup', () => {
+            if (this.isDrawing) {
+                this.isDrawing = false;
+                if (this.currentStroke.length > 1) {
+                    // Save the stroke to our drawing data
+                    this.drawingData.push({
+                        type: 'stroke',
+                        points: [...this.currentStroke],
+                        color: this.currentColor,
+                        lineWidth: this.currentLineWidth
+                    });
+                }
+                this.currentStroke = [];
             }
-            this.currentStroke = [];
-        }
-    });
+        });
 
-    // Add vertical control panel on left side
-    this.createControlPanel(answerHeight);
+        this.background.on('pointerout', () => {
+            if (this.isDrawing) {
+                this.isDrawing = false;
+                if (this.currentStroke.length > 1) {
+                    // Save the stroke to our drawing data
+                    this.drawingData.push({
+                        type: 'stroke',
+                        points: [...this.currentStroke],
+                        color: this.currentColor,
+                        lineWidth: this.currentLineWidth
+                    });
+                }
+                this.currentStroke = [];
+            }
+        });
 
-    // Add submit button at the bottom of the canvas
-    this.submitButton = new NineSliceButton(this.scene, 'Submit');
-    this.submitButton.setButtonSize(200, 80);
-    this.submitButton.setPosition(960 - 100 - 20, this.scene.getY(answerHeight - 40 - 20));
-    this.submitButton.setInteractive({ useHandCursor: true });
-    this.submitButton.on('pointerup', () => {
-        this.submitDrawing();
-    });
-    this.answerContainer.add(this.submitButton);
+        // Add vertical control panel on left side
+        this.createControlPanel(answerHeight);
+
+        // Add submit button at the bottom of the canvas
+        this.submitButton = new NineSliceButton(this.scene, 'Submit');
+        this.submitButton.setButtonSize(200, this.scene.getY(80));
+        this.submitButton.setPosition(960 - 100 - 20, this.scene.getY(answerHeight - 40 - 20));
+        this.submitButton.setInteractive({ useHandCursor: true });
+        this.submitButton.on('pointerup', () => {
+            this.submitDrawing();
+        });
+        this.answerContainer.add(this.submitButton);
 
     }
 
@@ -406,8 +406,8 @@ export default class DrawQuestion extends BaseQuestion {
 
         // Get the current canvas size (baseSize or displaySize - they are the same)
         // We need to convert logical coordinates to background rectangle coordinates
-        const displayW = this.scene.scale.displaySize.width;        
-        const screenScale:number = 1920 / displayW;
+        const displayW = this.scene.scale.displaySize.width;
+        const screenScale: number = 1920 / displayW;
 
         // Convert pointer coordinates to logical coordinates
         const logicalX = pointer.x * screenScale;
@@ -430,14 +430,14 @@ export default class DrawQuestion extends BaseQuestion {
 
     // Convert normalized coordinates (0-1000) to canvas coordinates
     // Note: this uses this.background to identify canvas size - so this.background must be correctly set before using this function
-    private normalizedToCanvasPosition(pos: {x: number, y: number, pressure?: number}): {x: number, y: number, pressure?: number} {
+    private normalizedToCanvasPosition(pos: { x: number, y: number, pressure?: number }): { x: number, y: number, pressure?: number } {
         const canvasWidth = this.background.getBounds().width;
         const canvasHeight = this.background.getBounds().height;
 
         // Convert from normalized (0-1000) to canvas coordinates
         const canvasX = pos.x * canvasWidth / 1000;
         const canvasY = pos.y * canvasHeight / 1000;
-        
+
         return { x: canvasX, y: canvasY, pressure: pos.pressure };
     }
 
@@ -459,7 +459,7 @@ export default class DrawQuestion extends BaseQuestion {
         // Juice - animate the canvas and buttons out
         const tl = gsap.timeline();
         tl.to(this.submitButton, {
-            y:2000,
+            y: 2000,
             duration: 0.5,
             ease: 'back.in'
         });
@@ -494,19 +494,19 @@ export default class DrawQuestion extends BaseQuestion {
     }
 
     private renderStroke(): void {
-            if (this.currentStroke.length < 2) return;
+        if (this.currentStroke.length < 2) return;
 
-            const lastPoint = this.currentStroke[this.currentStroke.length - 2];
-            const currentPoint = this.currentStroke[this.currentStroke.length - 1];
-            const lastCanvasPosition = this.normalizedToCanvasPosition(lastPoint);
-            const currentCanvasPosition = this.normalizedToCanvasPosition(currentPoint);
+        const lastPoint = this.currentStroke[this.currentStroke.length - 2];
+        const currentPoint = this.currentStroke[this.currentStroke.length - 1];
+        const lastCanvasPosition = this.normalizedToCanvasPosition(lastPoint);
+        const currentCanvasPosition = this.normalizedToCanvasPosition(currentPoint);
 
-            this.canvas.lineStyle(this.currentLineWidth, this.currentColor);
-            this.canvas.beginPath();
-            this.canvas.moveTo(lastCanvasPosition.x, lastCanvasPosition.y);
-            this.canvas.lineTo(currentCanvasPosition.x, currentCanvasPosition.y);
-            this.canvas.closePath();
-            this.canvas.strokePath();
+        this.canvas.lineStyle(this.currentLineWidth, this.currentColor);
+        this.canvas.beginPath();
+        this.canvas.moveTo(lastCanvasPosition.x, lastCanvasPosition.y);
+        this.canvas.lineTo(currentCanvasPosition.x, currentCanvasPosition.y);
+        this.canvas.closePath();
+        this.canvas.strokePath();
     }
 
     private displaySubmittedDrawing(): void {
@@ -552,7 +552,7 @@ export default class DrawQuestion extends BaseQuestion {
             numCols = sessionIDs.length;
             drawingWidth = Math.min(1800 / numCols, 1200);
             drawingHeight = drawingWidth * 3 / 4;
-            padding = ( 4 - numCols) * 20;
+            padding = (4 - numCols) * 20;
         }
 
         sessionIDs.forEach((sessionID, index) => {
@@ -610,14 +610,14 @@ export default class DrawQuestion extends BaseQuestion {
                 drawingGraphics.lineStyle(stroke.lineWidth * 0.5, stroke.color);
 
                 drawingGraphics.beginPath();
-                const startPoint = {x: stroke.points[0].x * width / 1000, y: stroke.points[0].y * height / 1000};
+                const startPoint = { x: stroke.points[0].x * width / 1000, y: stroke.points[0].y * height / 1000 };
                 drawingGraphics.moveTo(
                     startPoint.x,
                     startPoint.y
                 );
 
                 for (let i = 1; i < stroke.points.length; i++) {
-                    const point = {x: stroke.points[i].x * width / 1000, y: stroke.points[i].y * height / 1000};
+                    const point = { x: stroke.points[i].x * width / 1000, y: stroke.points[i].y * height / 1000 };
                     drawingGraphics.lineTo(
                         point.x,
                         point.y

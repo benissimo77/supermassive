@@ -5,7 +5,7 @@ import fs from 'fs';
 const ajv = new Ajv({ allErrors: true });
 const schemaPath = 'server/services/quiz-schema.json';
 const quizSchema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
-const validateQuiz = ajv.compile(quizSchema);
+const validateQuizSchema = ajv.compile(quizSchema);
 
 // Define custom error types
 export class QuizServiceError extends Error {
@@ -34,6 +34,18 @@ export class PermissionError extends QuizServiceError {
     }
 }
 
+// Validate a quiz against the schema
+export function validateQuiz(quizData) {
+    // Your existing validation logic
+    const ajv = new Ajv({ allErrors: true });
+    const validate = ajv.compile(quizSchema);
+    const valid = validate(quizData);
+
+    return {
+        valid: valid,
+        errors: validate.errors || []
+    };
+}
 
 // Update service methods with proper error handling
 export async function saveQuiz(quizData, userId) {
@@ -44,8 +56,8 @@ export async function saveQuiz(quizData, userId) {
 
         // Validate the quizData immediately and attach validation result to quizData
         const validationResult = validateQuiz(quizData);
-        quizData.validation = validateQuiz.errors;
-    
+        quizData.validation = validationResult.errors;
+
         // First-time save logic
         if (!quizData._id) {
             const newQuiz = { ...quizData };

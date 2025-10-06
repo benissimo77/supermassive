@@ -9,14 +9,15 @@
     "server:debug": "nodemon --inspect=9229 server.js",
     "rollup": "rollup -c rollup.config.dev.js -w",
     "build": "rollup -c rollup.config.prod.js",
-    "rollup:phaser": "rollup -c ./rollup.config.phaser.js -w",
+    "rollup:moneytree": "rollup -c ./rollup.config.moneytree.js -w",
     "rollup:server": "rollup -c ./rollup.config.server.js -w",
     "deploy:public-modules": "scp public/modules/*.min.js nodejs@videoswipe.net:~/supermassive/public/modules",
     "deploy:host-modules": "scp host/modules/*.min.js nodejs@videoswipe.net:~/supermassive/host/modules",
     "deploy:dashboard": "scp host/dashboard/*.min.js nodejs@videoswipe.net:~/supermassive/host/dashboard",
     "deploy:assets": "scp -r public/assets nodejs@videoswipe.net:~/supermassive/public/",
     "deploy": "npm-run-all deploy:public-modules deploy:host-modules deploy:dashboard deploy:assets",
-    "push": "scp server/app.js nodejs@videoswipe.net:~/supermassive/server && scp server/routes/routes.auth.js nodejs@videoswipe.net:~/supermassive/server/routes"
+    "push": "scp server/app.js nodejs@videoswipe.net:~/supermassive/server && scp server/routes/routes.auth.js nodejs@videoswipe.net:~/supermassive/server/routes",
+    "migrate-quiz": "node server/scripts/migrateQuiz.js"
   },
   "author": "",
   "license": "ISC",

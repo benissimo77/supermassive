@@ -199,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			quizItemElement.querySelector('.quiz-item-title').textContent = quiz.title;
 			quizItemElement.querySelector('.delete-quiz-item').addEventListener('click', () => { const confirmed = confirm('Confirm Delete'); console.log(confirmed); if (confirmed) { deleteQuiz(quiz._id); } });
 			quizItemElement.querySelector('.edit-quiz-item').addEventListener('click', () => createQuizFromJSON(quiz));
-			quizItemElement.querySelector('.error-indicator').style.display = (quiz.validation ? 'inline-flex' : 'none');
+			quizItemElement.querySelector('.error-indicator').style.display = (quiz.validation && quiz.validation.length > 0) ? 'inline-flex' : 'none';
 			quizList.appendChild(quizItemElement);
 		});
 	}
@@ -241,10 +241,18 @@ document.addEventListener('DOMContentLoaded', () => {
 	async function saveQuiz(event) {
 		event.preventDefault(); // Prevent the default form submission
 
-		// Perform validation on the quiz - display nice messages to show where the mistakes are
-
 		// Collect quiz data from the form
 		const quizJSON = createJSONfromQuiz();
+
+		// Re-validate the quiz before saving
+		const validation = await validateQuizSchema(quizJSON);
+		if (!validation.valid) {
+			console.log('Quiz validation failed:', validation);
+			alert('Errors found: please correct before saving)');
+			// Update the error indicators
+			displayValidationErrors(validation.errors);
+			return;
+		}
 
 		// Get the button id to replace with saving/saved message
 		const saveQuizElement = document.getElementById('save-quiz');
@@ -263,7 +271,10 @@ document.addEventListener('DOMContentLoaded', () => {
 			const result = await response.json();
 
 			if (!result.success) {
-				throw new Error(result);
+				console.log('Error saving quiz: please correct any errors and try again');
+				saveQuizElement.textContent = 'Save Quiz';
+				alert('Error saving quiz: ' + (result.message || 'Unknown error'));
+				return;
 			}
 
 			// Parse the response as JSON - note it could have validation errors
@@ -389,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <label>Answer:</label><input type="number" data-field="answer" placeholder="Enter answer">
                 `;
 				break
-	
+
 			case 'multiple-choice':
 				questionHint.textContent = 'Players select an answer from the provided options';
 				contentContainer.innerHTML = `
@@ -451,6 +462,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <input type="text" data-field="order-item" placeholder="Item 3">
                             <input type="text" data-field="order-item" placeholder="Item 4">
                             <input type="text" data-field="order-item" placeholder="Item 5">
+                            <input type="text" data-field="order-item" placeholder="Item 6">
                         </div>
                 `;
 				break;
@@ -649,6 +661,10 @@ document.addEventListener('DOMContentLoaded', () => {
 	// There can be 2 of these: the first is the question image, the second is the answer image (in the case of hotspot/point-it-out)
 	function setImageSelectorSrc(questionElement, src) {
 		console.log('setImageSelectorSrc:', src);
+		const questionImage = questionElement.querySelector('[data-field="question-image-url"]');
+		if (questionImage) {
+			questionImage.value = src;
+		}
 		const imageSelectorPreviews = questionElement.querySelectorAll('.image-selector-preview');
 		if (imageSelectorPreviews) {
 			console.log('setImageSelectorSrc: imageSelectorPreview:', imageSelectorPreviews);
@@ -779,7 +795,7 @@ document.addEventListener('DOMContentLoaded', () => {
 							return "This question requires hotspot coordinates";
 
 						case 'ordering':
-							return "This question requires at least 2 items to order and start/end labels";
+							return "This question requires 2-6 items to order and start/end labels";
 
 						case 'matching':
 							return "This question requires at least 2 matching pairs";
@@ -862,7 +878,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				}
 				roundErrors[roundIndex].push(error.message);
 
-				if (path.length === 2) {
+				if (path.length === 2 || path.length === 3) {
 					// Error on the round itself
 					displayRoundError(roundIndex, error);
 				} else if (path[2] === 'questions') {
@@ -1049,8 +1065,17 @@ document.addEventListener('DOMContentLoaded', () => {
 			summary.parentNode.insertBefore(errorElement, summary.nextSibling);
 
 			// Highlight specific fields based on the error message
+			let titleInput = null;
 			if (error.message.includes('title')) {
-				const titleInput = roundElement.querySelector('.round-title');
+				titleInput = roundElement.querySelector('.round-title');
+			}
+			if (error.instancePath.includes('updateScores')) {
+				titleInput = roundElement.querySelector('[data-field="update-scores"]');
+			}
+			if (error.instancePath.includes('showAnswer')) {
+				titleInput = roundElement.querySelector('[data-field="show-answer"]');
+			}
+			if (titleInput) {
 				titleInput.classList.add('error-field');
 				titleInput.title = error.message;
 			}
@@ -1133,10 +1158,17 @@ document.addEventListener('DOMContentLoaded', () => {
 			audio: questionElement.querySelector('[data-field="question-audio"]').value
 		};
 
+		console.log('gatherQuestionData:', type, baseData);
+
 		switch (type) {
 			case 'text':
+				baseData.answer = questionElement.querySelector('[data-field="answer"]').value;
+				break;
 			case 'number-exact':
 			case 'number-closest':
+				const numValue = questionElement.querySelector('[data-field="answer"]').value;
+				baseData.answer = numValue !== '' ? Number(numValue) : null;
+				break;
 			case 'true-false':
 				baseData.answer = questionElement.querySelector('[data-field="answer"]').value;
 				break;
@@ -1203,15 +1235,170 @@ document.addEventListener('DOMContentLoaded', () => {
 		return baseData;
 	}
 
+	// Top-level function to import quiz - must be thoroughly validated before it can be used
 	async function importQuizFromFile(file) {
-		try {
-			const text = await file.text();
-			const quizJSON = JSON.parse(text);
-			createQuizFromJSON(quizJSON);
-		} catch (error) {
-			console.error('Error importing quiz:', error);
-			alert('Failed to import quiz file. Please check the file format.');
+
+		// Step 1: Validate file type
+		if (!file.name.endsWith('.json') && file.type !== 'application/json') {
+			alert('Please select a JSON file.');
+			return;
 		}
+
+		// Step 2: Read file content
+		let text;
+		try {
+			text = await file.text();
+			console.log(`Successfully loaded file: ${file.name}`);
+		} catch (error) {
+			console.error('Error loading quiz file:', error);
+			alert(`Failed to load quiz file: ${error.message}`);
+			return;
+		}
+
+		// Step 3: Parse JSON
+		let quizJSON;
+		try {
+			quizJSON = JSON.parse(text);
+		} catch (error) {
+			console.error('Error parsing quiz JSON:', error);
+			alert(`Failed to parse quiz JSON: ${error.message}`);
+			return;
+		}
+
+		// Step 4: Create quiz from JSON - this will also perform validation and show errors
+		try {
+			createQuizFromJSON(quizJSON);
+			alert(`Quiz "${quizJSON.title || 'Untitled'}" imported - please correct any errors and then save`);
+		} catch (error) {
+			console.error('Error creating quiz from JSON:', error);
+			alert(`Failed to create quiz: ${error.message}`);
+			return;
+		}
+	}
+
+	// Function to validate quiz against schema via API
+	async function validateQuizSchema(quizJSON) {
+		try {
+			const response = await fetch('/api/quiz/validate', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					// Add any authentication headers needed
+				},
+				body: JSON.stringify(quizJSON)
+			});
+
+			if (!response.ok) {
+				throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+			}
+
+			const result = await response.json();
+			return result.data; // Access the data property of your apiResponse
+		} catch (error) {
+			console.error("Validation request failed:", error);
+			throw error;
+		}
+	}
+
+	// Function to display schema validation errors in a user-friendly way
+	function displaySchemaErrors(errors, quizJSON) {
+		// Create modal or popup for errors
+		const errorDiv = document.createElement('div');
+		errorDiv.className = 'validation-errors';
+
+		// Create header
+		const header = document.createElement('h3');
+		header.textContent = 'Quiz Validation Errors';
+		errorDiv.appendChild(header);
+
+		// Create error list
+		const errorList = document.createElement('ul');
+
+		// Process and group errors
+		errors.forEach(error => {
+			const errorItem = document.createElement('li');
+			errorItem.className = 'error-item';
+
+			// Format the error message based on error type
+			let message = '';
+			let path = error.instancePath || '';
+
+			// Remove leading slash from path
+			if (path.startsWith('/')) {
+				path = path.substring(1);
+			}
+
+			// Convert JSON path to readable location
+			const pathParts = path.split('/');
+			let humanPath = '';
+
+			if (pathParts.length > 0 && pathParts[0] !== '') {
+				if (pathParts[0] === 'rounds') {
+					// For round errors, show round title if available
+					const roundIndex = parseInt(pathParts[1], 10);
+					const roundTitle = quizJSON.rounds?.[roundIndex]?.title || `Round ${roundIndex + 1}`;
+					humanPath = `Round: "${roundTitle}"`;
+
+					// For question errors, add question info
+					if (pathParts[2] === 'questions') {
+						const questionIndex = parseInt(pathParts[3], 10);
+						const questionText = quizJSON.rounds?.[roundIndex]?.questions?.[questionIndex]?.text ||
+							`Question ${questionIndex + 1}`;
+						humanPath += ` → Question: "${questionText.substring(0, 30)}${questionText.length > 30 ? '...' : ''}"`;
+					}
+				} else {
+					humanPath = pathParts.join(' → ');
+				}
+			}
+
+			// Format by error keyword
+			switch (error.keyword) {
+				case 'required':
+					message = `Missing required field: ${error.params.missingProperty}`;
+					break;
+				case 'enum':
+					message = `Invalid value. Must be one of: ${error.params.allowedValues.join(', ')}`;
+					break;
+				case 'type':
+					message = `Expected type ${error.params.type} but got ${typeof error.data}`;
+					break;
+				default:
+					message = error.message;
+			}
+
+			// Construct the full error message
+			errorItem.innerHTML = humanPath ?
+				`<strong>${humanPath}:</strong> ${message}` : message;
+
+			errorList.appendChild(errorItem);
+		});
+
+		errorDiv.appendChild(errorList);
+
+		// Add to page as modal or replace any existing error display
+		const existingErrors = document.querySelector('.validation-errors');
+		if (existingErrors) {
+			existingErrors.remove();
+		}
+
+		// Create a simple modal wrapper
+		const modalWrapper = document.createElement('div');
+		modalWrapper.className = 'error-modal-wrapper';
+		modalWrapper.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; display:flex; justify-content:center; align-items:center;';
+
+		// Style the error div as a modal
+		errorDiv.style.cssText = 'background:white; border-radius:8px; padding:20px; max-width:80%; max-height:80%; overflow-y:auto; box-shadow:0 4px 8px rgba(0,0,0,0.2);';
+
+		// Add close button
+		const closeBtn = document.createElement('button');
+		closeBtn.textContent = 'Close';
+		closeBtn.style.cssText = 'padding:8px 16px; background:#f44336; color:white; border:none; border-radius:4px; margin-top:15px; cursor:pointer;';
+		closeBtn.onclick = () => modalWrapper.remove();
+		errorDiv.appendChild(closeBtn);
+
+		// Add modal to page
+		modalWrapper.appendChild(errorDiv);
+		document.body.appendChild(modalWrapper);
 	}
 
 	async function importQuizFromURL(url) {
@@ -1232,14 +1419,119 @@ document.addEventListener('DOMContentLoaded', () => {
 			});
 	}
 
-	function createQuizFromJSON(quizJSON) {
+	async function createQuizFromJSON(quizJSON) {
 		console.log('createQuizFromJSON:', quizJSON);
+
+		try {
+			// Several steps here when parsing and building a quiz from JSON data
+			quizJSON = normalizeQuizData(quizJSON);
+
+			// Validate the basic structure of the quiz - this ensures it will still render in the editor
+			quizJSON = validateQuizStructure(quizJSON);
+
+			// Validate the quiz JSON against the schema via API
+			const validation = await validateQuizSchema(quizJSON);
+			console.log('Validation result:', validation);
+			quizJSON.validation = validation.errors || [];
+
+			// if (!validation.valid) {
+			// 	// Display validation errors in a user-friendly way
+			// 	displaySchemaErrors(validation.errors, quizJSON);
+			// }
+
+			// Ragardless of the validation result we still want to show the quiz in the editor
+			// The user can then fix any issues highlighted by the validation
+			populateQuizWithData(quizJSON);
+
+		} catch (error) {
+			console.error('Error during validation:', error);
+			alert('An error occurred during quiz validation. Please check the console for details.');
+			// Still show the HTML quiz even though validation failed
+			populateQuizWithData(quizJSON);
+		}
+	}
+
+	// Normalize data types in the quiz JSON to ensure consistency
+	// This is like another layer of validation
+	function normalizeQuizData(quizJSON) {
+		if (quizJSON.rounds && Array.isArray(quizJSON.rounds)) {
+			quizJSON.rounds.forEach(round => {
+				if (round.questions && Array.isArray(round.questions)) {
+					round.questions.forEach(question => {
+						// Convert true-false from boolean to string if needed
+						if (question.type === 'true-false' && typeof question.answer === 'boolean') {
+							question.answer = question.answer ? 'true' : 'false';
+						}
+						// Add this debug code
+						if (question.type === 'true-false') {
+							console.log('True-false question answer:',
+								question.answer,
+								'Type:', typeof question.answer);
+						}
+						// Convert number types from string to number if needed
+						if ((question.type === 'number-exact' || question.type === 'number-closest') &&
+							typeof question.answer === 'string' && question.answer !== '') {
+							question.answer = Number(question.answer);
+						}
+					});
+				}
+			});
+		}
+		return quizJSON;
+	}
+
+	function validateQuizStructure(quizJSON) {
+
+		// Ensure top-level arrays exist (but don't add content)
+		quizJSON.rounds = quizJSON.rounds || [];
+
+		// Process each round to ensure structure
+		quizJSON.rounds.forEach(round => {
+			// Ensure questions array exists
+			round.questions = round.questions || [];
+
+			// Ensure each question has the basic structure needed to render
+			round.questions.forEach(question => {
+				// Only ensure properties needed for UI rendering
+				// Don't add default values that would hide validation issues
+
+				// For example, ensure multiple-choice has options array
+				// but don't populate it with defaults
+				if (question.type === 'multiple-choice') {
+					question.options = question.options || [];
+				}
+
+				// Ensure matching has pairs array
+				if (question.type === 'matching') {
+					question.pairs = question.pairs || [];
+				}
+
+				// Ensure ordering has items array and extra object
+				if (question.type === 'ordering') {
+					question.items = question.items || [];
+					question.extra = question.extra || {};
+				}
+
+				// Ensure point-it-out has answer structure
+				if (question.type === 'point-it-out' && question.answer) {
+					question.answer.start = question.answer.start || {};
+					question.answer.end = question.answer.end || {};
+				}
+			});
+		});
+
+		return quizJSON;
+	}
+
+	function populateQuizWithData(quizJSON) {
+		console.log('populateQuizWithData:', quizJSON);
+
 		document.getElementById('quiz-json').value = JSON.stringify(quizJSON, null, 2);
 		document.getElementById('quiz-id').value = quizJSON._id || "";
 		document.getElementById('quiz-owner').value = quizJSON.owner || "";
 		document.getElementById('quiz-edit').querySelector('.header-title').textContent = quizJSON.title;
 		document.getElementById('quiz-title').value = quizJSON.title;
-		document.getElementById('validation-summary').innerHTML = JSON.stringify(quizJSON.validation);
+		// document.getElementById('validation-summary').innerHTML = JSON.stringify(quizJSON.validation);
 		quill.root.innerHTML = quizJSON.description;
 
 		const summaryElement = document.getElementById('quiz-edit').querySelector('.header-quiz');
@@ -1295,8 +1587,10 @@ document.addEventListener('DOMContentLoaded', () => {
 					case 'text':
 					case 'number-exact':
 					case 'number-closest':
-					case 'true-false':
 						contentContainer.querySelector('[data-field="answer"]').value = questionJSON.answer || '';
+						break;
+					case 'true-false':
+						contentContainer.querySelector('[data-field="answer"]').value = String(questionJSON.answer) || '';
 						break;
 					case 'multiple-choice':
 						questionJSON.options.forEach((option, index) => {
@@ -1371,6 +1665,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		document.getElementById('quiz-list').style.display = 'none';
 		document.getElementById('quiz-edit').style.display = 'block';
 
+		// Display any validation errors - including the summary at the top of the quiz
 		displayValidationErrors(quizJSON.validation);
 
 		// Set up change tracking after quiz is loaded

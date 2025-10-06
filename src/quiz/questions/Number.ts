@@ -27,10 +27,10 @@ export default class NumberQuestion extends BaseQuestion {
         // Create answer options - answerHeight is total amount of space available but we must allow some padding top and bottom
         // For text questions its pretty simple - will likely have full height of 1080px since only displayed on player screen
         // ASK MODE:
-        // For HOST we display a message 'Type your answer'
-        // PLAYER we display a text field and a keyboard
+        //  HOST we display a message 'Type your answer'
+        //  PLAYER we display a text field and a keyboard
         // ANSWER MODE:
-        // For HOST we display the answer text (in place of 'Type your answer')
+        //  HOST we display the answer text (in place of 'Type your answer')
 
         if (this.questionData.mode == 'ask') {
 

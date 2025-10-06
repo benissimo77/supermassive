@@ -40,7 +40,6 @@ export class QuizPlayScene extends BaseScene {
             align: 'center',
         }
 
-
         // Setup socket listeners
         this.setupSocketListeners();
 
@@ -72,11 +71,27 @@ export class QuizPlayScene extends BaseScene {
 
     create(): void {
 
+        console.log('QuizPlayScene:: create: HELLO')
+
+        // Add a CONNECT/DISCONNECT button to simulate player disconnections
+        // const connectButton = this.add.text(960, 10, 'Connect', this.labelConfig).setOrigin(0.5, 0);
+        // connectButton.setInteractive({ useHandCursor: true });
+        // connectButton.on('pointerdown', () => this.toggleConnect());
+
 
         // Let the server know we're ready - this could come from a button click or other event
         this.socket.emit('play:requeststart', {});
     }
 
+
+    private toggleConnect(): void {
+        console.log('QuizPlayScene:: toggleConnect')
+        if (this.socket.connected) {
+            this.socket.disconnect();
+        } else {
+            this.socket.connect();
+        }
+    }
 
     private setupSocketListeners(): void {
 
@@ -105,6 +120,12 @@ export class QuizPlayScene extends BaseScene {
         // Player answered a question
         this.socket.on('server:questionanswered', (data) => {
             // this.updatePlayerAnswer(data.sessionID, data.response);
+        });
+
+        // Question over - clear the screen
+        this.socket.on('server:endquestion', (data) => {
+            console.log('QuizPlayScene:: server:endquestion - clearing UI:', data);
+            this.clearUI();
         });
 
         // Show answer

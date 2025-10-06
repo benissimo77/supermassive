@@ -1,10 +1,11 @@
 import { BaseScene } from "src/BaseScene";
+import { BaseQuestionData } from "./QuestionTypes";
 import { DebugUtils as console } from 'src/scripts/DebugUtils';
 
 import { YouTubePlayerUI } from '../YouTubePlayerUI';
 
 // Some defaults to get us started (these are all logical units)
-const QUESTIONIMAGE_HEIGHT = 720;
+const QUESTIONIMAGE_HEIGHT = 640;
 const QUESTIONVIDEO_HEIGHT = 480;
 const QUESTIONAUDIO_HEIGHT = 120;
 
@@ -28,11 +29,11 @@ const QUESTIONAUDIO_HEIGHT = 120;
 export abstract class BaseQuestion extends Phaser.GameObjects.Container {
 
     declare public scene: BaseScene;
-    protected questionData: any;
+    protected questionData: BaseQuestionData;
     private answerCallback: Function;
     protected answerContainer: Phaser.GameObjects.Container;
 
-    constructor(scene: BaseScene, questionData: any) {
+    constructor(scene: BaseScene, questionData: BaseQuestionData) {
         super(scene, 0, 0);
         this.questionData = questionData;
         this.scene = scene;
@@ -44,7 +45,7 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
         // PLAY MODE - 1080
         // simple: question/audio 440, answers 640
         // video: question/video 720, answers 360
-        // image: question/image 900, answers 180
+        // image: question/image 840, answers 240
         if (this.scene.TYPE == 'play') {
             return 1080;
         }
@@ -107,7 +108,7 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
 
         // If we are in ask mode then we need to clear the question and show the new one
         // If we are in answer mode we can assume we already have the question displayed - just show the answer
-        if (this.questionData.mode == 'ask' && this.sceneTYPE != 'play') {
+        if (this.questionData.mode == 'ask' && this.scene.TYPE != 'play') {
 
             // Clear previous content - Phaser built-in method
             this.removeAll(true);
@@ -241,8 +242,15 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
 
         return new Promise<Phaser.GameObjects.Image>((resolve, reject) => {
 
+            // We know that we must have an image in order for this function to be called
+            // BUT check anyway to avoid TS warnings
+            if (!this.questionData.image || this.questionData.image.length == 0) {
+                return Promise.reject(new Error('No image specified in questionData'));
+            }
+
             const isBase64 = this.questionData.image.startsWith('data:image');
-            const textureKey = `question-image-${this.questionData.questionNumber}`;
+            let textureKey = isBase64 ? `texture-${Date.now()}` : this.questionData.image;
+            textureKey = textureKey.substring(0, 64);
 
             // Convenience function adds image and resolves (used multiple times)
             const addImage = (): void => {
@@ -259,12 +267,18 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
 
             if (isBase64) {
                 // Base64 path - create texture and wait for event
-                this.scene.textures.once('addtexture-' + textureKey, () => {
+                this.scene.textures.once(textureKey, () => {
                     console.log('Base64 image texture created:', { textureKey });
                     addImage();
                 });
                 this.scene.textures.addBase64(textureKey, this.questionData.image);
             } else {
+
+                // External URLs load via image proxy to prevent CORS issues
+                let imageURL = this.questionData.image;
+                if (imageURL.startsWith('http') && !imageURL.includes('videoswipe')) {
+                    imageURL = `/proxy-image?url=${encodeURIComponent(imageURL)}`;
+                }
 
                 this.scene.load.once('complete', () => {
                     console.log('Image loaded:', textureKey);
@@ -272,10 +286,10 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
                 });
 
                 this.scene.load.once('loaderror', () => {
-                    console.error('Failed to load image URL:', this.questionData.image);
+                    console.error('Failed to load image URL:', imageURL);
                     addImage();
                 });
-                this.scene.load.image(textureKey, this.questionData.image);
+                this.scene.load.image(textureKey, imageURL);
                 this.scene.load.start();
             }
         });

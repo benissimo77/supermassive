@@ -290,14 +290,6 @@ export default class Quiz extends Game {
 					updateScores: "question",
 					questions: [
 						{
-							"type": "draw",
-							"text": "Old-skool draw the answer!",
-							"image": null,
-							"audio": "",
-							"answer": "This is what you should have drawn..."
-
-						},
-						{
 							type: "text",
 							text: "What is the capital of France?",
 							image: null,
@@ -310,6 +302,14 @@ export default class Quiz extends Game {
 							"image": null,
 							"audio": "",
 							"answer": "true"
+						},
+						{
+							"type": "draw",
+							"text": "Old-skool draw the answer!",
+							"image": null,
+							"audio": "",
+							"answer": "This is what you should have drawn..."
+
 						},
 						{
 							type: 'multiple-choice',
@@ -344,8 +344,10 @@ export default class Quiz extends Game {
 							"text": "Place in order",
 							"image": null,
 							"audio": "",
-							"startLabel": "Earliest",
-							"endLabel": "Latest",
+							"extra": {
+								"startLabel": "Earliest",
+								"endLabel": "Latest"
+							},
 							"items": [
 								"1990",
 								"1995",
@@ -411,8 +413,10 @@ export default class Quiz extends Game {
 							"text": "Place in order",
 							"image": null,
 							"audio": "",
-							"startLabel": "Earliest",
-							"endLabel": "Latest",
+							"extra": {
+								"startLabel": "Earliest",
+								"endLabel": "Latest"
+							},
 							"items": [
 								"1990",
 								"1995",
@@ -477,8 +481,10 @@ export default class Quiz extends Game {
 							"text": "Place in order",
 							"image": null,
 							"audio": "",
-							"startLabel": "Earliest",
-							"endLabel": "Latest",
+							"extra": {
+								"startLabel": "Earliest",
+								"endLabel": "Latest"
+							},
 							"items": [
 								"1990",
 								"1995",
@@ -493,176 +499,6 @@ export default class Quiz extends Game {
 							"image": null,
 							"audio": "",
 							"answer": "This is what you should have drawn..."
-						}
-					]
-				},
-
-				{
-					"title": "General Knowledge",
-					"description": "Test your general knowledge!",
-					"roundTimer": "0",
-					"showAnswer": "round",
-					"updateScores": "round",
-					"questions": [
-						{
-							"type": "matching",
-							"text": "Match left to right",
-							"image": null,
-							"audio": "",
-							"pairs": [
-								{
-									"left": "Left 1",
-									"right": "Right 1"
-								},
-								{
-									"left": "Left 2",
-									"right": "Right 2"
-								},
-								{
-									"left": "Left 3",
-									"right": "Right 3"
-								},
-								{
-									"left": "Left 4",
-									"right": "Right 4"
-								},
-								{
-									"left": "Left 5",
-									"right": "Right 5"
-								}
-							]
-						},
-						{
-							"type": "ordering",
-							"text": "Place in order",
-							"image": null,
-							"audio": "",
-							"startLabel": "Earliest",
-							"endLabel": "Latest",
-							"items": [
-								"1990",
-								"1995",
-								"2000",
-								"2004",
-								"2012"
-							]
-						},
-					]
-				}
-
-			]
-		}
-
-		// Build a model JSON structure to represent a quiz
-		// This will likely change a lot - but make a start, this becomes the way to store an entire quiz as an object
-		// Quiz can then be loaded from a file or a database and everything needed is contained in the JSON
-		// This is a simple example of a quiz with 3 questions:
-		// type specifies the 'default' question type - can be overridden at round or question level
-		// if overridden at question/round level then the question/round will (automatically) include details to explain the override
-		// Some possible types: basic, timed, buzzer, picture, audio, video
-		// Think a bit about what makes a question need a different type - is is the question format or the answer format (or both)?
-		// It might be that we need a separate question and answer type - but for now keep it simple
-		// Questions and Rounds are not numbered, so in theory they can be shudffled or presented in any order
-		// The order of the rounds might be important - but the order of the questions within a round is not
-		// Basic type the answers are an array, the first answer is always the correct one - quiz shuffles the answers before sending
-
-		// Declare this as V2 so we don't use it at the moment...
-		this.quizDataV2 = {
-			title: 'The Veluwe Weekend Mega-Quiz!',
-			description: 'Ok, not very mega, but hey sales...<br/>And this is more content<ul><li>Bullet points</li><li>Bullets...</li></ul>',
-			rounds: [
-				{
-					title: 'General Ignorance',
-					description: 'Just your basic general knowledge questions. Four possible answers, how much do you know?',
-					roundTimer: "0",
-					showAnswer: "round",
-					updateScores: "round",
-					questions: [
-						{
-							"type": "point-it-out",
-							"text": "Point out the top corner...",
-							"image": "data:image/png;base64,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",
-							"audio": "",
-							"answer": {
-								"start": {
-									"x": 80,
-									"y": 80
-								},
-								"end": {
-									"x": 320,
-									"y": 320
-								}
-							}
-						},
-					]
-				},
-				{
-					title: 'General Ignorance II',
-					description: 'Four possible answers, how much do you know?',
-					roundTimer: "0",
-					showAnswer: "question",
-					updateScores: "question",
-					questions: [
-						{
-							type: 'multiple-choice',
-							text: 'In which year did the Titanic sink?',
-							options: ['1912', '1905', '1915', '1920']
-						},
-						{
-							"type": "true-false",
-							"text": "True or False: this is a question?",
-							"image": null,
-							"audio": "",
-							"answer": "true"
-						},
-						{
-							type: 'multiple-choice',
-							text: 'Who wrote the play "Romeo and Juliet"?',
-							options: ['William Shakespeare', 'Charles Dickens', 'Jane Austen', 'Mark Twain']
-						}
-					]
-				},
-				{
-					title: 'General Ignorance III',
-					description: 'How much do you know?',
-					roundTimer: "0",
-					showAnswer: "question",
-					updateScores: "round",
-					questions: [
-						{
-							type: 'multiple-choice',
-							text: 'What is the capital city of Japan?',
-							options: ['Tokyo', 'Beijing', 'Seoul', 'Bangkok']
-						},
-						{
-							type: 'multiple-choice',
-							text: 'What is the largest ocean on Earth?',
-							options: ['Pacific Ocean', 'Atlantic Ocean', 'Indian Ocean', 'Arctic Ocean']
-						},
-						{
-							type: 'multiple-choice',
-							text: 'Who painted the Mona Lisa?',
-							options: ['Leonardo da Vinci', 'Vincent van Gogh', 'Pablo Picasso', 'Claude Monet']
-						},
-						{
-							type: 'multiple-choice',
-							text: 'What is the smallest country in the world?',
-							options: ['Vatican City', 'Monaco', 'San Marino', 'Liechtenstein']
-						},
-						{
-							type: 'multiple-choice',
-							text: 'Which country is known as the Land of the Rising Sun?',
-							options: ['Japan', 'China', 'South Korea', 'Thailand']
-						},
-						{
-							type: 'multiple-choice',
-							text: 'What is the main ingredient in guacamole?',
-							options: ['Avocado', 'Tomato', 'Onion', 'Garlic']
-						},
-						{
-							type: 'multiple-choice',
-							text: 'Who was the first President of the United States?',
-							options: ['George Washington', 'Thomas Jefferson', 'Abraham Lincoln', 'John Adams']
 						}
 					]
 				},
@@ -725,6 +561,276 @@ export default class Quiz extends Game {
 						}
 					]
 				},
+
+				{
+					"title": "General Knowledge",
+					"description": "Test your general knowledge!",
+					"roundTimer": "0",
+					"showAnswer": "round",
+					"updateScores": "round",
+					"questions": [
+						{
+							"type": "matching",
+							"text": "Match left to right",
+							"image": null,
+							"audio": "",
+							"pairs": [
+								{
+									"left": "Left 1",
+									"right": "Right 1"
+								},
+								{
+									"left": "Left 2",
+									"right": "Right 2"
+								},
+								{
+									"left": "Left 3",
+									"right": "Right 3"
+								},
+								{
+									"left": "Left 4",
+									"right": "Right 4"
+								},
+								{
+									"left": "Left 5",
+									"right": "Right 5"
+								}
+							]
+						},
+						{
+							"type": "ordering",
+							"text": "Place in order",
+							"image": null,
+							"audio": "",
+							"extra": {
+								"startLabel": "Earliest",
+								"endLabel": "Latest"
+							},
+							"items": [
+								"1990",
+								"1995",
+								"2000",
+								"2004",
+								"2012"
+							]
+						},
+					]
+				}
+
+			]
+		}
+
+		// Build a model JSON structure to represent a quiz
+		// This will likely change a lot - but make a start, this becomes the way to store an entire quiz as an object
+		// Quiz can then be loaded from a file or a database and everything needed is contained in the JSON
+		// This is a simple example of a quiz with 3 questions:
+		// type specifies the 'default' question type - can be overridden at round or question level
+		// if overridden at question/round level then the question/round will (automatically) include details to explain the override
+		// Some possible types: basic, timed, buzzer, picture, audio, video
+		// Think a bit about what makes a question need a different type - is is the question format or the answer format (or both)?
+		// It might be that we need a separate question and answer type - but for now keep it simple
+		// Questions and Rounds are not numbered, so in theory they can be shudffled or presented in any order
+		// The order of the rounds might be important - but the order of the questions within a round is not
+		// Basic type the answers are an array, the first answer is always the correct one - quiz shuffles the answers before sending
+
+		// Declare this as V2 so we don't use it at the moment...
+		this.quizData = {
+			title: 'The Veluwe 2025 Golf, Food, Wine and Poker Mega-Quiz!',
+			description: 'Ok, not very mega, but hey sales...',
+			rounds: [
+				{
+					title: 'General Ignorance',
+					description: 'We are warming up! Just your basic general knowledge questions. Four possible answers, how much do you know?',
+					roundTimer: "0",
+					showAnswer: "round",
+					updateScores: "round",
+					questions: [
+						{
+							type: 'multiple-choice',
+							text: 'Science: Which gas do plants absorb from the atmosphere?',
+							options: ['Carbon Dioxide', 'Oxygen', 'Nitrogen', 'Hydrogen']
+						},
+						{
+							type: 'multiple-choice',
+							text: 'Geography: What is the smallest country in the world?',
+							options: ['Vatican City', 'Monaco', 'San Marino', 'Liechtenstein']
+						},
+						{
+							type: 'multiple-choice',
+							text: 'History: Who was the first President of the United States?',
+							options: ['George Washington', 'Thomas Jefferson', 'Abraham Lincoln', 'John Adams']
+						},
+						{
+							type: "multiple-choice",
+							text: "On a similar note: Who was the first President of Ireland?",
+							options: ["Douglas Hyde", "Éamon de Valera", "W.T. Cosgrave", "Michael Collins"]
+						},
+						{
+							type: "multiple-choice",
+							text: "Scotland does not have a President - but they do have a First Minister! Who was Scotland's first First Minister?",
+							options: ["Donald Dewar", "Alex Salmond", "Henry McLeish", "Jack McConnell"]
+						},
+						{
+							type: "multiple-choice",
+							text: "Since we're in Netherlands: Who was the first Stadhouder of the independent Dutch Republic?",
+							options: [
+								"William I of Orange",
+								"Johan van Oldenbarnevelt",
+								"Maurice of Nassau",
+								"Johan de Witt"
+							]
+						},
+						{
+							type: 'ordering',
+							text: 'Arrange those four positions in order of when they were first created. Whose traditions are oldest???',
+							extra: {
+								startLabel: "Earliest",
+								endLabel: "Latest"
+							},
+							items: [
+								"Dutch Stadhouder",
+								"US Presidency",
+								"Irish Presidency",
+								"Scottish First Minister"
+							]
+						}
+					]
+				},
+				{
+					title: 'POKER',
+					description: 'A few questions about poker - just to get you in the mood for the main event later...',
+					roundTimer: "0",
+					showAnswer: "round",
+					updateScores: "round",
+					questions: [
+						{
+							type: "multiple-choice",
+							text: "Which of these is NOT a variation of poker?",
+							options: ["Canasta", "Omaha", "Seven-Card Stud", "Razz"]
+						},
+						{
+							type: "ordering",
+							text: "Arrange these poker positions in clockwise order starting from the small blind.",
+							extra: {
+								startLabel: "First",
+								endLabel: "Last"
+							},
+							items: [
+								"Small Blind",
+								"Big Blind",
+								"Under the Gun",
+								"Hijack",
+								"Cutoff",
+								"Button"
+							]
+						},
+						{
+							type: "matching",
+							text: "Match these advanced poker concepts with their definitions.",
+							pairs: [
+								{
+									left: "Implied Odds",
+									right: "Potential future bets you might win if you hit your draw"
+								},
+								{
+									left: "Reverse Implied Odds",
+									right: "When making your hand might cost you more than you win"
+								},
+								{
+									left: "Blockers",
+									right: "Cards in your hand that reduce opponent's chances of strong holdings"
+								},
+								{
+									left: "Polarized Range",
+									right: "Betting with very strong hands and bluffs but not middle strength"
+								},
+								{
+									left: "GTO",
+									right: "Strategy that cannot be exploited regardless of opponent's play"
+								}
+							]
+						},
+						{
+							type: "multiple-choice",
+							text: "Which of these is NOT part of the 'Independent Chip Model' (ICM) considerations in tournament poker?",
+							options: [
+								"Expected hourly rate of return",
+								"Pay jump considerations",
+								"Stack size relative to tournament average",
+								"Probability of finishing in each position"
+							]
+						},
+						{
+							type: "multiple-choice",
+							text: "Who won the 2025 World Series of Poker Main Event?",
+							image: "https://www.wsop.com/images/2025/MEChampion2025.jpg",
+							options: [
+								"Michael Mizrachi",
+								"Jonathan Tamayo",
+								"Elmer",
+								"Joe McKeehen"
+							]
+						},
+						{
+							type: "number-closest",
+							text: "How many players did he beat in order to take the title?",
+							answer: 9735,
+						},
+						{
+							type: 'true-false',
+							text: 'True or False - he won with T3o?',
+							answer: false
+						},
+						{
+							type: "text",
+							text: "Enter the (two-letter) initials of the poker player known as 'The Magician'?",
+							image: "https://casinochecking.com/wp-content/uploads/2018/08/Antonio-Esfandiari-poker-2000x1331.jpg",
+							answer: "AE"
+						}
+					]
+				},
+				{
+					title: 'Food and Drink',
+					description: 'A few questions about food and drink - it was that or questions about cycling',
+					roundTimer: "0",
+					showAnswer: "round",
+					updateScores: "round",
+					questions: [
+						{
+							type: "multiple-choice",
+							text: "What is the most widely consumed beverage in the world?",
+							options: ["Tea", "Coffee", "Water", "Juice"]
+						},
+						{
+							type: "matching",
+							text: "Match these wines with their primary grape varieties.",
+							pairs: [
+								{
+									left: "Cabernet Sauvignon",
+									right: "Red grape with black currant notes"
+								},
+								{
+									left: "Chardonnay",
+									right: "White grape often aged in oak"
+								},
+								{
+									left: "Merlot",
+									right: "Soft red grape with plum flavors"
+								},
+								{
+									left: "Sauvignon Blanc",
+									right: "Crisp white grape with grassy notes"
+								},
+								{
+									left: "Pinot Noir",
+									right: "Light red grape with cherry notes"
+								}
+							]
+						},
+
+					]
+				},
+
 				{
 					title: 'GOLF!',
 					description: 'Well why not eh? It is a golf weekend after all...',
@@ -738,9 +844,46 @@ export default class Quiz extends Game {
 							options: ['Birdie', 'Eagle', 'Par', 'Bogey']
 						},
 						{
+							type: 'text',
+							text: 'What are the (two-letter) initials of this golfer?',
+							image: 'https://staticg.sportskeeda.com/editor/2023/03/20b83-16799468691823-1920.jpg',
+							answer: 'AP'
+						},
+						{
 							type: 'multiple-choice',
 							text: 'What is the maximum number of clubs a golfer is allowed to carry in their bag during a round?',
 							options: ['14', '10', '12', '16']
+						},
+						{
+							type: 'number-closest',
+							text: 'What is the length in yards of the longest golf hole in the world, the 7th hole at the Satsuki Golf Club in Japan?',
+							answer: 964,
+						},
+						{
+							type: "matching",
+							text: "Match these famous golf courses with their locations.",
+							pairs: [
+								{
+									left: "St Andrews",
+									right: "Scotland"
+								},
+								{
+									left: "Augusta National",
+									right: "Georgia, USA"
+								},
+								{
+									left: "Pebble Beach",
+									right: "California, USA"
+								},
+								{
+									left: "Oakmont",
+									right: "Pennsylvania, USA"
+								},
+								{
+									left: "Valderrama",
+									right: "Spain"
+								}
+							]
 						},
 						{
 							type: 'multiple-choice',
@@ -748,17 +891,58 @@ export default class Quiz extends Game {
 							options: ['Jack Nicklaus', 'Tiger Woods', 'Arnold Palmer', 'Gary Player']
 						},
 						{
+							type: 'number-closest',
+							text: 'In what year was the Ryder Cup first contested?',
+							answer: 1927,
+						},
+						{
 							type: 'multiple-choice',
 							text: 'Which tournament is considered the oldest major championship in golf?',
 							options: ['The Open Championship', 'The Masters', 'The U.S. Open', 'The PGA Championship']
 						},
 						{
+							type: "ordering",
+							text: "Order these golf clubs from shortest to longest in terms of typical distance hit.",
+							extra: {
+								startLabel: "Shortest",
+								endLabel: "Longest"
+							},
+							items: [
+								"5-iron",
+								"3-iron",
+								"5-wood",
+								"3-wood",
+								"Driver"
+							]
+						},
+						{
+							type: 'number-closest',
+							text: 'For a reasonably proficient male golfer in their 50s (ahem), what is a typical driving distance in yards?',
+							answer: 220
+						},
+						{
 							type: 'multiple-choice',
-							text: 'What is the name of the trophy awarded to the winner of The Masters Tournament?',
+							text: 'What is awarded to the winner of The Masters Tournament?',
 							options: ['The Green Jacket', 'The Claret Jug', 'The Wanamaker Trophy', 'The Ryder Cup']
 						}
 					]
+				},
+
+				{
+					title: 'Wrapping Up',
+					description: 'A few final questions to finish off... if we made it to here then it must have worked out ok!',
+					roundTimer: "0",
+					showAnswer: "question",
+					updateScores: "question",
+					questions: [
+						{
+							type: 'draw',
+							text: 'Draw a picture of anything you like - it must have at least two colours and use at least two different line widths',
+							answer: "Let's have a look at what you did...",
+						}
+					]
 				}
+
 			]
 		}
 
@@ -813,7 +997,7 @@ export default class Quiz extends Game {
 			} catch (error) {
 				console.error('Quiz::startGame: no quiz data found for ID:', config.quizID);
 				console.log('Quiz::startGame: using default quiz data instead');
-			}	
+			}
 		}
 
 		// Load the quiz from file and start the state machine
@@ -973,16 +1157,16 @@ export default class Quiz extends Game {
 		// Function also sets up the question.answer since sometimes the answer is derived from the question data (eg first item in options array)
 		this.prepareMutatedQuestion(this.question);
 
-		let localQuestion = structuredClone(this.question);
-		localQuestion.mode = 'ask';
-		localQuestion.direction = this.stateMachine.direction;
-		localQuestion.options = this.question.optionsShuffled;
-		localQuestion.items = this.question.itemsShuffled;
-		localQuestion.pairs = this.question.pairsShuffled;
-		delete localQuestion.answer;
-		delete localQuestion.optionsShuffled;
-		delete localQuestion.itemsShuffled;
-		delete localQuestion.pairsShuffled;
+		let hostQuestion = structuredClone(this.question);
+		hostQuestion.mode = 'ask';
+		hostQuestion.direction = this.stateMachine.direction;
+		hostQuestion.options = this.question.optionsShuffled;
+		hostQuestion.items = this.question.itemsShuffled;
+		hostQuestion.pairs = this.question.pairsShuffled;
+		delete hostQuestion.answer;
+		delete hostQuestion.optionsShuffled;
+		delete hostQuestion.itemsShuffled;
+		delete hostQuestion.pairsShuffled;
 
 		// This is an exception where we want to automatically move to next state without waiting for host
 		// WHY? Because after asking a question we know we instantly want to either collect answers or show the answer
@@ -990,8 +1174,8 @@ export default class Quiz extends Game {
 			this.room.deregisterHostResponseHandler();
 			this.stateMachine.nextState();
 		});
-		console.log('doQuestion:', this.mode, this.questionNumber, this.question, localQuestion);
-		this.room.emitToHosts('server:question', localQuestion, true);
+		console.log('doQuestion:', this.mode, this.questionNumber, this.question, hostQuestion);
+		this.room.emitToHosts('server:question', hostQuestion, true);
 
 	}
 
@@ -1006,21 +1190,21 @@ export default class Quiz extends Game {
 		// Prepare a local copy of the question for sending to players
 		// Note: could use the StructuredClone method above but for players its easier to build from scratch
 		// Though I'm not sure about that now - looks like quite a lot of code duplication
-		let localQuestion = {}
-		localQuestion.mode = 'ask';
-		localQuestion.direction = this.stateMachine.direction;
-		localQuestion.questionNumber = this.question.questionNumber;
-		localQuestion.type = this.question.type;
-		localQuestion.options = this.question.optionsShuffled;
-		localQuestion.items = this.question.itemsShuffled;
-		localQuestion.pairs = this.question.pairsShuffled;
-		localQuestion.extra = this.question.extra;
+		let playerQuestion = {}
+		playerQuestion.mode = 'ask';
+		playerQuestion.direction = this.stateMachine.direction;
+		playerQuestion.questionNumber = this.question.questionNumber;
+		playerQuestion.type = this.question.type;
+		playerQuestion.options = this.question.optionsShuffled;
+		playerQuestion.items = this.question.itemsShuffled;
+		playerQuestion.pairs = this.question.pairsShuffled;
+		playerQuestion.extra = this.question.extra;
 		// Include the image if it is required for the answer (hotspot, point-it-out)
-		if (localQuestion.type == 'hotspot' || localQuestion.type == 'point-it-out') {
-			localQuestion.image = this.question.image;
+		if (playerQuestion.type == 'hotspot' || playerQuestion.type == 'point-it-out') {
+			playerQuestion.image = this.question.image;
 		}
 
-		console.log('collectAnwers:', this.question, localQuestion);
+		console.log('collectAnwers:', this.question, playerQuestion);
 		const responseHandler = (socket, response) => {
 			console.log('quiz.responseHandler:', socket.id, response);
 			const player = this.room.getPlayerBySocketID(socket.id);
@@ -1035,7 +1219,7 @@ export default class Quiz extends Game {
 			timeoutSeconds: 10
 		}
 		this.room.registerClientResponseHandler(responseHandler);
-		this.room.emitToAllPlayers("server:question", localQuestion);
+		this.room.emitToAllPlayers("server:question", playerQuestion);
 
 		if (this.round.roundTimer > 0) {
 			this.roundTimerID = setTimeout(() => {
@@ -1062,6 +1246,7 @@ export default class Quiz extends Game {
 
 		// Don't forget to include the question results
 		localQuestion.results = this.question.results;
+
 		console.dir('showAnswer:', localQuestion);
 		this.room.emitToHosts('server:showanswer', localQuestion);
 

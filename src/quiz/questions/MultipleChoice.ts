@@ -51,7 +51,7 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
 
             const newButton: NineSliceButton = new NineSliceButton(this.scene, option);
             newButton.setButtonSize(800, this.scene.getY(buttonHeight));
-            console.log('MultipleChoiceQuestion::createAnswerUI:', option, x, y);
+            // console.log('MultipleChoiceQuestion::createAnswerUI:', option, x, y);
             newButton.setPosition(x, y);
 
             // Testing make interdative
@@ -64,7 +64,7 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
             if (this.questionData.mode == 'ask' && this.scene.TYPE != 'host') {
                 this.makeButtonsInteractive();
             }
-            
+
             // If we are in answer mode then we show the correct answer
             if (this.questionData.mode == 'answer') {
                 if (option == this.questionData.answer) {
@@ -88,7 +88,7 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
                 this.makeButtonsNonInteractive();
                 this.submitAnswer(option);
                 button.bringToTop(this.answerContainer);
-                this.buttons.forEach( b => {
+                this.buttons.forEach(b => {
                     button.removeAllListeners();
                     if (b === button) {
                         gsap.to(b, {

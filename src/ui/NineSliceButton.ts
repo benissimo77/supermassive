@@ -12,6 +12,8 @@ export class NineSliceButton extends Phaser.GameObjects.Container {
         super(scene, 0, 0);
         this.scene = scene;
 
+        // console.log('NineSliceButton::constructor:', text, styleOverride);
+
         if (!scene.textures.exists('simple-button')) {
             console.error("Texture 'simple-button' not found!");
             // Create fallback
@@ -86,27 +88,55 @@ export class NineSliceButton extends Phaser.GameObjects.Container {
         this.normalSlice.setSize(width, height);
         this.hoverSlice.setSize(width, height);
         this.setSize(width, height);
-        this.text.setWordWrapWidth(width - 40);
-        
-        console.log('NineSliceButton::setButtonSize:', width, height, this.width, this.height);
 
-        // Call recursive function to adjust text height until it fits neatly
-        this.adjustTextSize(height / 2);
+        // console.log('NineSliceButton::setButtonSize:', this.text.text, width, height, this.width, this.height);
+
+        // Call the recursive function to adjust text size to fit within button
+        // Calling with this.height is just a value to start the recursion - it will always reduce from this
+        this.adjustTextSize(this.height);
     }
 
     public setButtonText(text: string): this {
         this.text.setText(text);
-        this.adjustTextSize(this.height / 2);
+        this.adjustTextSize(this.height);
         return this;
     }
 
     // adjustTextSize - set the text height to the initially-supplied height, then check if it fits it not steaily reduce the height
-    private adjustTextSize(maxHeight: number): void {
-        this.text.setFontSize(maxHeight);
-        if ((this.text.height > this.height - this.scene.getY(24)) || (this.text.width > this.width - 40)) {
-            console.log('NineSliceButton::adjustTextSize:', this.text.height, this.height);
-            this.adjustTextSize(maxHeight - 2);
+    private adjustTextSize(newHeight: number): void {
+
+        // Avoid infinite loop - always end if we go below a certain size
+        if (newHeight < 8) {
+            console.warn('NineSliceButton::adjustTextSize: minimum text size reached');
+            return;
         }
+
+        // We have three cases:
+        // a 'regular' button which is quite large and has padding
+        // a 'small' button which is more tightly fitted
+        // a 'large' button which is very wide and has more padding
+        this.text.setFontSize(newHeight);
+        if (this.width <= 120) {
+            // Small button - less padding
+            this.text.setWordWrapWidth(this.width - 12);
+            if ((this.text.height > this.height / 1.2) || (this.text.width > this.width - 4)) {
+                this.adjustTextSize(newHeight - 2);
+            }
+        } else if (this.width >= 800) {
+            // Large button - more padding
+            this.text.setWordWrapWidth(this.width - 80);
+            if ((this.text.height > this.height / 2) || (this.text.width > this.width - 80)) {
+                this.adjustTextSize(newHeight - 2);
+            }
+        } else {
+            // Regular button - more padding
+            this.text.setWordWrapWidth(this.width - 40);
+            if ((this.text.height > this.height / 1.6) || (this.text.width > this.width - 40)) {
+                this.adjustTextSize(newHeight - 2);
+            }
+
+        }
+
     }
 
 }

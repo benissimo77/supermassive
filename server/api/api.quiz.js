@@ -37,6 +37,37 @@ export function mapErrorToStatusCode(name) {
     return statusCodeMap[name] || 500;
 }
 
+// Validate a quiz before saving it
+// Add this new endpoint to your existing router
+
+// Validate a quiz without saving
+router.post('/validate', async (req, res) => {
+    try {
+        // Call just the validation part of your QuizService
+        const validationResult = QuizService.validateQuiz(req.body);
+
+        return res.status(200).json(apiResponse(
+            validationResult.valid,
+            {
+                valid: validationResult.valid,
+                errors: validationResult.errors || []
+            },
+            validationResult.valid ? 'Quiz structure is valid' : 'Quiz has validation issues'
+        ));
+    } catch (error) {
+        console.error('Error validating quiz:', error);
+        return res.status(400).json(apiResponse(
+            false,
+            {
+                valid: false,
+                errors: error.details || [{ message: error.message }]
+            },
+            error.message,
+            error.details
+        ));
+    }
+});
+
 // Create or update a quiz
 router.post('/save', async (req, res) => {
     console.log('api.quiz /save:', req.body, req.user, req.session.user);
@@ -79,7 +110,7 @@ router.get('/', async (req, res) => {
             quizzes,
             'Quizzes fetched successfully'
         ));
-    } catch(error) {
+    } catch (error) {
         console.error('Error fetching quizzes:', error);
         const statusCode = mapErrorToStatusCode(error.name);
         return res.status(statusCode).json(apiResponse(

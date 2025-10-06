@@ -15,6 +15,12 @@ import { ThemeManager } from 'src/ui/ThemeManager';
 // Note: it needs its own setScale function to ensure correct scaling...
 import { PlayerConfig, DOMPlayer } from '../DOMPlayer';
 
+// Define a simple interface for menu items
+// Ensures correct typing in createButtonCallback
+interface MenuItem {
+	name: string;
+	scene: string;
+}
 
 export class LobbyHostScene extends BaseScene {
 
@@ -67,20 +73,20 @@ export class LobbyHostScene extends BaseScene {
 		// 	console.log('Loader load error:', file);
 		// });
 
-		this.setupSocketListeners();		
-		
+		this.setupSocketListeners();
+
 	}
 
 	preload(): void {
 
 		console.log('Lobby.preload: hello.');
 
-		this.load.image('playernamepanel', 'assets/rounded-rect-grey-480x48x14.png');
-		this.load.image('avatar', 'assets/avatar-100/image-from-rawpixel-id-12138743-original.png');
+		this.load.image('playernamepanel', '/assets/rounded-rect-grey-480x48x14.png');
+		this.load.image('avatar', '/assets/avatar-100/image-from-rawpixel-id-12138743-original.png');
 
 		// Testing dropzone
-		this.load.image('simple-button-hover', 'assets/img/simplebutton-hover.png');
-		this.load.image('dropzone', 'assets/img/dropzone.png');
+		this.load.image('simple-button-hover', '/assets/img/simplebutton-hover.png');
+		this.load.image('dropzone', '/assets/img/dropzone.png');
 
 		this.load.rexWebFont({
 			google: {
@@ -149,14 +155,13 @@ export class LobbyHostScene extends BaseScene {
 			y: this.getY(700),
 			orientation: 'y',
 			background: this.rexUI.add.roundRectangle(0, 0, 0, 0, 20, 0x333333),
-
 			items: [
 				{ name: 'New Game', scene: 'LobbyHostScene' },
 				{ name: 'Continue', scene: 'QuizHostScene' },
 				{ name: 'Settings', scene: 'SettingsScene' },
 				{ name: 'Help', scene: 'HelpScene' }
 			],
-			createButtonCallback: (item, i) => {
+			createButtonCallback: (item: MenuItem, i: number) => {
 				return this.rexUI.add.label({
 					background: this.rexUI.add.roundRectangle(0, 0, 20, 40, 10, 0x7b5e9c),
 					text: this.add.text(0, 0, item.name, { fontSize: '20px' }),
@@ -169,7 +174,7 @@ export class LobbyHostScene extends BaseScene {
 			}
 		})
 			.layout()
-			.on('button.click', (button, index, pointer, event) => {
+			.on('button.click', (button: any, index: number, pointer: Phaser.Input.Pointer, event: PointerEvent) => {
 				const item = button.getData('item');
 				this.scene.start(item.scene);
 			});
@@ -395,20 +400,6 @@ export class LobbyHostScene extends BaseScene {
 
 		// Layout and return
 		return toggleContainer.layout();
-	}
-
-	private toggleSoundPanelSimple(): void {
-		// Toggle visibility
-		this.soundPanel.setVisible(!this.soundPanel.visible);
-	}
-
-	// Experiment with resizing the panel
-	public resizeSoundPanel(width: number, height: number): void {
-		// Set a new size for the panel
-		this.soundPanel.setSize(width, height);
-
-		// Re-layout with new size
-		this.soundPanel.layout();
 	}
 
 

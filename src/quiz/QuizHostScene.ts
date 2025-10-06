@@ -119,6 +119,8 @@ export class QuizHostScene extends BaseScene {
 
     create(): void {
 
+        super.create();
+
         if (this.rexUI) {
             // Create your UI components
             console.log('Rex UI Plugin loaded successfully');
@@ -171,27 +173,50 @@ export class QuizHostScene extends BaseScene {
         }
 
         // Let the server know we're ready - this could come from a button click or other event
+        // host:ready informs server host is ready to receive player data and other socket events
         this.socket.emit('host:ready', {});
 
         // We might want to run some kind of introduction - think opening credits of a TV quiz show
         // But since I don't have this yet, let's just show the quiz intro
-		const urlParams = new URLSearchParams(window.location.search);
-		const quizID = urlParams.get('q');
-		// Provide ability to go instantly to a quiz with a known ID
-        this.socket.emit('host:requeststart', { quizID: quizID });
 
+        // DEVELOPMENT - look for quiz ID in URL and if so go straight to that quiz
+        // This is part of the new SOLO mode for host playing alone - not quite finished...
+        const urlParams = new URLSearchParams(window.location.search);
+        const quizID = urlParams.get('q');
+        // Provide ability to go instantly to a quiz with a known ID
+        if (quizID) {
+            this.socket.emit('host:requeststart', { quizID: quizID });
+        }
     }
 
 
     private setupSocketListeners(): void {
 
         // Player connect/disconnect - these are caught by BaseScene but quiz can also take action
+        // BaseScene handles the storage/maintenance of playerConfigs - game decides their own visuals
         this.socket.on('playerconnect', (playerConfig: PlayerConfig) => {
             console.log('QuizHostScene:: playerconnect :', { playerConfigs: this.getPlayerConfigsAsArray() });
-            const thisPlayer: PhaserPlayer = this.addPlayer(playerConfig);
-            this.racetrack.addPlayersToTrack(this.getPlayerConfigsAsArray());
-            console.log(' DEBUG: - added to racetrack...');
-            // this.animatePlayer(thisPlayer);
+            const player: PhaserPlayer = this.getPlayerBySessionID(playerConfig.sessionID);
+            if (player) {
+                player.connected();
+            } else {
+                const thisPlayer: PhaserPlayer = this.addPlayer(playerConfig);
+                this.racetrack.addPlayersToTrack(this.getPlayerConfigsAsArray());
+                console.log(' DEBUG: - added to racetrack...');
+                // this.animatePlayer(thisPlayer);
+            }
+        });
+
+        // When player disconnects don't remove from list as they might re-join
+        // They simply become 'dormant' and won't receive questions - but if they re-join they will be right back where they left off
+        this.socket.on('playerdisconnect', (sessionID: string) => {
+            console.log('QuizHostScene:: playerdisconnect:', sessionID);
+            const player: PhaserPlayer = this.getPlayerBySessionID(sessionID);
+            if (player) {
+                player.disconnected();
+            } else {
+                console.warn(`Player with session ID ${sessionID} not found.`);
+            }
         });
 
         this.socket.on('server:players', (playerConfigs: PlayerConfig[]) => {
@@ -204,7 +229,7 @@ export class QuizHostScene extends BaseScene {
             this.racetrack.addPlayersToTrack(this.getPlayerConfigsAsArray());
         });
 
-        this
+
         // Listen for intro quiz message
         this.socket.on('server:introquiz', (data) => {
             this.showQuizIntro(data.title, data.description);
@@ -267,8 +292,32 @@ export class QuizHostScene extends BaseScene {
 
         console.log(`Key pressed: ${keyName} (code: ${event.code})`);
         this.socket.emit('host:keypress', { key: event.code });
+        this.flyQuestionOut(event.code);
     }
 
+    // flyQuestionOut - animate the current question off screen based on direction
+    // This is done to provide instant feedback to host that question is moving on
+    // If we wait for the server to respond there can be some latency which feels unresponsive
+    // IMPORTANT: can only happen when showAnswer/updateScores happens at end of round NOT each question
+    // This is because we still expecct the question to be on screen when showAnswer is received
+    flyQuestionOut(keyCode: string): void {
+        if (this.currentQuestion && 0) {
+            if (keyCode === 'ArrowRight') {
+                this.tweens.add({
+                    targets: this.currentQuestion,
+                    x: -1920,
+                    duration: 500,
+                });
+            }
+            if (keyCode === 'ArrowLeft') {
+                this.tweens.add({
+                    targets: this.currentQuestion,
+                    x: 1920,
+                    duration: 500,
+                });
+            }
+        }
+    }
 
     addPlayer(playerConfig: PlayerConfig): PhaserPlayer {
         const phaserPlayer: PhaserPlayer = new PhaserPlayer(this, playerConfig);
@@ -299,10 +348,9 @@ export class QuizHostScene extends BaseScene {
             }
         });
     }
+
+    // getPlayerBySessionID - overridden from BaseScene to return PhaserPlayer
     getPlayerBySessionID(sessionID: string): PhaserPlayer {
-        if (!this.phaserPlayers.has(sessionID)) {
-            throw Error(`Player with session ID ${sessionID} not found.`);
-        }
         return this.phaserPlayers.get(sessionID)!;
     }
 
@@ -339,38 +387,28 @@ export class QuizHostScene extends BaseScene {
         this.clearUI();
 
         // Show quiz title
-        const titleText = this.add.text(960, this.getY(200), title)
-            .setFontSize(this.getY(64))
-            .setFontFamily('"Titan One", Arial')
-            .setColor('#ffffff')
-            .setStroke('#000000', 6)
-            .setAlign('center')
-            .setOrigin(0.5);
+        const titleConfig = Object.assign({}, this.labelConfig, {
+            fontSize: this.getY(64),
+            strokeThickness: 6
+        });
+        const titleText = this.add.text(960, this.getY(200), title, titleConfig)
+            .setOrigin(0.5)
+            .setWordWrapWidth(1400);
 
-        // Remove HTML tags from description
+        // Remove HTML tags from description (until I can find a way to render them properly)
         const cleanDescription = description.replace(/<\/?[^>]+(>|$)/g, "");
 
         // Show description
-        const descText = this.add.text(960, this.getY(350), cleanDescription)
-            .setFontSize(this.getY(32))
-            .setFontFamily('Arial')
-            .setColor('#ffffff')
-            .setAlign('center')
-            .setWordWrapWidth(this.cameras.main.width - 200)
-            .setOrigin(0.5);
+        const descConfig = Object.assign({}, this.labelConfig, {
+            fontSize: this.getY(32),
+            strokeThickness: 3,
+        });
+        const descText = this.add.text(960, this.getY(350), cleanDescription, descConfig)
+            .setOrigin(0.5, 0)
+            .setWordWrapWidth(1600);
 
         // Add "Start" button
-        const startButton = this.add.text(960, this.getY(550), 'START QUIZ')
-            .setFontSize(this.getY(36))
-            .setFontFamily("'Titan One', Arial")
-            .setColor('#ffffff')
-            .setBackgroundColor('#0066cc')
-            .setPadding({ x: 30, y: 15 })
-            .setOrigin(0.5)
-            .setInteractive({ useHandCursor: true })
-            .on('pointerdown', () => {
-                this.socket.emit('host:next');
-            });
+        const startButton = this.createSimpleButton(960, descText.y + descText.height + this.getY(120), 'START QUIZ');
 
         this.UIContainer.add([titleText, descText, startButton]);
 
@@ -404,30 +442,23 @@ export class QuizHostScene extends BaseScene {
         this.clearUI();
 
         // Show round title
-        const titleConfig = {
+        const titleConfig = Object.assign({}, this.labelConfig, {
             fontSize: this.getY(64),
-            fontFamily: '"Titan One", Arial',
-            color: '#ffffff',
-            stroke: '#000000',
-            strokeThickness: 2,
-            align: 'center',
-            padding: { x: 20, y: this.getY(10) },
-        };
-        const roundTitle = this.add.text(960, this.getY(200), `Round ${roundNumber}: ${title}`, titleConfig);
-        roundTitle.setOrigin(0.5);
+            strokeThickness: 6
+        });
+        const roundTitle = this.add.text(960, this.getY(200), `Round ${roundNumber}: ${title}`, titleConfig)
+            .setWordWrapWidth(1400)
+            .setOrigin(0.5);
 
         // Show description
-        const descriptionConfig = {
+        const descriptionConfig = Object.assign({}, this.labelConfig, {
             fontSize: this.getY(32),
-            fontFamily: 'Arial',
-            color: '#ffffff',
-            align: 'center',
-            padding: { x: 20, y: this.getY(10) },
-            stroke: '#000000'
-        }
+            strokeThickness: 3,
+        });
         const cleanDescription = description.replace(/<\/?[^>]+(>|$)/g, "");
-        const descText = this.add.text(960, this.getY(350), cleanDescription, descriptionConfig);
-        descText.setOrigin(0.5);
+        const descText = this.add.text(960, this.getY(350), cleanDescription, descriptionConfig)
+            .setWordWrapWidth(1600)
+            .setOrigin(0.5, 0);
 
         // Next button
         const nextButton = this.createSimpleButton(960, descText.y + descText.height + this.getY(120), 'START ROUND');
@@ -462,6 +493,7 @@ export class QuizHostScene extends BaseScene {
             .setInteractive({ useHandCursor: true })
             .on('pointerdown', () => {
                 this.socket.emit('host:keypress', { key: 'ArrowRight' });
+                this.flyQuestionOut('ArrowRight');
             })
             .on('pointerover', () => {
                 button.setStyle({ backgroundColor: '#0055aa' });
@@ -518,7 +550,7 @@ export class QuizHostScene extends BaseScene {
 
             // This code taken from QuizPlayScene - the way to submit an answer (for single-player mode when hosting)
             this.currentQuestion.onAnswer((answer: any) => {
-                console.log('QuizJHostScene:: answer:', answer);
+                console.log('QuizHostScene:: answer:', answer);
                 // Send the answer to the server
                 this.socket.emit('client:response', answer);
             });
@@ -553,7 +585,7 @@ export class QuizHostScene extends BaseScene {
             duration: duration * 1000,
             onUpdate: (tween) => {
                 const value = tween.getValue();
-                const width = Math.max(0, value);
+                const width = Math.max(0, value ?? 0);
 
                 // Change color as time decreases
                 let color;
@@ -601,6 +633,15 @@ export class QuizHostScene extends BaseScene {
 
         // Update all player scores with animation
         const tl: gsap.core.Timeline = this.racetrack.flyIn();
+        if (this.currentQuestion) {
+            // Animate the current question off screen to the left
+            // Move to less than -1920 since question might end up wider than 1920 if image was enlarged
+            tl.to(this.currentQuestion, {
+                duration: 0.8,
+                x: -2620,
+                ease: 'back.out(1.7)',
+            }, "<");
+        }
         tl.add(this.racetrack.updateScores(scores));
         tl.add(() => {
             console.log('Score update animation complete');

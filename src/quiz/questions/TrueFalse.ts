@@ -57,7 +57,8 @@ export default class TrueFalseQuestion extends BaseQuestion {
             }
             // If we are in answer mode then we show the correct answer
             if (this.questionData.mode == 'answer') {
-                if (option == this.questionData.answer) {
+                // Instead of converting option to boolean, compare strings directly
+                if (option === this.questionData.answer) {
                     newButton.onPointerOver();
                 }
             }
@@ -73,7 +74,7 @@ export default class TrueFalseQuestion extends BaseQuestion {
                 this.submitAnswer(option);
                 this.makeButtonsNonInteractive();
                 button.bringToTop(this.answerContainer);
-                this.buttons.forEach( b => {
+                this.buttons.forEach(b => {
                     console.log('TrueFalseQuestion::makeButtonsInteractive:', b, b === button);
                     button.removeAllListeners();
                     if (b === button) {

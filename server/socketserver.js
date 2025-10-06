@@ -8,6 +8,11 @@ export default function createSocketServer(server) {
 	const io = new Server(server, {
 		transports: ['websocket', 'polling'],
 		allowEIO3: true, // If you are using Engine.IO v3 clients
+		cors: {
+			origin: ['https://admin.socket.io', 'http://localhost:3000'],
+			methods: ['GET', 'POST'],
+			credentials: true
+		}
 	});
 
 	// Use session middleware with Socket.IO
@@ -17,7 +22,11 @@ export default function createSocketServer(server) {
 
 	// Used by the Admin UI
 	instrument(io, {
-		auth: false,
+		auth: process.env.NODE_ENV === 'production' ? {
+			type: "basic",
+			username: process.env.ADMIN_USERNAME,
+			password: process.env.ADMIN_PASSWORD
+		} : false
 	});
 
 	// Store all room objects, keyed on the 4-CHAR ID of the room
@@ -48,6 +57,7 @@ export default function createSocketServer(server) {
 		let userObj = session;
 
 		// For development, override session data with query string parameters
+		// Allows single browser session to simulate multiple users and one host
 		if (process.env.NODE_ENV === 'development') {
 			const queryString = socket.handshake.headers.referer.split('?')[1] || '';
 			const urlParams = new URLSearchParams(queryString);

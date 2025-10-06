@@ -25,6 +25,16 @@ export abstract class BaseScene extends Phaser.Scene {
     init(): void {
         console.log(`${this.scene.key}:: BaseScene.init: hello`);
 
+        // Set a label config for text styles
+        this.labelConfig = {
+            fontFamily: 'Arial',
+            fontSize: '24px',
+            color: '#ffffff',
+            align: 'center',
+            wordWrap: { width: 600, useAdvancedWrap: true }
+        };
+
+
         // Store the resize handler reference so it can be removed later
         this.resizeHandler = (gameSize: Phaser.Structs.Size) => {
             this.handleResize(gameSize);
@@ -99,15 +109,6 @@ export abstract class BaseScene extends Phaser.Scene {
         });
 
 
-        // Set the label config for text styles
-        this.labelConfig = {
-            fontFamily: 'Arial',
-            fontSize: '24px',
-            color: '#ffffff',
-            align: 'center',
-            wordWrap: { width: 600, useAdvancedWrap: true }
-        };
-
     }
     protected handlePlayerConnect(playerConfig: PlayerConfig): void {
 
@@ -122,8 +123,8 @@ export abstract class BaseScene extends Phaser.Scene {
         if (sessionID) {
             const player = this.playerConfigs.get(sessionID);
 
-            // Remove from tracking
-            this.playerConfigs.delete(sessionID);
+            // We no longer remove player in case they re-join
+            // this.playerConfigs.delete(sessionID);
         }
     }
 

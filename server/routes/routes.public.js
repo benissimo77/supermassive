@@ -2,6 +2,8 @@
 import express from 'express';
 const router = express.Router();
 
+import fetch from 'node-fetch';
+
 // Route for when user submits PLAY form
 router.post('/play', (req, res) => {
 	console.log('A user has POSTed:', req.body, req.session);
@@ -17,7 +19,7 @@ router.post('/play', (req, res) => {
 
 	// If we have a room then redirect according to the URL pattern
 	if (req.session.room) {
-		res.redirect('/play/' + req.session.room);
+		return res.redirect('/play/' + req.session.room);
 	}
 	// ... and if we don't have a room then there is no point in continuing... simply go back to index.html
 	res.sendFile('index.html', { root: './public' });
@@ -55,5 +57,54 @@ router.get('/play/:room', (req, res) => {
 // }
 // })
 
+// Add image proxy route
+router.get('/proxy-image', async (req, res) => {
+	try {
+		const imageUrl = req.query.url;
+
+		if (!imageUrl) {
+			return res.status(400).send('URL parameter is required');
+		}
+
+		// Validate URL to prevent abuse
+		try {
+			new URL(imageUrl);
+		} catch (e) {
+			return res.status(400).send('Invalid URL');
+		}
+
+		// Fetch the image
+		const response = await fetch(imageUrl, {
+			headers: {
+				// Browser-like headers to avoid detection
+				'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+				'Accept': 'image/*',
+				// No Origin or Referer headers
+			}
+		});
+
+		if (!response.ok) {
+			return res.status(response.status).send('Error fetching image');
+		}
+
+		// Forward content type
+		const contentType = response.headers.get('content-type');
+		if (contentType) {
+			res.setHeader('Content-Type', contentType);
+		}
+
+		// Allow CORS
+		res.setHeader('Access-Control-Allow-Origin', '*');
+
+		// Cache control
+		res.setHeader('Cache-Control', 'public, max-age=86400');
+
+		// Stream the response
+		response.body.pipe(res);
+	} catch (error) {
+		console.error('Image proxy error:', error);
+		res.status(500).send('Error fetching image');
+	}
+});
 
 export default router;

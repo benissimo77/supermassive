@@ -7,7 +7,7 @@ const router = express.Router({ strict: true });
 const isAuth = (req, res, next) => {
 	// console.log('isAuth:', req.user, req.session, req.isAuthenticated());
 	if (req.isAuthenticated()) {
-		console.log('isAuth:: User is authenticated:', req.user);
+		console.log('routes.host.isAuth:: User is authenticated:', req.user);
 		next();
 	} else {
 		// res.status(401).json({ msg: 'You are not authorized to view this resource' });
@@ -138,7 +138,7 @@ router.get('/admin', (req, res) => {
 
 
 const generateNewRoomName = () => {
-	return 'NUTS5';
+	return 'NUTS';
 }
 
 export default router;

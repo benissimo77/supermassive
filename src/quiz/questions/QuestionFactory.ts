@@ -9,17 +9,18 @@ import NumberQuestion from "./Number";
 import HotspotQuestion from "./Hotspot";
 import DrawQuestion from "./Draw";
 
+import { BaseQuestionData } from "./QuestionTypes";
 
 export class QuestionFactory {
     private scene: BaseScene;
-    private questionTypes: Map<string, new (scene: BaseScene, data: any) => BaseQuestion>;
+    private questionTypes: Map<string, new (scene: BaseScene, data: BaseQuestionData) => BaseQuestion>;
 
     constructor(scene: BaseScene) {
         this.scene = scene;
 
         // Initialize the map
         // Define the type explicitly for the Map
-        this.questionTypes = new Map<string, new (scene: BaseScene, data: any) => BaseQuestion>([
+        this.questionTypes = new Map<string, new (scene: BaseScene, data: BaseQuestionData) => BaseQuestion>([
             ['multiple-choice', MultipleChoiceQuestion],
             ['true-false', TrueFalseQuestion],
             ['text', TextQuestion],
@@ -33,7 +34,7 @@ export class QuestionFactory {
         ]);
     }
 
-    create(type: string, data: any): BaseQuestion {
+    create(type: string, data: BaseQuestionData): BaseQuestion {
 
         // Get the constructor from the map
         const QuestionClass = this.questionTypes.get(type);

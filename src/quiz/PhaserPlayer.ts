@@ -111,6 +111,7 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 
 		// Start loading the avatar image - workaround for situation where avatar is not supplied (eg host as player)
 		if (!playerConfig.avatar) {
+
 			playerConfig.avatar = 'default';
 		}
 		scene.load.image(playerConfig.avatar, `/img/avatar-100/image-from-rawpixel-id-${playerConfig.avatar}-original.png`);
@@ -124,6 +125,16 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 		}
 	}
 
+	disconnected(): void {
+		if (this.playerTexture) {
+			this.playerTexture.setAlpha(0.4);
+		}
+	}
+	connected(): void {
+		if (this.playerTexture) {
+			this.playerTexture.setAlpha(1);
+		}
+	}
 	destroy(fromScene?: boolean) {
 		if (this.playerTexture) {
 			this.playerTexture.destroy();

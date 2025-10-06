@@ -93,13 +93,15 @@ class Room {
 			player = new Player(userObj);
 			player.connected = true;
 			this.players.push(player);
-			console.log('New player...', player, '\nCurrent players:', this.players.length);
+			console.log('room.addUserAsPlayer:', player, '\nCurrent players:', this.players.length);
 		}
 		return player;
 	}
 
 	attachHostEvents(socket) {
 
+		// host:ready
+		// Sent by host when they have loaded the host page and are ready to start receiving messages
 		socket.on('host:ready', (data, callback) => {
 
 			console.log('Received host:ready from client:', socket.id, data);
@@ -159,11 +161,12 @@ class Room {
 
 					// This might be the best place to check for a single-player mode
 					// Maybe the game config will include a flag to indicate if this is allowed - for now assume it is
-					if (this.players.length == 0) {
+					// For now comment out since I want to get it working for Veluwe
+					if (this.players.length == 0 && 0) {
+						console.log('No players in game - SINGLE-PLAYER MODE:');
 						var player = this.addUserAsPlayer(socket, this.host);
-						console.log('No players in game - SINGLE-PLAYER MODE:', player);
 
-						// Send message to host (if there is one)
+						// Send message to host (ie this player)
 						if (this.host) {
 							this.#io.to(this.host.socketID).emit('playerconnect', player);
 						}
@@ -318,7 +321,7 @@ class Room {
 		// Either way we want to inform the host - we will remove the player from the host display even though we retain the player object
 		// Note that we pass the players sessionID not their socketID - sockets are used to send the messages, session used to identify users
 		if (this.host && player) {
-			console.log('Remove player:', this.host.socketID, player);
+			console.log('Host:: sending playerdisconnect:', this.host.socketID, player);
 			this.#io.to(this.host.socketID).emit('playerdisconnect', player.sessionID);
 		}
 	}

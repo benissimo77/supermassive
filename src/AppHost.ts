@@ -38,12 +38,13 @@ const config: Phaser.Types.Core.GameConfig = {
                 key: 'rexUI',
                 plugin: RexPlugins.UI,
                 mapping: 'rexUI',
-                sceneKey: ['LobbyHostScene', 'QuizHostScene']
+                sceneKey: 'QuizHostScene'
             },
             {
                 key: 'rexToggleSwitch',
                 plugin: RexPlugins.ToggleSwitch,
-                mapping: 'rexToggleSwitch'
+                mapping: 'rexToggleSwitch',
+                sceneKey: 'QuizHostScene'
             }
         ]
     },
@@ -51,8 +52,16 @@ const config: Phaser.Types.Core.GameConfig = {
     parent: 'container'
 };
 
+// Enable Socket.IO debugging
+if (__DEV__) {
+    localStorage.debug = 'socket.io-client:socket';
+    console.log('Socket.IO debugging enabled in development mode');
+}
+
 const game = new Phaser.Game(config);
 console.log('Game created:', game );
+
+
 
 // Start with the appropriate scene and pass data - this works....
 // game.events.once('ready', () => {

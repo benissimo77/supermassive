@@ -115,8 +115,9 @@ export class Racetrack extends Phaser.GameObjects.Container {
         return tl;
     }
 
+    // For now drop this - annoying gremlins... :(
     public flyOut(): gsap.core.Timeline {
-        const duration = 1;
+        const duration = 0.1;
         const tl = gsap.timeline({
             onComplete: () => {
                 this.racetrackState = RacetrackState.OUT;
@@ -126,7 +127,7 @@ export class Racetrack extends Phaser.GameObjects.Container {
         // Animate out
         if (this.racetrackState === RacetrackState.IN || this.racetrackState === RacetrackState.ANIMATINGIN) {
             this.racetrackState = RacetrackState.ANIMATINGOUT;
-            tl.to(this, { x: this.trackWidth, duration, ease: "power2.in" });
+            tl.to(this, { x: 0, duration, ease: "power2.in" });
         }
 
         return tl;

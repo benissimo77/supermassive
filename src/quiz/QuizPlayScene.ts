@@ -113,10 +113,66 @@ export class QuizPlayScene extends BaseScene {
         });
 
         // Listen for question
-        this.socket.on('server:question', (question) => {
+        this.socket.on('server:question', (question, callback) => {
+            const receivedTime = Date.now();
             this.displayQuestion(question);
-        });
+            const displayTime = Date.now() - receivedTime;
 
+            // Enhanced device detection
+            let device = 'Unknown';
+            let browser = 'Unknown';
+            const ua = navigator.userAgent;
+
+            // OS Detection
+            if (/iPad/.test(ua)) {
+                device = 'iPad';
+            } else if (/iPhone|iPod/.test(ua)) {
+                device = 'iPhone';
+            } else if (/Android/.test(ua)) {
+                device = 'Android';
+            } else if (/Windows/.test(ua)) {
+                device = 'Windows';
+            } else if (/Macintosh|Mac OS X/.test(ua)) {
+                device = 'macOS';
+            } else if (/Linux/.test(ua)) {
+                device = 'Linux';
+            }
+
+            // Browser Detection
+            if (/Edge|Edg/.test(ua)) {
+                browser = 'Edge';
+            } else if (/Chrome/.test(ua) && !/Chromium|OPR|Edge/.test(ua)) {
+                browser = 'Chrome';
+            } else if (/Firefox/.test(ua) && !/Seamonkey/.test(ua)) {
+                browser = 'Firefox';
+            } else if (/Safari/.test(ua) && !/Chrome|Chromium|Edge|OPR/.test(ua)) {
+                browser = 'Safari';
+            } else if (/Opera|OPR/.test(ua)) {
+                browser = 'Opera';
+            } else if (/Trident|MSIE|IEMobile/.test(ua)) {
+                browser = 'Internet Explorer';
+            }
+
+            // Additional platform info if available
+            const platformInfo = navigator.platform || '';
+
+            const deviceInfo = {
+                device,
+                browser,
+                platform: platformInfo,
+                displayTime,
+                screen: {
+                    width: window.screen.width,
+                    height: window.screen.height
+                },
+                viewport: {
+                    width: window.innerWidth,
+                    height: window.innerHeight
+                }
+            };
+
+            callback(deviceInfo);
+        });
         // Player answered a question
         this.socket.on('server:questionanswered', (data) => {
             // this.updatePlayerAnswer(data.sessionID, data.response);
@@ -380,6 +436,14 @@ export class QuizPlayScene extends BaseScene {
 
         this.UIContainer.add([titleText]);
 
+    }
+
+    private sceneDisplay(): void {
+        // Called from BaseScene when the screen is resized
+        console.log('QuizPlayScene:: sceneDisplay: updating layout for new size');
+        // if (this.currentQuestion) {
+        //     this.currentQuestion.display();
+        // }
     }
 
     private clearUI(): void {

@@ -30,14 +30,50 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
 
     declare public scene: BaseScene;
     protected questionData: BaseQuestionData;
-    private answerCallback: Function;
     protected answerContainer: Phaser.GameObjects.Container;
+    private answerCallback: Function;
+    protected questionImage: Phaser.GameObjects.Image | null = null;
+    protected playerControls: Phaser.GameObjects.Container | null = null;
 
     constructor(scene: BaseScene, questionData: BaseQuestionData) {
         super(scene, 0, 0);
         this.questionData = questionData;
         this.scene = scene;
         this.answerContainer = this.scene.add.container(0, 0);
+
+        // Architecture has been modified to perform all initialization up-front so that the display method can be re-entrant
+        // Allows re-draw whenever window resizes (eg browser messes with screen size)
+        // Could also work when phone is rotated, but maybe solve that with an overlay to force landscape mode
+
+        // If there's an image, add it
+        if (this.questionData.image && this.questionData.image.length > 0) {
+            this.addQuestionImage().then((image: Phaser.GameObjects.Image) => {
+                this.questionImage = image;
+                this.add(image);
+                this.display(); // this forces an initial display once image is loaded
+            })
+                .catch((error: Error) => {
+                    console.error('Error loading question image:', error);
+                });
+        }
+
+        // If there's audio, add controls
+        if (this.questionData.audio) {
+            this.playerControls = this.addQuestionAudio(this.questionData.audio);
+            this.scene.add.existing(this.playerControls);
+            this.add(this.playerControls);
+        }
+
+        // If there's video, add it (no need for controls as video player has them)
+        // We still leave soem of the video setup to the display function as it needs to know where to position the video
+        if (this.questionData.video) {
+            const playerUI = YouTubePlayerUI.getInstance(this.scene);
+            if (playerUI.isPlayerReady()) {
+                playerUI.loadVideo(this.questionData.video);
+            }
+        }
+
+
     }
 
     private calculateLogicalAnswerHeight(): number {
@@ -68,6 +104,12 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
      * Each derived class will override specific parts
      */
     display(): void {
+
+        // Quick additional hack for when we have image but its not yet loaded
+        if (this.questionData.image && this.questionData.image.length > 0 && !this.questionImage) {
+            console.log('BaseQuestion::display: image not yet loaded, skipping display');
+            return;
+        }
 
         // Logic for displaying question elements:
         // 1. First - use questionData to determine the height available for the answer options
@@ -127,19 +169,16 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
 
 
             // DEBUG = add rectangle to show questionText
-            const debugRect = this.scene.add.graphics();
-            debugRect.lineStyle(2, 0x00ff00, 1);
-            debugRect.strokeRectShape(questionText.getBounds());
-            debugRect.strokeRect(960 - 4, this.scene.getY(textHeight / 2) - 4, 8, 8);
+            // const debugRect = this.scene.add.graphics();
+            // debugRect.lineStyle(2, 0x00ff00, 1);
+            // debugRect.strokeRectShape(questionText.getBounds());
+            // debugRect.strokeRect(960 - 4, this.scene.getY(textHeight / 2) - 4, 8, 8);
             // debugRect.strokeRect(-questionText.width / 2, -textHeight / 2, questionText.width, textHeight);
-            this.add(debugRect);
+            //this.add(debugRect);
 
             // If there's audio, add controls
-            if (this.questionData.audio) {
-                const controls: Phaser.GameObjects.Container = this.addQuestionAudio(this.questionData.audio);
-                this.scene.add.existing(controls);
-                this.add(controls);
-                controls.setPosition(960, this.scene.getY(textHeight + QUESTIONAUDIO_HEIGHT / 2));
+            if (this.playerControls) {
+                this.playerControls.setPosition(960, this.scene.getY(textHeight + QUESTIONAUDIO_HEIGHT / 2));
             }
 
             // If there's video, add it (no need for controls as video player has them)
@@ -150,14 +189,12 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
                     playerUI.setSize(playerH);
                     const playerTop = textHeight;
                     playerUI.setPosition(960, playerTop);
-                    playerUI.loadVideo(this.questionData.video);
                 } else {
                     playerUI.once('ready', () => {
                         const playerH = QUESTIONVIDEO_HEIGHT;
                         playerUI.setSize(playerH);
                         const playerTop = textHeight;
                         playerUI.setPosition(960, playerTop);
-                        playerUI.loadVideo(this.questionData.video);
                     });
                 }
             }
@@ -167,20 +204,17 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
             if (this.questionData.type === 'hotspot' || this.questionData.type === 'point-it-out') {
                 // Do not display image here, handled by child classes
             } else {
-                if (this.questionData.image) {
-                    this.addQuestionImage().then((image: Phaser.GameObjects.Image) => {
-                        this.configureImageSize(image, imageHeight);
-                        image.setPosition(960, this.scene.getY(textHeight + audioHeight));
-                        this.add(image);
-                    })
-                        .catch((error: Error) => {
-                            console.error('Error loading question image:', error);
-                        });
+
+                if (this.questionImage) {
+                    this.configureImageSize(this.questionImage, imageHeight);
+                    this.questionImage.setPosition(960, this.scene.getY(textHeight + audioHeight));
+                    this.questionImage.setVisible(true);
                 }
             }
-
-
         }
+
+
+
 
 
         // Create answer content - this will likely be different based on question type, overridden by concrete classes

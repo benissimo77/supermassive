@@ -10,13 +10,15 @@ export default class SocketManagerPlugin extends Phaser.Plugins.BasePlugin {
     }
 
     init(): void {
-        console.log('SocketManagerPlugin:: init');
 
         this.socket = io(); // Initialize the socket connection
+
+        console.log('SocketManagerPlugin:: init socketId:', this.socket?.id);
 
         this.socket.on('connect', () => {
             console.log('SocketManager: Connected to server:');
         });
+
     }
 
     getSocket(): Socket | undefined {

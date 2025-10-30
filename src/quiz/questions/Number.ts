@@ -134,12 +134,12 @@ export default class NumberQuestion extends BaseQuestion {
                     scale: 2,
                     duration: 1,
                     ease: 'back.out'
-                }); 
+                });
                 tl.to(this.answerText, {
                     y: -2000,
                     duration: 0.5,
                     ease: 'power2.in'
-                });   
+                });
                 tl.play();
 
             });
@@ -172,8 +172,8 @@ export default class NumberQuestion extends BaseQuestion {
         }
 
         // DEBUG - add rectangle to originof the answer container
-        const debugRect = this.scene.add.rectangle(0, 0, 5, 5, 0xff0000, 0.5).setOrigin(0.5);
-        this.answerContainer.add(debugRect);
+        //const debugRect = this.scene.add.rectangle(0, 0, 5, 5, 0xff0000, 0.5).setOrigin(0.5);
+        //this.answerContainer.add(debugRect);
     }
 
 

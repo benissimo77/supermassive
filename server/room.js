@@ -13,7 +13,6 @@ class Room {
 		this.id = id;
 		this.host = undefined;
 		this.game = undefined;
-		this.gamename = undefined;
 		this.players = [];
 
 	}
@@ -21,7 +20,7 @@ class Room {
 	// we say user because at this point we don't know if they are a player or a host/moderator/viewer etc...
 	addUserToRoom(socket, userObj) {
 
-		console.log('Room::addUserToRoom:', this.id, userObj.name, userObj.host, userObj.sessionID);
+		console.log('Room::addUserToRoom:', this.id, userObj.name, userObj.host, userObj.sessionID, this.game ? this.game.name : 'no game');
 
 		// Instantly add this user's socket to this room
 		socket.join(this.id);
@@ -29,8 +28,12 @@ class Room {
 		// host value in player object must evaluate to truth (eg = 1)
 		if (userObj.host) {
 			// perform host initialisation...
-			console.log('User is host:', socket.id, userObj.room, userObj.sessionID);
+			console.log('User is host:', socket.id, userObj);
 			this.host = userObj;
+
+			// Workaround - in case we will end up in SOLO player mode intialise the host fields for a player
+			this.host.name = 'HOST';
+			this.host.avatar = '13100182';
 
 			// I've removed this line from here and instead made the host responsible for contacting the server when its ready
 			// this.#io.to(socket.id).emit('hostconnect', { room: this.id, players: this.getConnectedPlayers() });
@@ -86,6 +89,8 @@ class Room {
 		var player = this.getPlayerBySessionID(userObj.sessionID);
 		if (player) {
 			console.log('player already exists:', player);
+			player.name = userObj.name || player.name;
+			player.avatar = userObj.avatar || player.avatar;
 			player.connected = true;
 			// each re-connection will result in a new socketID
 			player.socketID = socket.id;
@@ -107,7 +112,7 @@ class Room {
 			console.log('Received host:ready from client:', socket.id, data);
 			// Send acknowledgment back
 			if (callback && typeof callback === 'function') {
-				callback({ received: true });
+				callback({ received: true, room: this.id });
 			}
 			socket.emit('server:players', this.getConnectedPlayers());
 		});
@@ -116,8 +121,8 @@ class Room {
 			console.log('host:requestgame:', game);
 
 			// We might already be in this game - do nothing if this is the case
-			if (this.gamename && this.gamename == game) {
-				console.log('Already running this game - ignore');
+			if (this.game && this.game.name == game) {
+				console.log('Already running this game - ignore:', this.game.name);
 				// return;
 			}
 
@@ -128,7 +133,6 @@ class Room {
 				// If your game modules use named exports instead, use: const { GameClass } = gameModule;
 
 				this.game = new NewGame(this);
-				this.gamename = game;
 
 				// there might need to be some more checks here to make sure the game is valid...
 				const valid = this.game.checkGameRequirements();
@@ -162,7 +166,7 @@ class Room {
 					// This might be the best place to check for a single-player mode
 					// Maybe the game config will include a flag to indicate if this is allowed - for now assume it is
 					// For now comment out since I want to get it working for Veluwe
-					if (this.players.length == 0 && 0) {
+					if (this.players.length == 0) {
 						console.log('No players in game - SINGLE-PLAYER MODE:');
 						var player = this.addUserAsPlayer(socket, this.host);
 
@@ -257,20 +261,47 @@ class Room {
 		this.emitToAllPlayers('server:loadgame', 'lobby');
 	}
 
-	emitToHosts(event, data, waitForResponse = false) {
+	// Fixed version using socket.emit
+	emitToHosts(event, data, callback = null) {
 		console.log('emitToHosts:', event, data);
-		this.#io.to(this.host.socketID).emit(event, data);
+		const wrappedCallback = (response) => {
+			if (typeof callback === 'function') {
+				callback(response);
+			}
+		};
+		// Get the actual socket object instead of using io.to()
+		const hostSocket = this.#io.sockets.sockets.get(this.host.socketID);
+
+		if (hostSocket) {
+			// Use direct socket.emit which properly supports acknowledgments
+			hostSocket.emit(event, data, wrappedCallback);
+		} else {
+			console.error(`Cannot emit to host - socket ${this.host.socketID} not found`);
+		}
 	}
 
 	// emitToPlayers
 	// Send an event to the specified players, with the data payload
-	emitToPlayers(players, event, data) {
-		this.#io.to(players).emit(event, data);
+	emitToPlayers(players, event, data, callback = null) {
+		console.log('emitToPlayers:', players, event, data);
+		const wrappedCallback = (response) => {
+			if (typeof callback === 'function') {
+				callback(response);
+			}
+		};
+		for (let i = 0; i < players.length; i++) {
+			const playerSocket = this.#io.sockets.sockets.get(players[i]);
+			if (playerSocket) {
+				playerSocket.emit(event, data, wrappedCallback);
+			} else {
+				console.error(`Cannot emit to player - socket ${players[i]} not found`);
+			}
+		}
 	}
 
 	// emitToAllPlayers
 	// Send an event to all players in the room, with the data payload (note: NOT sent to the host)
-	emitToAllPlayers(event, data) {
+	emitToAllPlayers(event, data, callback = null) {
 		const playerSockets = this.players.map((player) => { return player.socketID });
 
 		// In single-player mode the host WILL be in the players array but we DON'T want to send the event to them
@@ -278,9 +309,7 @@ class Room {
 			playerSockets.splice(playerSockets.indexOf(this.host.socketID), 1);
 		}
 		console.log('emitToAllPlayers:', playerSockets, event, data);
-		if (playerSockets.length > 0) {
-			this.#io.to(playerSockets).emit(event, data);
-		}
+		this.emitToPlayers(playerSockets, event, data, callback);
 	}
 
 	// getClientResponses

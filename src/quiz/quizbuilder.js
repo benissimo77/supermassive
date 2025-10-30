@@ -1653,11 +1653,14 @@ document.addEventListener('DOMContentLoaded', () => {
 		});
 
 		// Start with all rounds and questions collapsed (all details children of main quiz summary element)
-		const allDetails = summaryElement.querySelectorAll('details');
-		allDetails.forEach(detail => {
-			detail.removeAttribute('open');
+		// const allDetails = summaryElement.querySelectorAll('details');
+		// allDetails.forEach(detail => {
+		// 	detail.removeAttribute('open');
+		// });
+		// Ensure all rounds and questions are collapsed when loading from JSON
+		document.querySelectorAll('.round, .question').forEach(element => {
+			element.removeAttribute('open');
 		});
-
 		addRoundQuestionNumbers();
 
 		// Hide the quiz list and show the quiz

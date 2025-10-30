@@ -1053,7 +1053,7 @@ export default class Quiz extends Game {
 
 	// nextRound
 	// A function that can be called to start a round
-	// Function returns the round data, or null if there are no more rounds
+	// Function returns the round data, or false if there are no more rounds
 	moveToNextRound() {
 		if (this.roundNumber < this.quizData.rounds.length) {
 			this.round = this.quizData.rounds[this.roundNumber];
@@ -1170,13 +1170,24 @@ export default class Quiz extends Game {
 
 		// This is an exception where we want to automatically move to next state without waiting for host
 		// WHY? Because after asking a question we know we instantly want to either collect answers or show the answer
-		this.room.registerHostResponseHandler(() => {
-			this.room.deregisterHostResponseHandler();
-			this.stateMachine.nextState();
-		});
-		console.log('doQuestion:', this.mode, this.questionNumber, this.question, hostQuestion);
-		this.room.emitToHosts('server:question', hostQuestion, true);
 
+		// UPDATE: experiment with collecting answers immediately rather than waiting for host response
+		// WHY? Because there is often quite a delay in sending the answers so just get on with it
+		// this.room.registerHostResponseHandler(() => {
+		// 	this.room.deregisterHostResponseHandler();
+		// 	this.stateMachine.nextState();
+		// });
+
+		// Add timestamp before sending
+		const questionSentTime = Date.now();
+		const callback = ((acknowledgement) => {
+			const roundTripTime = Date.now() - questionSentTime;
+			console.log('Host acknowledged question display:', acknowledgement, 'RTT (ms):', roundTripTime);
+		}).bind(this);
+
+		console.log('doQuestion:', this.mode, this.questionNumber, this.question, hostQuestion);
+		this.room.emitToHosts('server:question', hostQuestion);
+		this.stateMachine.nextState();
 	}
 
 	collectAnswers() {
@@ -1219,7 +1230,14 @@ export default class Quiz extends Game {
 			timeoutSeconds: 10
 		}
 		this.room.registerClientResponseHandler(responseHandler);
-		this.room.emitToAllPlayers("server:question", playerQuestion);
+
+		// Add timestamp before sending
+		const questionSentTime = Date.now();
+
+		this.room.emitToAllPlayers("server:question", playerQuestion, (acknowledgement) => {
+			const roundTripTime = Date.now() - questionSentTime;
+			console.log('Player acknowledged question:', acknowledgement, 'RTT (ms):', roundTripTime);
+		});
 
 		if (this.round.roundTimer > 0) {
 			this.roundTimerID = setTimeout(() => {
@@ -1493,6 +1511,7 @@ export default class Quiz extends Game {
 		console.log('endQuestion:', this.question);
 		this.room.emitToAllPlayers('server:endquestion');
 		this.room.deregisterClientResponseHandler();
+		// This not needed since we expect the question to stay on host screen until next question
 		// this.room.emitToHosts('server:endquestion');
 	}
 

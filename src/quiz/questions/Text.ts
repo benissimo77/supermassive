@@ -43,7 +43,7 @@ export default class TextQuestion extends BaseQuestion {
         if (this.questionData.mode == 'ask') {
 
             // answerTextHeight defined as a var since as a final step if we have plenty of vertical space we adjust it to make keyboard look better
-            var answerTextHeight:number = answerHeight / 3;
+            var answerTextHeight: number = answerHeight / 3;
             const numRows: number = 4;
             const keyboardAvailableHeight: number = answerHeight - answerTextHeight;
 
@@ -51,8 +51,8 @@ export default class TextQuestion extends BaseQuestion {
             // The buttons will be square so use the row height for both width and height
             // And since we know the buttonHeight (same as width) we calculate exact height of entire keyboard
             // And adjust if total height is less than available
-            var buttonWidth: number = 1920/16;
-            var rowPadding:number = buttonWidth * 0.2;
+            var buttonWidth: number = 1920 / 16;
+            var rowPadding: number = buttonWidth * 0.2;
             var rowHeight: number = buttonWidth + rowPadding;
             var keyboardHeight: number = rowHeight * numRows + rowPadding * 2;  // rowPadding * 2 gives a bit more space at the bottom
 
@@ -159,12 +159,12 @@ export default class TextQuestion extends BaseQuestion {
                     scale: this.answerText.text.length > 12 ? 1.2 : 2,
                     duration: 1,
                     ease: 'back.out'
-                }); 
+                });
                 tl.to(this.answerText, {
                     y: -2000,
                     duration: 0.5,
                     ease: 'power2.in'
-                });   
+                });
                 tl.play();
 
 
@@ -203,8 +203,8 @@ export default class TextQuestion extends BaseQuestion {
         }
 
         // DEBUG - add rectangle to originof the answer container
-        const debugRect = this.scene.add.rectangle(0, 0, 5, 5, 0xff0000, 0.5).setOrigin(0.5);
-        this.answerContainer.add(debugRect);
+        //const debugRect = this.scene.add.rectangle(0, 0, 5, 5, 0xff0000, 0.5).setOrigin(0.5);
+        //this.answerContainer.add(debugRect);
     }
 
     private handleKeyPress(event: KeyboardEvent): void {
@@ -243,7 +243,7 @@ export default class TextQuestion extends BaseQuestion {
     }
 
     public destroy(): void {
-        
+
         // Clean up the keys map
         this.keys.clear();
 

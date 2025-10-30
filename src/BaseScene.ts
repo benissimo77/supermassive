@@ -1,15 +1,29 @@
 import SocketManagerPlugin from './socketManager';
 import { Socket } from 'socket.io-client';
 import { PlayerConfig } from './DOMPlayer';
+import { SoundSettingsPanel } from 'src/ui/SoundSettingsPanel';
+import { GlobalNavbar } from './ui/GlobalNavbar';
 
 export abstract class BaseScene extends Phaser.Scene {
     private static currentHeight = 1080;
-    protected socket: Socket;
+    private overlay: Phaser.GameObjects.Rectangle | null = null;
+    private resizeCount: number = 0;
+    private wakeLock: any = null;
     private resizeHandler: (gameSize: Phaser.Structs.Size) => void;
     private shutdownHandler: () => void;
-    private overlay: Phaser.GameObjects.Rectangle | null = null;
+
+    // Containers for the different layers that make up the scene
+    protected backgroundContainer: Phaser.GameObjects.Container;
+    protected mainContainer: Phaser.GameObjects.Container;
+    protected UIContainer: Phaser.GameObjects.Container;
+    protected topContainer: Phaser.GameObjects.Container;
+    protected debugContainer: Phaser.GameObjects.Container;
+
     public rexUI!: any;
     public rexToggleSwitch!: any;
+    protected soundSettings: SoundSettingsPanel;
+    protected socket: Socket;
+    protected globalNavbar: GlobalNavbar;
 
     protected playerConfigs: Map<string, PlayerConfig> = new Map<string, PlayerConfig>();
 
@@ -18,40 +32,50 @@ export abstract class BaseScene extends Phaser.Scene {
     // Store a flag for single player mode - maybe there is a better way to do this but see how far we get with this
     public singlePlayerMode: boolean = false;
 
-    // The labelConfig is used for text styles in the scene, can be overridden by child scenes
+    // The labelConfig/buttonConfig is used for text styles in the scene, properties can be overridden as needed
     public labelConfig: Phaser.Types.GameObjects.Text.TextStyle;
+    public buttonConfig: Phaser.Types.GameObjects.Text.TextStyle;
 
 
     init(): void {
         console.log(`${this.scene.key}:: BaseScene.init: hello`);
 
-        // Set a label config for text styles
         this.labelConfig = {
-            fontFamily: 'Arial',
-            fontSize: '24px',
+            fontFamily: '"Titan One", Arial',
+            fontSize: this.getY(36),
             color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 2,
             align: 'center',
-            wordWrap: { width: 600, useAdvancedWrap: true }
+        }
+        // Similar for buttons
+        this.buttonConfig = {
+            fontFamily: '"Titan One", Arial',
+            fontSize: this.getY(36),
+            color: '#ffffff',
+            stroke: '#000000',
+            backgroundColor: '#0000FF',
+            strokeThickness: 2,
+            align: 'center',
+            padding: { x: 30, y: 15 },
         };
-
 
         // Store the resize handler reference so it can be removed later
         this.resizeHandler = (gameSize: Phaser.Structs.Size) => {
             this.handleResize(gameSize);
         };
-        this.shutdownHandler = () => {
-            this.shutdown();
-        }
+        // Call handleResize immediately to set up the initial camera zoom and screen height
+        this.handleResize(this.scale.gameSize);
 
         // Add a resize listener
         this.scale.on('resize', this.resizeHandler);
 
         // and a shutdown event listener to clean up the resize listener
         // when the scene is shut down
+        this.shutdownHandler = () => {
+            this.shutdown();
+        }
         this.events.on('shutdown', this.shutdownHandler);
-
-        // Call handleResize immediately to set up the initial camera zoom and screen height
-        this.handleResize(this.scale.gameSize);
 
         // Initialise the socket manager
         const plugin = this.plugins.get('SocketManagerPlugin') as SocketManagerPlugin;
@@ -62,6 +86,9 @@ export abstract class BaseScene extends Phaser.Scene {
 
         // rexUI plugin is a scene plugin and available immediately as this.rexUI
         console.log(`${this.scene.key}:: BaseScene.init: plugins:`, this.rexUI);
+
+        // Request wake lock when the scene initializes
+        this.setupWakeLock();
 
         // This is useful for debugging but quite noisy
         // this.socket.onAny((event, ...args) => {
@@ -82,7 +109,13 @@ export abstract class BaseScene extends Phaser.Scene {
             this.playerConfigs.clear();
             players.forEach((player: PlayerConfig) => this.handlePlayerConnect(player))
         });
+        // Initialize the ping test handler
+        this.initPingTest();
 
+    }
+
+    preload(): void {
+        this.load.image('audio-settings', '/assets/img/audio-settings.png');
     }
 
     create(): void {
@@ -108,8 +141,67 @@ export abstract class BaseScene extends Phaser.Scene {
             }
         });
 
+        this.backgroundContainer = this.add.container(0, 0);
+        this.add.existing(this.backgroundContainer);
+        this.mainContainer = this.add.container(0, 0);
+        this.add.existing(this.mainContainer);
+        this.UIContainer = this.add.container(0, 0);
+        this.add.existing(this.UIContainer);
+        this.topContainer = this.add.container(0, 0);
+        this.add.existing(this.topContainer);
+
+        this.globalNavbar = new GlobalNavbar(this);
+        this.add.existing(this.globalNavbar);
+
+        // Add a settings button to open the panel
+        this.soundSettings = new SoundSettingsPanel(this);
+        this.add.existing(this.soundSettings);
+
+        this.globalNavbar.addIcon('audio-settings', () => {
+            console.log('Settings icon clicked');
+            this.soundSettings.toggle();
+        });
 
     }
+
+    private initPingTest(): void {
+
+        // This event used by all games and all user types
+        // Add handler for server-initiated ping tests
+        if (!this.socket) {
+            console.error('SocketManager: Socket not initialized for ping test');
+            return;
+        }
+
+        console.log('SocketManager: initPingTest registering handler, socketId:', this.socket?.id);
+        this.socket.off('server:ping');
+        this.socket.on('server:ping', (data, callback) => {
+            // Determine device type
+            let device = 'unknown';
+
+            if (/iPad/.test(navigator.userAgent)) {
+                device = 'iPad';
+            } else if (/iPhone|iPod/.test(navigator.userAgent)) {
+                device = 'iPhone';
+            } else if (/Android/.test(navigator.userAgent)) {
+                device = 'Android';
+            } else if (/Windows/.test(navigator.userAgent)) {
+                device = 'Windows';
+            } else if (/Macintosh/.test(navigator.userAgent)) {
+                device = 'Mac';
+            } else if (/Linux/.test(navigator.userAgent)) {
+                device = 'Linux';
+            }
+
+            // Send response with device info
+            console.log('Responding to ping test from server, device:', device);
+            callback({
+                device,
+                received: Date.now()
+            });
+        });
+    }
+
     protected handlePlayerConnect(playerConfig: PlayerConfig): void {
 
         // Store the player config in the map
@@ -143,25 +235,69 @@ export abstract class BaseScene extends Phaser.Scene {
     }
 
     handleResize(gameSize: Phaser.Structs.Size): void {
-        console.log(`${this.scene.key}:: BaseScene.handleResize:`, gameSize.width, gameSize.height);
+        this.resizeCount++;
+
+        // gameSize width and height are the reported size of the canvas
+        // However on iOS these values can be wrong
+        // visualViewport is more reliable, so use this if it is available
+        let screenWidth = gameSize.width;
+        let screenHeight = gameSize.height;
+        if (window.visualViewport) {
+            screenWidth = window.visualViewport.width;
+            screenHeight = window.visualViewport.height;
+        }
 
         const scaleX = gameSize.width / 1920;
+        const logicalHeight = screenHeight / scaleX;
 
-        // Calculate the logical height visible through the camera
-        const logicalHeight = gameSize.height / scaleX;
+        console.log(`${this.scene.key}:: BaseScene.handleResize:`, this.resizeCount, screenWidth, screenHeight, scaleX, logicalHeight);
 
-        // Set the camera properties - will be overridden by the game scene
-        // this.setCameraProperties(scaleX);
+        if (this.socket) {
+            this.socket.emit('consolelog', this.resizeCount);
+        }
+
+        // Set the camera properties
         const camera = this.cameras.main;
         camera.setOrigin(0, 0);
         camera.setZoom(scaleX);
 
         this.updateHeight(logicalHeight);
+
+        // Add debugging graphics to show camera bounds
+        if (__DEV__) {
+            this.addDebugGraphics();
+        }
+    }
+
+    addDebugGraphics(): void {
+
+        if (this.debugContainer) {
+            this.debugContainer.removeAll(true);
+        }
+        this.debugContainer = this.add.container(0, 0);
+
+        // Add a small rectangle at each corner of the screen to show corners
+        const cornerSize = 40;
+        const corners = [
+            { x: 0, y: 0 },
+            { x: 1920, y: 0 },
+            { x: 0, y: this.getY(1080) },
+            { x: 1920, y: this.getY(1080) }
+        ];
+        corners.forEach(corner => {
+            const graphics = this.add.graphics();
+            graphics.fillStyle(0x00ff00, 1);
+            graphics.fillRect(corner.x - cornerSize / 2, corner.y - cornerSize / 2, cornerSize, cornerSize);
+            this.debugContainer.add(graphics);
+        });
     }
 
     updateHeight(newHeight: number): void {
         console.log('BaseScene:: updateHeight:', newHeight);
         BaseScene.currentHeight = newHeight;
+
+        // Call the display function in the child scenes to update any layout
+        // this.sceneDisplay();
     }
 
     getY(logicalY: number): number {
@@ -174,7 +310,41 @@ export abstract class BaseScene extends Phaser.Scene {
         return BaseScene.currentHeight / 1080;
     }
 
+    // Add these new methods
+    private setupWakeLock(): void {
+        // Request wake lock initially
+        this.requestWakeLock();
 
+        // Set up visibility change handler to reacquire wake lock when needed
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                if (!this.wakeLock || (this.wakeLock.released === true)) {
+                    console.log('Document became visible, requesting wake lock');
+                    this.requestWakeLock();
+                }
+            }
+        });
+    }
+
+    private async requestWakeLock(): Promise<void> {
+        // Check if Wake Lock API is supported
+        if ('wakeLock' in navigator) {
+            try {
+                // Request a screen wake lock
+                this.wakeLock = await (navigator as any).wakeLock.request('screen');
+                console.log('Wake lock activated');
+
+                // Add a listener to log when wake lock is released
+                this.wakeLock.addEventListener('release', () => {
+                    console.log('Wake lock released');
+                });
+            } catch (err) {
+                console.warn('Wake lock request failed:', err);
+            }
+        } else {
+            console.log('Wake Lock API not supported by this browser');
+        }
+    }
     shutdown(): void {
         console.log(`BaseScene:: shutdown`);
 
@@ -185,10 +355,20 @@ export abstract class BaseScene extends Phaser.Scene {
         // Remove the socket listeners
         this.socket.removeAllListeners();
 
+        // Release wake lock if it exists
+        if (this.wakeLock && typeof this.wakeLock.release === 'function') {
+            this.wakeLock.release()
+                .then(() => console.log('Wake lock released on scene shutdown'))
+                .catch(err => console.error('Error releasing wake lock:', err));
+        }
+
         // Call the child scene shutdown method to allow them to clean up
         this.sceneShutdown();
     }
+
+    // Abstract methods for child scenes to implement
     abstract sceneShutdown(): void;
+    abstract sceneDisplay(): void;
 
 }
 

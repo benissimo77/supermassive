@@ -19,7 +19,7 @@
 		"rounds": {
 			"type": "array",
 			"description": "The rounds in the quiz",
-			"minItems": 1,
+			"minItems": 0,
 			"items": {
 				"$ref": "#/definitions/round"
 			}
@@ -64,7 +64,7 @@
 				"questions": {
 					"type": "array",
 					"description": "The questions in the round",
-					"minItems": 1,
+					"minItems": 0,
 					"items": {
 						"$ref": "#/definitions/question"
 					}

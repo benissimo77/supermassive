@@ -21,7 +21,6 @@ export class QuizHostScene extends BaseScene {
     private socketDebugger: SocketDebugger;
 
     private soundManager: SoundManager;
-    private soundSettings: SoundSettingsPanel;
     private questions: any[] = [];
     private currentQuestion: BaseQuestion;
     private currentRound: any = null;
@@ -39,7 +38,6 @@ export class QuizHostScene extends BaseScene {
 
     // Containers - created once in order to set the ordering
     private playerContainer: Phaser.GameObjects.Container;
-    private UIContainer: Phaser.GameObjects.Container;
     private questionContainer: Phaser.GameObjects.Container;
 
     // For key press handling
@@ -60,26 +58,20 @@ export class QuizHostScene extends BaseScene {
         console.log('QuizHostScene:: init.');
 
         // for host the TYPE will be 'host' or 'solo'
-        this.TYPE = 'host';
+        this.TYPE = 'solo';
         this.playerScores = new Map();
         this.playerAnswers = new Map();
         this.questionFactory = new QuestionFactory(this);
         this.soundManager = SoundManager.getInstance(this);
 
-        // Text labels config object - can be overridden but this provides a base
-        this.labelConfig = {
-            fontFamily: '"Titan One", Arial',
-            fontSize: this.getY(36),
-            color: '#ffffff',
-            stroke: '#000000',
-            strokeThickness: 2,
-            align: 'center',
-        }
-
-
+        // General keyboard listener - useful for keyboard control
         if (this.input?.keyboard) {
             this.input.keyboard.on('keydown', this.handleKeyDown, this);
         }
+        // General mouse listener - can adjust display when user moves mouse
+        // this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+        //     console.log(`Pointer moved to: x=${pointer.x}, y=${pointer.y}`);
+        // }, this);
 
         // Setup socket listeners
         this.setupSocketListeners();
@@ -87,18 +79,25 @@ export class QuizHostScene extends BaseScene {
 
     preload(): void {
 
+        super.preload();
+
         // Load common assets for all question types
+        // Background images
+        this.load.image('quiz-background', '/img/quiz/background.jpg');
         // this.load.image('quiz-background', '/img/quiz/background.jpg');
-        this.load.image('quiz-background', '/img/quiz/background.png');
         // this.load.image('quiz-background', '/assets/img/grid1920x1080.png');
+
+        // Button images
         this.load.image('simple-button', '/assets/img/simplebutton.png');
         this.load.image('simple-button-hover', '/assets/img/simplebutton-hover.png');
         this.load.image('dropzone', '/assets/img/dropzone.png');
 
+        // YouTube player buttons
         this.load.image('player-play', '/assets/img/YouTubePlayerButtons_90px_0002_play.png');
         this.load.image('player-pause', '/assets/img/YouTubePlayerButtons_90px_0001_pause.png');
         this.load.image('player-replay', '/assets/img/YouTubePlayerButtons_90px_0000_replay.png');
 
+        // Crosshair for drag-and-drop
         this.load.image('crosshair', '/img/crosshair40.png');
 
         // Audio assets - theme music
@@ -131,37 +130,29 @@ export class QuizHostScene extends BaseScene {
         // Create background
         const background: Phaser.GameObjects.Image = this.add.image(0, 0, 'quiz-background').setOrigin(0, 0);
         background.setDisplaySize(1920, this.getY(1080));
+        this.backgroundContainer.add(background);
 
         // Overlay to darken the background
         const overlay: Phaser.GameObjects.Graphics = this.add.graphics();
         overlay.fillStyle(0x000000, 0.7);
         overlay.fillRect(0, 0, 1920, this.getY(1080));
+        this.backgroundContainer.add(overlay);
 
-        // Create score racetrack at the bottom of the screen
+        // Create score racetrack but begin with it off-screen
         this.racetrack = new Racetrack(
             this,
             1920,
             this.getY(400)
         );
-        this.add.existing(this.racetrack);
         this.racetrack.setPosition(0, this.getY(640));
-        // this.scoreRacetrack.setVisible(false);
+        this.add.existing(this.racetrack);
+        this.mainContainer.add(this.racetrack);
 
-        // Create the UI container for all UI elements
+        // Create the containers for all UI elements (eg round intro)
+        // Note: these are added to the 'base' containers set up in BaseScene: background, UI, main, top, overlay
         this.playerContainer = this.add.container(0, 0);
-        this.UIContainer = this.add.container(0, 0);
         this.questionContainer = this.add.container(0, 0);
-
-        // Add a settings button to open the panel
-        this.soundSettings = new SoundSettingsPanel(this);
-        this.add.existing(this.soundSettings);
-
-        const settingsButton = this.add.image(1800, this.getY(80), 'player-play')
-            .setInteractive({ useHandCursor: true })
-            .on('pointerup', () => {
-                console.log('Settings button clicked');
-                this.soundSettings.toggle();
-            });
+        this.mainContainer.add(this.questionContainer);
 
         // Start background music - this works
         // this.soundManager.playMusic('quiz-intro-music', { fadeIn: 2000 });
@@ -174,13 +165,19 @@ export class QuizHostScene extends BaseScene {
 
         // Let the server know we're ready - this could come from a button click or other event
         // host:ready informs server host is ready to receive player data and other socket events
-        this.socket.emit('host:ready', {});
+        // host:ready event also sends acknowledgment callback data including IMPORTANT: room ID
+        this.socket.emit('host:ready', {}, (response: any) => {
+            console.log('Host is ready:', response);
+            if (response.room) {
+                this.showRoomID(response.room);
+            }
+        });
 
         // We might want to run some kind of introduction - think opening credits of a TV quiz show
         // But since I don't have this yet, let's just show the quiz intro
 
         // DEVELOPMENT - look for quiz ID in URL and if so go straight to that quiz
-        // This is part of the new SOLO mode for host playing alone - not quite finished...
+        // Note: host:requeststart loads the quiz BUT we don't actually start the quiz until the host clicks 'Start Quiz' button
         const urlParams = new URLSearchParams(window.location.search);
         const quizID = urlParams.get('q');
         // Provide ability to go instantly to a quiz with a known ID
@@ -242,8 +239,19 @@ export class QuizHostScene extends BaseScene {
         });
 
         // Listen for question
-        this.socket.on('server:question', (question) => {
+        this.socket.on('server:question', (question, callback) => {
+            const receivedTime = Date.now();
             this.displayQuestion(question);
+            const displayTime = Date.now() - receivedTime;
+            const deviceInfo = {
+                device: /iPad/.test(navigator.userAgent) ? 'iPad' :
+                    /iPhone|iPod/.test(navigator.userAgent) ? 'iPhone' :
+                        /Android/.test(navigator.userAgent) ? 'Android' : 'Other',
+                displayTime: displayTime
+            };
+
+            callback(deviceInfo);
+
         });
 
         // Player answered a question
@@ -293,6 +301,19 @@ export class QuizHostScene extends BaseScene {
         console.log(`Key pressed: ${keyName} (code: ${event.code})`);
         this.socket.emit('host:keypress', { key: event.code });
         this.flyQuestionOut(event.code);
+    }
+
+    private showRoomID(roomID: string): void {
+        const roomTextConfig = Object.assign({}, this.labelConfig, {
+            fontSize: this.getY(96),
+            strokeThickness: 6,
+            backgroundColor: '#000000',
+            color: '#FFFF00',
+            padding: { x: 40, y: this.getY(30) }
+        });
+        const roomText = this.add.text(1900, this.getY(1060), roomID, roomTextConfig)
+            .setOrigin(1, 1);
+        this.topContainer.add(roomText);
     }
 
     // flyQuestionOut - animate the current question off screen based on direction
@@ -356,24 +377,23 @@ export class QuizHostScene extends BaseScene {
 
     private createUI(): void {
 
-        // Round display
-        const roundDisplay = this.add.text(960, this.getY(50), '')
-            .setFontSize(this.getY(36))
-            .setFontFamily('"Titan One", Arial')
-            .setColor('#ffffff')
-            .setStroke('#000000', 4)
-            .setOrigin(0.5);
+        // Round display - uses labelConfig defined in BaseScene
+        const roundDisplayConfig = Object.assign({}, this.labelConfig, {
+            fontSize: this.getY(36),
+            strokeThickness: 4
+        });
+        const roundDisplay = this.add.text(960, this.getY(50), '', roundDisplayConfig);
 
         // Timer bar
         this.timerBar = this.add.graphics();
 
         // Timer text
-        this.timerText = this.add.text(960, this.getY(600), '')
-            .setFontSize(this.getY(36))
-            .setFontFamily('"Titan One", Arial')
-            .setColor('#ffffff')
-            .setStroke('#000000', 3)
-            .setOrigin(0.5);
+        const timerTextConfig = Object.assign({}, this.labelConfig, {
+            fontSize: this.getY(36),
+            strokeThickness: 3
+        });
+        this.timerText = this.add.text(960, this.getY(600), '', timerTextConfig);
+
         // Score board
         this.scoreBoard = this.add.container(50, this.getY(650));
     }
@@ -477,17 +497,10 @@ export class QuizHostScene extends BaseScene {
     }
 
     private createSimpleButton(x: number, y: number, text: string): Phaser.GameObjects.Text {
-        const buttonConfig = {
-            fontSize: this.getY(36),
-            fontFamily: '"Titan One", Arial',
-            color: '#ffffff',
+        const buttonConfig = Object.assign({}, this.labelConfig, {
             backgroundColor: '#0066cc',
             padding: { x: 30, y: 15 },
-            align: 'center',
-            stroke: '#000000',
-            strokeThickness: 2
-        };
-
+        });
         const button = this.add.text(x, y, text, buttonConfig)
             .setOrigin(0.5)
             .setInteractive({ useHandCursor: true })
@@ -649,9 +662,9 @@ export class QuizHostScene extends BaseScene {
         tl.play();
 
         // Store scores internally for other uses
-        // Object.entries(scores).forEach(([playerID, score]) => {
-        //     this.playerScores.set(playerID, score);
-        // });
+        Object.entries(scores).forEach(([playerID, score]) => {
+            this.playerScores.set(playerID, score);
+        });
     }
 
 
@@ -668,45 +681,27 @@ export class QuizHostScene extends BaseScene {
         this.clearUI();
 
         // Show round end message
-        const titleText = this.add.text(
-            960,
-            this.getY(200),
-            data.title,
-            {
-                fontSize: '64px',
-                fontFamily: '"Titan One", Arial',
-                color: '#ffffff',
-                stroke: '#000000',
-                strokeThickness: 6
-            }
-        ).setOrigin(0.5);
+        const titleTextConfig = Object.assign({}, this.labelConfig, {
+            fontSize: this.getY(64),
+            strokeThickness: 6
+        });
+        const titleText = this.add.text(960, this.getY(200), data.title, titleTextConfig)
+            .setOrigin(0.5);
 
-        const descText = this.add.text(
-            960,
-            this.getY(350),
-            data.description,
-            {
-                fontSize: '32px',
-                fontFamily: 'Arial',
-                color: '#ffffff',
-                align: 'center',
-                wordWrap: { width: this.cameras.main.width - 200 }
-            }
-        ).setOrigin(0.5);
+        const descTextConfig = Object.assign({}, this.labelConfig, {
+            fontSize: this.getY(32),
+            align: 'center',
+            wordWrap: { width: this.cameras.main.width - 200 }
+        });
+        const descText = this.add.text(960, this.getY(350), data.description, descTextConfig)
+            .setOrigin(0.5);
 
         // Next button
-        const nextButton = this.add.text(
-            960,
-            this.getY(550),
-            'CONTINUE',
-            {
-                fontSize: '36px',
-                fontFamily: '"Titan One", Arial',
-                color: '#ffffff',
-                backgroundColor: '#0066cc',
-                padding: { x: 30, y: 15 }
-            }
-        )
+        const nextButtonConfig = Object.assign({}, this.labelConfig, {
+            backgroundColor: '#0066cc',
+            padding: { x: 30, y: 15 }
+        });
+        const nextButton = this.add.text(960, this.getY(550), 'CONTINUE', nextButtonConfig)
             .setOrigin(0.5)
             .setInteractive({ useHandCursor: true })
             .on('pointerdown', () => {
@@ -732,18 +727,16 @@ export class QuizHostScene extends BaseScene {
         this.clearUI();
 
         // Show quiz complete message
+        const titleTextConfig = Object.assign({}, this.labelConfig, {
+            fontSize: this.getY(64),
+            strokeThickness: 6
+        });
         const titleText = this.add.text(
             960,
             this.getY(200),
             'QUIZ COMPLETE!',
-            {
-                fontSize: '72px',
-                fontFamily: '"Titan One", Arial',
-                color: '#ffff00',
-                stroke: '#000000',
-                strokeThickness: 8
-            }
-        ).setOrigin(0.5);
+            titleTextConfig
+        );
 
         // Get winner
         let winner = '';
@@ -757,35 +750,32 @@ export class QuizHostScene extends BaseScene {
         });
 
         // Show winner
-        const winnerText = this.add.text(960, this.getY(400), `Winner: ${winner} with ${highScore} points!`)
-            .setFontSize(this.getY(48))
-            .setFontFamily('"Titan One", Arial')
-            .setColor('#ffffff')
-            .setStroke('#000000', 6)
-            .setOrigin(0.5);
+        const winnerTextConfig = Object.assign({}, this.labelConfig, {
+            fontSize: this.getY(48),
+            strokeThickness: 4
+        });
+        const winnerText = this.add.text(960, this.getY(400), `Winner: ${winner} with ${highScore} points!`, winnerTextConfig);
 
         // Create list of all scores
         let y = 400;
         const sortedScores = Array.from(this.playerScores.entries())
             .sort((a, b) => b[1] - a[1]);
 
+        const scoreTextConfig = Object.assign({}, this.labelConfig, {
+            fontSize: this.getY(32),
+            fontFamily: 'Arial'
+        });
         sortedScores.forEach(([playerID, score], index) => {
             const player = this.getPlayerName(playerID);
-            const scoreText = this.add.text(960, this.getY(y + index * 40), `${index + 1}. ${player}: ${score}`)
-                .setFontSize(this.getY(32))
-                .setFontFamily('Arial')
-                .setColor('#ffffff')
-                .setOrigin(0.5);
+            const scoreText = this.add.text(960, this.getY(y + index * 40), `${index + 1}. ${player}: ${score}`, scoreTextConfig);
         });
 
         // Return to lobby button
-        const backButton = this.add.text(960, this.getY(y + sortedScores.length * 40 + 60), 'RETURN TO LOBBY')
-            .setFontSize('36px')
-            .setFontFamily('"Titan One", Arial')
-            .setColor('#ffffff')
-            .setBackgroundColor('#0066cc')
-            .setPadding({ x: 30, y: 15 })
-            .setOrigin(0.5)
+        const backButtonConfig = Object.assign({}, this.labelConfig, {
+            backgroundColor: '#0066cc',
+            padding: { x: 30, y: 15 }
+        });
+        const backButton = this.add.text(960, this.getY(y + sortedScores.length * 40 + 60), 'RETURN TO LOBBY', backButtonConfig)
             .setInteractive({ useHandCursor: true })
             .on('pointerdown', () => {
                 this.scene.start('LobbyHostScene');
@@ -811,6 +801,10 @@ export class QuizHostScene extends BaseScene {
         }
     }
 
+    sceneDisplay(): void {
+        // Called from BaseScene when the screen is resized
+        console.log('QuizHostScene:: sceneDisplay: updating layout for new size');
+    }
     sceneShutdown(): void {
         console.log('Quiz:: sceneShutdown...');
         // Remove any socket listeners or other cleanup tasks here

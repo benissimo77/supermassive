@@ -250,7 +250,7 @@ export class LobbyPlayScene extends BaseScene {
 						duration: 5000,
 						ease: 'Cubic.easeInOut',
 						onUpdate: (tween: Phaser.Tweens.Tween) => {
-							const v:number|null = tween.getValue();
+							const v: number | null = tween.getValue();
 							container.setScale(v ?? 1);
 						},
 
@@ -283,6 +283,11 @@ export class LobbyPlayScene extends BaseScene {
 		console.log("Camera scroll:", this.cameras.main.scrollX, this.cameras.main.scrollY);
 		console.log("Camera world view:", this.cameras.main.worldView);
 		console.log("Camera zoom:", this.cameras.main.zoom);
+	}
+
+	// Called from BaseScene when the screen is resized
+	sceneDisplay(): void {
+		console.log('LobbyPlayScene:: sceneDisplay: updating layout for new size');
 	}
 	sceneShutdown(): void {
 		console.log('Lobby:: sceneShutdown...');

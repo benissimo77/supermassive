@@ -561,6 +561,11 @@ export class LobbyHostScene extends BaseScene {
 		console.log("Camera zoom:", this.cameras.main.zoom);
 	}
 
+	sceneDisplay(): void {
+		// Called from BaseScene when the screen is resized
+		console.log('LobbyHostScene:: sceneDisplay: updating layout for new size');
+	}
+
 	sceneShutdown(): void {
 		console.log('Lobby:: sceneShutdown...');
 		// Remove any socket listeners or other cleanup tasks here

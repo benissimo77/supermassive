@@ -43,6 +43,9 @@ export class YouTubePlayerUI {
     public static getInstance(scene: BaseScene): YouTubePlayerUI {
         if (!YouTubePlayerUI.instance) {
             YouTubePlayerUI.instance = new YouTubePlayerUI(scene);
+        } else {
+            // Update scene reference if a different scene is provided
+            //YouTubePlayerUI.instance.scene = scene;
         }
         return YouTubePlayerUI.instance;
     }
@@ -160,7 +163,7 @@ export class YouTubePlayerUI {
                     // Regiseter player with soundManager for volume control
                     const soundManager = SoundManager.getInstance(this.scene);
                     soundManager.registerYouTubePlayer(this.player);
-       
+
                 } else {
                     console.warn('YouTube player iframe not ready yet, trying again in 100ms');
                 }
@@ -425,7 +428,7 @@ export class YouTubePlayerUI {
         const soundManager = SoundManager.getInstance(this.scene);
         soundManager.unregisterYouTubePlayer();
 
-        const iframe: HTMLElement | null= document.getElementById(this.uniqueId);
+        const iframe: HTMLElement | null = document.getElementById(this.uniqueId);
         if (iframe) {
             document.body.removeChild(iframe);
         }

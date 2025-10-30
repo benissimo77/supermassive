@@ -1,6 +1,7 @@
 import http from 'http';
 import { app, sessionMiddleware } from './server/app.js';
 import createSocketServer from './server/socketserver.js';
+import os from 'os';
 
 const server = http.createServer(app);
 
@@ -27,6 +28,21 @@ io.engine.use(sessionMiddleware);
 //   next();
 // });
 
+// Function to get the local IP address
+function getLocalIPAddress() {
+	const nets = os.networkInterfaces();
+
+	for (const name of Object.keys(nets)) {
+		for (const net of nets[name]) {
+			// Skip over non-IPv4 and internal (loopback) addresses
+			if (net.family === 'IPv4' && !net.internal) {
+				return net.address;
+			}
+		}
+	}
+	return 'localhost'; // Fallback if no IP address found
+}
+
 
 // Start the server on port 3000
 const PORT = process.env.PORT || 3000;
@@ -34,11 +50,11 @@ const PORT = process.env.PORT || 3000;
 // 	console.log(`Server is running on http://localhost:${PORT}`);
 // });
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
 
 	console.log(`Server is running on:`);
 	console.log(`- Local: http://localhost:${PORT}`);
-	console.log(`You can connect from your phone using the Network URL`);
+	console.log(`- Network: http://${getLocalIPAddress()}:${PORT}`);
 });
 
 

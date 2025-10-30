@@ -150,8 +150,8 @@ export default class OrderingQuestion extends BaseQuestion {
         this.answerContainer.add(this.submitButton);
 
         // DEBUG - add rectangle to origin of the answer container
-        const debugRect = this.scene.add.rectangle(0, 0, 5, 5, 0xff0000, 0.5).setOrigin(0.5);
-        this.answerContainer.add(debugRect);
+        //const debugRect = this.scene.add.rectangle(0, 0, 5, 5, 0xff0000, 0.5).setOrigin(0.5);
+        //this.answerContainer.add(debugRect);
 
         // Make interactive if we are in ask mode and player screen
         if (this.questionData.mode == 'ask' && this.scene.TYPE != 'host') {

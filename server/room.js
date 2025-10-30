@@ -120,7 +120,7 @@ class Room {
 		socket.on('host:requestgame', async (game) => {
 			console.log('host:requestgame:', game);
 
-			// We might already be in this game - do nothing if this is the case
+			// We might already be in this game - do nothing if this is the case...
 			if (this.game && this.game.name == game) {
 				console.log('Already running this game - ignore:', this.game.name);
 				// return;

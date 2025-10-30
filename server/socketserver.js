@@ -164,7 +164,7 @@ export default function createSocketServer(server) {
 		} catch (error) {
 			console.error("Error during ping test:", error);
 		}
-	}, 3 * 60 * 1000); // Every 3 minutes
+	}, 2 * 60 * 1000); // Every 3 minutes
 
 
 	// Send keep-alive (ping) message to all connected clients every 60 seconds

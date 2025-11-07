@@ -1,10 +1,17 @@
 import { gsap } from "gsap";
+import { BaseScene } from "src/BaseScene";
 import { BaseQuestion } from "./BaseQuestion";
 import { NineSliceButton } from "src/ui/NineSliceButton";
+import { MultipleChoiceQuestionData } from "./QuestionTypes";
 
 export default class MultipleChoiceQuestion extends BaseQuestion {
 
     private buttons: Map<string, NineSliceButton> = new Map<string, NineSliceButton>();
+    protected questionData: MultipleChoiceQuestionData;
+
+    constructor(scene: BaseScene, questionData: MultipleChoiceQuestionData) {
+        super(scene, questionData);
+    }
 
     protected getAnswerUIWidth(): number {
         return 600;
@@ -17,9 +24,29 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
      * If mode = 'ask' then we show the options
      * If mode = 'ask' AND we are player screen then make interactive and collect player input
      */
-    protected createAnswerUI(answerHeight: number): void {
+    protected createAnswerUI(): void {
 
-        // Create answer options - answerHeight is total amount of space available but we must allow some padding top and bottom
+        console.log('MultipleChoiceQuestion::createAnswerUI:', this.questionData);
+        this.questionData.options.forEach((option: string, index: number) => {
+            const newButton: NineSliceButton = new NineSliceButton(this.scene, option);
+
+            this.buttons.set(option, newButton);
+            this.answerContainer.add(newButton);
+
+        });
+
+        // Make interactive if we are in ask mode and player screen
+        if (this.questionData.mode == 'ask' && this.scene.TYPE != 'host') {
+            this.makeInteractive();
+        }
+
+        // DEBUG - add rectangle to originof the answer container
+        //const debugRect = this.scene.add.rectangle(0, 0, 5, 5, 0xff0000, 0.5).setOrigin(0.5);
+        //this.answerContainer.add(debugRect);
+    }
+
+    protected displayAnswerUI(answerHeight: number): void {
+
         // Experiment with making padding a proportion of available space
         // And if we have a LOT of space then make the padding larger otherwise it spreads out too much vertically
         // All of the layout assumes a logical button width of 800
@@ -37,9 +64,10 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
             buttonHeight = 180;
         }
 
-        console.log('MultipleChoiceQuestion::createAnswerUI:', this.questionData.mode, this.scene.TYPE, availableHeight, buttonSpace, buttonHeight);
+        console.log('MultipleChoiceQuestion::displayAnswerUI:', this.questionData.mode, this.scene.TYPE, availableHeight, buttonSpace, buttonHeight);
 
-        // Now create the buttons using the above calculated values
+        // Now layout the buttons using the above calculated values
+        const now: number = Date.now();
         this.questionData.options.forEach((option: string, index: number) => {
 
             const rowCount: number = Math.floor(index / 2);
@@ -48,44 +76,37 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
 
             console.log('MultipleChoiceQuestion::createAnswerUI:', option, x, y);
 
-            const newButton: NineSliceButton = new NineSliceButton(this.scene, option);
-            newButton.setButtonSize(800, this.scene.getY(buttonHeight));
-            newButton.setPosition(x, y);
+            const newButton: NineSliceButton | undefined = this.buttons.get(option);
+            if (newButton) {
+                newButton.setButtonSize(800, buttonHeight);
+                newButton.setPosition(x, y);
 
-            // Testing make interactive
-            newButton.setInteractive({ useHandCursor: true });
+                if (this.scene.TYPE === 'play') {
+                    this.scene.socket?.emit('consolelog', `MultipleChoiceQuestion::displayAnswerUI: index=${index} option=${option} x=${x} y=${y} buttonHeight=${buttonHeight} time=${Date.now() - now}ms`);
+                }
 
-            this.buttons.set(option, newButton);
-            this.answerContainer.add(newButton);
-
-            // If we are in answer mode then we show the correct answer
-            if (this.questionData.mode == 'answer') {
-                if (option == this.questionData.answer) {
-                    newButton.onPointerOver();
+                // Leave this here for now... can't think where else to put it
+                if (this.questionData.mode === 'answer') {
+                    if (option === this.questionData.answer) {
+                        newButton.onPointerOver();
+                    }
                 }
             }
 
-
         });
-
-        // Make interactive if we are in ask mode and player screen
-        if (this.questionData.mode == 'ask' && this.scene.TYPE != 'host') {
-            this.makeButtonsInteractive();
-        }
-
 
         // DEBUG - add rectangle to originof the answer container
         //const debugRect = this.scene.add.rectangle(0, 0, 5, 5, 0xff0000, 0.5).setOrigin(0.5);
         //this.answerContainer.add(debugRect);
     }
 
-    private makeButtonsInteractive(): void {
+    protected makeInteractive(): void {
 
         this.buttons.forEach((button, option) => {
 
             button.setInteractive({ useHandCursor: true });
             button.on('pointerup', () => {
-                this.makeButtonsNonInteractive();
+                this.makeNonInteractive();
                 this.submitAnswer(option);
                 button.bringToTop(this.answerContainer);
                 this.buttons.forEach(b => {
@@ -110,7 +131,7 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
         });
     }
 
-    private makeButtonsNonInteractive(): void {
+    protected makeNonInteractive(): void {
         this.buttons.forEach((button) => {
             button.disableInteractive();
         });

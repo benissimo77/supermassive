@@ -62,6 +62,8 @@ router.get('/proxy-image', async (req, res) => {
 	try {
 		const imageUrl = req.query.url;
 
+		console.log('routes.public.js:: proxy-image URL:', imageUrl);
+
 		if (!imageUrl) {
 			return res.status(400).send('URL parameter is required');
 		}

@@ -1,12 +1,20 @@
 import { gsap } from "gsap";
+import { BaseScene } from "src/BaseScene";
 import { BaseQuestion } from "./BaseQuestion";
 import { NineSliceButton } from "src/ui/NineSliceButton";
+import { TextQuestionData } from "./QuestionTypes";
+
+import { Keyboard } from "src/ui/Keyboard";
 
 export default class TextQuestion extends BaseQuestion {
 
+    private keyboard: Keyboard;
     private answerText: Phaser.GameObjects.Text;
     private submitButton: NineSliceButton;
-    private keys: Map<string, NineSliceButton> = new Map<string, NineSliceButton>();
+
+    constructor(scene: BaseScene, questionData: TextQuestionData) {
+        super(scene, questionData);
+    }
 
     protected getAnswerUIWidth(): number {
         return 600;
@@ -19,9 +27,9 @@ export default class TextQuestion extends BaseQuestion {
      * If mode = 'ask' then we show the options
      * If mode = 'ask' AND we are player screen then make interactive and collect player input
      */
-    protected createAnswerUI(answerHeight: number): void {
+    protected createAnswerUI(): void {
 
-        console.log('TextQuestion::createAnswerUI:', this.questionData.mode, this.scene.TYPE, answerHeight, this.scene.getScaleFactor(), answerHeight * this.scene.getScaleFactor());
+        console.log('TextQuestion::createAnswerUI:', this.questionData.mode, this.scene.TYPE, this.scene.getScaleFactor());
 
         // Create answer options - answerHeight is total amount of space available but we must allow some padding top and bottom
         // ASK MODE:
@@ -40,166 +48,101 @@ export default class TextQuestion extends BaseQuestion {
         // Top third of screen (360) reserved for answer text, bottom two thirds (720)for keyboard
         // So the maximum size of a key is either the width divided by 16 (for ~14 keys plus padding) or the height divided by 6 (for 6 rows)
 
-        if (this.questionData.mode == 'ask') {
+        if (this.scene.TYPE != 'host') {
 
-            // answerTextHeight defined as a var since as a final step if we have plenty of vertical space we adjust it to make keyboard look better
-            var answerTextHeight: number = answerHeight / 3;
-            const numRows: number = 4;
-            const keyboardAvailableHeight: number = answerHeight - answerTextHeight;
-
-            // Longest row is the top row, so make the button widths based on fitting this row
-            // The buttons will be square so use the row height for both width and height
-            // And since we know the buttonHeight (same as width) we calculate exact height of entire keyboard
-            // And adjust if total height is less than available
-            var buttonWidth: number = 1920 / 16;
-            var rowPadding: number = buttonWidth * 0.2;
-            var rowHeight: number = buttonWidth + rowPadding;
-            var keyboardHeight: number = rowHeight * numRows + rowPadding * 2;  // rowPadding * 2 gives a bit more space at the bottom
-
-            console.log('TextQuestion::createAnswerUI: keyboardHeight:', keyboardHeight, 'availableHeight:', keyboardAvailableHeight, 'getY(available):', this.scene.getY(keyboardAvailableHeight), 'total space:', this.scene.getY(1080));
-
-            // keyboardHeight is physical pixels, availableHeight is in logical pixels - so convert before comparing heights
-            if (keyboardHeight / this.scene.getScaleFactor() > keyboardAvailableHeight) {
-                // If the calculated height is more than available, then use the available height and reverse the calculations above
-                // only thing not perfectly reversed is the bottom padding since that is harder to derive so just use 48px
-                rowHeight = (this.scene.getY(keyboardAvailableHeight) - 48) / numRows;
-                rowPadding = rowHeight / 6;
-                buttonWidth = rowHeight - rowPadding;
-                keyboardHeight = rowHeight * numRows + rowPadding * 2; // rowPadding * 2 gives a bit more space at the bottom
-                console.log('TextQuestion::createAnswerUI - CHANGE! :', 'keyboardHeight:', keyboardHeight, 'availableHeight:', keyboardAvailableHeight, 'getY(available):', this.scene.getY(keyboardAvailableHeight), 'total space:', this.scene.getY(1080));
-            }
-
-            answerTextHeight = answerHeight - (keyboardHeight / this.scene.getScaleFactor());
-            console.log('TextQuestion::createAnswerUI: buttonWidth:', buttonWidth, 'rowHeight:', rowHeight, 'keyboardHeight:', keyboardHeight, 'answerTextHeight:', answerTextHeight, 'scaleFactor:', this.scene.getScaleFactor());
-
-            // Create a text field to hold the current answer
-            const answerTextY: number = answerTextHeight / 2;
-            const answerStyle: Phaser.Types.GameObjects.Text.TextStyle = {
-                fontSize: this.scene.getY(answerTextHeight * 0.2),
-            }
-            const answerConfig: Phaser.Types.GameObjects.Text.TextStyle = Object.assign({}, this.scene.labelConfig, answerStyle);
-            this.answerText = this.scene.add.text(0, this.scene.getY(answerTextY), '', answerConfig)
-                .setOrigin(0.5);
-
-            this.answerContainer.add([this.answerText]);
-
-            // Create a keybaord - maybe make this a separate class at some point?
-            // Create the 26 buttons to provide text input since I can't figure out how to make the DOM input field work properly
-            // NOTE: this keyboard actually uses physical pixels for positioning and sizing (only the initial height is logical)
-            const keyboardButtons: string[] = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
-
-            keyboardButtons.forEach((row, rowIndex) => {
-                row.split('').forEach((char, charIndex) => {
-                    const button: NineSliceButton = new NineSliceButton(this.scene, char);
-                    button.setButtonSize(buttonWidth, buttonWidth);
-                    button.setPosition(-800 + (rowIndex * 45) + (charIndex * (buttonWidth + 24)), this.scene.getY(answerTextHeight) + rowHeight / 2 + rowHeight * rowIndex);
-                    button.setInteractive({ useHandCuror: true });
-                    button.on('pointerup', () => {
-                        this.answerText.setText(this.answerText.text + char);
-                        // Truncate to a max length of 25 characters
-                        this.answerText.setText(this.answerText.text.slice(0, 25));
-                    });
-                    this.keys.set('Key' + char.toUpperCase(), button);
-                    this.answerContainer.add(button);
-                });
-            });
-            // Add a BACKSPACE button to the right of the top row of keys
-            const backspaceButton: NineSliceButton = new NineSliceButton(this.scene, 'DELETE');
-            backspaceButton.setButtonSize(buttonWidth + 150, buttonWidth);
-            backspaceButton.setPosition(-800 + (0 * 45) + (10 * (buttonWidth + 24)) + (buttonWidth + 24), this.scene.getY(answerTextHeight) + rowHeight / 2);
-            backspaceButton.setInteractive({ useHandCuror: true });
-            backspaceButton.on('pointerup', () => {
-                this.answerText.setText(this.answerText.text.slice(0, -1));
-            });
-            this.keys.set('Backspace', backspaceButton);
-            this.answerContainer.add(backspaceButton);
-
-            // Add a SPACE bar
-            const spaceButton: NineSliceButton = new NineSliceButton(this.scene, 'SPACE');
-            spaceButton.setButtonSize(600, buttonWidth);
-            spaceButton.setPosition(-60, this.scene.getY(answerTextHeight) + rowHeight / 2 + rowHeight * keyboardButtons.length);
-            spaceButton.setInteractive({ useHandCuror: true });
-            spaceButton.on('pointerup', () => {
-                this.answerText.setText(this.answerText.text + ' ');
-                // Truncate to a max length of 25 characters
-                this.answerText.setText(this.answerText.text.slice(0, 25));
-            });
-            this.keys.set('Space', spaceButton);
-            this.answerContainer.add(spaceButton);
+            this.keyboard = new Keyboard(this.scene);
+            this.answerContainer.add(this.keyboard);
 
             // Add a SUBMIT button - move to bottom corner to give more space for text display
-            this.submitButton = new NineSliceButton(this.scene, 'Submit');
-            this.submitButton.setButtonSize(200, 80);
-            this.submitButton.setPosition(960 - 160 - 20, this.scene.getY(answerHeight - 80));
-            this.submitButton.setVisible(true);
-            this.submitButton.setInteractive({ useHandCuror: true });
-            this.submitButton.on('pointerup', () => {
-                console.log('TextQuestion::createAnswerUI: Submit button clicked');
-                this.makeButtonsNonInteractive();
-                const answer = this.answerText ? this.answerText.text.trim() : '';
-                this.submitAnswer(answer);
-
-                // Juice - animate the canvas and buttons out
-                const tl = gsap.timeline();
-                tl.to(this.submitButton, {
-                    y: 2000,
-                    duration: 0.5,
-                    ease: 'back.in'
-                });
-                this.keys.delete('Enter');
-                this.keys.forEach((key) => {
-                    key.removeAllListeners();
-                    tl.to(key, {
-                        x: -2000,
-                        duration: 0.5,
-                        ease: 'power2.in'
-                    }, "<");
-                });
-                tl.to(this.answerText, {
-                    scale: this.answerText.text.length > 12 ? 1.2 : 2,
-                    duration: 1,
-                    ease: 'back.out'
-                });
-                tl.to(this.answerText, {
-                    y: -2000,
-                    duration: 0.5,
-                    ease: 'power2.in'
-                });
-                tl.play();
-
-
-            });
-            this.keys.set('Enter', this.submitButton);
+            this.submitButton = new NineSliceButton(this.scene, 'SUBMIT');
             this.answerContainer.add(this.submitButton);
 
-            // Additional feature for SOLO mode - add a keyboard listener to simulate keypresses
-            if (this.scene.TYPE == 'solo') {
-                if (this.scene.input && this.scene.input.keyboard) {
-                    this.scene.input.keyboard.on('keydown', this.handleKeyPress, this);
-                }
-            }
+            // We always want this to be interactive so just do it right away
+            this.makeInteractive();
 
-            // Tweak display for HOST - disable keyboard and hide submit button
-            if (this.scene.TYPE == 'host') {
-                this.makeButtonsNonInteractive();
-                this.submitButton.setVisible(false);
-                this.answerText.setText('Enter your answers...');
+            // For host we just create an answerText object to display the answer
+            const answerStyle: Phaser.Types.GameObjects.Text.TextStyle = {
+                fontSize: 96,
             }
+            const answerConfig: Phaser.Types.GameObjects.Text.TextStyle = Object.assign({}, this.scene.labelConfig, answerStyle);
+            this.answerText = this.scene.add.text(0, 0, '', answerConfig)
+                .setOrigin(0.5);
+            this.answerContainer.add([this.answerText]);
+        }
+
+
+        // DEBUG - add rectangle to originof the answer container
+        const debugRect = this.scene.add.rectangle(0, 0, 5, 5, 0xff0000, 0.5).setOrigin(0.5);
+        this.answerContainer.add(debugRect);
+    }
+
+    
+    protected displayAnswerUI(answerHeight: number): void {
+
+        console.log('TextQuestion::displayAnswerUI:', this.questionData.mode, this.scene.TYPE, answerHeight, this.scene.getScaleFactor(), answerHeight * this.scene.getScaleFactor());
+
+        // Create answer options - answerHeight is total amount of space available but we must allow some padding top and bottom
+        // ASK MODE:
+        // HOST display message 'Type your answer'
+        // PLAY/SOLO display text field and a keyboard
+        // ANSWER MODE:
+        // HOST/SOLO display the answer text (in place of 'Type your answer')
+
+        // Calculations for the keyboard size and layout:
+        // Expand to fill the screen width, keep the keyboard justified to the bottom of the screen
+        // Since we can calculate exactly what the height of the keyboard will be (since we know the key size based on width)
+        // We just create at that size, and only in cases where vertical height is less than that we adjust it...
+
+        // On very wide screens, height will max out and then keyboard will be centred but get no larger
+        // So if calculated size based on width ends up too high then height becomes limiting factor
+        // Top third of screen (360) reserved for answer text, bottom two thirds (720)for keyboard
+        // So the maximum size of a key is either the width divided by 16 (for ~14 keys plus padding) or the height divided by 6 (for 6 rows)
+
+        if (this.scene.TYPE === 'host') {
+            // Display the answer text
+            let answerText: string = '';
+            if (this.questionData.mode == 'answer' && this.questionData.answer !== undefined) {
+                answerText = this.questionData.answer.toString();
+            } else {
+                answerText = 'Type your answer';
+                answerText = '';
+            }
+            this.answerText.setText(answerText);
 
         } else {
-
-            if (this.scene.TYPE == 'host' || this.scene.TYPE == 'solo') {
-                const labelString = this.questionData.answer || 'No answer provided';
-                const labelStyle: Phaser.Types.GameObjects.Text.TextStyle = {
-                    fontSize: this.scene.getY(96)
-                }
-                const labelConfig: Phaser.Types.GameObjects.Text.TextStyle = Object.assign({}, this.scene.labelConfig, labelStyle);
-                const labelText: Phaser.GameObjects.Text = this.scene.add.text(0, answerHeight / 2, labelString, labelConfig)
-                    .setOrigin(0.5);
-
-                this.answerContainer.add(labelText);
-
+   
+            // Position and scale the keypad and submit button
+            // In Portrait mode submit button is larger and answerheight is reduced
+            const scaleFactor: number = this.scene.getUIScaleFactor();
+            this.submitButton.setButtonSize(320 * scaleFactor, 80 * scaleFactor);
+            this.submitButton.setTextSize(46 * scaleFactor);
+            this.submitButton.setPosition(960 - 160 * scaleFactor - 20, this.scene.getY(answerHeight) - 40 * scaleFactor - 20);
+            
+            // for portrait mode we can safely reduce answer height as we have loads of space
+            if (scaleFactor > 1) {
+                answerHeight -= 80 * scaleFactor;
             }
+
+            // keyboard is inside answerContainer which is positioned at 960 horizontally
+            // We want to move keyboard to the bottom of the screen, so use its own height to identify how much further to move it
+            this.keyboard.setScale(1);
+            const keyboardHeight:number = this.keyboard.getBounds().height;
+            this.scene.socket?.emit('consolelog', `NumberQuestion::displayAnswerUI: scaleFactor=${scaleFactor} answerHeight=${answerHeight - 40} (${this.scene.getY(answerHeight - 40)}) keyboardHeight=${keyboardHeight} keyboardWidth=${this.keyboard.getBounds().width}`);
+
+            // if not enough space then scale keyboard down
+            if (keyboardHeight > this.scene.getY(answerHeight) - 40) {
+                const scale:number = (this.scene.getY(answerHeight) - 40) / keyboardHeight;
+                this.keyboard.setScale(scale);
+            } else {
+                // more space can scale keyboard up
+                const scaleY:number = (this.scene.getY(answerHeight) - 40) / keyboardHeight;
+                const scaleX:number = (1920 - 80) / this.keyboard.getBounds().width;
+                const scale:number = Math.min(scaleX, scaleY);
+                this.keyboard.setScale(scale);
+                this.scene.socket?.emit('consolelog', `NumberQuestion::displayAnswerUI: scaleUP: answerHeight=${answerHeight} (${this.scene.getY(answerHeight)}) OrigkeyboardHeight=${keyboardHeight} newScaledHeight: ${this.keyboard.getBounds().height} scaledWidth=${this.keyboard.getBounds().width}`);
+            }
+            this.keyboard.setPosition(0, this.scene.getY(answerHeight) - 40 - this.keyboard.getBounds().height);
+
         }
 
         // DEBUG - add rectangle to originof the answer container
@@ -235,22 +178,44 @@ export default class TextQuestion extends BaseQuestion {
         }
     }
 
-    private makeButtonsNonInteractive(): void {
-        this.keys.forEach((key) => {
-            key.removeAllListeners();
-            key.disableInteractive();
+    protected makeInteractive(): void {
+
+        this.keyboard.makeInteractive();
+        this.submitButton.setInteractive({ useHandCuror: true });
+        this.submitButton.on('pointerup', () => {
+            console.log('TextQuestion::createAnswerUI: Submit button clicked');
+            let answer = this.keyboard.getAnswerText() ? this.keyboard.getAnswerText().trim() : '';
+            this.makeNonInteractive();
+            this.submitAnswer(answer);
+            
+            // Juice - animate the keyboard out
+            const tl = gsap.timeline();
+            tl.to(this.submitButton, {
+                x: 2400,
+                duration: 0.5,
+                ease: 'back.in'
+            });
+            tl.to(this.keyboard, {
+                y: 2160,
+                duration: 0.5,
+                ease: 'power2.in',
+                stagger: 0.05
+            }, "<");
+            tl.play();
         });
+
     }
+    protected makeNonInteractive(): void {
+        this.keyboard.makeNonInteractive();
+        this.submitButton.removeAllListeners();
+        this.submitButton.disableInteractive();
+    }
+
 
     public destroy(): void {
 
-        // Clean up the keys map
-        this.keys.clear();
-
-        if (this.scene && this.scene.input && this.scene.input.keyboard) {
-            this.scene.input.keyboard.off('keydown', this.handleKeyPress, this);
-        }
-
+        this.keyboard.destroy();
+        this.submitButton.destroy();
         super.destroy();
     }
 

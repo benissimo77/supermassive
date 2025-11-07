@@ -10,7 +10,7 @@ const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
     width: 1920,
     height: 1080,
-    backgroundColor: '#0000DD',
+    backgroundColor: '#051C55',
     scale: {
         mode: Phaser.Scale.RESIZE
     },

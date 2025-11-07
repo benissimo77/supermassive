@@ -21,12 +21,14 @@ export class NineSliceButton extends Phaser.GameObjects.Container {
         }
 
         // Merge default styles with any provided styles - will override defaults
-        const buttonTextSize = { fontSize: scene.getY(36) };
+        // 46 might seem unusual but its the biggest size that still can fit 2 lines within the button height
+        const buttonTextSize = { fontSize: 46 };
         const buttonStyle = Object.assign({}, this.scene.labelConfig, buttonTextSize, styleOverride);
 
         // Assume a default size - but this can/will be overridden when laying out all elements
-        const buttonWidth = 600;
-        const buttonHeight = scene.getY(60);
+        // Note that this is one case we were fix the height and don't use a scaled height to match screen height
+        const buttonWidth = 800;
+        const buttonHeight = 120;
 
         // ALSO important: origin of container is (0.5) - otherwise hit area is wrong
         // This means everything must be centred in the container
@@ -37,7 +39,7 @@ export class NineSliceButton extends Phaser.GameObjects.Container {
             'simple-button',     // Key of normal button texture
             undefined,                // Frame
             buttonWidth, buttonHeight,       // Width, height
-            12, 12, 12, 12       // Corner slice sizes
+            16, 16, 16, 16       // Corner slice sizes
         )
             .setOrigin(0.5);
 
@@ -47,19 +49,20 @@ export class NineSliceButton extends Phaser.GameObjects.Container {
             'simple-button-hover',      // Key of hover button texture  
             undefined,                // Frame
             buttonWidth, buttonHeight,       // Width, height
-            12, 12, 12, 12       // Corner slice sizes
+            16, 16, 16, 16       // Corner slice sizes
         )
             .setOrigin(0.5)
             .setVisible(false);     // Initially hidden
 
         // Add text
         this.text = scene.add.text(0, 0, text, buttonStyle).setOrigin(0.5);
+        this.text.setWordWrapWidth(760);
 
         // Add all elements to container
         this.add([this.normalSlice, this.hoverSlice, this.text]);
 
         // DEBUG - add a small rectangle at the button origin
-        const debugRect = this.scene.add.rectangle(0, 0, 5, 5, 0xffff00, 1).setOrigin(0.5);
+        const debugRect = this.scene.add.rectangle(0, 0, 2, 2, 0xffff00, 1).setOrigin(0.5);
         this.add(debugRect);
 
         // When making a container interactive we must set the size of the container
@@ -91,9 +94,15 @@ export class NineSliceButton extends Phaser.GameObjects.Container {
 
         // console.log('NineSliceButton::setButtonSize:', this.text.text, width, height, this.width, this.height);
 
+        // Update interactive hit area if button is already interactive
+        // Just update the hit area (don't remove interactive)
+        if (this.input) {
+            this.input.hitArea = new Phaser.Geom.Rectangle(0,0, width, height);
+        }
+
         // Call the recursive function to adjust text size to fit within button
         // Calling with this.height is just a value to start the recursion - it will always reduce from this
-        this.adjustTextSize(this.height);
+        //this.adjustTextSize(this.height);
     }
 
     public setButtonText(text: string): this {
@@ -101,9 +110,12 @@ export class NineSliceButton extends Phaser.GameObjects.Container {
         this.adjustTextSize(this.height);
         return this;
     }
+    public setTextSize(size: number): void {
+        this.text.setFontSize(size);
+    }
 
     // adjustTextSize - set the text height to the initially-supplied height, then check if it fits it not steaily reduce the height
-    private adjustTextSize(newHeight: number): void {
+    private adjustTextSizeOrig(newHeight: number): void {
 
         // Avoid infinite loop - always end if we go below a certain size
         if (newHeight < 8) {
@@ -138,5 +150,67 @@ export class NineSliceButton extends Phaser.GameObjects.Container {
         }
 
     }
+    private adjustTextSize(targetHeight: number): void {
+        // Avoid infinite loop - always end if we go below a certain size
+        if (targetHeight < 8) {
+            console.warn('NineSliceButton::adjustTextSize: minimum text size reached');
+            return;
+        }
 
+        // Calculate padding based on button size
+        let padding: number;
+        let maxHeightRatio: number;
+
+        if (this.width <= 120) {
+            // Small button
+            padding = 12;
+            maxHeightRatio = 1.2;
+        } else if (this.width >= 800) {
+            // Large button
+            padding = 60;
+            maxHeightRatio = 1.8;
+        } else {
+            // Regular button
+            padding = 40;
+            maxHeightRatio = 1.4;
+        }
+
+        const availableWidth = this.width - padding;
+        const availableHeight = this.height / maxHeightRatio;
+
+        // Set word wrap first (before measuring)
+        this.text.setWordWrapWidth(availableWidth);
+
+        // Calculate font size based on available height
+        // Start with target height, but constrain to available space
+        let fontSize = Math.min(targetHeight, availableHeight);
+
+        // Estimate how many lines the text will wrap to
+        // This is approximate but much faster than recursive checking
+        const textLength = this.text.text.length;
+        const avgCharWidth = fontSize * 0.6; // Rough estimate
+        const charsPerLine = Math.floor(availableWidth / avgCharWidth);
+        const estimatedLines = Math.ceil(textLength / charsPerLine);
+
+        // Adjust font size if text will be too tall when wrapped
+        if (estimatedLines > 1) {
+            const lineHeight = fontSize * 1.2; // Phaser default line height
+            const totalHeight = lineHeight * estimatedLines;
+
+            if (totalHeight > availableHeight) {
+                // Scale down font size to fit
+                fontSize = fontSize * (availableHeight / totalHeight);
+            }
+        }
+
+        // Apply calculated size (only once!)
+        this.text.setFontSize(Math.floor(fontSize));
+
+        // Optional: One final check if you want to be safe
+        // (but only ONE iteration, not 20+)
+        if (this.text.height > availableHeight || this.text.width > availableWidth) {
+            // Reduce by 10% if still too big
+            this.text.setFontSize(Math.floor(fontSize * 0.9));
+        }
+    }
 }

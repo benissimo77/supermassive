@@ -12,6 +12,7 @@ import { PlayerConfig, PhaserPlayer } from './PhaserPlayer';
 import { YouTubePlayerUI } from './YouTubePlayerUI';
 
 import { SoundManager } from 'src/audio/SoundManager';
+import { GlobalNavbar } from 'src/ui/GlobalNavbar';
 import { SoundSettingsPanel } from 'src/ui/SoundSettingsPanel';
 
 export class QuizHostScene extends BaseScene {
@@ -35,6 +36,8 @@ export class QuizHostScene extends BaseScene {
     private timerBar: Phaser.GameObjects.Graphics;
     private timerText: Phaser.GameObjects.Text;
     private scoreBoard: Phaser.GameObjects.Container;
+    private globalNavbar: GlobalNavbar;
+    private soundSettings: SoundSettingsPanel;
 
     // Containers - created once in order to set the ordering
     private playerContainer: Phaser.GameObjects.Container;
@@ -159,9 +162,23 @@ export class QuizHostScene extends BaseScene {
 
         // Only create the debugger in debug mode
         const debugMode = __DEV__;
-        if (debugMode) {
+        if (debugMode && 0) {
             this.socketDebugger = new SocketDebugger(this, this.socket);
         }
+
+        // Global navbar - this should go in some kind of global host scene so its available to all host scenes
+        this.globalNavbar = new GlobalNavbar(this);
+        this.add.existing(this.globalNavbar);
+
+        // Add a settings button to open the panel
+        this.soundSettings = new SoundSettingsPanel(this);
+        this.add.existing(this.soundSettings);
+
+        this.globalNavbar.addIcon('audio-settings', () => {
+            console.log('Settings icon clicked');
+            this.soundSettings.toggle();
+        });
+
 
         // Let the server know we're ready - this could come from a button click or other event
         // host:ready informs server host is ready to receive player data and other socket events
@@ -169,7 +186,7 @@ export class QuizHostScene extends BaseScene {
         this.socket.emit('host:ready', {}, (response: any) => {
             console.log('Host is ready:', response);
             if (response.room) {
-                this.showRoomID(response.room);
+               // this.showRoomID(response.room);
             }
         });
 
@@ -239,9 +256,9 @@ export class QuizHostScene extends BaseScene {
         });
 
         // Listen for question
-        this.socket.on('server:question', (question, callback) => {
+        this.socket.on('server:question', async (question, callback) => {
             const receivedTime = Date.now();
-            this.displayQuestion(question);
+            await this.displayQuestion(question);
             const displayTime = Date.now() - receivedTime;
             const deviceInfo = {
                 device: /iPad/.test(navigator.userAgent) ? 'iPad' :
@@ -518,7 +535,7 @@ export class QuizHostScene extends BaseScene {
         return button;
     }
 
-    private displayQuestion(question: any): void {
+    private async displayQuestion(question: any): Promise<void> {
 
         console.log('QuizHostScene:: displayQuestion:', question);
 
@@ -530,7 +547,11 @@ export class QuizHostScene extends BaseScene {
 
         // Let the specialized renderer handle the display - this is when question gets added to the scene
         if (this.currentQuestion) {
-            this.currentQuestion.display();
+
+            // Call the async function to initialize and display the question
+            // async because loading an image/video may be required this could take a while
+            await this.currentQuestion.initialize();
+            this.currentQuestion.displayHost();
 
             // Debug container position and visibility
             console.log('Question container:', {
@@ -803,8 +824,13 @@ export class QuizHostScene extends BaseScene {
 
     sceneDisplay(): void {
         // Called from BaseScene when the screen is resized
+        // Works for the question but I need to extend this to all other elements...
         console.log('QuizHostScene:: sceneDisplay: updating layout for new size');
+        if (this.currentQuestion) {
+            this.currentQuestion.displayHost();
+        }
     }
+
     sceneShutdown(): void {
         console.log('Quiz:: sceneShutdown...');
         // Remove any socket listeners or other cleanup tasks here

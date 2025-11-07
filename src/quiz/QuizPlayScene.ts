@@ -1,5 +1,4 @@
 import { BaseScene } from "src/BaseScene";
-import { SocketDebugger } from "src/SocketDebugger";
 
 import { QuestionFactory } from "./questions/QuestionFactory";
 import { BaseQuestion } from "./questions/BaseQuestion";
@@ -11,13 +10,11 @@ export class QuizPlayScene extends BaseScene {
 
     static readonly KEY = 'QuizPlayScene';
 
-    private socketDebugger: SocketDebugger;
-
     private currentQuestion: BaseQuestion;
     private questionFactory: QuestionFactory;
 
     // UI elements
-    private UIContainer: Phaser.GameObjects.Container;
+    protected UIContainer: Phaser.GameObjects.Container;
 
     // Add this constructor to set the scene key
     constructor() {
@@ -71,6 +68,8 @@ export class QuizPlayScene extends BaseScene {
 
     create(): void {
 
+        super.create();
+
         console.log('QuizPlayScene:: create: HELLO')
 
         // Add a CONNECT/DISCONNECT button to simulate player disconnections
@@ -113,7 +112,7 @@ export class QuizPlayScene extends BaseScene {
         });
 
         // Listen for question
-        this.socket.on('server:question', (question, callback) => {
+        this.socket.on('server:question', async (question, callback) => {
             const receivedTime = Date.now();
             this.displayQuestion(question);
             const displayTime = Date.now() - receivedTime;
@@ -173,6 +172,7 @@ export class QuizPlayScene extends BaseScene {
 
             callback(deviceInfo);
         });
+
         // Player answered a question
         this.socket.on('server:questionanswered', (data) => {
             // this.updatePlayerAnswer(data.sessionID, data.response);
@@ -323,7 +323,9 @@ export class QuizPlayScene extends BaseScene {
 
         // Let the specialized renderer handle the display - this is when question gets added to the scene
         if (this.currentQuestion) {
-            this.currentQuestion.display();
+
+            this.currentQuestion.initialize();
+            this.currentQuestion.displayPlayer();
 
             // Debug container position and visibility
             console.log('Question container:', {
@@ -438,12 +440,12 @@ export class QuizPlayScene extends BaseScene {
 
     }
 
-    private sceneDisplay(): void {
+    protected sceneDisplay(): void {
         // Called from BaseScene when the screen is resized
         console.log('QuizPlayScene:: sceneDisplay: updating layout for new size');
-        // if (this.currentQuestion) {
-        //     this.currentQuestion.display();
-        // }
+        if (this.currentQuestion) {
+            this.currentQuestion.displayPlayer();
+        }
     }
 
     private clearUI(): void {

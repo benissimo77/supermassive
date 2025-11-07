@@ -29,14 +29,7 @@ export default class HotSpotQuestion extends BaseQuestion {
 		super(scene, questionData);
 	}
 
-	/**
-	 * Create the specific content for multiple choice questions
-	 * The questionData holds everything we need including a 'mode' (ask/answer)
-	 * If mode = 'answer' then we show the correct answer (non-interactive)
-	 * If mode = 'ask' then we show the options
-	 * If mode = 'ask' AND we are player screen then make interactive and collect player input
-	 */
-	protected createAnswerUI(answerHeight: number): void {
+	protected async createAnswerUI(): Promise<void> {
 
 		// This should never happen...
 		if (!this.questionData.image || this.questionData.image.length === 0) {
@@ -44,45 +37,50 @@ export default class HotSpotQuestion extends BaseQuestion {
 			return;
 		}
 
-		console.log('HotspotQuestion::createAnswerUI:', this.questionData.mode, this.scene.TYPE, answerHeight);
+		console.log('HotspotQuestion::createAnswerUI:', this.questionData.mode, this.scene.TYPE);
 
 		this.hotspotContainer = this.scene.add.container(0, 0);
 		this.answerContainer.add(this.hotspotContainer);
 
-		// ASK MODE:
-		// - HOST and PLAYER display image
-		// - PLAYER or singlePlayerMode make image interactive
-		// ANSWER MODE:
-		// - HOST display image and add crosshairs at player answers plus correct answer
+		// Use utility function in BaseQuestion to load the image for the hotspot
+		// NOTE: only do this for screen type PLAY - HOST will load image as part of question, not here...
+		if (this.scene.TYPE === 'play') {
+			this.image = await this.createQuestionImage(this.questionData.image);
+			
+			// Add zoom and pan functionality first
+			this.setupZoomAndPan();
+			this.makeImageInteractive(this.image);
+			this.hotspotContainer.add(this.image);
 
-		// Load the image for the hotspot
-		// This code taken from BaseQuestion
-		// Image is added with an origin of (0.5,0) - centered horizontally and anchored at the top
-
-		// Image has already been loaded in BaseQuestion - it should be enough to just configure size and position here
-		this.addQuestionImage()
-			.then((image: Phaser.GameObjects.Image) => {
-				this.image = image;
-				this.configureImageSize(image, answerHeight);
-				image.setPosition(0, 0);
-				this.hotspotContainer.add(image);
-
-				if (this.questionData.mode === 'ask') {
-					if (this.scene.TYPE == 'host') {
-						// for host we just display the image and that is that
-					} else {
-						// Add zoom and pan functionality first
-						this.setupZoomAndPan(answerHeight);
-						this.makeImageInteractive(image);
-						this.addSubmitButton(answerHeight);
-					}
-				} else {
-					this.showResults(answerHeight);
-				}
-			})
-			.catch((error: Error) => {
-				console.error('Error loading question image:', error);
+			// Add a SUBMIT button - move to bottom corner to give more space for text display
+			this.submitButton = new NineSliceButton(this.scene, 'Submit');
+			this.submitButton.setButtonSize(200, 80);
+			this.submitButton.setVisible(true);
+			this.submitButton.setInteractive({ useHandCursor: true });
+			this.submitButton.on('pointerup', () => {
+				console.log('HotspotQuestion::createAnswerUI: Submit button clicked:', this.crosshairPos);
+				this.submitImage();
 			});
+			this.hotspotContainer.add(this.submitButton);
+		}
+
+		// DEBUG - add rectangle to originof the answer container
+		//const debugRect = this.scene.add.rectangle(0, 0, 5, 5, 0xff0000, 0.5).setOrigin(0.5);
+		//this.hotspotContainer.add(debugRect);
+	}
+
+	protected displayAnswerUI(answerHeight: number): void {
+
+		if (this.scene.TYPE === 'play') {
+
+			console.log('HotspotQuestion::displayAnswerUI:', this.questionData.mode, this.scene.TYPE, answerHeight);
+
+			this.configureImageSize(this.image, answerHeight);
+			this.image.setPosition(0, this.scene.getY(answerHeight / 2));
+
+			// Position the submit button
+			this.submitButton.setPosition(960 - 160 - 20, this.scene.getY(answerHeight - 80));
+		}
 
 		// DEBUG - add rectangle to originof the answer container
 		//const debugRect = this.scene.add.rectangle(0, 0, 5, 5, 0xff0000, 0.5).setOrigin(0.5);
@@ -92,11 +90,28 @@ export default class HotSpotQuestion extends BaseQuestion {
 	/**
 	 * Setup pinch-to-zoom and drag functionality
 	 */
-	private setupZoomAndPan(answerHeight: number): void {
-		// Only add for player mode
+	private setupZoomAndPan(): void {
+
+		// Only add for player mode - this should never happen
 		if (this.scene.TYPE !== 'play') return;
 
 		const scene = this.scene;
+
+		// PREVENT BROWSER GESTURES (Safari address bar, pull-to-refresh)
+		// This stops native browser touch handling while allowing our custom zoom
+		const canvas = scene.game.canvas;
+		const preventBrowserGestures = (e: TouchEvent) => {
+			// Prevent default ONLY for touch gestures
+			// Our Phaser input handling will still work
+			e.preventDefault();
+		};
+
+		document.addEventListener('touchstart', preventBrowserGestures, { passive: false });
+		document.addEventListener('touchmove', preventBrowserGestures, { passive: false });
+		document.addEventListener('touchend', preventBrowserGestures, { passive: false });
+
+		// Store reference for cleanup
+		(this as any)._preventBrowserGestures = preventBrowserGestures;
 
 		// Add zoom instruction text
 		const zoomHint = scene.add.text(960, 230, "Pinch to zoom, drag to move", {
@@ -152,17 +167,17 @@ export default class HotSpotQuestion extends BaseQuestion {
 		let startScale = 1;
 
 		// Handle pointer down for pinch detection
-		scene.input.on('pointerdown', (pointer) => {
+		scene.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
 			activePointers.add(pointer.id);
 
 			// If we have exactly 2 pointers, start pinch
 			if (activePointers.size === 2) {
 				// Find both active pointers
-				const pointers = scene.input.pointers.filter(p => p.isDown);
+				const activePointerArray = [scene.input.pointer1, scene.input.pointer2].filter(p => p && p.isDown);
 
 				// Calculate initial distance
-				const dx = pointers[0].position.x - pointers[1].position.x;
-				const dy = pointers[0].position.y - pointers[1].position.y;
+				const dx = activePointerArray[0].position.x - activePointerArray[1].position.x;
+				const dy = activePointerArray[0].position.y - activePointerArray[1].position.y;
 				startDistance = Math.sqrt(dx * dx + dy * dy);
 
 				// Store current scale as starting scale
@@ -171,7 +186,7 @@ export default class HotSpotQuestion extends BaseQuestion {
 		});
 
 		// Handle pointer up for pinch detection
-		scene.input.on('pointerup', (pointer) => {
+		scene.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
 			activePointers.delete(pointer.id);
 
 			// If we dropped below 2 pointers, end pinch
@@ -181,15 +196,15 @@ export default class HotSpotQuestion extends BaseQuestion {
 		});
 
 		// Handle pointer move for pinch
-		scene.input.on('pointermove', (pointer) => {
+		scene.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
 			// Only process if we have 2 active pointers
 			if (activePointers.size === 2) {
 				// Find both active pointers
-				const pointers = scene.input.pointers.filter(p => p.isDown);
-				if (pointers.length >= 2) {
+				const activePointerArray = [scene.input.pointer1, scene.input.pointer2].filter(p => p && p.isDown);
+				if (activePointerArray.length >= 2) {
 					// Calculate current distance
-					const dx = pointers[0].position.x - pointers[1].position.x;
-					const dy = pointers[0].position.y - pointers[1].position.y;
+					const dx = activePointerArray[0].position.x - activePointerArray[1].position.x;
+					const dy = activePointerArray[0].position.y - activePointerArray[1].position.y;
 					const currentDistance = Math.sqrt(dx * dx + dy * dy);
 
 					// Only process if we have a valid start distance
@@ -286,6 +301,8 @@ export default class HotSpotQuestion extends BaseQuestion {
 		this.answerContainer.add(this.submitButton);
 	}
 
+	// This will be needed by the HOST mode - ... maybe put elsewhere???
+	// Hmmm... not sure about this part yet :(
 	private showResults(answerHeight: number): void {
 
 		// First mark all the guesses made by the players
@@ -350,8 +367,11 @@ export default class HotSpotQuestion extends BaseQuestion {
 
 		const imageWidth = image.width * image.scaleX;
 		const imageHeight = image.height * image.scaleY;
+
+		// Origin at center (0.5, 0.5)
 		const imageX = (normalizedX * image.width * image.scaleX / 1000) - (imageWidth / 2);
 		const imageY = (normalizedY * image.height * image.scaleY / 1000);
+
 		crosshair.setPosition(imageX, imageY);
 		this.hotspotContainer.add(crosshair);
 		console.log('Crosshair added:', { imageX, imageY, imageWidth, imageHeight });

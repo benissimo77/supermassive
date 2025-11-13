@@ -2,7 +2,7 @@ import { gsap } from "gsap";
 import { BaseScene } from "src/BaseScene";
 import { BaseQuestion } from "./BaseQuestion";
 import { NineSliceButton } from "src/ui/NineSliceButton";
-import { OrderingQuestionData } from "./QuestionTypes";
+import { OrderMatchQuestionData } from "./QuestionTypes";
 
 /**
  * OrderingQuestion - Handles both 'ordering' and 'matching' question types
@@ -23,10 +23,11 @@ export default class OrderingQuestion extends BaseQuestion {
     private dropzones: Map<number, Phaser.GameObjects.NineSlice> = new Map<number, Phaser.GameObjects.NineSlice>();
     private dropzoneLabels: Map<number, Phaser.GameObjects.Text> = new Map<number, Phaser.GameObjects.Text>();
     private submitButton: NineSliceButton;
+    private submitButtonContainer: Phaser.GameObjects.Container;
     private items: string[] = [];
     private labels: string[] = [];
 
-    constructor(scene: BaseScene, questionData: OrderingQuestionData) {
+    constructor(scene: BaseScene, questionData: OrderMatchQuestionData) {
         super(scene, questionData);
     }
 
@@ -96,8 +97,11 @@ export default class OrderingQuestion extends BaseQuestion {
         });
 
         // Create submit button (NO positioning yet)
+        // Place inside its own container (aligned with answerContainer) so that draggables can get brought to front but submit button still stays on top
         this.submitButton = new NineSliceButton(this.scene, 'Submit');
-        this.answerContainer.add(this.submitButton);
+        this.submitButtonContainer = this.scene.add.container(0,0);
+        this.add(this.submitButtonContainer);
+        this.submitButtonContainer.add(this.submitButton);
 
         // Make interactive if in ask mode and player screen
         // if (this.questionData.mode === 'ask' && this.scene.TYPE !== 'host') {
@@ -114,9 +118,11 @@ export default class OrderingQuestion extends BaseQuestion {
     protected displayAnswerUI(answerHeight: number): void {
 
         const isPortrait = this.scene.isPortrait();
+        const scaleFactor: number = this.scene.getUIScaleFactor();
 
         // Position and scale submit button (BOILERPLATE - same as Text/Number)
-        const scaleFactor: number = this.scene.getUIScaleFactor();
+        // Firstly align the submit button container with answer container
+        this.submitButtonContainer.setPosition(this.answerContainer.x, this.answerContainer.y);
         this.submitButton.setButtonSize(320 * scaleFactor, 80 * scaleFactor);
         this.submitButton.setTextSize(46 * scaleFactor);
         this.submitButton.setPosition(960 - 160 * scaleFactor - 20, this.scene.getY(answerHeight) - 40 * scaleFactor - 20);
@@ -134,9 +140,6 @@ export default class OrderingQuestion extends BaseQuestion {
         const numElements = isPortrait ? this.items.length * 2 : this.items.length;
         const buttonSpace = answerHeight / numElements;
 
-        // ✅ FIX #3 & #5: Use MORE of available space (removed 180px cap)
-        // Portrait: Use 85% of buttonSpace (more room for drag-drop)
-        // Landscape: Use 90% of buttonSpace (tight layout)
         const buttonHeight = 120 * scaleFactor;
 
         console.log('OrderingQuestion::displayAnswerUI:', {
@@ -192,10 +195,6 @@ export default class OrderingQuestion extends BaseQuestion {
 
         });
 
-        // If answer mode, animate correct answer
-        if (this.questionData.mode === 'answer') {
-            this.animateCorrectAnswer();
-        }
     }
 
 
@@ -278,7 +277,8 @@ export default class OrderingQuestion extends BaseQuestion {
     /**
      * Animate buttons to correct dropzones (answer mode)
      */
-    private animateCorrectAnswer(): void {
+    protected revealAnswerUI(): void {
+
         this.buttons.forEach((button, item) => {
             this.answerContainer.bringToTop(button);
 
@@ -287,9 +287,15 @@ export default class OrderingQuestion extends BaseQuestion {
                 const dropzone = this.dropzones.get(dropzoneIndex);
                 if (dropzone) {
                     console.log('Animating button to dropzone:', item, dropzoneIndex);
+
+                    // Slight tweak - for matching pairs don't place button directly over dropzone otherwise you can't read the dropzone label
+                    let dropX = dropzone.x;
+                    if (this.questionData.type === 'matching') {
+                        dropX = button.x + 120;
+                    }
                     this.scene.tweens.add({
                         targets: button,
-                        x: dropzone.x,
+                        x: dropX,
                         y: dropzone.y,
                         duration: 300,
                         delay: dropzoneIndex * 200,

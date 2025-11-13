@@ -3,7 +3,6 @@ import { BaseScene } from "src/BaseScene";
 import { BaseQuestion } from "./BaseQuestion";
 import { Keypad } from "src/ui/Keypad";
 import { NineSliceButton } from "src/ui/NineSliceButton";
-import { createSubmitButton, positionSubmitButton } from "src/utils/SubmitButton";
 import { NumberQuestionData } from "./QuestionTypes";
 
 export default class NumberQuestion extends BaseQuestion {
@@ -84,7 +83,7 @@ export default class NumberQuestion extends BaseQuestion {
             this.answerText.setText(answerText);
 
         } else {
-   
+
             // Position and scale the keypad and submit button
             // In Portrait mode submit button is larger and answerheight is reduced
             const scaleFactor: number = this.scene.getUIScaleFactor();
@@ -96,20 +95,20 @@ export default class NumberQuestion extends BaseQuestion {
             // keypad is inside answerContainer which is positioned at 960 horizontally
             // We want to move keypad to the bottom of the screen, so use its own height to identify how much further to move it
             this.keypad.setScale(1);
-            const keypadHeight:number = this.keypad.getBounds().height;
-            this.scene.socket?.emit('consolelog', `NumberQuestion::displayAnswerUI: scaleFactor=${scaleFactor} answerHeight=${answerHeight - 40} (${this.scene.getY(answerHeight - 40)}) keypadHeight=${keypadHeight} keypadWidth=${this.keypad.getBounds().width}`);
-            
+            const keypadHeight: number = this.keypad.getBounds().height;
+            // this.scene.socket?.emit('consolelog', `NumberQuestion::displayAnswerUI: scaleFactor=${scaleFactor} answerHeight=${answerHeight - 40} (${this.scene.getY(answerHeight - 40)}) keypadHeight=${keypadHeight} keypadWidth=${this.keypad.getBounds().width}`);
+
             // if not enough space then scale keypad down
             if (keypadHeight > this.scene.getY(answerHeight) - 40) {
-                const scale:number = (this.scene.getY(answerHeight) - 40) / keypadHeight;
+                const scale: number = (this.scene.getY(answerHeight) - 40) / keypadHeight;
                 this.keypad.setScale(scale);
             } else {
                 // more space can scale keypad up
-                const scaleY:number = (this.scene.getY(answerHeight) - 40) / keypadHeight;
-                const scaleX:number = (1920 - 80) / this.keypad.getBounds().width;
-                const scale:number = Math.min(scaleX, scaleY);
+                const scaleY: number = (this.scene.getY(answerHeight) - 40) / keypadHeight;
+                const scaleX: number = (1920 - 80) / this.keypad.getBounds().width;
+                const scale: number = Math.min(scaleX, scaleY);
                 this.keypad.setScale(scale);
-                this.scene.socket?.emit('consolelog', `NumberQuestion::displayAnswerUI: scaleUP: answerHeight=${answerHeight} (${this.scene.getY(answerHeight)}) OrigkeypadHeight=${keypadHeight} newScaledHeight: ${this.keypad.getBounds().height} scaledWidth=${this.keypad.getBounds().width}`);
+                // this.scene.socket?.emit('consolelog', `NumberQuestion::displayAnswerUI: scaleUP: answerHeight=${answerHeight} (${this.scene.getY(answerHeight)}) OrigkeypadHeight=${keypadHeight} newScaledHeight: ${this.keypad.getBounds().height} scaledWidth=${this.keypad.getBounds().width}`);
             }
             this.keypad.setPosition(0, this.scene.getY(answerHeight) - 40 - this.keypad.getBounds().height);
 
@@ -155,6 +154,14 @@ export default class NumberQuestion extends BaseQuestion {
         this.submitButton.removeAllListeners();
         this.submitButton.disableInteractive();
     }
+
+    protected revealAnswerUI(): void {
+        if (this.questionData.answer) {
+            const answerText = this.questionData.answer.toString();
+            this.answerText.setText(answerText);
+        }
+    }
+
 
     public destroy(): void {
         this.keypad.destroy();

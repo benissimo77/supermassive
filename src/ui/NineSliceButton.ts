@@ -72,6 +72,11 @@ export class NineSliceButton extends Phaser.GameObjects.Container {
         // Add hover effect - but calling class will decide if this is interactive or not
         this.on('pointerover', this.onPointerOver, this);
         this.on('pointerout', this.onPointerOut, this);
+        this.on('pointerdown', () => {
+            this.setScale(1.05);
+            this.scene.sound.play('button-click', { volume: 0.1 });
+        });
+        this.on('pointerup', () => this.setScale(1));
 
         // Add to scene
         scene.add.existing(this);
@@ -92,14 +97,15 @@ export class NineSliceButton extends Phaser.GameObjects.Container {
         this.hoverSlice.setSize(width, height);
         this.setSize(width, height);
 
-        // console.log('NineSliceButton::setButtonSize:', this.text.text, width, height, this.width, this.height);
-
         // Update interactive hit area if button is already interactive
         // Just update the hit area (don't remove interactive)
         if (this.input) {
             this.input.hitArea = new Phaser.Geom.Rectangle(0,0, width, height);
         }
 
+        // Since this button will have a text label we should adjust the textwrap width for this label
+        this.text.setWordWrapWidth(width - 40);
+        
         // Call the recursive function to adjust text size to fit within button
         // Calling with this.height is just a value to start the recursion - it will always reduce from this
         //this.adjustTextSize(this.height);
@@ -112,6 +118,14 @@ export class NineSliceButton extends Phaser.GameObjects.Container {
     }
     public setTextSize(size: number): void {
         this.text.setFontSize(size);
+    }
+
+    // setHighlight - a new state to provide a highlighted version
+    // Convenience function to ensure consistency with highlighting button states
+    public setHighlight(): void {
+        this.setAlpha(1);
+        this.setScale(1.1);
+        this.postFX.addGlow(0xffff00, 2, 6);
     }
 
     // adjustTextSize - set the text height to the initially-supplied height, then check if it fits it not steaily reduce the height

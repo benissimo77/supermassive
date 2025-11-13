@@ -1,315 +1,432 @@
 import { gsap } from "gsap";
 import { BaseScene } from "src/BaseScene";
 import { BaseQuestion } from "./BaseQuestion";
-import { HotspotQuestionData, HotspotResultData } from "./QuestionTypes";
 import { NineSliceButton } from "src/ui/NineSliceButton";
+import { HotspotQuestionData } from "./QuestionTypes";
 
-export default class HotSpotQuestion extends BaseQuestion {
+/**
+ * HotspotQuestion - Handles both 'hotspot' and 'point-it-out' question types
+ * 
+ * COORDINATE SYSTEM:
+ *   All positions use normalized coordinates (0-1000 in both X and Y)
+ *   - (0, 0) = top-left of image
+ *   - (1000, 1000) = bottom-right of image
+ *   - Independent of actual image size/scale
+ * 
+ * HOTSPOT: Player taps exact location on image (e.g., "Where is the Eiffel Tower?")
+ *   - Answer: Single coordinate (x, y) in normalized 0-1000 range
+ *   - Results: Show all player guesses + correct answer
+ * 
+ * POINT-IT-OUT: Player taps approximate location (e.g., "Point to France")
+ *   - Answer: Area/region (tolerance radius)
+ *   - Results: Show all player guesses + highlight correct region
+ * 
+ * Layout:
+ *   - Host: Image displayed in question area (BaseQuestion handles this)
+ *   - Player: Image displayed in answer area (this class handles it)
+ */
+export default class HotspotQuestion extends BaseQuestion {
 
-	private submitButton: NineSliceButton;
+	// Player-specific UI (host doesn't create these)
 	private hotspotContainer: Phaser.GameObjects.Container;
-	private image: Phaser.GameObjects.Image;
+	private answerImage: Phaser.GameObjects.Image;
 	private crosshair: Phaser.GameObjects.Image;
 	private crosshairPos: { x: integer, y: integer } | null = null;
-	protected questionData: HotspotQuestionData;
+	private submitButton: NineSliceButton;
 
-	// Zoom and pan properties
-	private minScale: number = 1;
-	private maxScale: number = 2.5;
-	private currentScale: number = 1;
+	// Zoom/Pan state
 	private isDragging: boolean = false;
-	private prevDistance: number = 0;
+	private isZooming: boolean = false;
+	private minScale: number = 0.75;
+	private maxScale: number = 4;
+	private currentScale: number = 1;
+	private zoomStartScale: number = 1;
+	private zoomStartDistance: number = 0;
 
-	protected getAnswerUIWidth(): number {
-		return 600;
-	}
-
-	// Override the constructor to use specific question data type
 	constructor(scene: BaseScene, questionData: HotspotQuestionData) {
 		super(scene, questionData);
-	}
-
-	protected async createAnswerUI(): Promise<void> {
-
-		// This should never happen...
-		if (!this.questionData.image || this.questionData.image.length === 0) {
-			console.error('HotspotQuestion::createAnswerUI: No image provided in questionData');
-			return;
-		}
-
-		console.log('HotspotQuestion::createAnswerUI:', this.questionData.mode, this.scene.TYPE);
 
 		this.hotspotContainer = this.scene.add.container(0, 0);
 		this.answerContainer.add(this.hotspotContainer);
-
-		// Use utility function in BaseQuestion to load the image for the hotspot
-		// NOTE: only do this for screen type PLAY - HOST will load image as part of question, not here...
-		if (this.scene.TYPE === 'play') {
-			this.image = await this.createQuestionImage(this.questionData.image);
-			
-			// Add zoom and pan functionality first
-			this.setupZoomAndPan();
-			this.makeImageInteractive(this.image);
-			this.hotspotContainer.add(this.image);
-
-			// Add a SUBMIT button - move to bottom corner to give more space for text display
-			this.submitButton = new NineSliceButton(this.scene, 'Submit');
-			this.submitButton.setButtonSize(200, 80);
-			this.submitButton.setVisible(true);
-			this.submitButton.setInteractive({ useHandCursor: true });
-			this.submitButton.on('pointerup', () => {
-				console.log('HotspotQuestion::createAnswerUI: Submit button clicked:', this.crosshairPos);
-				this.submitImage();
-			});
-			this.hotspotContainer.add(this.submitButton);
-		}
-
-		// DEBUG - add rectangle to originof the answer container
-		//const debugRect = this.scene.add.rectangle(0, 0, 5, 5, 0xff0000, 0.5).setOrigin(0.5);
-		//this.hotspotContainer.add(debugRect);
 	}
 
-	protected displayAnswerUI(answerHeight: number): void {
-
-		if (this.scene.TYPE === 'play') {
-
-			console.log('HotspotQuestion::displayAnswerUI:', this.questionData.mode, this.scene.TYPE, answerHeight);
-
-			this.configureImageSize(this.image, answerHeight);
-			this.image.setPosition(0, this.scene.getY(answerHeight / 2));
-
-			// Position the submit button
-			this.submitButton.setPosition(960 - 160 - 20, this.scene.getY(answerHeight - 80));
-		}
-
-		// DEBUG - add rectangle to originof the answer container
-		//const debugRect = this.scene.add.rectangle(0, 0, 5, 5, 0xff0000, 0.5).setOrigin(0.5);
-		//this.hotspotContainer.add(debugRect);
+	protected getAnswerUIWidth(): number {
+		return 1920; // Full width (image can be large)
 	}
 
 	/**
-	 * Setup pinch-to-zoom and drag functionality
+	 * Create answer UI elements (player only)
+	 * Host displays image in question area (handled by BaseQuestion)
 	 */
-	private setupZoomAndPan(): void {
+	protected async createAnswerUI(): Promise<void> {
+		console.log('HotspotQuestion::createAnswerUI:', this.questionData.type, this.questionData.mode, this.scene.TYPE);
 
-		// Only add for player mode - this should never happen
-		if (this.scene.TYPE !== 'play') return;
+		// Only player creates answer UI (host uses BaseQuestion.questionImage)
+		// if (this.scene.TYPE !== 'play') {
+		//     console.log('HotspotQuestion::createAnswerUI: Host mode - no answer UI needed');
+		//     return;
+		// }
 
-		const scene = this.scene;
+		if (!this.questionData.image) {
+			console.warn('HotspotQuestion::createAnswerUI: No image provided in question data');
+			return;
+		}
 
-		// PREVENT BROWSER GESTURES (Safari address bar, pull-to-refresh)
-		// This stops native browser touch handling while allowing our custom zoom
-		const canvas = scene.game.canvas;
-		const preventBrowserGestures = (e: TouchEvent) => {
-			// Prevent default ONLY for touch gestures
-			// Our Phaser input handling will still work
-			e.preventDefault();
-		};
+		// Create image (using BaseQuestion helper for consistency)
+		// If in HOST mode we already have an image loaded as part of question - use this
+		if (this.scene.TYPE === 'solo') {
+			this.answerImage = this.questionImage;
+		} else {
+			this.answerImage = await this.createQuestionImage(this.questionData.image);
+		}
+		this.hotspotContainer.add(this.answerImage);
 
-		document.addEventListener('touchstart', preventBrowserGestures, { passive: false });
-		document.addEventListener('touchmove', preventBrowserGestures, { passive: false });
-		document.addEventListener('touchend', preventBrowserGestures, { passive: false });
+		// Create submit button (always visible for simplicity)
+		this.submitButton = new NineSliceButton(this.scene, 'SUBMIT');
+		this.answerContainer.add(this.submitButton);
 
-		// Store reference for cleanup
-		(this as any)._preventBrowserGestures = preventBrowserGestures;
+		console.log('HotspotQuestion::createAnswerUI: Created answerImage, crosshair, submitButton');
 
-		// Add zoom instruction text
-		const zoomHint = scene.add.text(960, 230, "Pinch to zoom, drag to move", {
-			fontFamily: 'Arial',
-			fontSize: '14px',
-			color: '#ffffff',
-			backgroundColor: '#00000066',
-			padding: { x: 8, y: 4 }
-		}).setOrigin(0.5, 0);
-		this.hotspotContainer.add(zoomHint);
+		this.scene.input.addPointer(1);
 
-		// Fade out hint after a few seconds
-		scene.tweens.add({
-			targets: zoomHint,
-			alpha: 0,
-			delay: 3000,
-			duration: 1000,
-			onComplete: () => zoomHint.destroy()
-		});
+		// Make interactive
+		this.makeInteractive();
+	}
 
-		// Make the image draggable
-		this.image.setInteractive({ draggable: true });
+	/**
+	 * Position answer UI elements based on available height
+	 * Can be called multiple times (e.g., on resize)
+	 */
+	protected displayAnswerUI(answerHeight: number): void {
+		console.log('HotspotQuestion::displayAnswerUI:', answerHeight, this.scene.TYPE);
 
-		// Handle drag start
-		this.image.on('dragstart', () => {
-			this.isDragging = true;
-		});
+		// Only player displays answer UI
+		// if (this.scene.TYPE !== 'play') {
+		//     return;
+		// }
 
-		// Handle drag
-		this.image.on('drag', (pointer: Phaser.Input.Pointer, dragX: number, dragY: number) => {
-			// Calculate drag deltas
-			const deltaX = pointer.position.x - pointer.prevPosition.x;
-			const deltaY = pointer.position.y - pointer.prevPosition.y;
+		// Position and scale submit button (EXACT copy from Number.ts)
+		const scaleFactor = this.scene.getUIScaleFactor();
+		this.submitButton.setButtonSize(320 * scaleFactor, 80 * scaleFactor);
+		this.submitButton.setTextSize(46 * scaleFactor);
+		this.submitButton.setPosition(
+			960 - 160 * scaleFactor - 20,
+			this.scene.getY(answerHeight) - 40 * scaleFactor - 20
+		);
 
-			// Move the container
-			this.hotspotContainer.x += deltaX;
-			this.hotspotContainer.y += deltaY;
+		// Position and size container and image (fill available space)
+		this.hotspotContainer.setPosition(0, this.scene.getY(answerHeight / 2));
+		this.configureImageSize(this.answerImage, answerHeight);
+		this.answerImage.setPosition(0, 0);
 
-			// Apply bounds to keep image visible
-			// this.applyDragBounds(answerHeight);
-		});
+		// RESET zoom/pan to default (as discussed)
+		this.currentScale = 1;
 
-		// Handle drag end
-		this.image.on('dragend', () => {
+		// Position crosshair (if visible, convert normalized → screen coords)
+		if (this.crosshairPos) {
+			this.crosshair.destroy();
+			this.crosshair = this.addCrosshairAtNormalizedPosition(this.answerImage, this.crosshairPos?.x, this.crosshairPos?.y);
+		}
+
+		console.log('HotspotQuestion::displayAnswerUI: Positioned image, crosshair, submit button');
+	}
+
+	/**
+	 * Make answer UI interactive (player only)
+	 */
+	protected makeInteractive(): void {
+		console.log('HotspotQuestion::makeInteractive:',);
+
+		// Make image interactive for tap-to-place-crosshair
+		this.answerImage.setInteractive({ draggable: true });
+		this.answerImage.on('pointerup', this.handleImageTap, this);
+
+		// Add drag handlers for panning image - these are global to the scene
+		this.answerImage.on('drag', this.handleDragMove, this);
+		this.answerImage.on('dragend', this.handleDragEnd, this);
+
+		// Add mouse wheel zoom (pinch-to-zoom TODO later)
+		this.answerImage.on('wheel', this.handleMouseWheel, this);
+
+		// Add scene level pointer event for multi-touch zoom (pinch)
+		// this.answerImage.on('pointerdown', this.handleZoomStart, this);
+		// this.answerImage.on('pointermove', this.handleDragMove, this);
+
+		// Submit button handler
+		this.submitButton.setInteractive({ useHandCursor: true });
+		this.submitButton.on('pointerup', this.handleSubmit, this);
+
+		console.log('HotspotQuestion::makeInteractive: Added tap, drag, zoom, submit handlers');
+	}
+
+	/**
+	 * Make answer UI non-interactive
+	 */
+	protected makeNonInteractive(): void {
+		console.log('HotspotQuestion::makeNonInteractive');
+
+		if (this.scene.TYPE !== 'play') {
+			return;
+		}
+
+		// Remove image handlers
+		this.answerImage.disableInteractive();
+		this.answerImage.removeAllListeners();
+
+		// Remove drag handlers
+		this.scene.input.off('pointermove', this.handleDragMove, this);
+		this.scene.input.off('pointerup', this.handleDragEnd, this);
+
+		// Remove submit button handlers
+		this.submitButton.disableInteractive();
+		this.submitButton.removeAllListeners();
+	}
+
+	/**
+	 * Handle image tap - place/move crosshair
+	 * Converts screen tap → normalized coordinates (0-1000)
+	 * NOTE: this is really an image pointerup handler
+	 * Could also be called at the end of a dragging or zooming operation
+	 */
+	private handleImageTap(pointer: Phaser.Input.Pointer, localX: number, localY: number): void {
+
+		// Ignore if dragging - this flag gets cleared 50ms after drag end to distinguish from a drag event
+		if (this.isDragging) {
+			// Ignore taps while dragging
+			return;
+		}
+		if (this.isZooming) {
+			const p1 = this.scene.input.pointer1;
+			const p2 = this.scene.input.pointer2;
+			console.log('HotspotQuestion::handleImageTap: Pointers:', p1.isDown, p2.isDown);
+			this.scene.socket?.emit('consolelog', 'HotspotQuestion::handleImageTap: Ignoring tap during zoom ' + p1.isDown + p2.isDown);
+			// Once BOTH pointers are up we can clear the zooming flag and allow taps again
+			// As for isDragging we need a short delay to avoid second pointerup firing and slipping through
+			if (!p1.isDown && !p2.isDown) {
+				this.scene.time.delayedCall(50, () => {
+					this.isZooming = false;
+				});
+			}
+			return;
+		}
+		this.scene.socket?.emit('consolelog', 'HotspotQuestion::handleImageTap: still here... Processing tap at ' + localX + ',' + localY);
+
+		console.log('HotspotQuestion::handleImageTap: TAP at local coords:', { x: localX, y: localY });
+
+		// If we made it to here then it's a valid tap
+		const normalizedX: number = Math.round(1000 * localX / this.answerImage.width);
+		const normalizedY: number = Math.round(1000 * localY / this.answerImage.height);
+		console.log('handleImageTap: NORMALIZED (0-1000):', { x: normalizedX, y: normalizedY });
+
+		// Clamp to valid range just in case it goes outside (shouldn't normally happen)
+		const clampedX = Phaser.Math.Clamp(normalizedX, 0, 1000);
+		const clampedY = Phaser.Math.Clamp(normalizedY, 0, 1000);
+
+		console.log('NORMALIZED (0-1000):', { x: clampedX, y: clampedY });
+
+		// ✅ Step 4: Display crosshair at tap location (visual feedback)
+		// this.crosshair.setPosition(pointer.x, pointer.y);
+		// this.crosshair.setVisible(true);
+		if (this.crosshair) {
+			this.crosshair.destroy();
+		}
+		this.crosshair = this.addCrosshairAtNormalizedPosition(this.answerImage, clampedX, clampedY);
+		this.crosshair.setVisible(true);
+		this.crosshairPos = { x: clampedX, y: clampedY };
+
+		console.log('CROSSHAIR PLACED AT SCREEN:', clampedX, clampedY, pointer.x, pointer.y);
+	}
+
+
+	/**
+	 * Handle drag move - pan container (NOT image)
+	 * Crosshair automatically moves with container
+	 */
+	private handleDragMove(pointer: Phaser.Input.Pointer, dragX: number, dragY: number) {
+
+		// Check if we are two-finger zooming - if so, ignore drag
+		if (this.scene.input.pointer1.isDown && this.scene.input.pointer2.isDown) {
+
+			if (this.isZooming === false) {
+				// Start zooming
+				this.handleZoomStart(pointer);
+				return;
+			}
+			// zoom instead of drag
+			const distance: number = Phaser.Math.Distance.Between(
+				this.scene.input.pointer1.position.x,
+				this.scene.input.pointer1.position.y,
+				this.scene.input.pointer2.position.x,
+				this.scene.input.pointer2.position.y
+			);
+			const zoomFactor = (distance - this.zoomStartDistance) / this.zoomStartDistance + 1;
+			this.currentScale = Phaser.Math.Clamp(this.zoomStartScale * zoomFactor, this.minScale, this.maxScale);
+			this.hotspotContainer.setScale(this.currentScale);
+			// if (this.crosshair) {
+			// 	this.crosshair.setScale(1 / this.currentScale);
+			// }
+			console.log('HotspotQuestion::handleDragMove: Two-finger zoom detected, distance =', distance);
+			this.scene.socket?.emit('consolelog', `HotspotQuestion::handleDragMove: Two-finger zoom detected, startDistance = ${this.zoomStartDistance}, distance = ${distance} , zoomFactor=${zoomFactor}, zoomStartScale=${this.zoomStartScale}, currentScale=${this.currentScale}	`);
+			return;
+		}
+
+		this.isDragging = true;
+
+		// Calculate drag deltas
+		const deltaX = pointer.position.x - pointer.prevPosition.x;
+		const deltaY = pointer.position.y - pointer.prevPosition.y;
+
+		// Convert to world-space deltas to account for camera zoom
+		const worldDeltaX = deltaX / this.scene.cameras.main.zoom;
+		const worldDeltaY = deltaY / this.scene.cameras.main.zoom;
+
+		// Move the container
+		this.hotspotContainer.x += worldDeltaX;
+		this.hotspotContainer.y += worldDeltaY;
+
+		// This is better - set to drag position directly - but only works if image is moved NOT container
+		// this.answerImage.x = dragX;
+		// this.answerImage.y = dragY;
+
+		// Apply bounds to keep image visible
+		// this.applyDragBounds(answerHeight);
+	};
+
+	/**
+	 * Handle drag end - stop panning
+	 */
+	private handleDragEnd(): void {
+
+		// Clear dragging flag after a short delay
+		this.scene.time.delayedCall(50, () => {
 			this.isDragging = false;
 		});
-
-		// Track active pointers for pinch
-		const activePointers = new Set();
-
-		// Variables for pinch-to-zoom
-		let startDistance = 0;
-		let startScale = 1;
-
-		// Handle pointer down for pinch detection
-		scene.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-			activePointers.add(pointer.id);
-
-			// If we have exactly 2 pointers, start pinch
-			if (activePointers.size === 2) {
-				// Find both active pointers
-				const activePointerArray = [scene.input.pointer1, scene.input.pointer2].filter(p => p && p.isDown);
-
-				// Calculate initial distance
-				const dx = activePointerArray[0].position.x - activePointerArray[1].position.x;
-				const dy = activePointerArray[0].position.y - activePointerArray[1].position.y;
-				startDistance = Math.sqrt(dx * dx + dy * dy);
-
-				// Store current scale as starting scale
-				startScale = this.currentScale;
-			}
-		});
-
-		// Handle pointer up for pinch detection
-		scene.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
-			activePointers.delete(pointer.id);
-
-			// If we dropped below 2 pointers, end pinch
-			if (activePointers.size < 2) {
-				startDistance = 0;
-			}
-		});
-
-		// Handle pointer move for pinch
-		scene.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-			// Only process if we have 2 active pointers
-			if (activePointers.size === 2) {
-				// Find both active pointers
-				const activePointerArray = [scene.input.pointer1, scene.input.pointer2].filter(p => p && p.isDown);
-				if (activePointerArray.length >= 2) {
-					// Calculate current distance
-					const dx = activePointerArray[0].position.x - activePointerArray[1].position.x;
-					const dy = activePointerArray[0].position.y - activePointerArray[1].position.y;
-					const currentDistance = Math.sqrt(dx * dx + dy * dy);
-
-					// Only process if we have a valid start distance
-					if (startDistance > 0) {
-						// Calculate scale change
-						const scaleFactor = currentDistance / startDistance;
-						this.currentScale = Phaser.Math.Clamp(
-							startScale * scaleFactor,
-							this.minScale,
-							this.maxScale
-						);
-
-						// Apply scale to container
-						this.hotspotContainer.setScale(this.currentScale);
-
-						// Scale crosshair inversely if it exists
-						if (this.crosshair && this.crosshair.visible) {
-							this.crosshair.setScale(1 / this.currentScale);
-						}
-					}
-				}
-			}
-		});
-
+		console.log('HotspotQuestion::handleDragEnd');
+		this.scene.socket?.emit('consolelog', 'HotspotQuestion::handleDragEnd');
 	}
 
 
-	private submitImage(): void {
-		this.image.disableInteractive();
-		this.submitButton.disableInteractive();
-		this.submitAnswer(this.crosshairPos);
+	/**
+	 * Handle mouse wheel - zoom container (NOT image)
+	 * Crosshair automatically scales with container
+	 */
+	private handleMouseWheel(pointer: Phaser.Input.Pointer, currentlyOver: Phaser.GameObjects.GameObject[], deltaX: number, deltaY: number, deltaZ: number): void {
 
-		// Juice - animate the canvas and buttons out
+		// Zoom in/out
+		const zoomDelta = deltaX > 0 ? 0.9 : 1.1;
+		this.currentScale *= zoomDelta;
+
+		// Clamp zoom (0.5x to 3x)
+		this.currentScale = Phaser.Math.Clamp(this.currentScale, 0.5, 3);
+
+		// ✅ Apply zoom to CONTAINER (not image)
+		this.hotspotContainer.setScale(this.currentScale);
+
+		console.log('HotspotQuestion::handleMouseWheel: Zoom =', deltaX, this.currentScale);
+
+		// ✅ Crosshair scales automatically! (same container)
+		// No updateCrosshairPosition() needed!
+
+		// ✅ BUT: Scale crosshair inversely to maintain visual size
+		// if (this.crosshair) {
+		// 	this.crosshair.setScale(1 / this.currentScale);
+		// }
+	}
+
+	private handleZoomStart(pointer: Phaser.Input.Pointer): void {
+
+		const p1 = this.scene.input.pointer1
+		const p2 = this.scene.input.pointer2
+
+		console.log('HotspotQuestion::handleZoomStart:', p1);
+		this.scene.socket?.emit('consolelog', 'HotspotQuestion::handleZoomStart: ' + JSON.stringify(p1.position) + JSON.stringify(p2.position) + p1.isDown + p2.isDown);
+
+		if (p1.isDown && p2.isDown) {
+			const distance: number = Phaser.Math.Distance.Between(
+				p1.position.x,
+				p1.position.y,
+				p2.position.x,
+				p2.position.y
+			);
+			this.zoomStartDistance = distance;
+			this.zoomStartScale = this.currentScale;
+			this.isZooming = true;
+		}
+
+	}
+
+	/**
+	 * Handle submit button click
+	 * Sends normalized coordinates (0-1000) to server
+	 */
+	private handleSubmit(): void {
+		console.log('HotspotQuestion::handleSubmit');
+
+		// Check if crosshair placed
+		if (!this.crosshairPos) {
+			console.warn('HotspotQuestion::handleSubmit: No crosshair placed!');
+			// TODO: Show error message to player
+			return;
+		}
+
+		// Make non-interactive
+		this.makeNonInteractive();
+
+		// Get answer (normalized coordinates 0-1000)
+		const answer = this.crosshairPos;
+
+		console.log('HotspotQuestion::handleSubmit: Answer (normalized 0-1000):', answer);
+
+		// Submit answer
+		this.submitAnswer(answer);
+
+		// Animate out (same as other question types)
 		const tl = gsap.timeline();
 		tl.to(this.submitButton, {
-			y: 2000,
+			x: 2400,
 			duration: 0.5,
 			ease: 'back.in'
 		});
-		tl.to(this.hotspotContainer, {
-			x: 2000,
+		tl.to(this.answerContainer, {
+			y: 2160,
 			duration: 0.5,
-			ease: 'back.in'
-		});
+			ease: 'power2.in'
+		}, "<");
 		tl.play();
-
 	}
 
-	private makeImageInteractive(image: Phaser.GameObjects.Image): void {
-		image.setInteractive({ useHandCursor: true });
-		image.on('pointerup', (pointer: Phaser.Input.Pointer, localX: number, localY: number) => {
+	private addCrosshairAtNormalizedPosition(image: Phaser.GameObjects.Image, normalizedX: number, normalizedY: number): Phaser.GameObjects.Image {
 
-			// Skip if we're currently dragging
-			if (this.isDragging) return;
+		const crosshair = this.scene.add.image(0, 0, 'crosshair');
+		const cameraZoom = this.scene.cameras.main.zoom;
+		crosshair.setScale(1 / cameraZoom);
 
-			// We need to map pointer coordinates to the image's local coordinates
-			// Handily Phaser provides localX and localY for this purpose
-			// localX and localY are relative to the image's top-left corner, accounting for scale and origin
+		const imageWidth = image.width * image.scaleX;
+		const imageHeight = image.height * image.scaleY;
 
-			// Since we will mainly want to display crosshairs at a normalized position we build our system around this
-			// So calculate the normialized position of the click and call function to display crosshair at this position
-			// Normalized position is between 0 and 1000 to keep integer values
-			const normalizedX: number = Math.round(1000 * localX / image.width);
-			const normalizedY: number = Math.round(1000 * localY / image.height);
-			// const scaleFactor = this.currentScale;
-			// const normalizedX: number = Math.round(1000 * localX / (image.width * scaleFactor));
-			// const normalizedY: number = Math.round(1000 * localY / (image.height * scaleFactor));
+		// Origin at center (0.5, 0.5)
+		const imageX = (normalizedX * image.width * image.scaleX / 1000) - (imageWidth / 2);
+		const imageY = (normalizedY * image.height * image.scaleY / 1000) - (imageHeight / 2);
 
-			if (this.crosshairPos) {
-				// If a crosshair already exists, remove it before adding a new one
-				this.crosshair.destroy();
-			}
-			this.crosshair = this.addCrosshairAtNormalizedPosition(image, normalizedX, normalizedY);
-			// Scale the crosshair inversely to container scale to maintain apparent size
-			if (this.currentScale !== 1) {
-				this.crosshair.setScale(1 / this.currentScale);
-			}
-			this.crosshairPos = { x: normalizedX, y: normalizedY };
-			this.submitButton.setVisible(true);
-		});
-
-	}
-	private addSubmitButton(answerHeight: number): void {
-		// Add a SUBMIT button - move to bottom corner to give more space for text display
-		this.submitButton = new NineSliceButton(this.scene, 'Submit');
-		this.submitButton.setButtonSize(200, 80);
-		this.submitButton.setPosition(960 - 160 - 20, this.scene.getY(answerHeight - 80));
-		this.submitButton.setVisible(true);
-		this.submitButton.setInteractive({ useHandCursor: true });
-		this.submitButton.on('pointerup', () => {
-			console.log('HotspotQuestion::createAnswerUI: Submit button clicked:', this.crosshairPos);
-			this.submitImage();
-		});
-		this.answerContainer.add(this.submitButton);
+		crosshair.setPosition(imageX, imageY);
+		this.hotspotContainer.add(crosshair);
+		console.log('Crosshair added:', { imageX, imageY, imageWidth, imageHeight });
+		return crosshair;
 	}
 
-	// This will be needed by the HOST mode - ... maybe put elsewhere???
-	// Hmmm... not sure about this part yet :(
-	private showResults(answerHeight: number): void {
+	protected revealAnswerUI(): void {
+		const allocated = this.calculateLayout();
+		const answerHeight = allocated['answers'] || 0;
+		this.showResults(answerHeight);
+	}
+
+	protected showResults(answerHeight: number): void {
 
 		// First mark all the guesses made by the players
 		if (this.questionData.results) {
 			Object.entries(this.questionData.results).forEach(([sessionID, result]) => {
 				if (result && result.x !== undefined && result.y !== undefined) {
-					const guessCrosshair = this.addCrosshairAtNormalizedPosition(this.image, result.x, result.y);
+					const guessCrosshair = this.addCrosshairAtNormalizedPosition(this.answerImage, result.x, result.y);
 					guessCrosshair.setTint(0x008000);
 				}
 			});
@@ -319,7 +436,7 @@ export default class HotSpotQuestion extends BaseQuestion {
 		// POINT-IT-OUT: display a rectangle at the answer position
 		if (this.questionData.type === 'hotspot') {
 			this.crosshairPos = { x: this.questionData.answer.x, y: this.questionData.answer.y };
-			this.crosshair = this.addCrosshairAtNormalizedPosition(this.image, this.crosshairPos.x, this.crosshairPos.y);
+			this.crosshair = this.addCrosshairAtNormalizedPosition(this.answerImage, this.crosshairPos.x, this.crosshairPos.y);
 			this.crosshair.setScale(2);
 		} else {
 			console.log('Point-It-Out showResults:', this.questionData.answer);
@@ -327,18 +444,18 @@ export default class HotSpotQuestion extends BaseQuestion {
 				x: (this.questionData.answer.start.x + this.questionData.answer.end.x) / 2,
 				y: (this.questionData.answer.start.y + this.questionData.answer.end.y) / 2
 			};
-			this.addRectangleAtNormalizedPosition(this.image, this.questionData.answer);
+			this.addRectangleAtNormalizedPosition(this.answerImage, this.questionData.answer);
 		}
 
 		// Experiemnt with zooming the image to make the answer more visible
 		// Try just zooming in on one quadrant (topleft, topright, bottomleft, bottomright)
 		const newScale = 2;
-		const originX = this.image.width * this.image.scaleX / -2;
+		const originX = this.answerImage.width * this.answerImage.scaleX / -2;
 		const originY = 0;
 
 		// crosshairX and Y are the position of the crosshair relative to image origin (top centre)
-		const crosshairX = originX + this.crosshairPos.x * this.image.width * this.image.scaleX / 1000;
-		const crosshairY = originY + this.crosshairPos.y * this.image.height * this.image.scaleY / 1000;
+		const crosshairX = originX + this.crosshairPos.x * this.answerImage.width * this.answerImage.scaleX / 1000;
+		const crosshairY = originY + this.crosshairPos.y * this.answerImage.height * this.answerImage.scaleY / 1000;
 
 		// So we have to translate hotspotContainer to make the crosshair position into the centre
 		// hotspotContainer currently at (0, 0) so we need to move it to (-crosshairX, -crosshairY)
@@ -348,34 +465,20 @@ export default class HotSpotQuestion extends BaseQuestion {
 
 		console.log('Image:', crosshairX, crosshairY, translateX, translateY);
 
+		// Instead of just zooming in on a section instead make entire image interactive and let host zoom for themselves
+		this.makeInteractive();
+
 		// this.hotspotContainer.setPosition(translateX, translateY);
 		// this.hotspotContainer.setScale(newScale);
-		this.scene.tweens.add({
-			targets: this.hotspotContainer,
-			scaleX: newScale,
-			scaleY: newScale,
-			x: translateX,
-			y: translateY,
-			duration: 750,
-			ease: 'easeInOut'
-		})
-	}
-
-	private addCrosshairAtNormalizedPosition(image: Phaser.GameObjects.Image, normalizedX: number, normalizedY: number): Phaser.GameObjects.Image {
-		// Create a crosshair graphic at the normalized position
-		const crosshair = this.scene.add.image(0, 0, 'crosshair');
-
-		const imageWidth = image.width * image.scaleX;
-		const imageHeight = image.height * image.scaleY;
-
-		// Origin at center (0.5, 0.5)
-		const imageX = (normalizedX * image.width * image.scaleX / 1000) - (imageWidth / 2);
-		const imageY = (normalizedY * image.height * image.scaleY / 1000);
-
-		crosshair.setPosition(imageX, imageY);
-		this.hotspotContainer.add(crosshair);
-		console.log('Crosshair added:', { imageX, imageY, imageWidth, imageHeight });
-		return crosshair;
+		// this.scene.tweens.add({
+		// 	targets: this.hotspotContainer,
+		// 	scaleX: newScale,
+		// 	scaleY: newScale,
+		// 	x: translateX,
+		// 	y: translateY,
+		// 	duration: 750,
+		// 	ease: 'easeInOut'
+		// })
 	}
 
 	private addRectangleAtNormalizedPosition(image: Phaser.GameObjects.Image, answer: any): Phaser.GameObjects.Graphics {
@@ -386,9 +489,9 @@ export default class HotSpotQuestion extends BaseQuestion {
 		const imageWidth = image.width * image.scaleX;
 		const imageHeight = image.height * image.scaleY;
 		const imageStartX = (answer.start.x * image.width * image.scaleX / 1000) - (imageWidth / 2);
-		const imageStartY = (answer.start.y * image.height * image.scaleY / 1000);
+		const imageStartY = (answer.start.y * image.height * image.scaleY / 1000) - (imageHeight / 2);
 		const imageEndX = (answer.end.x * image.width * image.scaleX / 1000) - (imageWidth / 2);
-		const imageEndY = (answer.end.y * image.height * image.scaleY / 1000);
+		const imageEndY = (answer.end.y * image.height * image.scaleY / 1000) - (imageHeight / 2);
 
 		// Calculate rectangle width and height
 		const rectWidth = imageEndX - imageStartX;
@@ -403,26 +506,14 @@ export default class HotSpotQuestion extends BaseQuestion {
 		return rect;
 	}
 
+	/**
+	 * Cleanup
+	 */
 	public destroy(): void {
-
-		// Clean up event listeners to prevent memory leaks
-		if (this.image) {
-			this.image.off('pointerup');
-			this.image.off('dragstart');
-			this.image.off('drag');
-			this.image.off('dragend');
-			this.image.off('pointerdown');
-		}
-
-		// Remove any scene-level event listeners
+		console.log('HotspotQuestion::destroy');
 		if (this.scene) {
-			this.scene.input.off('pointermove');
-			this.scene.input.off('pointerup');
+			this.makeNonInteractive();
 		}
-
-		// Call parent destroy
 		super.destroy();
 	}
-
 }
-

@@ -1,5 +1,5 @@
 import { gsap } from "gsap";
-import { BaseScene } from "src/moneytree/BaseScene";
+import { BaseScene } from "src/BaseScene";
 import { BaseQuestion } from "./BaseQuestion";
 import { NineSliceButton } from "src/ui/NineSliceButton";
 import { TrueFalseQuestionData } from "./QuestionTypes";
@@ -53,32 +53,32 @@ export default class TrueFalseQuestion extends BaseQuestion {
     protected displayAnswerUI(answerHeight: number): void {
 
         // This code copied directly from MultipleChoiceQuestion - should work for now
+        const isPortrait = this.scene.isPortrait();
+        const scaleFactor = this.scene.getUIScaleFactor();
+
         let paddingHeight: number = answerHeight / 8;
         if (answerHeight > 640) {
             paddingHeight = answerHeight / 6;
         }
-        let availableHeight: number = answerHeight - 2 * paddingHeight;
-        let buttonSpace: number = 2 * availableHeight / 2;
-        let buttonHeight: number = buttonSpace * 0.8;
+        const availableHeight: number = answerHeight - 2 * paddingHeight;
+        const numRows = isPortrait ? 2 : 1;
+        const numColumns = isPortrait ? 1 : 2;
+        const buttonSpace = availableHeight / numRows;
 
-        // One more twist of logic - button height can look a bit too large so set a max height
-        if (buttonHeight > 180) {
-            buttonHeight = 180;
-        }
-
-        console.log('TrueFalseQuestion::displayAnswerUI:', this.scene.TYPE, availableHeight, buttonSpace, buttonHeight);
+        console.log('TrueFalseQuestion::displayAnswerUI:', this.scene.TYPE, availableHeight, buttonSpace);
 
         // Create answer options
         ['true', 'false'].forEach((option: string, index: number) => {
 
-            const rowCount: number = Math.floor(index / 2);
-            const y = this.scene.getY(paddingHeight + rowCount * buttonSpace + buttonSpace / 2);
-            const x = -480 + 960 * (index % 2);
+            const rowCount: number = Math.floor(index / numColumns);
+            const y = paddingHeight + rowCount * buttonSpace + buttonSpace / 2;
+            const x = isPortrait ? 0 : -480 + 960 * (index % numColumns);
 
             const newButton: NineSliceButton | undefined = this.buttons.get(option);
             if (newButton) {
-                newButton.setPosition(x, y);
-                console.log('MultipleChoiceQuestion::createAnswerUI:', option, x, y);
+                newButton.setButtonSize(800 * scaleFactor, 120 * scaleFactor);
+                newButton.setPosition(x, this.scene.getY(y));
+                newButton.setTextSize(48 * scaleFactor);
             }
 
         });
@@ -88,28 +88,17 @@ export default class TrueFalseQuestion extends BaseQuestion {
 
         this.buttons.forEach((button, option) => {
 
-            button.setInteractive({ useHandCuror: true });
+            button.setInteractive({ useHandCursor: true });
             button.on('pointerup', () => {
-                this.submitAnswer(option);
                 this.makeNonInteractive();
-                button.bringToTop(this.answerContainer);
-                this.buttons.forEach(b => {
-                    console.log('TrueFalseQuestion::makeButtonsInteractive:', b, b === button);
-                    button.removeAllListeners();
-                    if (b === button) {
-                        gsap.to(b, {
-                            y: -2000,
-                            duration: 0.5,
-                            ease: 'power2.in',
-                            delay: 0.8
-                        })
-                    } else {
-                        gsap.to(b, {
-                            x: -2000,
-                            duration: 1,
-                            ease: 'power2.out'
-                        });
-                    }
+                this.submitAnswer(option);
+                this.highlightAnswer(option);
+                this.scene.time.delayedCall(1000, () => {
+                    this.scene.sound.play('submit-answer');
+                    gsap.to(this.answerContainer, {
+                        y: this.scene.getY(1080 + 540),
+                        ease: 'back.in'
+                    });
                 });
             });
         });
@@ -118,7 +107,26 @@ export default class TrueFalseQuestion extends BaseQuestion {
     protected makeNonInteractive(): void {
         this.buttons.forEach((button) => {
             button.disableInteractive();
+            button.removeAllListeners();
+
         });
+    }
+
+    protected revealAnswerUI(): void {
+
+        if (this.questionData.answer) {
+            this.highlightAnswer(this.questionData.answer);
+        }
+    }
+
+    protected highlightAnswer(correctAnswer: string): void {
+
+        for (const [option, button] of this.buttons) {
+            button.setAlpha(0.5);
+            if (option === correctAnswer) {
+                button.setHighlight();
+            }
+        }
     }
 
 }

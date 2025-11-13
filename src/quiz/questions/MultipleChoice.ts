@@ -47,50 +47,39 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
 
     protected displayAnswerUI(answerHeight: number): void {
 
+        const isPortrait = this.scene.isPortrait();
+        const scaleFactor = this.scene.getUIScaleFactor();
+
         // Experiment with making padding a proportion of available space
         // And if we have a LOT of space then make the padding larger otherwise it spreads out too much vertically
-        // All of the layout assumes a logical button width of 800
-
         let paddingHeight: number = answerHeight / 8;
         if (answerHeight > 640) {
             paddingHeight = answerHeight / 6;
         }
-        let availableHeight: number = answerHeight - 2 * paddingHeight;
-        let buttonSpace: number = 2 * availableHeight / this.questionData.options.length;
-        let buttonHeight: number = buttonSpace * 0.8;
+        const availableHeight: number = answerHeight - 2 * paddingHeight;
 
-        // One more twist of logic - button height can look a bit too large so set a max height
-        if (buttonHeight > 180) {
-            buttonHeight = 180;
-        }
 
-        console.log('MultipleChoiceQuestion::displayAnswerUI:', this.questionData.mode, this.scene.TYPE, availableHeight, buttonSpace, buttonHeight);
+        // This is still not that much simpler, but uses a better responsive layout
+        // Especially for landscape/portrait on mobile
+        const numRows = isPortrait ? this.questionData.options.length : Math.ceil(this.questionData.options.length / 2);
+        const numColumns = isPortrait ? 1 : 2;
+        const buttonSpace = availableHeight / numRows;
 
-        // Now layout the buttons using the above calculated values
-        const now: number = Date.now();
+        console.log('MultipleChoiceQuestion::displayAnswerUI:', this.questionData.mode, this.scene.TYPE, availableHeight, buttonSpace);
+
         this.questionData.options.forEach((option: string, index: number) => {
 
-            const rowCount: number = Math.floor(index / 2);
-            const y = this.scene.getY(paddingHeight + rowCount * buttonSpace + buttonSpace / 2);
-            const x = -480 + 960 * (index % 2);
+            const rowCount: number = Math.floor(index / numColumns);
+            const y = paddingHeight + rowCount * buttonSpace + buttonSpace / 2;
+            const x = isPortrait ? 0 : -480 + 960 * (index % numColumns);
 
-            console.log('MultipleChoiceQuestion::createAnswerUI:', option, x, y);
+            console.log('MultipleChoiceQuestion::displayAnswerUI:', option, x, y);
 
             const newButton: NineSliceButton | undefined = this.buttons.get(option);
             if (newButton) {
-                newButton.setButtonSize(800, buttonHeight);
-                newButton.setPosition(x, y);
-
-                if (this.scene.TYPE === 'play') {
-                    this.scene.socket?.emit('consolelog', `MultipleChoiceQuestion::displayAnswerUI: index=${index} option=${option} x=${x} y=${y} buttonHeight=${buttonHeight} time=${Date.now() - now}ms`);
-                }
-
-                // Leave this here for now... can't think where else to put it
-                if (this.questionData.mode === 'answer') {
-                    if (option === this.questionData.answer) {
-                        newButton.onPointerOver();
-                    }
-                }
+                newButton.setButtonSize(800 * scaleFactor, 120 * scaleFactor);
+                newButton.setPosition(x, this.scene.getY(y));
+                newButton.setTextSize(48 * scaleFactor);
             }
 
         });
@@ -98,42 +87,61 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
         // DEBUG - add rectangle to originof the answer container
         //const debugRect = this.scene.add.rectangle(0, 0, 5, 5, 0xff0000, 0.5).setOrigin(0.5);
         //this.answerContainer.add(debugRect);
+
+        console.log('MultipleChoiceQuestion::DONE');
+
+
+    }
+
+    protected revealAnswerUI(): void {
+
+        if (this.questionData.answer) {
+            this.highlightAnswer(this.questionData.answer);
+        }
+    }
+
+    protected highlightAnswer(correctAnswer: string): void {
+
+        for (const [option, button] of this.buttons) {
+            button.setAlpha(0.5);
+            if (option ===  correctAnswer) {
+                button.setHighlight();
+            }
+        }
     }
 
     protected makeInteractive(): void {
 
         this.buttons.forEach((button, option) => {
 
+            // NOTE: for pixel-perfect timing of animation with audio we should build in a short delay to the audio track
+            // to allow for the "back.in" easing which starts slowly
+            // Maybe record a 'instant swoosh' and 'delayed swoosh' to align with a 0.5s back.in tween to y=2160
+            // As it is I've done it with two separate delayed calls which allows more precision but its a bit much 
             button.setInteractive({ useHandCursor: true });
             button.on('pointerup', () => {
                 this.makeNonInteractive();
                 this.submitAnswer(option);
-                button.bringToTop(this.answerContainer);
-                this.buttons.forEach(b => {
-                    button.removeAllListeners();
-                    if (b === button) {
-                        gsap.to(b, {
-                            y: -2000,
-                            duration: 0.5,
-                            ease: 'power2.in',
-                            delay: 0.8
-                        })
-                    } else {
-                        gsap.to(b, {
-                            x: -2000,
-                            duration: 1,
-                            ease: 'power2.out'
-                        });
-                    }
-                });
-
+                this.highlightAnswer(option);
+                const tl = gsap.timeline();
+                tl.to(this.answerContainer, {
+                    y: this.scene.getY(2160),
+                    duration: 0.5,
+                    ease: 'back.in'
+                }, "+1.0");
+                tl.add(() => {
+                    this.scene.sound.play('submit-answer');
+                }, "<+0.25");
+                tl.play();
             });
         });
+
     }
 
     protected makeNonInteractive(): void {
         this.buttons.forEach((button) => {
             button.disableInteractive();
+            button.removeAllListeners();
         });
     }
 

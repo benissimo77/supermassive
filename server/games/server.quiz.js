@@ -1187,7 +1187,10 @@ export default class Quiz extends Game {
 
 		console.log('doQuestion:', this.mode, this.questionNumber, this.question, hostQuestion);
 		this.room.emitToHosts('server:question', hostQuestion);
-		this.stateMachine.nextState();
+		this.room.registerHostResponseHandler(() => {
+			this.room.deregisterHostResponseHandler();
+			this.stateMachine.nextState();
+		});
 	}
 
 	collectAnswers() {
@@ -1196,6 +1199,9 @@ export default class Quiz extends Game {
 		// IMPORTANT: don't initialise this otherwise we can't go back and re-visit questions
 		if (!this.question.results) {
 			this.question.results = {};
+		}
+		if (!this.question.times) {
+			this.question.times = {};
 		}
 
 		// Prepare a local copy of the question for sending to players
@@ -1220,7 +1226,8 @@ export default class Quiz extends Game {
 			console.log('quiz.responseHandler:', socket.id, response);
 			const player = this.room.getPlayerBySocketID(socket.id);
 			if (player) {
-				this.question.results[player.sessionID] = response;
+				this.question.results[player.sessionID] = response.answer;
+				this.question.times[player.sessionID] = response.answerTime;
 				this.room.emitToHosts('server:questionanswered', { sessionID: player.sessionID, response: response });
 			}
 			console.log('quiz.responseHandler:', this.question);
@@ -1267,6 +1274,10 @@ export default class Quiz extends Game {
 
 		console.dir('showAnswer:', localQuestion);
 		this.room.emitToHosts('server:showanswer', localQuestion);
+
+		// For now also just send same event to all players - QuizPlayScene will decide what to display
+		// Special cases such as the one below will need to be catered for here... for now just send to all
+		this.room.emitToAllPlayers('server:showanswer', localQuestion);
 
 		// Special case for draw questions - we show all answers on the host screen but send each player a different player's answer and get them to score it
 		if (this.question.type === 'draw') {

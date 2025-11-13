@@ -104,6 +104,7 @@ export class YouTubePlayerUI {
         this.container = document.createElement('div');
         this.container.id = this.uniqueId;
         this.container.style.position = 'absolute';
+        this.container.style.top = '-4000px';
 
         // Add to DOM
         document.body.appendChild(this.container);

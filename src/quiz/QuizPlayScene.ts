@@ -12,6 +12,7 @@ export class QuizPlayScene extends BaseScene {
 
     private currentQuestion: BaseQuestion;
     private questionFactory: QuestionFactory;
+    private answerSubmitted: Boolean = false;
 
     // UI elements
     protected UIContainer: Phaser.GameObjects.Container;
@@ -20,7 +21,7 @@ export class QuizPlayScene extends BaseScene {
     constructor() {
         super(QuizPlayScene.KEY);
     }
-
+ 
     init(): void {
         super.init();
 
@@ -30,7 +31,7 @@ export class QuizPlayScene extends BaseScene {
         // Text labels config object - can be overridden but this provides a base
         this.labelConfig = {
             fontFamily: '"Titan One", Arial',
-            fontSize: this.getY(36),
+            fontSize: 36,
             color: '#ffffff',
             stroke: '#000000',
             strokeThickness: 2,
@@ -40,14 +41,12 @@ export class QuizPlayScene extends BaseScene {
         // Setup socket listeners
         this.setupSocketListeners();
 
-        // Since this is likely to be a mobile device lock the screen to landscape
-        this.scale.lockOrientation('landscape');
     }
 
     preload(): void {
 
         // Load common assets for all question types
-        this.load.image('quiz-background', '/img/quiz/background.jpg');
+        // this.load.image('quiz-background', '/img/quiz/background.jpg');
         this.load.image('simple-button', '/assets/img/simplebutton.png');
         this.load.image('simple-button-hover', '/assets/img/simplebutton-hover.png');
         this.load.image('dropzone', '/assets/img/dropzone.png');
@@ -56,6 +55,11 @@ export class QuizPlayScene extends BaseScene {
 
         this.load.image('crosshair', '/img/crosshair40.png');
 
+        // audio files
+        this.load.audio('answer-correct', '/assets/audio/quiz/fx/320655__rhodesmas__level-up-01.wav');
+        this.load.audio('answer-incorrect', '/assets/audio/quiz/fx/150879__nenadsimic__jazzy-chords.wav');
+        this.load.audio('button-click', '/assets/audio/quiz/fx/114187__edgardedition__thud17.wav');
+        this.load.audio('submit-answer', '/assets/audio/quiz/fx/585256__lesaucisson__swoosh-2.mp3');
 
         // Load custom fonts
         this.load.rexWebFont({
@@ -79,6 +83,7 @@ export class QuizPlayScene extends BaseScene {
 
 
         // Let the server know we're ready - this could come from a button click or other event
+        // Note: I don't believe this does anything...
         this.socket.emit('play:requeststart', {});
     }
 
@@ -114,7 +119,7 @@ export class QuizPlayScene extends BaseScene {
         // Listen for question
         this.socket.on('server:question', async (question, callback) => {
             const receivedTime = Date.now();
-            this.displayQuestion(question);
+            await this.createQuestion(question);
             const displayTime = Date.now() - receivedTime;
 
             // Enhanced device detection
@@ -171,6 +176,21 @@ export class QuizPlayScene extends BaseScene {
             };
 
             callback(deviceInfo);
+
+            // Make sure it's added to the scene
+            this.add.existing(this.currentQuestion);
+            this.answerSubmitted = false;
+
+            this.currentQuestion.onAnswer((answer: any) => {
+                console.log('QuizPlayScene:: answer:', answer);
+                // Send the answer to the server
+                this.socket.emit('client:response', { answer: answer, answerTime: Date.now() - receivedTime - displayTime });
+
+                // This flag prevents the question from being re-displayed if sceneDisplay fires eg on resize
+                this.answerSubmitted = true;
+
+            });
+
         });
 
         // Player answered a question
@@ -209,29 +229,24 @@ export class QuizPlayScene extends BaseScene {
         this.UIContainer = this.add.container(0, 0);
 
         // Show quiz title
-        const titleText = this.add.text(960, this.getY(200), title)
-            .setFontSize(this.getY(64))
-            .setFontFamily('"Titan One", Arial')
-            .setColor('#ffffff')
-            .setStroke('#000000', 6)
-            .setAlign('center')
-            .setOrigin(0.5);
+        const quizTitleConfig = Object.assign({}, this.labelConfig, {
+            fontSize: 64,
+            strokeThickness: 6
+        });
+        const titleText = this.add.text(960, this.getY(50), title, quizTitleConfig);
 
         // Remove HTML tags from description
         const cleanDescription = description.replace(/<\/?[^>]+(>|$)/g, "");
 
         // Show description
-        const descText = this.add.text(960, this.getY(350), cleanDescription)
-            .setFontSize(this.getY(32))
-            .setFontFamily('Arial')
-            .setColor('#ffffff')
-            .setAlign('center')
-            .setWordWrapWidth(this.cameras.main.width - 200)
-            .setOrigin(0.5);
-
+        const quizDescriptionConfig = Object.assign({}, this.labelConfig, {
+            fontSize: 32,
+            strokeThickness: 2,
+            wordWrap: { width: 1680 }
+        });
+        const descText = this.add.text(960, this.getY(350), cleanDescription, quizDescriptionConfig);
 
         this.UIContainer.add([titleText, descText]);
-
 
         gsap.fromTo(this.UIContainer,
             { y: -1080 },
@@ -241,7 +256,6 @@ export class QuizPlayScene extends BaseScene {
                 ease: 'back.out(1.7)',
                 onComplete: () => {
                     console.log('GSAP animation complete!');
-                    gsap.to(this.UIContainer, { duration: 5, y: '+=120', ease: 'back.out(1.7)' });
                 }
             }
         );
@@ -255,7 +269,7 @@ export class QuizPlayScene extends BaseScene {
 
         // Show round title
         const titleConfig = {
-            fontSize: this.getY(64),
+            fontSize: 64,
             fontFamily: '"Titan One", Arial',
             color: '#ffffff',
             stroke: '#000000',
@@ -311,7 +325,7 @@ export class QuizPlayScene extends BaseScene {
         return button;
     }
 
-    private displayQuestion(question: any): void {
+    private async createQuestion(question: any): Promise<void> {
 
         console.log('QuizPlayScene:: displayQuestion:', question);
 
@@ -323,8 +337,7 @@ export class QuizPlayScene extends BaseScene {
 
         // Let the specialized renderer handle the display - this is when question gets added to the scene
         if (this.currentQuestion) {
-
-            this.currentQuestion.initialize();
+            await this.currentQuestion.initialize();
             this.currentQuestion.displayPlayer();
 
             // Debug container position and visibility
@@ -335,22 +348,13 @@ export class QuizPlayScene extends BaseScene {
                 alpha: this.currentQuestion.alpha,
                 children: this.currentQuestion.list.length
             });
-
-            // Make sure it's added to the scene
-            this.add.existing(this.currentQuestion);
-
-            this.currentQuestion.onAnswer((answer: any) => {
-                console.log('QuizPlayScene:: answer:', answer);
-                // Send the answer to the server
-                this.socket.emit('client:response', answer);
-            });
         }
 
     }
 
     private showAnswer(questionData: any): void {
         if (this.currentQuestion) {
-            this.currentQuestion.showAnswer(questionData);
+            this.currentQuestion.showAnswer();
         }
     }
 
@@ -443,7 +447,9 @@ export class QuizPlayScene extends BaseScene {
     protected sceneDisplay(): void {
         // Called from BaseScene when the screen is resized
         console.log('QuizPlayScene:: sceneDisplay: updating layout for new size');
-        if (this.currentQuestion) {
+        if (this.answerSubmitted) {
+            // nothing needs to be done here - display should resize itself good enough for now...
+        } else if (this.currentQuestion) {
             this.currentQuestion.displayPlayer();
         }
     }
@@ -451,10 +457,10 @@ export class QuizPlayScene extends BaseScene {
     private clearUI(): void {
         // Clean up the previous question's display elements
         if (this.UIContainer) {
-            this.UIContainer.destroy();
+            this.UIContainer.destroy(true);
         }
         if (this.currentQuestion) {
-            this.currentQuestion.destroy();
+            this.currentQuestion.destroy(true);
         }
     }
 

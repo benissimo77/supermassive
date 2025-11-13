@@ -359,8 +359,10 @@ export abstract class BaseScene extends Phaser.Scene {
     getUIScaleFactor(): number {
         const aspectRatio = this.scale.width / this.scale.height;
 
-        // Simple formula: 2.0 - ratio (clamped between 1.0 and 2.5)
+        // Simple formula: 2.0 - ratio (clamped between 1.0 and ~2.5)
         // Thinner screens (lower ratio) get higher scale factor
+        // Idea is it provides a good scale between landscape/portrait extremes
+        // Landscape returns ~1.0, Portrait returns ~2.5 so 800width becomes ~1800px  
         return Math.min(2.5, Math.max(1.0, 3.2 - 2 * aspectRatio));
     }
 

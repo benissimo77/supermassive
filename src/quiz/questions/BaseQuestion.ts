@@ -32,6 +32,7 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
     declare public scene: BaseScene;
     protected questionData: BaseQuestionData;
     private answerCallback: Function;
+    private answerSubmitted: Boolean = false;
 
     // References to all question elements so they can be repositioned indepenendently
     protected questionText: Phaser.GameObjects.Text;
@@ -105,7 +106,7 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
     }
 
     // This copied from Copilot - maybe it will just work??? Replaces above two functions
-    private calculateLayout() {
+    protected calculateLayout() {
         const TOTAL = 1080;
 
         // What do we need?
@@ -174,8 +175,8 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
             case 'number-closest': return 640;
             case 'ordering': return 640;
             case 'matching': return 640;
-            case 'hotspot': return 80;
-            case 'point-it-out': return 80;
+            case 'hotspot': return 640;
+            case 'point-it-out': return 640;
             default: return 200;
         }
     }
@@ -188,8 +189,8 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
             case 'number-closest': return 720;
             case 'ordering': return 720;
             case 'matching': return 720;
-            case 'hotspot': return 80;
-            case 'point-it-out': return 80;
+            case 'hotspot': return 720;
+            case 'point-it-out': return 720;
             default: return 400;
         }
     }
@@ -237,7 +238,7 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
         }
 
         // All screen types create answer UI (implemented by subclasses)
-        this.createAnswerUI();
+        await this.createAnswerUI();
 
     }
 
@@ -390,7 +391,7 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
             // Create image with CENTER origin (0.5, 0.5)
             // Changed from (0.5, 0) for consistency with all other elements
             const image = this.scene.add.image(0, 0, textureKey);
-            image.setOrigin(0.5, 0.5); // ← Changed to center origin
+            image.setOrigin(0.5);
 
             return image;
 
@@ -445,6 +446,7 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
      */
     private createQuestionVideo(url: string): YouTubePlayerUI {
 
+        console.log('BaseQuesition::createQuestionVideo:', url);
         const playerUI = YouTubePlayerUI.getInstance(this.scene);
 
         // Load the video (only once!)
@@ -452,13 +454,6 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
         return playerUI;
     }
 
-    /**
-     * Abstract method - each question type implements its specific content - returns a Container containing all relevant answer UI
-     */
-    protected abstract createAnswerUI(): void;
-    protected abstract displayAnswerUI(height: number): void;
-    protected abstract makeInteractive(): void;
-    protected abstract makeNonInteractive(): void;
 
     /**
      * Abstract method - each question type implements its specific content - returns a Container containing all relevant answer UI
@@ -467,14 +462,15 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
 
     /**
      * Default implementation for showing answer results
+     * Function assumes question is already initialized and displayed - data is in questionData
+     * Remaining task here is to stop audio/video from playing (we are showing the answer now)
      */
-    showAnswer(questionData: any): void {
+    showAnswer(): void {
 
         // If we have implemented this correctly then just displaying the question again should be enough
         // questionData.mode = 'answer' when answering the question and this can be used to determine if we need to show the answer
         // Let subclasses implement specific answer visualization
-        this.questionData = questionData;
-        this.display();
+        this.revealAnswerUI();
     }
 
     // Called by QuizHost when question finished with
@@ -486,6 +482,15 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
         playerUI.setPosition(0, -4000);
         super.destroy(fromScene);
     }
+
+     /**
+     * Abstract method - each question type implements its specific content
+     */
+    protected abstract createAnswerUI(): void;
+    protected abstract displayAnswerUI(height: number): void;
+    protected abstract revealAnswerUI(): void;
+    protected abstract makeInteractive(): void;
+    protected abstract makeNonInteractive(): void;
 
     // I think this can be removed...
     protected createTextureFromBase64XXX(key: string, base64: string): void {

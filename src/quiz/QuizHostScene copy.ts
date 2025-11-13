@@ -7,6 +7,8 @@ import { SocketDebugger } from "src/SocketDebugger";
 
 import { QuestionFactory } from "./questions/QuestionFactory";
 import { BaseQuestion } from "./questions/BaseQuestion";
+import { HostPresenter } from "./presenters/HostPresenter";
+
 import { Racetrack } from "./Racetrack";
 import { PlayerConfig, PhaserPlayer } from './PhaserPlayer';
 import { YouTubePlayerUI } from './YouTubePlayerUI';
@@ -31,6 +33,7 @@ export class QuizHostScene extends BaseScene {
     private playerScores: Map<string, number> = new Map();
     private playerAnswers: Map<string, any> = new Map();
     private questionFactory: QuestionFactory;
+    private presenter: HostPresenter;
 
     // UI elements
     private timerBar: Phaser.GameObjects.Graphics;
@@ -104,14 +107,11 @@ export class QuizHostScene extends BaseScene {
         this.load.image('crosshair', '/img/crosshair40.png');
 
         // Audio assets - theme music
-        this.load.audio('quiz-music-intro', '/assets/audio/quiz/music/modern-beat-jingle-intro-149598.mp3');
+        this.load.audio('quiz-music-intro', '/assets/audio/modern-beat-jingle-intro-149598.mp3');
         // Audio - voice
-        this.load.audio('quiz-voice-intro', '/assets/audio/quiz/music/quiz-intro-Gabriella.mp3');
+        this.load.audio('quiz-voice-intro', '/assets/audio/quiz-intro-Gabriella.mp3');
         // Audio SFX
-        this.load.audio('answer-correct', '/assets/audio/quiz/fx/320655__rhodesmas__level-up-01.wav');
-        this.load.audio('answer-incorrect', '/assets/audio/quiz/fx/150879__nenadsimic__jazzy-chords.wav');
-        this.load.audio('button-click', '/assets/audio/quiz/fx/114187__edgardedition__thud17.wav');
-        this.load.audio('submit-answer', '/assets/audio/quiz/fx/585256__lesaucisson__swoosh-2.mp3');
+        this.load.audio('answer-correct', '/assets/audio/moneytree-answercorrect.wav');
 
         // Load custom fonts
         this.load.rexWebFont({
@@ -125,6 +125,9 @@ export class QuizHostScene extends BaseScene {
     create(): void {
 
         super.create();
+
+        // Create a presenter for displaying the question/answers
+        this.presenter = new HostPresenter(this);
 
         if (this.rexUI) {
             // Create your UI components
@@ -165,7 +168,7 @@ export class QuizHostScene extends BaseScene {
 
         // Only create the debugger in debug mode
         const debugMode = __DEV__;
-        if (debugMode && 0) {
+        if (debugMode) {
             this.socketDebugger = new SocketDebugger(this, this.socket);
         }
 
@@ -189,7 +192,7 @@ export class QuizHostScene extends BaseScene {
         this.socket.emit('host:ready', {}, (response: any) => {
             console.log('Host is ready:', response);
             if (response.room) {
-               // this.showRoomID(response.room);
+                this.showRoomID(response.room);
             }
         });
 
@@ -258,10 +261,10 @@ export class QuizHostScene extends BaseScene {
             this.showRoundIntro(data.roundnumber, data.title, data.description);
         });
 
-        // Listen for question - not sure if this should all be here...
+        // Listen for question
         this.socket.on('server:question', async (question, callback) => {
-            let receivedTime = Date.now();
-            await this.createQuestion(question);
+            const receivedTime = Date.now();
+            await this.displayQuestion(question);
             const displayTime = Date.now() - receivedTime;
             const deviceInfo = {
                 device: /iPad/.test(navigator.userAgent) ? 'iPad' :
@@ -269,41 +272,10 @@ export class QuizHostScene extends BaseScene {
                         /Android/.test(navigator.userAgent) ? 'Android' : 'Other',
                 displayTime: displayTime
             };
+
             callback(deviceInfo);
 
-            // Animate the arrival of the question - based on the direction we are currently moving
-            // This might be better moved to its own function but for now leave it here...
-            if (question.direction === 'forward') {
-                this.currentQuestion.x = 1920;
-            } else {
-                this.currentQuestion.x = -1920;
-            }
-            // Make sure it's added to the scene, and to the question container (for depth management)
-            this.add.existing(this.currentQuestion);
-            this.questionContainer.add(this.currentQuestion);
-
-            gsap.to(this.currentQuestion, {
-                duration: 1,
-                x: 0,
-                ease: 'back.out(1.7)',
-                onComplete: () => {
-                    console.log('GSAP animation complete!');
-                    this.socket.emit('host:response');
-                    // Update receivedTime just to make answerTime slightly more accurate
-                    receivedTime = Date.now();
-                }
-            });
-
-            // This code taken from QuizPlayScene - the way to submit an answer (for single-player mode when hosting)
-            this.currentQuestion.onAnswer((answer: any) => {
-                console.log('QuizHostScene:: answer:', answer);
-                // Send the answer to the server
-                this.socket.emit('client:response', { answer: answer, answerTime: Date.now() - receivedTime });
-                // this.sound.play('submit-answer');
-            });
-
         });
-
 
         // Player answered a question
         this.socket.on('server:questionanswered', (data) => {
@@ -312,12 +284,8 @@ export class QuizHostScene extends BaseScene {
         });
 
         // Show answer
-        this.socket.on('server:showanswer', async (question) => {
-            await this.createQuestion(question);
-            // Make sure it's added to the scene, and to the question container (for depth management)
-            this.add.existing(this.currentQuestion);
-            this.questionContainer.add(this.currentQuestion);
-            this.showAnswer();
+        this.socket.on('server:showanswer', (data) => {
+            this.showAnswer(data);
         });
 
         // Update scores
@@ -573,13 +541,9 @@ export class QuizHostScene extends BaseScene {
         return button;
     }
 
-    /* createQuestion
-     * Initialize and create a complete question display based on question data
-     * Once created the calling function is responsible for adding it to the scene / animating it in whatever...
-     */
-    private async createQuestion(question: any): Promise<void> {
+    private async displayQuestion(question: any): Promise<void> {
 
-        console.log('QuizHostScene:: createQuestion:', question);
+        console.log('QuizHostScene:: displayQuestion:', question);
 
         // Clear previous UI
         this.clearUI();
@@ -593,7 +557,6 @@ export class QuizHostScene extends BaseScene {
             // Call the async function to initialize and display the question
             // async because loading an image/video may be required this could take a while
             await this.currentQuestion.initialize();
-            this.currentQuestion.displayHost();
 
             // Debug container position and visibility
             console.log('Question container:', {
@@ -603,16 +566,41 @@ export class QuizHostScene extends BaseScene {
                 alpha: this.currentQuestion.alpha,
                 children: this.currentQuestion.list.length
             });
+
+            // Animate the arrival of the question - based on the direction we are currently moving
+            if (question.direction === 'forward') {
+                this.currentQuestion.x = 1920;
+            } else {
+                this.currentQuestion.x = -1920;
+            }
+            // Make sure it's added to the scene, and to the question container (for depth management)
+            this.add.existing(this.currentQuestion);
+            this.questionContainer.add(this.currentQuestion);
+
+            gsap.to(this.currentQuestion, {
+                duration: 1,
+                x: 0,
+                ease: 'back.out(1.7)',
+                onComplete: () => {
+                    console.log('GSAP animation complete!');
+                    this.socket.emit('host:response');
+                }
+            });
+
+            // This code taken from QuizPlayScene - the way to submit an answer (for single-player mode when hosting)
+            this.currentQuestion.onAnswer((answer: any) => {
+                console.log('QuizHostScene:: answer:', answer);
+                // Send the answer to the server
+                this.socket.emit('client:response', answer);
+            });
+
         }
+
     }
 
-    /* showAnswer
-     * Show the answer for the current question
-     * Note that we don't pass questionData into the function since it has just been created so will be stored in this.currentQuestion
-     */
-    private showAnswer(): void {
+    private showAnswer(questionData: any): void {
         if (this.currentQuestion) {
-            this.currentQuestion.showAnswer();
+            this.currentQuestion.showAnswer(questionData);
         }
     }
 
@@ -841,10 +829,10 @@ export class QuizHostScene extends BaseScene {
 
     sceneDisplay(): void {
         // Called from BaseScene when the screen is resized
-        // Works for the question but I need to extend this to all other elements...
+        // Works for the question but I need to extend this to all other elements... but not a priority
         console.log('QuizHostScene:: sceneDisplay: updating layout for new size');
         if (this.currentQuestion) {
-            this.currentQuestion.displayHost();
+            this.currentQuestion.display();
         }
     }
 

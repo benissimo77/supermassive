@@ -52,16 +52,18 @@ export default class NumberQuestion extends BaseQuestion {
             // We always want this to be interactive so just do it right away
             this.makeInteractive();
 
-            // For host we just create an answerText object to display the answer
-            const answerStyle: Phaser.Types.GameObjects.Text.TextStyle = {
-                fontSize: 96,
-            }
-            const answerConfig: Phaser.Types.GameObjects.Text.TextStyle = Object.assign({}, this.scene.labelConfig, answerStyle);
-            this.answerText = this.scene.add.text(0, 0, '', answerConfig)
-                .setOrigin(0.5);
-            this.answerContainer.add([this.answerText]);
         }
 
+        // For all screen types create an answerText object to display the answer
+        // Used by HOST to display message, by player when submitting their answer
+        // Note: font size of 120 is important since it matches the font size of the keypad text
+        const answerStyle: Phaser.Types.GameObjects.Text.TextStyle = {
+            fontSize: 120,
+        }
+        const answerConfig: Phaser.Types.GameObjects.Text.TextStyle = Object.assign({}, this.scene.labelConfig, answerStyle);
+        this.answerText = this.scene.add.text(0, 0, '', answerConfig)
+            .setOrigin(0.5, 0);
+        this.answerContainer.add([this.answerText]);
 
         // DEBUG - add rectangle to originof the answer container
         const debugRect = this.scene.add.rectangle(0, 0, 5, 5, 0xff0000, 0.5).setOrigin(0.5);
@@ -70,9 +72,11 @@ export default class NumberQuestion extends BaseQuestion {
 
     protected displayAnswerUI(answerHeight: number): void {
 
+        let scale:number = 1;
 
+        // HOST display either the answer or a message to type answer
+        // Text already placed at (0,0) so no need to re-position
         if (this.scene.TYPE === 'host') {
-            // Display the answer text
             let answerText: string = '';
             if (this.questionData.mode == 'answer' && this.questionData.answer !== undefined) {
                 answerText = this.questionData.answer.toString();
@@ -90,7 +94,11 @@ export default class NumberQuestion extends BaseQuestion {
             this.submitButton.setButtonSize(320 * scaleFactor, 80 * scaleFactor);
             this.submitButton.setTextSize(46 * scaleFactor);
             this.submitButton.setPosition(960 - 160 * scaleFactor - 20, this.scene.getY(answerHeight) - 40 * scaleFactor - 20);
-            answerHeight -= 80 * scaleFactor;
+            
+            // for portrait mode we can safely reduce answer height as we have loads of space
+            if (scaleFactor > 1) {
+                answerHeight -= 80 * scaleFactor;
+            }
 
             // keypad is inside answerContainer which is positioned at 960 horizontally
             // We want to move keypad to the bottom of the screen, so use its own height to identify how much further to move it
@@ -100,17 +108,23 @@ export default class NumberQuestion extends BaseQuestion {
 
             // if not enough space then scale keypad down
             if (keypadHeight > this.scene.getY(answerHeight) - 40) {
-                const scale: number = (this.scene.getY(answerHeight) - 40) / keypadHeight;
+                scale = (this.scene.getY(answerHeight) - 40) / keypadHeight;
                 this.keypad.setScale(scale);
             } else {
                 // more space can scale keypad up
                 const scaleY: number = (this.scene.getY(answerHeight) - 40) / keypadHeight;
                 const scaleX: number = (1920 - 80) / this.keypad.getBounds().width;
-                const scale: number = Math.min(scaleX, scaleY);
-                this.keypad.setScale(scale);
-                // this.scene.socket?.emit('consolelog', `NumberQuestion::displayAnswerUI: scaleUP: answerHeight=${answerHeight} (${this.scene.getY(answerHeight)}) OrigkeypadHeight=${keypadHeight} newScaledHeight: ${this.keypad.getBounds().height} scaledWidth=${this.keypad.getBounds().width}`);
+                scale = Math.min(scaleX, scaleY);
             }
+
+            this.keypad.setScale(scale);
             this.keypad.setPosition(0, this.scene.getY(answerHeight) - 40 - this.keypad.getBounds().height);
+            this.scene.socket?.emit('consolelog', `NumberQuestion::displayAnswerUI: scaleUP: scale=${scale} answerHeight=${answerHeight} (${this.scene.getY(answerHeight)}) OrigkeypadHeight=${keypadHeight} newScaledHeight: ${this.keypad.getBounds().height} scaledWidth=${this.keypad.getBounds().width}`);
+
+            // Also scale the answerText since this should align with the keyboard answerText
+            // I'm wondering if I should bite the bullet and split out the keyboard from the keyboard TEXT... pfff!
+            this.answerText.setScale(scale);
+            this.answerText.setPosition(0, this.keypad.y);
 
         }
 
@@ -124,28 +138,7 @@ export default class NumberQuestion extends BaseQuestion {
         this.keypad.makeInteractive();
         this.submitButton.setInteractive({ useHandCuror: true });
         this.submitButton.on('pointerup', () => {
-            console.log('TextQuestion::createAnswerUI: Submit button clicked');
-            let answer = this.keypad.getAnswerText() ? this.keypad.getAnswerText().trim() : '0';
-            if (answer === '-') {
-                answer = '0';
-            }
-            this.makeNonInteractive();
-            this.submitAnswer(answer);
-
-            // Juice - animate the keypad out
-            const tl = gsap.timeline();
-            tl.to(this.submitButton, {
-                x: 2400,
-                duration: 0.5,
-                ease: 'back.in'
-            });
-            tl.to(this.keypad, {
-                y: 2160,
-                duration: 0.5,
-                ease: 'power2.in',
-                stagger: 0.05
-            }, "<");
-            tl.play();
+            this.handleSubmit();
         });
 
     }
@@ -153,6 +146,48 @@ export default class NumberQuestion extends BaseQuestion {
         this.keypad.makeNonInteracetive();
         this.submitButton.removeAllListeners();
         this.submitButton.disableInteractive();
+    }
+
+    private handleSubmit(): void {
+        console.log('TextQuestion::createAnswerUI: Submit button clicked');
+        let answer = this.keypad.getAnswerText() ? this.keypad.getAnswerText().trim() : '0';
+        if (answer === '-') {
+            answer = '0';
+        }
+        this.makeNonInteractive();
+        this.submitAnswer(answer);
+
+        // Display the answer to user for final confirmation (relies on existence of answerText - used by host also)
+        this.answerText.setText(answer);
+        this.answerText.setVisible(true);
+        this.keypad.setAnswerText('');
+
+        // Juice - animate the keypad out
+        const tl = gsap.timeline();
+        tl.to(this.submitButton, {
+            y: this.scene.getY(2160),
+            duration: 0.5,
+            ease: 'back.in'
+        });
+        tl.to(this.keypad, {
+            y: this.scene.getY(2160),
+            duration: 0.5,
+            ease: 'back.in'
+        }, "<");
+        tl.to(this.answerText, {
+            scale: this.answerText.scale *  1.8,
+            duration: 1.8,
+            ease: 'power2.out'
+        }, "<");
+        tl.to(this.answerText, {
+            y: this.scene.getY(2160),
+            duration: 0.5,
+            ease: 'back.in'
+        }, ">");
+        tl.add(() => {
+            this.scene.sound.play('submit-answer');
+        }, "<+0.25");
+        tl.play();
     }
 
     protected revealAnswerUI(): void {

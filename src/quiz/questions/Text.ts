@@ -218,10 +218,8 @@ export default class TextQuestion extends BaseQuestion {
             duration: 0.5,
             ease: 'back.in'
         }, "<");
-        tl.fromTo(this.answerText, {
-            scale: 1,
-        }, {
-            scale: 1.8,
+        tl.to(this.answerText, {
+            scale: this.answerText.scale * 1.8,
             duration: 1.8,
             ease: 'power2.out'
         }, "<");

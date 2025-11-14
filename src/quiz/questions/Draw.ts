@@ -458,27 +458,15 @@ export default class DrawQuestion extends BaseQuestion {
 
         // Juice - animate the canvas and buttons out
         const tl = gsap.timeline();
-        tl.to(this.submitButton, {
-            y: 2000,
-            duration: 0.5,
-            ease: 'back.in'
-        });
-        tl.to(this.controlsPanel, {
-            x: -120,
-            duration: 0.5,
-            ease: 'back.in'
-        }, "<");
-        tl.to(this.drawingContainer, {
-            scale: 0.2,
-            duration: 0.5,
-            ease: 'power2.inOut'
-        });
-        tl.to(this.drawingContainer, {
-            x: 2000,
-            duration: 0.5,
-            ease: 'power2.inOut'
-        });
-        tl.play();
+		tl.to(this.answerContainer, {
+			y: this.scene.getY(2160),
+			duration: 0.5,
+			ease: 'back.in'
+		});
+		tl.add(() => {
+			this.scene.sound.play('submit-answer');
+		}, "<+0.25");
+		tl.play();
 
     }
 

@@ -382,16 +382,14 @@ export default class HotspotQuestion extends BaseQuestion {
 
 		// Animate out (same as other question types)
 		const tl = gsap.timeline();
-		tl.to(this.submitButton, {
-			x: 2400,
+		tl.to(this.answerContainer, {
+			y: this.scene.getY(2160),
 			duration: 0.5,
 			ease: 'back.in'
 		});
-		tl.to(this.answerContainer, {
-			y: 2160,
-			duration: 0.5,
-			ease: 'power2.in'
-		}, "<");
+		tl.add(() => {
+			this.scene.sound.play('submit-answer');
+		}, "<+0.25");
 		tl.play();
 	}
 

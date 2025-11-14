@@ -41,14 +41,14 @@ export class Keypad extends Phaser.GameObjects.Container {
         // Create a keybaord - maybe make this a separate class at some point?
         // Create the 26 buttons to provide text input since I can't figure out how to make the DOM input field work properly
         const keyboardButtons: string[] = ['789', '456', '123', '-0.'];
-        const keyPadding:number = 24;
+        const keyPadding: number = 24;
         const buttonHeight: number = 120;
         const rowHeight: number = buttonHeight + keyPadding;
         const topPadding: number = 180 + buttonHeight / 2;
-        const leftPadding:number = 690/2 - buttonHeight/2
+        const leftPadding: number = 690 / 2 - buttonHeight / 2
 
-        keyboardButtons.forEach( (row, rowIndex) => {
-            row.split('').forEach( (char: string, charIndex: number) => {
+        keyboardButtons.forEach((row, rowIndex) => {
+            row.split('').forEach((char: string, charIndex: number) => {
                 const button: NineSliceButton = new NineSliceButton(this.scene, char);
                 button.setButtonSize(buttonHeight, buttonHeight);
                 button.setPosition(-leftPadding + (rowIndex * keyPadding) + (charIndex * (buttonHeight + keyPadding)), topPadding + rowHeight * rowIndex);
@@ -72,7 +72,7 @@ export class Keypad extends Phaser.GameObjects.Container {
 
     public makeInteractive(): void {
 
-        this.keys.forEach( (button: NineSliceButton, char: string) => {
+        this.keys.forEach((button: NineSliceButton, char: string) => {
             button.setInteractive({ useHandCuror: true });
             button.on('pointerup', () => {
                 if (char === '-') {
@@ -103,7 +103,7 @@ export class Keypad extends Phaser.GameObjects.Container {
     }
     public makeNonInteracetive(): void {
 
-        this.keys.forEach( (button: NineSliceButton, char: string) => {
+        this.keys.forEach((button: NineSliceButton, char: string) => {
             button.removeAllListeners();
             button.disableInteractive();
         });
@@ -113,4 +113,8 @@ export class Keypad extends Phaser.GameObjects.Container {
     public getAnswerText(): string {
         return this.answerText.text;
     }
+    public setAnswerText(text: string): void {
+        this.answerText.setText(text);
+    }
+
 }

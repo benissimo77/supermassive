@@ -46,9 +46,6 @@ class Room {
 			if (this.host) {
 				this.#io.to(this.host.socketID).emit('playerconnect', player);
 			}
-			// and send the player their player object for display on the play page
-			// NOTE: might move this to only respond after an explicit client:ready event (similar to host)
-			this.#io.to(socket.id).emit('player', player);
 
 			// TODO: some games might not allow players to join after the game has started - need to handle logic in this case...
 			// In this case we allow player to join...
@@ -65,6 +62,17 @@ class Room {
 			if (this.clientResponseHandler) {
 				this.clientResponseHandler(socket, response);
 			}
+		})
+
+		socket.on('player:ready', (data, callback) => {
+			console.log('player:ready from socket:', socket.id, data, callback);
+			if (callback && typeof callback === 'function') {
+				const player = this.getPlayerBySocketID(socket.id);
+				callback(player);
+			}
+			// and send the player their player object for display on the play page
+			// this.#io.to(socket.id).emit('playerconnect', player);
+
 		})
 
 		// Just see if I can catch a socket connect/disconnect events

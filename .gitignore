@@ -5,5 +5,7 @@ audio_test
 dist/
 puppets/
 src/assets/
-NOTES.TXT
+NOTES.md
+certs/
+.vscode/
 

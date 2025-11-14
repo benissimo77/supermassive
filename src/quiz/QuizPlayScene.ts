@@ -1,9 +1,10 @@
+import gsap from 'gsap';
 import { BaseScene } from "src/BaseScene";
 
 import { QuestionFactory } from "./questions/QuestionFactory";
 import { BaseQuestion } from "./questions/BaseQuestion";
 
-import { PlayerConfig } from "src/DOMPlayer";
+import { PlayerConfig, PhaserPlayer } from "./PhaserPlayer";
 
 
 export class QuizPlayScene extends BaseScene {
@@ -13,9 +14,12 @@ export class QuizPlayScene extends BaseScene {
     private currentQuestion: BaseQuestion;
     private questionFactory: QuestionFactory;
     private answerSubmitted: Boolean = false;
+    private phaserPlayer: PhaserPlayer;
 
     // UI elements
     protected UIContainer: Phaser.GameObjects.Container;
+    private waitingText: Phaser.GameObjects.Text;
+    private waitingPanel: Phaser.GameObjects.Container;
 
     // Add this constructor to set the scene key
     constructor() {
@@ -81,10 +85,24 @@ export class QuizPlayScene extends BaseScene {
         // connectButton.setInteractive({ useHandCursor: true });
         // connectButton.on('pointerdown', () => this.toggleConnect());
 
+        // Create the waiting panel - this will be shown at the beginnig of the quiz and between questions
+        this.waitingPanel = this.add.container(960, 540);
+        this.waitingText = this.add.text(0, 0, 'Waiting for quiz to start...', this.labelConfig).setOrigin(0.5);
+        this.waitingPanel.add(this.waitingText);
+        this.waitingPanel.setScale(this.getUIScaleFactor());
+        this.waitingPanel.setVisible(true);
 
         // Let the server know we're ready - this could come from a button click or other event
-        // Note: I don't believe this does anything...
-        this.socket.emit('play:requeststart', {});
+        // Note: at the moment all this does is receive the player details via the callback function
+        this.socket.emit('player:ready', {}, (playerConfig: PlayerConfig) => {
+            console.log('QuizPlayScene:: player:ready callback:', playerConfig);
+            this.phaserPlayer = new PhaserPlayer(this, playerConfig);
+            this.phaserPlayer.setScale(this.getUIScaleFactor());
+            this.add.existing(this.phaserPlayer);
+            this.phaserPlayer.setPosition(-480, Phaser.Math.Between(this.getY(200), this.getY(880)));
+            this.animatePlayer(this.phaserPlayer);
+
+        });
     }
 
 
@@ -99,13 +117,6 @@ export class QuizPlayScene extends BaseScene {
 
     private setupSocketListeners(): void {
 
-        // Player connect/disconnect - these are caught by BaseScene but quiz can also take action
-        this.socket.on('playerconnect', (playerConfig: PlayerConfig) => {
-            console.log('QuizPlayScene:: playerconnect:', playerConfig.name, playerConfig.avatar);
-            // this.animatePlayer(thisPlayer);
-        });
-
-
         // Listen for intro quiz message
         this.socket.on('server:introquiz', (data) => {
             this.showQuizIntro(data.title, data.description);
@@ -118,6 +129,17 @@ export class QuizPlayScene extends BaseScene {
 
         // Listen for question
         this.socket.on('server:question', async (question, callback) => {
+
+            this.waitingPanel.setVisible(false);
+            this.tweens.killAll();
+            this.tweens.add({
+                targets: this.phaserPlayer,
+                x: 0,
+                y: this.getY(1060),
+                duration: Phaser.Math.Between(2000, 4000),
+                ease: 'Back.Out'
+            })
+
             const receivedTime = Date.now();
             await this.createQuestion(question);
             const displayTime = Date.now() - receivedTime;
@@ -189,11 +211,32 @@ export class QuizPlayScene extends BaseScene {
                 // This flag prevents the question from being re-displayed if sceneDisplay fires eg on resize
                 this.answerSubmitted = true;
 
+                // Show waiting panel and animate player after a short delay to allow submitted answer to disappear
+                // Also hide the question panel otherwise it might appear when resizing mobile
+                this.time.delayedCall(2500, () => {
+                    if (this.currentQuestion) {
+                        this.currentQuestion.setVisible(false);
+                    }
+                    this.waitingText.text = 'Waiting for next question...';
+                    this.waitingText.setFontSize(8);
+                    this.waitingPanel.setVisible(true);
+                    this.tweens.killAll();
+                    this.animatePlayer(this.phaserPlayer);
+                    this.tweens.addCounter({
+                        from: 0.1,
+                        to: 1,
+                        duration: 1000,
+                        ease: 'Back.Out',
+                        onUpdate: (tween) => {
+                            const scale:number | null = tween.getValue();
+                            this.waitingText.setFontSize(8 + (scale || 1) * 28);
+                    })
+                });
             });
 
         });
 
-        // Player answered a question
+        // Player answered a question (used in Host scene)
         this.socket.on('server:questionanswered', (data) => {
             // this.updatePlayerAnswer(data.sessionID, data.response);
         });
@@ -206,6 +249,7 @@ export class QuizPlayScene extends BaseScene {
 
         // Show answer
         this.socket.on('server:showanswer', (data) => {
+            console.log('QuizPlayScene:: server:showanswer:', data.answer);
             this.showAnswer(data);
         });
 
@@ -358,6 +402,19 @@ export class QuizPlayScene extends BaseScene {
         }
     }
 
+    animatePlayer(player: PhaserPlayer): void {
+        // console.log('animatePlayer:', player);
+        this.tweens.add({
+            targets: player,
+            x: Phaser.Math.Between(0, 1920),
+            y: Phaser.Math.Between(0, this.getY(1080)),
+            duration: Phaser.Math.Between(2000, 4000),
+            ease: 'Cubic.easeInOut',
+            onComplete: () => {
+                this.animatePlayer(player);
+            }
+        });
+    }
 
 
     // We need to supply this function to satisfy the abstract method in BaseScene
@@ -451,6 +508,19 @@ export class QuizPlayScene extends BaseScene {
             // nothing needs to be done here - display should resize itself good enough for now...
         } else if (this.currentQuestion) {
             this.currentQuestion.displayPlayer();
+        }
+
+        // Re-position waiting panel
+        if (this.waitingPanel) {
+            this.waitingPanel.setPosition(960, this.getY(540));
+            this.waitingPanel.setScale(this.getUIScaleFactor());
+        }
+        // Re-scale and position player if answer NOT submitted ie player is in corner
+        if (this.phaserPlayer) {
+            this.phaserPlayer.setScale(this.getUIScaleFactor());
+            if (!this.answerSubmitted) {
+                this.phaserPlayer.setPosition(0, this.getY(1060));
+            }   
         }
     }
 

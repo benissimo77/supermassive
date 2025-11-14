@@ -1,6 +1,5 @@
 // src/audio/SoundManager.ts
 import { BaseScene } from 'src/BaseScene';
-import { Sound } from 'phaser';
 
 // Extend Phaser's Sound types to include missing methods
 declare module 'phaser' {
@@ -17,7 +16,7 @@ export interface Track {
     key: string;
     config?: Phaser.Types.Sound.SoundConfig;
     marker?: string;
-    category: 'music' | 'sfx' | 'voice';
+    category: 'music' | 'fx' | 'voice';
     fadeIn?: number;
     fadeOut?: number;
     loop?: boolean;
@@ -40,14 +39,14 @@ export class SoundManager {
     private volumeLevels = {
         master: 1.0,
         music: 0.7,
-        sfx: 1.0,
+        fx: 1.0,
         voice: 1.0
     };
 
     private muted = {
         master: false,
         music: false,
-        sfx: false,
+        fx: false,
         voice: false
     };
 
@@ -71,10 +70,10 @@ export class SoundManager {
     /**
      * Play a sound effect once
      */
-    playSfx(key: string, volume: number = 1.0): void {
-        if (this.muted.master || this.muted.sfx) return;
+    playFX(key: string, volume: number = 1.0): void {
+        if (this.muted.master || this.muted.fx) return;
 
-        const actualVolume = volume * this.volumeLevels.master * this.volumeLevels.sfx;
+        const actualVolume = volume * this.volumeLevels.master * this.volumeLevels.fx;
         this.scene.sound.play(key, { volume: actualVolume });
     }
 
@@ -266,7 +265,7 @@ export class SoundManager {
     /**
      * Stop all sounds in a specific category
      */
-    stopCategory(category: 'music' | 'sfx' | 'voice', fadeOut: number = 0): void {
+    stopCategory(category: 'music' | 'fx' | 'voice', fadeOut: number = 0): void {
 
         this.tracks.forEach((track, key) => {
             if (track.category === category) {
@@ -294,7 +293,7 @@ export class SoundManager {
      */
 
 
-    setVolume(category: 'master' | 'music' | 'sfx' | 'voice', level: number): void {
+    setVolume(category: 'master' | 'music' | 'fx' | 'voice', level: number): void {
 
         console.log('setVolume:', { category, level }, this.tracks, this.currentMusic);
 
@@ -318,7 +317,7 @@ export class SoundManager {
     /**
      * Mute/unmute a category
      */
-    setMute(category: 'master' | 'music' | 'sfx' | 'voice', muted: boolean): void {
+    setMute(category: 'master' | 'music' | 'fx' | 'voice', muted: boolean): void {
         this.muted[category] = muted;
 
         // Update all playing sounds
@@ -334,10 +333,10 @@ export class SoundManager {
     }
 
     // GETTERS
-    getVolume(category: 'master' | 'music' | 'sfx' | 'voice'): number {
+    getVolume(category: 'master' | 'music' | 'fx' | 'voice'): number {
         return this.volumeLevels[category];
     }
-    isMuted(category: 'master' | 'music' | 'sfx' | 'voice'): boolean {
+    isMuted(category: 'master' | 'music' | 'fx' | 'voice'): boolean {
         return this.muted[category];
     }
 
@@ -358,7 +357,7 @@ export class SoundManager {
             key,
             loop: true,
             volume: 0.5,
-            category: 'sfx',
+            category: 'fx',
             fadeIn: 2000,
             fadeOut: 2000,
             ...options

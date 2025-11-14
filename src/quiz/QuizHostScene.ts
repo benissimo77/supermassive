@@ -8,7 +8,7 @@ import { SocketDebugger } from "src/SocketDebugger";
 import { QuestionFactory } from "./questions/QuestionFactory";
 import { BaseQuestion } from "./questions/BaseQuestion";
 import { Racetrack } from "./Racetrack";
-import { PlayerConfig, PhaserPlayer } from './PhaserPlayer';
+import { PlayerConfig, PhaserPlayerState, PhaserPlayer } from './PhaserPlayer';
 import { YouTubePlayerUI } from './YouTubePlayerUI';
 
 import { SoundManager } from 'src/audio/SoundManager';
@@ -112,6 +112,7 @@ export class QuizHostScene extends BaseScene {
         this.load.audio('answer-incorrect', '/assets/audio/quiz/fx/150879__nenadsimic__jazzy-chords.wav');
         this.load.audio('button-click', '/assets/audio/quiz/fx/114187__edgardedition__thud17.wav');
         this.load.audio('submit-answer', '/assets/audio/quiz/fx/585256__lesaucisson__swoosh-2.mp3');
+        this.load.audio('question-answered', '/assets/audio/quiz/fx/446100__justinvoke__bounce.wav');
 
         // Load custom fonts
         this.load.rexWebFont({
@@ -145,6 +146,7 @@ export class QuizHostScene extends BaseScene {
         this.backgroundContainer.add(overlay);
 
         // Create score racetrack but begin with it off-screen
+        // TODO: factor this out into its own SCENE
         this.racetrack = new Racetrack(
             this,
             1920,
@@ -158,6 +160,7 @@ export class QuizHostScene extends BaseScene {
         // Note: these are added to the 'base' containers set up in BaseScene: background, UI, main, top, overlay
         this.playerContainer = this.add.container(0, 0);
         this.questionContainer = this.add.container(0, 0);
+        this.mainContainer.add(this.playerContainer);
         this.mainContainer.add(this.questionContainer);
 
         // Start background music - this works
@@ -217,10 +220,7 @@ export class QuizHostScene extends BaseScene {
             if (player) {
                 player.connected();
             } else {
-                const thisPlayer: PhaserPlayer = this.addPlayer(playerConfig);
-                this.racetrack.addPlayersToTrack(this.getPlayerConfigsAsArray());
-                console.log(' DEBUG: - added to racetrack...');
-                // this.animatePlayer(thisPlayer);
+                this.addPlayer(playerConfig);
             }
         });
 
@@ -242,8 +242,6 @@ export class QuizHostScene extends BaseScene {
             playerConfigs.forEach((playerConfig: PlayerConfig) => {
                 this.addPlayer(playerConfig);
             });
-
-            this.racetrack.addPlayersToTrack(this.getPlayerConfigsAsArray());
         });
 
 
@@ -302,13 +300,33 @@ export class QuizHostScene extends BaseScene {
                 // this.sound.play('submit-answer');
             });
 
-        });
+            // Set all players to state of ANSWERING - this will move them to the bottom of the screen
+            this.phaserPlayers.forEach((player: PhaserPlayer) => {
+                player.setPlayerState(PhaserPlayerState.ANSWERING);
+            });
 
+        });
 
         // Player answered a question
         this.socket.on('server:questionanswered', (data) => {
             this.playerAnswers.set(data.sessionID, data.response);
             this.updatePlayerAnswer(data.sessionID, data.response);
+            const player: PhaserPlayer = this.getPlayerBySessionID(data.sessionID);
+            if (player) {
+                player.setPlayerState(PhaserPlayerState.ANSWERED);
+                this.tweens.killTweensOf(player);
+                this.sound.play('question-answered', { volume: 0.3 });
+                this.tweens.add({
+                    targets: player,
+                    y: this.getY(880),
+                    duration: 500,
+                    ease: 'Back.InOut',
+                    onComplete: () => {
+                        player.setPlayerState(PhaserPlayerState.FLOATING);
+                        this.animatePlayer(player);
+                    }
+                });
+            }
         });
 
         // Show answer
@@ -395,18 +413,31 @@ export class QuizHostScene extends BaseScene {
         }
     }
 
+    // addPlayer - accepts a playerConfig and creates a PhaserPlayer instance
+    // Performs all relevant initialization and sets up the player in the scene
+    // Returns a PhaserPlayer instance, though maybe this is not needed
     addPlayer(playerConfig: PlayerConfig): PhaserPlayer {
         const phaserPlayer: PhaserPlayer = new PhaserPlayer(this, playerConfig);
         this.phaserPlayers.set(playerConfig.sessionID, phaserPlayer);
         this.add.existing(phaserPlayer);
-        // phaserPlayer.setPosition(0, Phaser.Math.Between(0, this.getY(1080)));
-        // this.animatePlayer(phaserPlayer);
+        this.playerContainer.add(phaserPlayer);
+
+        phaserPlayer.setPosition(0, Phaser.Math.Between(0, this.getY(1080)));
+        this.animatePlayer(phaserPlayer);
         // this.scoreRacetrack.addPlayersToTrack(this.getPlayerConfigsAsArray());
 
-        // Fun with FX!
-        // phaserPlayer.postFX.addShine(1, 0.2, 5);
+        // Fun with FX!1
+        // Shine adds a nice flashy sliding light effect
+        const shine: Phaser.FX.Shine = phaserPlayer.postFX.addShine(1, 0.2, 5);
+        // Bloom adds a glow effect - but it seemed to make player darker...
+        const bloom: Phaser.FX.Bloom = phaserPlayer.postFX.addBloom(0xff0000, 1, 1, 0, 1.2);
+        // Circle makes the player appear in a circular mask
+        const circle: Phaser.FX.Circle = phaserPlayer.postFX.addCircle();
+        phaserPlayer.postFX.remove(shine);
+        phaserPlayer.postFX.remove(bloom);
+        phaserPlayer.postFX.remove(circle);
 
-
+        console.log('addPlayer:', phaserPlayer, shine);
         return phaserPlayer;
     }
 
@@ -415,12 +446,12 @@ export class QuizHostScene extends BaseScene {
         this.tweens.add({
             targets: player,
             x: Phaser.Math.Between(0, 1920),
-            y: Phaser.Math.Between(0, this.getY(1080)),
+            y: player.getPlayerState() === PhaserPlayerState.FLOATING ? Phaser.Math.Between(0, this.getY(1080)) : this.getY(1080 - 20),
             duration: Phaser.Math.Between(2000, 4000),
             ease: 'Cubic.easeInOut',
             onComplete: () => {
-                // this.animatePlayer(player);
-                player.setPosition(0, Phaser.Math.Between(0, this.getY(1080)));
+                this.animatePlayer(player);
+                // player.setPosition(0, Phaser.Math.Between(0, this.getY(1080)));
             }
         });
     }

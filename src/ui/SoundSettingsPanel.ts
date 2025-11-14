@@ -74,9 +74,9 @@ export class SoundSettingsPanel extends Phaser.GameObjects.Container {
         grid.setColumnProportion(2, 1);  // Value column
 
         // Define volume categories
-        const categories: { name: string; key: 'music' | 'sfx' | 'voice' }[] = [
+        const categories: { name: string; key: 'music' | 'fx' | 'voice' }[] = [
             { name: 'Music', key: 'music' },
-            { name: 'FX', key: 'sfx' },
+            { name: 'FX', key: 'fx' },
             { name: 'Host', key: 'voice' }
         ];
 
@@ -122,9 +122,9 @@ export class SoundSettingsPanel extends Phaser.GameObjects.Container {
                 valueText.setText(Math.round(value * 100) + '%');
 
                 // Play test sound when adjusting certain categories
-                if (category.key === 'sfx' && !slider.isDragging) {
-                    soundManager.stopCategory('sfx');
-                    soundManager.playSfx('answer-correct');
+                if (category.key === 'fx' && !slider.isDragging) {
+                    soundManager.stopCategory('fx');
+                    soundManager.playFX('answer-correct');
                 } else if (category.key === 'voice' && !slider.isDragging) {
                     soundManager.stopCategory('voice'); // Stop any existing voice
                     soundManager.playVoice('quiz-intro-music');
@@ -152,7 +152,7 @@ export class SoundSettingsPanel extends Phaser.GameObjects.Container {
             space: { item: 30 }
         });
 
-        // Add toggle switches for music, sfx, and narration
+        // Add toggle switches for music, fx, and narration
         categories.forEach(category => {
             const isMuted = soundManager.isMuted(category.key);
 
@@ -201,8 +201,8 @@ export class SoundSettingsPanel extends Phaser.GameObjects.Container {
                     });
 
                     // Play test sound when toggling
-                    if (category.key === 'sfx' && !categoryMuted) {
-                        soundManager.playSfx('answer-correct');
+                    if (category.key === 'fx' && !categoryMuted) {
+                        soundManager.playFX('answer-correct');
                     } else if (category.key === 'voice' && !categoryMuted) {
                         soundManager.playVoice('sample');
                     }
@@ -239,7 +239,7 @@ export class SoundSettingsPanel extends Phaser.GameObjects.Container {
         //     .on('pointerdown', () => {
         //         // Play test sounds for each category
         //         soundManager.playMusic('background', { loop: false });
-        //         setTimeout(() => soundManager.playSfx('answer-correct'), 500);
+        //         setTimeout(() => soundManager.playFX('answer-correct'), 500);
         //         setTimeout(() => soundManager.playVoice('sample'), 1000);
         //     })
         //     .on('pointerover', function () {

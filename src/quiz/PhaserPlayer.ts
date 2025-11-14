@@ -7,12 +7,20 @@ export class PlayerConfig {
 	sessionID: string;
 }
 
+export enum PhaserPlayerState {
+	FLOATING,
+	ANSWERING,
+	ANSWERED,
+	RACING
+}
+
 export class PhaserPlayer extends Phaser.GameObjects.Container {
 	private socketID: string;
 	private sessionID: string;
 	private playerTexture: Phaser.GameObjects.RenderTexture;
 	private playerScore: number;
 	private playerScoreText: Phaser.GameObjects.Text;
+	private playerState: PhaserPlayerState = PhaserPlayerState.FLOATING;
 
 	constructor(scene: BaseScene, playerConfig: PlayerConfig) {
 		super(scene, 0, 0);
@@ -106,12 +114,10 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 				.setColor('#ffffff');
 			this.add(this.playerScoreText);
 
-
 		}, scene);
 
 		// Start loading the avatar image - workaround for situation where avatar is not supplied (eg host as player)
 		if (!playerConfig.avatar) {
-
 			playerConfig.avatar = 'default';
 		}
 		scene.load.image(playerConfig.avatar, `/img/avatar-100/image-from-rawpixel-id-${playerConfig.avatar}-original.png`);
@@ -125,6 +131,16 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 		}
 	}
 
+	public addShine(): void {
+
+		if (this.playerTexture && this.playerTexture.postFX) {
+			const shine: Phaser.FX.Shine = this.playerTexture.postFX.addShine(1, 0.2, 5);
+			this.scene.time.delayedCall(2000, () => {
+				this.playerTexture.postFX.remove(shine);
+			});
+		}
+	}
+
 	disconnected(): void {
 		if (this.playerTexture) {
 			this.playerTexture.setAlpha(0.4);
@@ -135,6 +151,7 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 			this.playerTexture.setAlpha(1);
 		}
 	}
+
 	destroy(fromScene?: boolean) {
 		if (this.playerTexture) {
 			this.playerTexture.destroy();
@@ -144,5 +161,11 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 
 	getSocketID(): string {
 		return this.socketID;
+	}
+	getPlayerState(): PhaserPlayerState {
+		return this.playerState;
+	}
+	setPlayerState(newState: PhaserPlayerState): void {
+		this.playerState = newState;
 	}
 }

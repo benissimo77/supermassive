@@ -23,7 +23,6 @@ export default class OrderingQuestion extends BaseQuestion {
     private dropzones: Map<number, Phaser.GameObjects.NineSlice> = new Map<number, Phaser.GameObjects.NineSlice>();
     private dropzoneLabels: Map<number, Phaser.GameObjects.Text> = new Map<number, Phaser.GameObjects.Text>();
     private submitButton: NineSliceButton;
-    private submitButtonContainer: Phaser.GameObjects.Container;
     private items: string[] = [];
     private labels: string[] = [];
 
@@ -99,9 +98,7 @@ export default class OrderingQuestion extends BaseQuestion {
         // Create submit button (NO positioning yet)
         // Place inside its own container (aligned with answerContainer) so that draggables can get brought to front but submit button still stays on top
         this.submitButton = new NineSliceButton(this.scene, 'Submit');
-        this.submitButtonContainer = this.scene.add.container(0,0);
-        this.add(this.submitButtonContainer);
-        this.submitButtonContainer.add(this.submitButton);
+        this.answerContainer.add(this.submitButton);
 
         // Make interactive if in ask mode and player screen
         // if (this.questionData.mode === 'ask' && this.scene.TYPE !== 'host') {
@@ -122,7 +119,6 @@ export default class OrderingQuestion extends BaseQuestion {
 
         // Position and scale submit button (BOILERPLATE - same as Text/Number)
         // Firstly align the submit button container with answer container
-        this.submitButtonContainer.setPosition(this.answerContainer.x, this.answerContainer.y);
         this.submitButton.setButtonSize(320 * scaleFactor, 80 * scaleFactor);
         this.submitButton.setTextSize(46 * scaleFactor);
         this.submitButton.setPosition(960 - 160 * scaleFactor - 20, this.scene.getY(answerHeight) - 40 * scaleFactor - 20);
@@ -252,6 +248,7 @@ export default class OrderingQuestion extends BaseQuestion {
             if (droppedItem) {
                 answers.push(droppedItem);
             } else {
+                answers.push('');
                 console.warn('Dropzone empty on submit:', dropzone.getData('index'));
             }
         });

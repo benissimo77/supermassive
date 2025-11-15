@@ -47,6 +47,20 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 				.setFontSize(40)
 				.setColor('#00008b');
 
+			// Adjust the size of the name panel based on name length
+			// Name begins at x=120 so add a 20px padding on right side
+			const nameTextWidth = playerName.width;
+			panel.setDisplaySize(nameTextWidth + 140, panel.height);
+			
+			// While we are here add a text obejct for the score
+			this.playerScoreText = scene.add.text(nameTextWidth + 140, -24, '', {})
+				.setOrigin(1, 1)
+				.setFontFamily('"Titan One", Georgia')
+				.setFontSize(40)
+				.setColor('#ffffff');
+			this.add(this.playerScoreText);
+
+
 			// Get avatar texture dimensions
 			const avatarFrame = scene.textures.get(playerConfig.avatar).getSourceImage();
 			const avatarWidth = avatarFrame.width || 100;
@@ -105,14 +119,6 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 
 			// Add the texture to our container
 			this.add(this.playerTexture);
-
-			// While we are here add a text obejct for the score
-			this.playerScoreText = scene.add.text(480, -24, '', {})
-				.setOrigin(1, 1)
-				.setFontFamily('"Titan One", Georgia')
-				.setFontSize(40)
-				.setColor('#ffffff');
-			this.add(this.playerScoreText);
 
 		}, scene);
 

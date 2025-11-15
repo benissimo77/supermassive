@@ -19,10 +19,11 @@ export class QuizHostScene extends BaseScene {
 
     static readonly KEY = 'QuizHostScene';
 
+    // SoundManager is public so that all questions can access it easily
+    public soundManager: SoundManager;
+
     private socketDebugger: SocketDebugger;
 
-    private soundManager: SoundManager;
-    private questions: any[] = [];
     private currentQuestion: BaseQuestion;
     private currentRound: any = null;
     private currentQuestionIndex: number = 0;
@@ -61,7 +62,7 @@ export class QuizHostScene extends BaseScene {
         console.log('QuizHostScene:: init.');
 
         // for host the TYPE will be 'host' or 'solo'
-        this.TYPE = 'solo';
+        this.TYPE = 'host';
         this.playerScores = new Map();
         this.playerAnswers = new Map();
         this.questionFactory = new QuestionFactory(this);
@@ -105,8 +106,12 @@ export class QuizHostScene extends BaseScene {
 
         // Audio assets - theme music
         this.load.audio('quiz-music-intro', '/assets/audio/quiz/music/modern-beat-jingle-intro-149598.mp3');
+        this.load.audio('quiz-countdown', '/assets/audio/quiz/music/quiz-countdown-337785.mp3');
+        this.load.audio('quiz-race', '/assets/audio/quiz/music/1-01 Title.m4a');
+
         // Audio - voice
-        this.load.audio('quiz-voice-intro', '/assets/audio/quiz/music/quiz-intro-Gabriella.mp3');
+        // this.load.audio('quiz-voice-intro', '/assets/audio/quiz/music/quiz-intro-Gabriella.mp3');
+
         // Audio SFX
         this.load.audio('answer-correct', '/assets/audio/quiz/fx/320655__rhodesmas__level-up-01.wav');
         this.load.audio('answer-incorrect', '/assets/audio/quiz/fx/150879__nenadsimic__jazzy-chords.wav');
@@ -286,7 +291,8 @@ export class QuizHostScene extends BaseScene {
                 ease: 'back.out(1.7)',
                 onComplete: () => {
                     console.log('GSAP animation complete!');
-                    this.socket.emit('host:response');
+                    this.socket.emit('host:response'); 
+                    this.soundManager.playMusic('quiz-countdown', { volume: 0.5 });
                     // Update receivedTime just to make answerTime slightly more accurate
                     receivedTime = Date.now();
                 }
@@ -297,12 +303,18 @@ export class QuizHostScene extends BaseScene {
                 console.log('QuizHostScene:: answer:', answer);
                 // Send the answer to the server
                 this.socket.emit('client:response', { answer: answer, answerTime: Date.now() - receivedTime });
-                // this.sound.play('submit-answer');
             });
 
-            // Set all players to state of ANSWERING - this will move them to the bottom of the screen
+            // Set all players to state of ANSWERING
+            // - re-parent them in playerContainer
+            // - animate them to the bottom of the screen on the next tween update
             this.phaserPlayers.forEach((player: PhaserPlayer) => {
+                const localX: number = player.x + this.racetrack.x;
+                const localY: number = player.y + this.racetrack.y;
+                this.playerContainer.add(player);
+                player.setPosition(localX, localY);
                 player.setPlayerState(PhaserPlayerState.ANSWERING);
+                this.animatePlayer(player);
             });
 
         });
@@ -315,7 +327,7 @@ export class QuizHostScene extends BaseScene {
             if (player) {
                 player.setPlayerState(PhaserPlayerState.ANSWERED);
                 this.tweens.killTweensOf(player);
-                this.sound.play('question-answered', { volume: 0.3 });
+                this.soundManager.playFX('question-answered', 0.3);
                 this.tweens.add({
                     targets: player,
                     y: this.getY(880),
@@ -443,6 +455,12 @@ export class QuizHostScene extends BaseScene {
 
     animatePlayer(player: PhaserPlayer): void {
         // console.log('animatePlayer:', player);
+        
+        // If player is racing, do not animate anymore since racetrack will control player
+        if (player.getPlayerState() === PhaserPlayerState.RACING) {
+            return;
+        }
+
         this.tweens.add({
             targets: player,
             x: Phaser.Math.Between(0, 1920),
@@ -710,11 +728,25 @@ export class QuizHostScene extends BaseScene {
     // Handle score updates
     private updateScores(scores: { [key: string]: number }): void {
 
+        // Firstly get the race audio going...
+        this.soundManager.playMusic('quiz-race', { volume: 0.5 });
+
         // Make sure the racetrack is visible
         this.racetrack.setVisible(true);
 
-        // Update all player scores with animation
-        const tl: gsap.core.Timeline = this.racetrack.flyIn();
+        // Re-parent the players to the racetrack for score animation
+        this.phaserPlayers.forEach((player: PhaserPlayer) => {
+            player.setPlayerState(PhaserPlayerState.RACING);
+            this.tweens.killTweensOf(player);
+        });
+
+        // Build a (long) timeline animation for all the elements to run the race...
+        // const tl: gsap.core.Timeline = this.racetrack.flyIn();
+        const tl: gsap.core.Timeline = gsap.timeline();
+
+        this.racetrack.setPosition(0, this.getY(640));
+
+        // Get rid of existing questin if there is one
         if (this.currentQuestion) {
             // Animate the current question off screen to the left
             // Move to less than -1920 since question might end up wider than 1920 if image was enlarged
@@ -724,9 +756,18 @@ export class QuizHostScene extends BaseScene {
                 ease: 'back.out(1.7)',
             }, "<");
         }
+
+        // Add players to racetrack - positions the players in the racetrack container and tweens them to starting position
+        tl.add(this.racetrack.addPlayersToTrack(this.getPlayerConfigsAsArray()));
+
+        // ... and update to their new scores
         tl.add(this.racetrack.updateScores(scores));
+
         tl.add(() => {
             console.log('Score update animation complete');
+            this.phaserPlayers.forEach((player: PhaserPlayer) => {
+                console.log('Player final position:', player.name, player.x, player.y);
+            });
         });
         tl.play();
 

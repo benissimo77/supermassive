@@ -1,5 +1,5 @@
 import { BaseScene } from "src/BaseScene";
-import { PhaserPlayer, PlayerConfig } from "src/quiz/PhaserPlayer";
+import { PhaserPlayer, PhaserPlayerState, PlayerConfig } from "src/quiz/PhaserPlayer";
 import { gsap } from "gsap";
 
 enum RacetrackState {
@@ -45,8 +45,9 @@ export class Racetrack extends Phaser.GameObjects.Container {
         this.markersContainer = this.scene.add.container(0, 0);
         this.add(this.markersContainer);
 
-        // Create lanes container
-        this.lanesContainer = this.scene.add.container(0, this.scene.getY(60));
+        // Create lanes container at (0,0) so it aligns with racetrack origin
+        // Makes transforming out of racetrack back to main scene a lot simpler
+        this.lanesContainer = this.scene.add.container(0, 0);
         this.lanesContainer.name = 'lanesContainer';
         this.add(this.lanesContainer);
 
@@ -67,7 +68,8 @@ export class Racetrack extends Phaser.GameObjects.Container {
 
     // addPlayersToTrack - add players to the racetrack
     // Designed to accept the full list of players - will resort and re-position all players each time someone is added or removed
-    public addPlayersToTrack(playerConfigs: PlayerConfig[]): void {
+    // Will also re-parent the player into this container and tween their position to the correct starting line-up
+    public addPlayersToTrack(playerConfigs: PlayerConfig[]): gsap.core.Timeline {
 
         const [playerStart, playerSpacing] = this.calculatePlayerPositions(
             playerConfigs.length,
@@ -87,16 +89,34 @@ export class Racetrack extends Phaser.GameObjects.Container {
             return scoreB - scoreA; // Highest score first
         });
 
+        const tl: gsap.core.Timeline = gsap.timeline();
+
         // Position each player
         playerConfigs.forEach((player, index) => {
 
             const phaserPlayer = this.scene.getPlayerBySessionID(player.sessionID) as PhaserPlayer;
-            console.log('Racetrack::initialize: player:', phaserPlayer.parentContainer, phaserPlayer.getIndexList(), this.lanesContainer.parentContainer, this.parentContainer);
+            console.log('Racetrack::initialize: player:', phaserPlayer.name, this.lanesContainer.x, this.lanesContainer.y, this.x, this.y);
             const score = phaserPlayer.getData('score') || 0;
+
+            // Try something simple to manage the re-parenting getting way too complex...
+            // Assume players are currently just in the main scene - x,y are same as global
+            // Ok - I know this works now - simple!
+            // BUT just want to check if the original would ahve worked and it was just tweens conflicting...
+            const localX: number = phaserPlayer.x - this.x;
+            const localY: number = phaserPlayer.y - this.y;
+            console.log('Racetrack::addPlayersToTrack: positioning player:', player.name, 'from:', phaserPlayer.x, phaserPlayer.y, 'to:', localX, localY);
             this.lanesContainer.add(phaserPlayer);
-            phaserPlayer.x = score * this.racetrackScale;
-            phaserPlayer.y = playerStart + (index * playerSpacing);
+            phaserPlayer.setPosition(localX, localY);
+
+            tl.to(phaserPlayer, {
+                x: score * this.racetrackScale,
+                y: playerStart + (index * playerSpacing),
+                duration: 1,
+                ease: "power2.out"
+            }, "<");
         });
+
+        return tl;
     }
 
     public flyIn(): gsap.core.Timeline {

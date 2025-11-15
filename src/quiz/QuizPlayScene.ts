@@ -13,7 +13,7 @@ export class QuizPlayScene extends BaseScene {
 
     private currentQuestion: BaseQuestion;
     private questionFactory: QuestionFactory;
-    private answerSubmitted: Boolean = false;
+    private waitingState: Boolean = false;
     private phaserPlayer: PhaserPlayer;
 
     // UI elements
@@ -25,7 +25,7 @@ export class QuizPlayScene extends BaseScene {
     constructor() {
         super(QuizPlayScene.KEY);
     }
- 
+
     init(): void {
         super.init();
 
@@ -84,6 +84,9 @@ export class QuizPlayScene extends BaseScene {
         // const connectButton = this.add.text(960, 10, 'Connect', this.labelConfig).setOrigin(0.5, 0);
         // connectButton.setInteractive({ useHandCursor: true });
         // connectButton.on('pointerdown', () => this.toggleConnect());
+
+        // Add the UIContainer that will be used to store information panels
+        this.UIContainer = this.add.container(0, 0);
 
         // Create the waiting panel - this will be shown at the beginnig of the quiz and between questions
         this.waitingPanel = this.add.container(960, 540);
@@ -201,7 +204,7 @@ export class QuizPlayScene extends BaseScene {
 
             // Make sure it's added to the scene
             this.add.existing(this.currentQuestion);
-            this.answerSubmitted = false;
+            this.waitingState = false;
 
             this.currentQuestion.onAnswer((answer: any) => {
                 console.log('QuizPlayScene:: answer:', answer);
@@ -209,31 +212,15 @@ export class QuizPlayScene extends BaseScene {
                 this.socket.emit('client:response', { answer: answer, answerTime: Date.now() - receivedTime - displayTime });
 
                 // This flag prevents the question from being re-displayed if sceneDisplay fires eg on resize
-                this.answerSubmitted = true;
+                this.waitingState = true;
 
                 // Show waiting panel and animate player after a short delay to allow submitted answer to disappear
                 // Also hide the question panel otherwise it might appear when resizing mobile
+                // Problem with delayedCall: anything can happen in the 2.5 seconds delay! eg a new question is asked
                 this.time.delayedCall(2500, () => {
-                    if (this.currentQuestion) {
-                        this.currentQuestion.setVisible(false);
-                    }
-                    this.waitingText.text = 'Waiting for next question...';
-                    this.waitingText.setFontSize(8);
-                    this.waitingPanel.setVisible(true);
-                    this.tweens.killAll();
-                    this.animatePlayer(this.phaserPlayer);
-                    this.tweens.addCounter({
-                        from: 0.1,
-                        to: 1,
-                        duration: 1000,
-                        ease: 'Back.Out',
-                        onUpdate: (tween) => {
-                            const scale:number | null = tween.getValue();
-                            this.waitingText.setFontSize(8 + (scale || 1) * 28);
-                    })
+                    this.gotoWaitingState();
                 });
             });
-
         });
 
         // Player answered a question (used in Host scene)
@@ -242,15 +229,19 @@ export class QuizPlayScene extends BaseScene {
         });
 
         // Question over - clear the screen
+        // Note: we DON'T destroy the question since it might still be animating etc - just hide it
         this.socket.on('server:endquestion', (data) => {
-            console.log('QuizPlayScene:: server:endquestion - clearing UI:', data);
-            this.clearUI();
+            console.log('QuizPlayScene:: server:endquestion - UI invisible:', data);
+            this.UIContainer.setVisible(false);
+            if (this.currentQuestion) {
+                this.currentQuestion.setVisible(false);
+            }
         });
 
         // Show answer
         this.socket.on('server:showanswer', (data) => {
-            console.log('QuizPlayScene:: server:showanswer:', data.answer);
-            this.showAnswer(data);
+            console.log('QuizPlayScene:: server:showanswer:', data);
+            // this.showAnswer(data);
         });
 
         // End round
@@ -265,12 +256,37 @@ export class QuizPlayScene extends BaseScene {
 
     }
 
+    // Sets player screen in the waiting state
+    // Waiting message displays, player is animated around the screen
+    // Note: we need to check if answerSubmitted in case this function is called while a new question is added
+    private gotoWaitingState(): void {
+        if (!this.waitingState) {
+            return
+        }
+        if (this.currentQuestion) {
+            this.currentQuestion.setVisible(false);
+        }
+        this.waitingText.text = 'Waiting for next question...';
+        this.waitingText.setFontSize(8);
+        this.waitingPanel.setVisible(true);
+        this.tweens.killAll();
+        this.animatePlayer(this.phaserPlayer);
+        this.tweens.addCounter({
+            from: 0.1,
+            to: 1,
+            duration: 1000,
+            ease: 'Back.Out',
+            onUpdate: (tween) => {
+                const scale: number | null = tween.getValue();
+                this.waitingText.setFontSize(8 + (scale || 1) * 28);
+            }
+        });
+    }
 
     private showQuizIntro(title: string, description: string): void {
 
         // Clear previous UI
         this.clearUI();
-        this.UIContainer = this.add.container(0, 0);
 
         // Show quiz title
         const quizTitleConfig = Object.assign({}, this.labelConfig, {
@@ -309,7 +325,6 @@ export class QuizPlayScene extends BaseScene {
 
         // Clear previous UI
         this.clearUI();
-        this.UIContainer = this.add.container(0, 0);
 
         // Show round title
         const titleConfig = {
@@ -433,7 +448,6 @@ export class QuizPlayScene extends BaseScene {
     private endRound(data: any): void {
         // Clear question display
         this.clearUI();
-        this.UIContainer = this.add.container(0, 0);
 
         // Show round end message
         const titleText = this.add.text(
@@ -480,7 +494,6 @@ export class QuizPlayScene extends BaseScene {
 
         // Clear the screen
         this.clearUI();
-        this.UIContainer = this.add.container(0, 0);
 
         // Show quiz complete message
         const titleText = this.add.text(
@@ -504,7 +517,7 @@ export class QuizPlayScene extends BaseScene {
     protected sceneDisplay(): void {
         // Called from BaseScene when the screen is resized
         console.log('QuizPlayScene:: sceneDisplay: updating layout for new size');
-        if (this.answerSubmitted) {
+        if (this.waitingState) {
             // nothing needs to be done here - display should resize itself good enough for now...
         } else if (this.currentQuestion) {
             this.currentQuestion.displayPlayer();
@@ -518,16 +531,16 @@ export class QuizPlayScene extends BaseScene {
         // Re-scale and position player if answer NOT submitted ie player is in corner
         if (this.phaserPlayer) {
             this.phaserPlayer.setScale(this.getUIScaleFactor());
-            if (!this.answerSubmitted) {
+            if (!this.waitingState) {
                 this.phaserPlayer.setPosition(0, this.getY(1060));
-            }   
+            }
         }
     }
 
     private clearUI(): void {
         // Clean up the previous question's display elements
         if (this.UIContainer) {
-            this.UIContainer.destroy(true);
+            this.UIContainer.removeAll(true);
         }
         if (this.currentQuestion) {
             this.currentQuestion.destroy(true);

@@ -92,8 +92,13 @@ export class Keypad extends Phaser.GameObjects.Container {
                     // If 'DELETE' is pressed, remove the last character
                     this.answerText.setText(this.answerText.text.slice(0, -1));
                 } else {
-                    // Otherwise, just append the character
-                    this.answerText.setText(this.answerText.text + char);
+                    if (this.answerText.text === '0') {
+                        // If current text is '0', replace it with the new character
+                        this.answerText.setText(char);
+                    } else {
+                        // Otherwise, just append the character
+                        this.answerText.setText(this.answerText.text + char);
+                    }
                 }
                 // Truncate to a max length of 10 characters
                 this.answerText.setText(this.answerText.text.slice(0, 10));

@@ -446,7 +446,7 @@ export class QuizHostScene extends BaseScene {
         this.tweens.add({
             targets: player,
             x: Phaser.Math.Between(0, 1920),
-            y: player.getPlayerState() === PhaserPlayerState.FLOATING ? Phaser.Math.Between(0, this.getY(1080)) : this.getY(1080 - 20),
+            y: player.getPlayerState() === PhaserPlayerState.FLOATING ? Phaser.Math.Between(0, this.getY(980)) : this.getY(1080 - 20),
             duration: Phaser.Math.Between(2000, 4000),
             ease: 'Cubic.easeInOut',
             onComplete: () => {

@@ -241,10 +241,15 @@ export default class TextQuestion extends BaseQuestion {
         }
     }
 
+    // Note that destroy can be called from HOST or PLAYER screen so must consider both paths
     public destroy(): void {
 
-        this.keyboard.destroy();
-        this.submitButton.destroy();
+        if (this.keyboard) {
+            this.keyboard.destroy();
+        }
+        if (this.submitButton) {
+            this.submitButton.destroy();
+        }
         super.destroy();
     }
 

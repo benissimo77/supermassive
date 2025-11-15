@@ -199,8 +199,12 @@ export default class NumberQuestion extends BaseQuestion {
 
 
     public destroy(): void {
-        this.keypad.destroy();
-        this.submitButton.destroy();
+        if (this.keypad) {
+            this.keypad.destroy();
+        }
+        if (this.submitButton) {
+            this.submitButton.destroy();
+        }
         super.destroy();
     }
 

@@ -82,6 +82,7 @@ export class SoundManager {
      */
     playMusic(key: string, options: Partial<Track> = {}): void {
         if (this.currentMusic === key) return;
+        if (this.muted.master || this.muted.music) return;
 
         const track: Track = {
             key,

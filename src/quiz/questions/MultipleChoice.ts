@@ -106,6 +106,7 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
             button.setAlpha(0.5);
             if (option ===  correctAnswer) {
                 button.setHighlight();
+                this.answerContainer.add(button); // re-add to bring to front
             }
         }
     }

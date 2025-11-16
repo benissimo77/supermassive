@@ -1,4 +1,5 @@
 // src/audio/SoundManager.ts
+import path from 'path';
 import { BaseScene } from 'src/BaseScene';
 
 // Extend Phaser's Sound types to include missing methods
@@ -105,6 +106,28 @@ export class SoundManager {
             this.crossFade(this.currentMusic, key, track);
         } else {
             this.startTrack(key, track);
+        }
+    }
+
+    resumeMusic(key: string, options: Partial<Track> = {}): void {
+        const track = this.tracks.get(key);
+        if (!track) return;
+
+        if (track.sound) {
+            if (track.sound.isPaused) {
+                track.sound.resume();
+            } else if (!track.sound.isPlaying) {
+                track.sound.play();
+            }
+        } else {
+            this.playMusic(key, options);
+        }
+    }
+
+    pauseMusic(options: Partial<Track> = {}): void {
+        if (this.currentMusic) {
+            const track = this.tracks.get(this.currentMusic);
+            track?.sound?.pause();
         }
     }
 
@@ -235,17 +258,21 @@ export class SoundManager {
      */
     stopTrack(key: string, fadeOut: number = 0): void {
         const thisTrack = this.tracks.get(key);
-        if (!thisTrack) return;
+        if (!thisTrack || !thisTrack.sound) return;
 
         if (fadeOut > 0) {
+            const sound = thisTrack.sound;
+            const startVolume = sound.volume;
+
             this.scene.tweens.add({
-                targets: thisTrack,
-                volume: 0,
+                targets: { v: startVolume },
+                v: 0,
                 duration: fadeOut,
+                onUpdate: tween => {
+                    sound.setVolume(tween.getValue());
+                },
                 onComplete: () => {
-                    if (thisTrack.sound) {
-                        thisTrack.sound.stop();
-                    }
+                    sound.stop();
                     this.tracks.delete(key);
                     if (this.currentMusic === key) {
                         this.currentMusic = null;
@@ -253,9 +280,7 @@ export class SoundManager {
                 }
             });
         } else {
-            if (thisTrack.sound) {
-                thisTrack.sound.stop();
-            }
+            thisTrack.sound.stop();
             this.tracks.delete(key);
             if (this.currentMusic === key) {
                 this.currentMusic = null;

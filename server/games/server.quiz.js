@@ -1158,7 +1158,7 @@ export default class Quiz extends Game {
 		this.prepareMutatedQuestion(this.question);
 
 		let hostQuestion = structuredClone(this.question);
-		hostQuestion.mode = 'ask';
+		hostQuestion.mode = this.mode;
 		hostQuestion.direction = this.stateMachine.direction;
 		hostQuestion.options = this.question.optionsShuffled;
 		hostQuestion.items = this.question.itemsShuffled;
@@ -1522,8 +1522,8 @@ export default class Quiz extends Game {
 		console.log('endQuestion:', this.question);
 		this.room.emitToAllPlayers('server:endquestion');
 		this.room.deregisterClientResponseHandler();
-		// This not needed since we expect the question to stay on host screen until next question
-		// this.room.emitToHosts('server:endquestion');
+		// Also send to host so they can perform any relevant clean-up
+		this.room.emitToHosts('server:endquestion');
 	}
 
 	// Called when we've reached the end of the questions in this round

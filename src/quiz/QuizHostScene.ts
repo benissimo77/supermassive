@@ -118,7 +118,8 @@ export class QuizHostScene extends BaseScene {
         this.load.audio('button-click', '/assets/audio/quiz/fx/114187__edgardedition__thud17.wav');
         this.load.audio('submit-answer', '/assets/audio/quiz/fx/585256__lesaucisson__swoosh-2.mp3');
         this.load.audio('question-answered', '/assets/audio/quiz/fx/446100__justinvoke__bounce.wav');
-
+        this.load.audio('end-question', '/assets/audio/quiz/fx/gong-hit-2-184010.mp3');
+        
         // Load custom fonts
         this.load.rexWebFont({
             google: {
@@ -160,6 +161,7 @@ export class QuizHostScene extends BaseScene {
         this.racetrack.setPosition(0, this.getY(640));
         this.add.existing(this.racetrack);
         this.mainContainer.add(this.racetrack);
+        this.racetrack.flyOut().play();
 
         // Create the containers for all UI elements (eg round intro)
         // Note: these are added to the 'base' containers set up in BaseScene: background, UI, main, top, overlay
@@ -257,7 +259,6 @@ export class QuizHostScene extends BaseScene {
 
         // Listen for intro round message
         this.socket.on('server:introround', (data) => {
-            this.racetrack.flyOut();
             this.showRoundIntro(data.roundnumber, data.title, data.description);
         });
 
@@ -292,7 +293,7 @@ export class QuizHostScene extends BaseScene {
                 onComplete: () => {
                     console.log('GSAP animation complete!');
                     this.socket.emit('host:response'); 
-                    this.soundManager.playMusic('quiz-countdown', { volume: 0.5 });
+                    this.soundManager.playMusic('quiz-countdown', { volume: 0.3 });
                     // Update receivedTime just to make answerTime slightly more accurate
                     receivedTime = Date.now();
                 }
@@ -309,12 +310,14 @@ export class QuizHostScene extends BaseScene {
             // - re-parent them in playerContainer
             // - animate them to the bottom of the screen on the next tween update
             this.phaserPlayers.forEach((player: PhaserPlayer) => {
-                const localX: number = player.x + this.racetrack.x;
-                const localY: number = player.y + this.racetrack.y;
-                this.playerContainer.add(player);
-                player.setPosition(localX, localY);
+                if (player.parentContainer === this.racetrack) {
+                    player.x += this.racetrack.x;
+                    player.y += this.racetrack.y;
+                    this.playerContainer.add(player);
+                }
                 player.setPlayerState(PhaserPlayerState.ANSWERING);
                 this.animatePlayer(player);
+                this.racetrack.flyOut().play();
             });
 
         });
@@ -434,7 +437,7 @@ export class QuizHostScene extends BaseScene {
         this.add.existing(phaserPlayer);
         this.playerContainer.add(phaserPlayer);
 
-        phaserPlayer.setPosition(0, Phaser.Math.Between(0, this.getY(1080)));
+        phaserPlayer.setPosition(-480, Phaser.Math.Between(0, this.getY(1080)));
         this.animatePlayer(phaserPlayer);
         // this.scoreRacetrack.addPlayersToTrack(this.getPlayerConfigsAsArray());
 
@@ -461,6 +464,7 @@ export class QuizHostScene extends BaseScene {
             return;
         }
 
+        this.tweens.killTweensOf(player);
         this.tweens.add({
             targets: player,
             x: Phaser.Math.Between(0, 1920),
@@ -504,18 +508,15 @@ export class QuizHostScene extends BaseScene {
 
     private showQuizIntro(title: string, description: string): void {
 
-        // This works...
-        // this.soundManager.playMusic('quiz-music-intro', { volume: 0.5 });
-
         // Clear previous UI
         this.clearUI();
 
         // Show quiz title
         const titleConfig = Object.assign({}, this.labelConfig, {
-            fontSize: this.getY(64),
+            fontSize: 80,
             strokeThickness: 6
         });
-        const titleText = this.add.text(960, this.getY(200), title, titleConfig)
+        const titleText = this.add.text(960, this.getY(180), title, titleConfig)
             .setOrigin(0.5)
             .setWordWrapWidth(1400);
 
@@ -524,7 +525,7 @@ export class QuizHostScene extends BaseScene {
 
         // Show description
         const descConfig = Object.assign({}, this.labelConfig, {
-            fontSize: this.getY(32),
+            fontSize: 48,
             strokeThickness: 3,
         });
         const descText = this.add.text(960, this.getY(350), cleanDescription, descConfig)
@@ -536,25 +537,14 @@ export class QuizHostScene extends BaseScene {
 
         this.UIContainer.add([titleText, descText, startButton]);
 
-        // Animation for intro elements
-        this.tweens.add({
-            targets: [titleText, descText, startButton],
-            alpha: { from: 0, to: 1 },
-            y: '-=30',
-            duration: 800,
-            ease: 'Power2',
-            stagger: 200
-        });
-
         gsap.fromTo(this.UIContainer,
-            { y: -1080 },
+            { y: this.getY(-1080) },
             {
                 duration: 1,
                 y: 0,
-                ease: 'back.out(1.7)',
+                ease: 'power2.out',
                 onComplete: () => {
                     console.log('GSAP animation complete!');
-                    gsap.to(this.UIContainer, { duration: 5, y: '+=120', ease: 'back.out(1.7)' });
                 }
             }
         );
@@ -567,16 +557,16 @@ export class QuizHostScene extends BaseScene {
 
         // Show round title
         const titleConfig = Object.assign({}, this.labelConfig, {
-            fontSize: this.getY(64),
+            fontSize: this.getY(80),
             strokeThickness: 6
         });
-        const roundTitle = this.add.text(960, this.getY(200), `Round ${roundNumber}: ${title}`, titleConfig)
+        const roundTitle = this.add.text(960, this.getY(180), `Round ${roundNumber}: ${title}`, titleConfig)
             .setWordWrapWidth(1400)
             .setOrigin(0.5);
 
         // Show description
         const descriptionConfig = Object.assign({}, this.labelConfig, {
-            fontSize: this.getY(32),
+            fontSize: this.getY(48),
             strokeThickness: 3,
         });
         const cleanDescription = description.replace(/<\/?[^>]+(>|$)/g, "");
@@ -590,14 +580,17 @@ export class QuizHostScene extends BaseScene {
         this.UIContainer.add([roundTitle, descText, nextButton]);
 
         // Animation
-        this.tweens.add({
-            targets: [roundTitle, descText, nextButton],
-            alpha: { from: 0, to: 1 },
-            y: '-=30',
-            duration: 800,
-            ease: 'Power2',
-            stagger: 200
-        });
+        gsap.fromTo(this.UIContainer,
+            { y: this.getY(-1080) },
+            {
+                duration: 1,
+                y: 0,
+                ease: 'power2.out',
+                onComplete: () => {
+                    console.log('GSAP animation complete!');
+                }
+            }
+        );
     }
 
     private createSimpleButton(x: number, y: number, text: string): Phaser.GameObjects.Text {
@@ -731,22 +724,21 @@ export class QuizHostScene extends BaseScene {
         // Firstly get the race audio going...
         this.soundManager.playMusic('quiz-race', { volume: 0.5 });
 
-        // Make sure the racetrack is visible
-        this.racetrack.setVisible(true);
-
-        // Re-parent the players to the racetrack for score animation
+        // Set the players to racing, kill any existing tweens and re-parent to racetrack
         this.phaserPlayers.forEach((player: PhaserPlayer) => {
             player.setPlayerState(PhaserPlayerState.RACING);
             this.tweens.killTweensOf(player);
+            if (player.parentContainer !== this.racetrack) {
+                player.x = player.x + this.playerContainer.x - this.racetrack.x;
+                player.y = player.y + this.playerContainer.y - this.racetrack.y;
+                this.racetrack.add(player);
+            }
         });
 
         // Build a (long) timeline animation for all the elements to run the race...
-        // const tl: gsap.core.Timeline = this.racetrack.flyIn();
         const tl: gsap.core.Timeline = gsap.timeline();
 
-        this.racetrack.setPosition(0, this.getY(640));
-
-        // Get rid of existing questin if there is one
+        // Get rid of existing question if there is one
         if (this.currentQuestion) {
             // Animate the current question off screen to the left
             // Move to less than -1920 since question might end up wider than 1920 if image was enlarged
@@ -757,18 +749,13 @@ export class QuizHostScene extends BaseScene {
             }, "<");
         }
 
-        // Add players to racetrack - positions the players in the racetrack container and tweens them to starting position
-        tl.add(this.racetrack.addPlayersToTrack(this.getPlayerConfigsAsArray()));
+        tl.add(this.racetrack.flyIn(this.getY(640)), "<");
 
-        // ... and update to their new scores
+        // Tweens the players in the racetrack container to starting position
+        tl.add(this.racetrack.movePlayersToTrack(this.getPlayerConfigsAsArray()), "<");
+
+        // ... and update/animate to their new scores
         tl.add(this.racetrack.updateScores(scores));
-
-        tl.add(() => {
-            console.log('Score update animation complete');
-            this.phaserPlayers.forEach((player: PhaserPlayer) => {
-                console.log('Player final position:', player.name, player.x, player.y);
-            });
-        });
         tl.play();
 
         // Store scores internally for other uses
@@ -787,21 +774,22 @@ export class QuizHostScene extends BaseScene {
 
     private endRound(data: any): void {
 
-        // Clear question display
+        // Clear question display and fly out racetrack
         this.clearUI();
+        this.racetrack.flyOut().play();
 
         // Show round end message
         const titleTextConfig = Object.assign({}, this.labelConfig, {
-            fontSize: this.getY(64),
+            fontSize: 80,
             strokeThickness: 6
         });
-        const titleText = this.add.text(960, this.getY(200), data.title, titleTextConfig)
+        const titleText = this.add.text(960, this.getY(180), data.title, titleTextConfig)
             .setOrigin(0.5);
 
         const descTextConfig = Object.assign({}, this.labelConfig, {
-            fontSize: this.getY(32),
+            fontSize: 48,
             align: 'center',
-            wordWrap: { width: this.cameras.main.width - 200 }
+            wordWrap: { width: 1640 }
         });
         const descText = this.add.text(960, this.getY(350), data.description, descTextConfig)
             .setOrigin(0.5);

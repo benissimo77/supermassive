@@ -12,17 +12,12 @@ enum RacetrackState {
 export class Racetrack extends Phaser.GameObjects.Container {
     public scene: BaseScene;
     private playerMarkers: Map<string, Phaser.GameObjects.Container> = new Map();
-    private playerScores: Map<string, number> = new Map();
-    private playerConfigs: Map<string, PlayerConfig> = new Map();
 
-    private maxScore: number = 0;
-    private trackWidth: number;
     private trackHeight: number;
-    private animationDuration: number = 1000; // milliseconds
 
-    private markersContainer: Phaser.GameObjects.Container;
-    private lanesContainer: Phaser.GameObjects.Container;
+    private trackContainer: Phaser.GameObjects.Container;
     private markers: Phaser.GameObjects.Container[] = [];
+    private markersHeight: number = 80;
     private racetrackScale: number;
     private racetrackState: RacetrackState = RacetrackState.IN;
 
@@ -30,33 +25,37 @@ export class Racetrack extends Phaser.GameObjects.Container {
 
         super(scene, 0, 0);
         this.scene = scene;
-        this.trackWidth = width;
         this.trackHeight = height;
-        this.racetrackScale = 240;
-
-        // Add background for the track
-        const background = this.scene.add.rectangle(0, 0, width, height, 0xff3333, 0.3)
-            .setOrigin(0, 0);
-        this.add(background);
+        this.racetrackScale = 320;
 
         console.log('Racetrack constructor:', width, height);
 
-        // Create markers container
-        this.markersContainer = this.scene.add.container(0, 0);
-        this.add(this.markersContainer);
+        // Create a trackContainer that will hold all the graphics for the track itself
+        // This will then fly In and Out as needed - the racetrack will always stay wherever it is placed by calling class
+        // Since position (0,0) is where the first player will be placed, we need to consider the track graphics as relative to this point
+        // We want some 'track' above the first player to provide some padding
+        // Plus we need space for distance markers and labels
+        // this.markersHeight gives total height of markers+labels - offset this to position labels above track and markers into track graphic
+        this.trackContainer = this.scene.add.container(0, 0);
+        this.add(this.trackContainer);
 
-        // Create lanes container at (0,0) so it aligns with racetrack origin
-        // Makes transforming out of racetrack back to main scene a lot simpler
-        this.lanesContainer = this.scene.add.container(0, 0);
-        this.lanesContainer.name = 'lanesContainer';
-        this.add(this.lanesContainer);
+        // Add background for the players track
+        const background = this.scene.add.rectangle(0, 0, width, height, 0xff3333, 0.3)
+            .setOrigin(0, 0);
+        this.add(background);
+        this.trackContainer.add(background);
 
+        // Add background for the markers area (half of the markers total height)
+        const markersBackground = this.scene.add.rectangle(0, 0, width, this.markersHeight / 2, 0xff3333, 0.3)
+            .setOrigin(0, 1);
+        this.add(markersBackground);
+        this.trackContainer.add(markersBackground);
 
         // Create distance markers
         this.createDistanceMarkers();
 
-        const bounds = this.lanesContainer.getBounds();
-        console.log('lane container actual bounds:', bounds.x, bounds.y, bounds.width, bounds.height);
+        const bounds = this.getBounds();
+        console.log('Racetrack actual bounds:', bounds.x, bounds.y, bounds.width, bounds.height);
         // Add visual debug rectangle to show container bounds
         // const debugRect = this.scene.add.rectangle(
         //     bounds.x, bounds.y, bounds.width, bounds.height,
@@ -66,10 +65,10 @@ export class Racetrack extends Phaser.GameObjects.Container {
 
     }
 
-    // addPlayersToTrack - add players to the racetrack
+    // movePlayersToTrack - add players to the racetrack
     // Designed to accept the full list of players - will resort and re-position all players each time someone is added or removed
-    // Will also re-parent the player into this container and tween their position to the correct starting line-up
-    public addPlayersToTrack(playerConfigs: PlayerConfig[]): gsap.core.Timeline {
+    // Assumes player is already in this container and tween their position to the correct starting line-up
+    public movePlayersToTrack(playerConfigs: PlayerConfig[]): gsap.core.Timeline {
 
         const [playerStart, playerSpacing] = this.calculatePlayerPositions(
             playerConfigs.length,
@@ -78,7 +77,7 @@ export class Racetrack extends Phaser.GameObjects.Container {
             false
         );
 
-        console.log('Racetrack::addPlayersToTrack:', { playerConfigs });
+        console.log('Racetrack::movePlayersToTrack:', { playerConfigs });
 
         // Sort players by score
         playerConfigs.sort((a, b) => {
@@ -95,32 +94,22 @@ export class Racetrack extends Phaser.GameObjects.Container {
         playerConfigs.forEach((player, index) => {
 
             const phaserPlayer = this.scene.getPlayerBySessionID(player.sessionID) as PhaserPlayer;
-            console.log('Racetrack::initialize: player:', phaserPlayer.name, this.lanesContainer.x, this.lanesContainer.y, this.x, this.y);
+            console.log('Racetrack::initialize: player:', phaserPlayer.name, this.x, this.y);
             const score = phaserPlayer.getData('score') || 0;
-
-            // Try something simple to manage the re-parenting getting way too complex...
-            // Assume players are currently just in the main scene - x,y are same as global
-            // Ok - I know this works now - simple!
-            // BUT just want to check if the original would ahve worked and it was just tweens conflicting...
-            const localX: number = phaserPlayer.x - this.x;
-            const localY: number = phaserPlayer.y - this.y;
-            console.log('Racetrack::addPlayersToTrack: positioning player:', player.name, 'from:', phaserPlayer.x, phaserPlayer.y, 'to:', localX, localY);
-            this.lanesContainer.add(phaserPlayer);
-            phaserPlayer.setPosition(localX, localY);
 
             tl.to(phaserPlayer, {
                 x: score * this.racetrackScale,
                 y: playerStart + (index * playerSpacing),
-                duration: 1,
+                duration: 2,
                 ease: "power2.out"
-            }, "<");
+            }, "<+0.2");
         });
 
         return tl;
     }
 
-    public flyIn(): gsap.core.Timeline {
-        const duration = 1;
+    public flyIn(y: number): gsap.core.Timeline {
+        const duration = 2;
         const tl = gsap.timeline({
             onComplete: () => {
                 this.racetrackState = RacetrackState.IN;
@@ -130,14 +119,13 @@ export class Racetrack extends Phaser.GameObjects.Container {
         // Animate in
         if (this.racetrackState === RacetrackState.OUT || this.racetrackState === RacetrackState.ANIMATINGOUT) {
             this.racetrackState = RacetrackState.ANIMATINGIN;
-            tl.to(this, { x: 0, duration, ease: "power2.out" });
+            tl.to(this, { y: y, duration, ease: "power2.out" });
         }
         return tl;
     }
 
-    // For now drop this - annoying gremlins... :(
     public flyOut(): gsap.core.Timeline {
-        const duration = 0.1;
+        const duration = 1;
         const tl = gsap.timeline({
             onComplete: () => {
                 this.racetrackState = RacetrackState.OUT;
@@ -147,7 +135,7 @@ export class Racetrack extends Phaser.GameObjects.Container {
         // Animate out
         if (this.racetrackState === RacetrackState.IN || this.racetrackState === RacetrackState.ANIMATINGIN) {
             this.racetrackState = RacetrackState.ANIMATINGOUT;
-            tl.to(this, { x: 0, duration, ease: "power2.in" });
+            tl.to(this, { y: this.scene.getY(1080 + this.markersHeight), duration, ease: "power2.in" });
         }
 
         return tl;
@@ -159,7 +147,7 @@ export class Racetrack extends Phaser.GameObjects.Container {
 
         // Calculate a new scale based on the highest score
         const highestScore = Math.max(...Object.values(scores), 1);
-        const newScale = Math.max(1, Math.min(180, Math.floor(1400 / highestScore)));
+        const newScale = Math.max(1, Math.min(320, Math.floor(1500 / highestScore)));
 
         const currentScale = this.racetrackScale;
         const scaleObject = { scale: currentScale };
@@ -274,30 +262,32 @@ export class Racetrack extends Phaser.GameObjects.Container {
 
     private createDistanceMarkers(): void {
         // Create markers every 10 points up to 50, then every 25
-        const distances = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 125, 150, 175, 200];
+        const distances = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 125, 150, 175, 200];
 
         distances.forEach(distance => {
             const marker = this.createMarker(distance);
             marker.setPosition(distance * this.racetrackScale, 0);
-            this.markersContainer.add(marker);
+            this.trackContainer.add(marker);
             this.markers.push(marker);
         });
     }
 
+    // createMarker - markers have their origin at the origin of the racetrack so graphics go above from the 0 point
     createMarker(distance: number): Phaser.GameObjects.Container {
         const container = this.scene.add.container(0, 0);
 
-        // Create marker line
-        const markerLine = this.scene.add.rectangle(0, 0, 3, this.scene.getY(20), 0xcccccc)
-            .setOrigin(0.5, 0);
+        // Create marker line - slightly above 0 (so -12 in y position)
+        const markerLine = this.scene.add.rectangle(0, -12, 3, this.scene.getY(this.markersHeight * 0.4), 0xcccc00)
+            .setOrigin(0.5, 1);
         container.add(markerLine);
 
         // Create distance text
-        const distanceText = this.scene.add.text(0, 0, distance.toString())
-            .setFontSize(this.scene.getY(32))
+        const distanceText = this.scene.add.text(0, this.scene.getY(-this.markersHeight), distance.toString())
+            .setFontSize(this.scene.getY(this.markersHeight * 0.4))
             .setFontFamily('Arial')
+            .setFontStyle('bold')
             .setColor('#ffffff')
-            .setOrigin(0.5, 1);
+            .setOrigin(0.5, 0);
         container.add(distanceText);
 
         container.setData('distance', distance);

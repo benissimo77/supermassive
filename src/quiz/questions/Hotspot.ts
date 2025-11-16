@@ -72,25 +72,32 @@ export default class HotspotQuestion extends BaseQuestion {
 			return;
 		}
 
+		// Simplicity: create a submit button in all modes but just make invisible if not needed
+		this.submitButton = new NineSliceButton(this.scene, 'SUBMIT');
+		this.answerContainer.add(this.submitButton);
+
 		// Create image (using BaseQuestion helper for consistency)
 		// If in HOST mode we already have an image loaded as part of question - use this
-		if (this.scene.TYPE === 'solo') {
+		if (this.scene.TYPE === 'host') {
+			this.answerImage = this.questionImage;
+			this.submitButton.setVisible(false);
+
+		} else if (this.scene.TYPE === 'solo') {
 			this.answerImage = this.questionImage;
 		} else {
 			this.answerImage = await this.createQuestionImage(this.questionData.image);
 		}
-		this.hotspotContainer.add(this.answerImage);
 
-		// Create submit button (always visible for simplicity)
-		this.submitButton = new NineSliceButton(this.scene, 'SUBMIT');
-		this.answerContainer.add(this.submitButton);
+		this.hotspotContainer.add(this.answerImage);
 
 		console.log('HotspotQuestion::createAnswerUI: Created answerImage, crosshair, submitButton');
 
 		this.scene.input.addPointer(1);
 
 		// Make interactive
-		this.makeInteractive();
+		if (this.scene.TYPE !== 'host') {
+			this.makeInteractive();
+		}
 	}
 
 	/**
@@ -100,11 +107,6 @@ export default class HotspotQuestion extends BaseQuestion {
 	protected displayAnswerUI(answerHeight: number): void {
 		console.log('HotspotQuestion::displayAnswerUI:', answerHeight, this.scene.TYPE);
 
-		// Only player displays answer UI
-		// if (this.scene.TYPE !== 'play') {
-		//     return;
-		// }
-
 		// Position and scale submit button (EXACT copy from Number.ts)
 		const scaleFactor = this.scene.getUIScaleFactor();
 		this.submitButton.setButtonSize(320 * scaleFactor, 80 * scaleFactor);
@@ -113,8 +115,11 @@ export default class HotspotQuestion extends BaseQuestion {
 			960 - 160 * scaleFactor - 20,
 			this.scene.getY(answerHeight) - 40 * scaleFactor - 20
 		);
+		this.answerContainer.add(this.submitButton);	// Ensure button is on top
 
 		// Position and size container and image (fill available space)
+		// Update: reduce answerHeight to allow some margin at bottom of screen
+		answerHeight -= this.scene.getY(60);
 		this.hotspotContainer.setPosition(0, this.scene.getY(answerHeight / 2));
 		this.configureImageSize(this.answerImage, answerHeight);
 		this.answerImage.setPosition(0, 0);
@@ -408,6 +413,7 @@ export default class HotspotQuestion extends BaseQuestion {
 
 		crosshair.setPosition(imageX, imageY);
 		this.hotspotContainer.add(crosshair);
+
 		console.log('Crosshair added:', { imageX, imageY, imageWidth, imageHeight });
 		return crosshair;
 	}

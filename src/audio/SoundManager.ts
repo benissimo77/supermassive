@@ -45,7 +45,7 @@ export class SoundManager {
 
     private muted = {
         master: false,
-        music: false,
+        music: true,
         fx: false,
         voice: false
     };

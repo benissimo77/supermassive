@@ -129,6 +129,12 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
             answers: this.getIdealAnswerHeight()
         };
 
+        // Annoying edge case: HOTSPOT and POINT-IT-OUT no image size needed since image is in answerUI
+        if (this.questionData.type === 'hotspot' || this.questionData.type === 'point-it-out') {
+            MIN['image'] = 0;
+            IDEAL['image'] = 0;
+        }
+
         // Step 1: Allocate minimums
         const allocated: { [key: string]: number } = {};
         let used = 0;
@@ -171,8 +177,8 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
             case 'multiple-choice': return 280;
             case 'true-false': return 180;
             case 'text': return 180;
-            case 'number-exact': return 640;
-            case 'number-closest': return 640;
+            case 'number-exact': return 180;
+            case 'number-closest': return 180;
             case 'ordering': return 640;
             case 'matching': return 640;
             case 'hotspot': return 640;
@@ -185,8 +191,8 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
             case 'multiple-choice': return 540;
             case 'true-false': return 320;
             case 'text': return 240;
-            case 'number-exact': return 720;
-            case 'number-closest': return 720;
+            case 'number-exact': return 240;
+            case 'number-closest': return 240;
             case 'ordering': return 720;
             case 'matching': return 720;
             case 'hotspot': return 720;
@@ -199,9 +205,9 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
     // PLUS onAnswer to set the callback for answer submission
 
     // Initialize - load/create assets as needed
-    // Creates all elements required for the question
-    // Works for all screen types (host, solo, player)
-    // Calls createAnswerUI which is implemented by subclasses
+    //  - creates all elements required for the question
+    //  - works for all screen types (host, solo, player)
+    //  - calls createAnswerUI which is implemented by subclasses
     public async initialize(): Promise<void> {
 
         console.log('BaseQuestion::initialize: questionData:', this.questionData);

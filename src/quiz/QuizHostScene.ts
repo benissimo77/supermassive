@@ -119,7 +119,7 @@ export class QuizHostScene extends BaseScene {
         this.load.audio('submit-answer', '/assets/audio/quiz/fx/585256__lesaucisson__swoosh-2.mp3');
         this.load.audio('question-answered', '/assets/audio/quiz/fx/446100__justinvoke__bounce.wav');
         this.load.audio('end-question', '/assets/audio/quiz/fx/gong-hit-2-184010.mp3');
-        
+
         // Load custom fonts
         this.load.rexWebFont({
             google: {
@@ -292,8 +292,10 @@ export class QuizHostScene extends BaseScene {
                 ease: 'back.out(1.7)',
                 onComplete: () => {
                     console.log('GSAP animation complete!');
-                    this.socket.emit('host:response'); 
-                    this.soundManager.playMusic('quiz-countdown', { volume: 0.3 });
+                    this.socket.emit('host:response');
+                    if (question.mode === 'ask') {
+                        this.soundManager.playMusic('quiz-countdown', { volume: 0.3, fadeIn: 6000 });
+                    } 
                     // Update receivedTime just to make answerTime slightly more accurate
                     receivedTime = Date.now();
                 }
@@ -344,6 +346,13 @@ export class QuizHostScene extends BaseScene {
             }
         });
 
+        // endquestion - clean up any question-specific elements
+        this.socket.on('server:endquestion', (data) => {
+            console.log('QuizHostScene:: server:endquestion');
+            this.soundManager.playFX('end-question', 0.5);
+            this.soundManager.stopTrack('quiz-countdown');
+        });
+
         // Show answer
         this.socket.on('server:showanswer', async (question) => {
             await this.createQuestion(question);
@@ -360,6 +369,7 @@ export class QuizHostScene extends BaseScene {
 
         // End round
         this.socket.on('server:endround', (data) => {
+            this.soundManager.stopAll( 3000 );
             this.endRound(data);
         });
 
@@ -721,7 +731,7 @@ export class QuizHostScene extends BaseScene {
     // Handle score updates
     private updateScores(scores: { [key: string]: number }): void {
 
-        // Firstly get the race audio going...
+        // Firstly get the race audio going... uses resume music because we are pausing/resuming each time we come back here
         this.soundManager.playMusic('quiz-race', { volume: 0.5 });
 
         // Set the players to racing, kill any existing tweens and re-parent to racetrack
@@ -809,14 +819,17 @@ export class QuizHostScene extends BaseScene {
         this.UIContainer.add([titleText, descText, nextButton]);
 
         // Animation
-        this.tweens.add({
-            targets: this.UIContainer,
-            alpha: { from: 0, to: 1 },
-            y: '-=30',
-            duration: 800,
-            ease: 'Power2',
-            stagger: 200
-        });
+        gsap.fromTo(this.UIContainer,
+            { y: this.getY(-1080) },
+            {
+                duration: 1,
+                y: 0,
+                ease: 'power2.out',
+                onComplete: () => {
+                    console.log('GSAP animation complete!');
+                }
+            }
+        );
     }
 
     private showFinalScores(): void {

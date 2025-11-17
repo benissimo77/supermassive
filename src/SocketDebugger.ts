@@ -18,6 +18,8 @@ export class SocketDebugger {
     private modalInput: any; // Will hold the DOM element
     private currentEvent: { event: string, payload: any } | null = null;
 
+    // Position
+    private posY: number = 120;
 
     // Configuration for each debug event
     private debugEvents: { event: string; label: string; payload: any }[] = [
@@ -26,7 +28,10 @@ export class SocketDebugger {
             event: 'server:players', label: 'Host Connect', payload: [
                 { name: 'Player One', avatar: '12138743', socketID: '1', sessionID: '1' },
                 { name: 'Player Two', avatar: '12140600', socketID: '2', sessionID: '2' },
-                { name: 'Player Three', avatar: '12140600', socketID: '3', sessionID: '3' }
+                { name: 'Player Three', avatar: '12140600', socketID: '3', sessionID: '3' },
+                { name: 'Player Four', avatar: '12138743', socketID: '4', sessionID: '4' },
+                { name: 'Player Five', avatar: '12138743', socketID: '5', sessionID: '5' }
+
             ]
         },
         {
@@ -88,7 +93,7 @@ export class SocketDebugger {
         },
         { event: 'server:endquestion', label: 'End Question', payload: {} },
         { event: 'server:endround', label: 'End Round', payload: {} },
-        { event: 'server:endquiz', label: 'End Quiz', payload: {} },
+        { event: 'server:endquiz', label: 'End Quiz', payload: { "quizTitle": "Test Title", "scores": { "1":21, "2":28, "3":31, "4":32, "5":35 } } },
 
         // Timer event
         { event: 'server:starttimer', label: 'Start Timer', payload: { duration: 10 } },
@@ -172,7 +177,7 @@ export class SocketDebugger {
      */
     private createDebugPanel(): void {
         // Create main container
-        this.container = this.scene.add.container(10, 10);
+        this.container = this.scene.add.container(10, this.posY);
         this.container.setDepth(1000); // Make sure it's on top of everything
 
         // Create background panel
@@ -266,7 +271,7 @@ export class SocketDebugger {
      * Create the toggle button to show/hide the debug panel
      */
     private createToggleButton(): void {
-        this.toggleButton = this.createButton(10, 10, 'D',
+        this.toggleButton = this.createButton(10, this.posY, 'D',
             () => this.toggleVisibility(),
             {
                 width: 40,
@@ -385,9 +390,9 @@ export class SocketDebugger {
 
         // Move toggle button when panel is visible
         if (this.isVisible) {
-            this.toggleButton.setPosition(220, 10);
+            this.toggleButton.setPosition(220, this.posY);
         } else {
-            this.toggleButton.setPosition(10, 10);
+            this.toggleButton.setPosition(10, this.posY);
         }
     }
 

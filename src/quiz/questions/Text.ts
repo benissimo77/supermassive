@@ -205,7 +205,7 @@ export default class TextQuestion extends BaseQuestion {
         this.answerText.setText(answer);
         this.answerText.setVisible(true);
         this.keyboard.setAnswerText('');
-
+ 
         // Juice - animate the keyboard and submit button (then later, answerText) out
         const tl = gsap.timeline();
         tl.to(this.submitButton, {

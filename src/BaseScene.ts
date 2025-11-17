@@ -115,6 +115,7 @@ export abstract class BaseScene extends Phaser.Scene {
     }
 
     preload(): void {
+        this.load.image('audio-settings', '/assets/img/audio-settings.png');
     }
 
     create(): void {

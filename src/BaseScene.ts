@@ -1,11 +1,11 @@
 import SocketManagerPlugin from './socketManager';
 import { Socket } from 'socket.io-client';
 import { PlayerConfig } from './DOMPlayer';
+import { SoundManager } from 'src/audio/SoundManager';
 
 export abstract class BaseScene extends Phaser.Scene {
     private static currentHeight = 1080;
     private static wakeLock: any = null;
-    private static screenOrientation: any = null;
     private overlay: Phaser.GameObjects.Rectangle | null = null;
     private resizeCount: number = 0;
     private lastResizeTime: number = 0;
@@ -20,6 +20,7 @@ export abstract class BaseScene extends Phaser.Scene {
     protected topContainer: Phaser.GameObjects.Container;
     protected debugContainer: Phaser.GameObjects.Container;
 
+    public soundManager: SoundManager;
     public rexUI!: any;
     public rexToggleSwitch!: any;
     protected socket: Socket;
@@ -86,6 +87,9 @@ export abstract class BaseScene extends Phaser.Scene {
         // rexUI plugin is a scene plugin and available immediately as this.rexUI
         console.log(`${this.scene.key}:: BaseScene.init: plugins:`, this.rexUI);
 
+        // Initialize the SoundManager
+        this.soundManager = SoundManager.getInstance(this);
+        
         // This is useful for debugging but quite noisy
         // this.socket.onAny((event, ...args) => {
         //     console.log('BaseScene:: Socket event:', event, args);
@@ -111,7 +115,6 @@ export abstract class BaseScene extends Phaser.Scene {
     }
 
     preload(): void {
-        this.load.image('audio-settings', '/assets/img/audio-settings.png');
     }
 
     create(): void {

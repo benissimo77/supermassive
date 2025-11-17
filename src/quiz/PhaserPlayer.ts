@@ -168,6 +168,9 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 	getSocketID(): string {
 		return this.socketID;
 	}
+	getSessionID(): string {
+		return this.sessionID;
+	}
 	getPlayerState(): PhaserPlayerState {
 		return this.playerState;
 	}

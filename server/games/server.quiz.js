@@ -1282,6 +1282,10 @@ export default class Quiz extends Game {
 		// Special case for draw questions - we show all answers on the host screen but send each player a different player's answer and get them to score it
 		if (this.question.type === 'draw') {
 			this.submitToPlayersForScoring(localQuestion);
+		} else {
+			const scores = this.calculatePlayerScores(localQuestion);
+			console.log('showAnswer: calculated scores:', scores);
+			this.room.emitToAllPlayers('server:showanswer', { 'scores': scores });
 		}
 	}
 
@@ -1326,6 +1330,8 @@ export default class Quiz extends Game {
 	// updateScores
 	// We have shown the correct answer to the players, now time to update the scores
 	// Note: we only calculate the scores at this point since some scoring relies on knowing all the player results (eg hotspot)
+	// IMPORTANT: if questions need further processing before a score can be calculated then that MUST be done before calling this function!
+	// This function assumes scores have ALREADY been stored in question.results
 	updateScores() {
 		console.log('server.quiz:: updateScores:', this.roundNumber, this.questionNumber);
 
@@ -1539,10 +1545,13 @@ export default class Quiz extends Game {
 		}
 
 		// Message partly depends on the mode ask/answer and the round meta-data showAnswer/updateScores
-		if (this.mode == "ask" && this.round.showAnswer == "round") {
+		if (this.mode == 'ask' && this.round.showAnswer == "round") {
 			information.description = "Let's see how you got on - here are the answers...";
-		} else if (this.mode == "answer" && this.round.updateScores == "round") {
+		} else if (this.round.updateScores == "round") {
 			information.description = "Ok, let's update the scores";
+		} else if (this.mode == 'ask' && this.round.showAnswer == "question") {
+			this.stateMachine.nextState();
+			return;
 		} else {
 			information.description = "Let's move on...";
 		}
@@ -1551,7 +1560,8 @@ export default class Quiz extends Game {
 
 	endQuiz() {
 		console.log('endQuiz:', this.quizData);
-		this.room.emitToHosts('server:endquiz', { description: 'END OF THE QUIZ' }, true)
+		const scores = this.calculatePlayerScores();
+		this.room.emitToHosts('server:endquiz', { quiz: this.quizData } );
 	}
 
 	getPlayers() {

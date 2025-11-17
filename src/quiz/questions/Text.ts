@@ -229,7 +229,7 @@ export default class TextQuestion extends BaseQuestion {
             ease: 'back.in'
         }, ">");
         tl.add(() => {
-            this.scene.sound.play('submit-answer');
+            this.scene.soundManager.playFX('submit-answer');
         }, "<+0.25");
         tl.play();
     }

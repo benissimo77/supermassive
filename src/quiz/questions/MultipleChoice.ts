@@ -106,7 +106,7 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
             button.setAlpha(0.5);
             if (option ===  correctAnswer) {
                 button.setHighlight();
-                this.answerContainer.add(button); // re-add to bring to front
+                this.answerContainer.bringToTop(button);
             }
         }
     }
@@ -131,7 +131,7 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
                     ease: 'back.in'
                 }, "+1.0");
                 tl.add(() => {
-                    this.scene.sound.play('submit-answer');
+                    this.scene.soundManager.playFX('submit-answer');
                 }, "<+0.25");
                 tl.play();
             });

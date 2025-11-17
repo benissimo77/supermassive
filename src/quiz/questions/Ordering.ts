@@ -168,6 +168,7 @@ export default class OrderingQuestion extends BaseQuestion {
             button.setTextSize(48 * scaleFactor);
             button.setData('OriginX', x);
             button.setData('OriginY', this.scene.getY(y));
+            button.setData('dropzone', null); // Reset dropzone data on display
         });
 
         // Position dropzones
@@ -193,6 +194,8 @@ export default class OrderingQuestion extends BaseQuestion {
 
         });
 
+        // Since we have reset everything then submit button should be invisible again
+        this.submitButton.setVisible(false);
     }
 
 
@@ -266,7 +269,7 @@ export default class OrderingQuestion extends BaseQuestion {
 			ease: 'back.in'
 		});
 		tl.add(() => {
-			this.scene.sound.play('submit-answer');
+			this.scene.soundManager.playFX('submit-answer');
 		}, "<+0.25");
 		tl.play();
     }
@@ -344,18 +347,14 @@ export default class OrderingQuestion extends BaseQuestion {
         console.log('Drag started:', gameObject.getData('item'));
         this.answerContainer.bringToTop(gameObject);
 
-        // If dragging from dropzone, check if pointer started outside bounds
+        // If dragging from dropzone, clear data set on object/dropzone
         if (gameObject.getData('dropzone') !== null) {
             const dropzoneIndex = gameObject.getData('dropzone');
             const dropzone = this.dropzones.get(dropzoneIndex);
             if (dropzone) {
-                const bounds = dropzone.getBounds();
-                if (!bounds.contains(pointer.x, pointer.y)) {
-                    // Clear dropzone (pointer started outside)
-                    dropzone.setData('dropped', '');
-                    dropzone.setTint(0x8080C0);
-                    gameObject.setData('dropzone', null);
-                }
+                dropzone.setData('dropped', '');
+                dropzone.setTint(0x8080C0);
+                gameObject.setData('dropzone', null);
             }
         }
     }
@@ -378,6 +377,7 @@ export default class OrderingQuestion extends BaseQuestion {
 
         // Show submit button if all dropzones filled
         this.submitButton.setVisible(this.checkDropzonesFull());
+        this.answerContainer.bringToTop(this.submitButton);
     }
 
     private handleDrag(pointer: Phaser.Input.Pointer, gameObject: any, dragX: number, dragY: number): void {
@@ -401,12 +401,6 @@ export default class OrderingQuestion extends BaseQuestion {
         console.log('Drag leave:', dropzone.getData('index'));
 
         dropzone.setTint(0x8080C0); // Reset tint
-
-        // If leaving own dropzone, clear it
-        if (gameObject.getData('dropzone') === dropzone.getData('index')) {
-            dropzone.setData('dropped', '');
-            gameObject.setData('dropzone', null);
-        }
     }
 
     private handleDrop(pointer: Phaser.Input.Pointer, gameObject: any, dropzone: any): void {

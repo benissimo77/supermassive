@@ -74,7 +74,7 @@ export class NineSliceButton extends Phaser.GameObjects.Container {
         this.on('pointerout', this.onPointerOut, this);
         this.on('pointerdown', () => {
             this.setScale(1.05);
-            this.scene.sound.play('button-click', { volume: 0.1 });
+            this.scene.soundManager.playFX('button-click', 0.1);
         });
         this.on('pointerup', () => this.setScale(1));
 

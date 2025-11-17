@@ -94,7 +94,7 @@ export default class TrueFalseQuestion extends BaseQuestion {
                 this.submitAnswer(option);
                 this.highlightAnswer(option);
                 this.scene.time.delayedCall(1000, () => {
-                    this.scene.sound.play('submit-answer');
+                    this.scene.soundManager.playFX('submit-answer');
                     gsap.to(this.answerContainer, {
                         y: this.scene.getY(1080 + 540),
                         ease: 'back.in'

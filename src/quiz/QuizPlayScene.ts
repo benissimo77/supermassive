@@ -17,7 +17,6 @@ export class QuizPlayScene extends BaseScene {
     private phaserPlayer: PhaserPlayer;
 
     // UI elements
-    protected UIContainer: Phaser.GameObjects.Container;
     private waitingText: Phaser.GameObjects.Text;
     private waitingPanel: Phaser.GameObjects.Container;
 
@@ -85,10 +84,7 @@ export class QuizPlayScene extends BaseScene {
         // connectButton.setInteractive({ useHandCursor: true });
         // connectButton.on('pointerdown', () => this.toggleConnect());
 
-        // Add the UIContainer that will be used to store information panels
-        this.UIContainer = this.add.container(0, 0);
-
-        // Create the waiting panel - this will be shown at the beginnig of the quiz and between questions
+        // Create the waiting panel - this will be shown at the beginning of the quiz and between questions
         this.waitingPanel = this.add.container(960, 540);
         this.waitingText = this.add.text(0, 0, 'Waiting for quiz to start...', this.labelConfig).setOrigin(0.5);
         this.waitingPanel.add(this.waitingText);
@@ -241,7 +237,7 @@ export class QuizPlayScene extends BaseScene {
         // Show answer
         this.socket.on('server:showanswer', (data) => {
             console.log('QuizPlayScene:: server:showanswer:', data);
-            // this.showAnswer(data);
+            this.showAnswer(data);
         });
 
         // End round
@@ -259,14 +255,14 @@ export class QuizPlayScene extends BaseScene {
     // Sets player screen in the waiting state
     // Waiting message displays, player is animated around the screen
     // Note: we need to check if answerSubmitted in case this function is called while a new question is added
-    private gotoWaitingState(): void {
+    private gotoWaitingState(message: string = 'Waiting for next question...'): void {
         if (!this.waitingState) {
             return
         }
         if (this.currentQuestion) {
             this.currentQuestion.setVisible(false);
         }
-        this.waitingText.text = 'Waiting for next question...';
+        this.waitingText.text = message;
         this.waitingText.setFontSize(8);
         this.waitingPanel.setVisible(true);
         this.tweens.killAll();
@@ -391,6 +387,11 @@ export class QuizPlayScene extends BaseScene {
         // Clear previous UI
         this.clearUI();
 
+        // Destroy previous question if any
+        if (this.currentQuestion) {
+            this.currentQuestion.destroy(true);
+        }
+
         // Create the appropriate question renderer based on type
         this.currentQuestion = this.questionFactory.create(question.type, question);
 
@@ -411,9 +412,33 @@ export class QuizPlayScene extends BaseScene {
 
     }
 
+    // showAnswer - receives a list of scores from the server and displays if user got this question correct
+    // Plays a suitable sound effect based on players score
     private showAnswer(questionData: any): void {
-        if (this.currentQuestion) {
-            this.currentQuestion.showAnswer();
+
+        // questionData.scores is a dictionary with keys as sessionIDs and values as score objects
+        // e.g. { 'abc123': 10, 'def456': 0, ... }
+        // pull out the correct key and retrieve the score for this player
+        if (questionData.scores) {
+            let playerScore:number = 0;
+            playerScore = questionData.scores[this.phaserPlayer.getSessionID()] || 0;
+            if (playerScore) {
+                console.log(`Player score for this question: ${playerScore}`);
+            }
+            let answerText: string = `You scored ${playerScore} points`;
+            if (playerScore == 1) {
+                answerText = 'You scored 1 point';
+            }
+            if (playerScore > 0) {
+                this.soundManager.playFX('answer-correct');
+            } else {
+                this.soundManager.playFX('answer-incorrect');
+            }
+            this.waitingState = true;
+            this.gotoWaitingState(answerText);
+            this.time.delayedCall(3000, () => {
+                this.gotoWaitingState('Waiting for next question...');
+            });
         }
     }
 
@@ -538,12 +563,12 @@ export class QuizPlayScene extends BaseScene {
     }
 
     private clearUI(): void {
-        // Clean up the previous question's display elements
+        // Clean up any existing display (note: NOT current question - this is only destroyed the moment a new question is needed)
+        // Also position and make visible so its ready for new content
         if (this.UIContainer) {
             this.UIContainer.removeAll(true);
-        }
-        if (this.currentQuestion) {
-            this.currentQuestion.destroy(true);
+            this.UIContainer.setPosition(0, 0);
+            this.UIContainer.setVisible(true);
         }
     }
 

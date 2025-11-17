@@ -167,7 +167,7 @@ export class QuizHostScene extends BaseScene {
 
         // Only create the debugger in debug mode
         const debugMode = __DEV__;
-        if (debugMode && 0) {
+        if (debugMode) {
             this.socketDebugger = new SocketDebugger(this, this.socket);
         }
 
@@ -265,7 +265,9 @@ export class QuizHostScene extends BaseScene {
                         /Android/.test(navigator.userAgent) ? 'Android' : 'Other',
                 displayTime: displayTime
             };
-            callback(deviceInfo);
+            if (callback && typeof callback === 'function') {
+                callback(deviceInfo);
+            }
 
             // Animate the arrival of the question - based on the direction we are currently moving
             // This might be better moved to its own function but for now leave it here...
@@ -824,6 +826,11 @@ export class QuizHostScene extends BaseScene {
         );
     }
 
+    // showFinalScores - end quiz screen
+    // the racetrack is still visible on screen (should be for all possible combinations of answer/score settings)
+    // this means top half of screen is available to just display the top 3 players using UI Container
+    // data.quizTitle: title of this quiz
+    // data.score: dictionary object of playerID: score
     private showFinalScores(data: any): void {
 
         console.log('QuizHostScene:: showFinalScores:', data);
@@ -833,61 +840,81 @@ export class QuizHostScene extends BaseScene {
 
         // Show quiz complete message
         const titleTextConfig = Object.assign({}, this.labelConfig, {
-            fontSize: this.getY(64),
+            fontSize: 120,
             strokeThickness: 6
         });
-        const titleText = this.add.text(
-            960,
-            this.getY(200),
-            'QUIZ COMPLETE!',
-            titleTextConfig
-        );
+        const titleText = this.add.text(960, this.getY(120), data.quizTitle, titleTextConfig)
+            .setOrigin(0.5);
 
-        // Get winner
-        let winner = '';
-        let highScore = 0;
-
-        this.playerScores.forEach((score, playerID) => {
-            if (score > highScore) {
-                highScore = score;
-                winner = this.getPlayerName(playerID);
-            }
-        });
-
-        // Show winner
-        const winnerTextConfig = Object.assign({}, this.labelConfig, {
-            fontSize: this.getY(48),
+        // Show complete message
+        const completeTextConfig = Object.assign({}, this.labelConfig, {
+            fontSize: 60,
             strokeThickness: 4
         });
-        const winnerText = this.add.text(960, this.getY(400), `Winner: ${winner} with ${highScore} points!`, winnerTextConfig);
+        const completeText = this.add.text(960, this.getY(240), 'COMPLETE!', completeTextConfig)
+            .setOrigin(0.5);
+        this.UIContainer.add([titleText, completeText]);
+        this.UIContainer.setPosition(1920, 0);
 
-        // Create list of all scores
-        let y = 400;
-        const sortedScores = Array.from(this.playerScores.entries())
-            .sort((a, b) => b[1] - a[1]);
+        // OK everything set up - now run animations with music background
+        this.soundManager.playMusic('quiz-end', { volume: 0.5 });
 
-        const scoreTextConfig = Object.assign({}, this.labelConfig, {
-            fontSize: this.getY(32),
-            fontFamily: 'Arial'
+
+        // Animate the UI container in
+        this.tweens.add({
+            targets: this.UIContainer,
+            x: 0,
+            duration: 2000,
+            ease: 'Power2'
         });
-        sortedScores.forEach(([playerID, score], index) => {
-            const player = this.getPlayerName(playerID);
-            const scoreText = this.add.text(960, this.getY(y + index * 40), `${index + 1}. ${player}: ${score}`, scoreTextConfig);
+
+        // Animate all players to form a neat podium style design - scale increasing to create depth
+        this.phaserPlayers.forEach((player: PhaserPlayer) => {
+            if (player.parentContainer === this.racetrack) {
+                player.x += this.racetrack.x;
+                player.y += this.racetrack.y;
+                this.playerContainer.add(player);
+            }
         });
+        this.racetrack.flyOut().play();
 
-        // Return to lobby button
-        const backButtonConfig = Object.assign({}, this.labelConfig, {
-            backgroundColor: '#0066cc',
-            padding: { x: 30, y: 15 }
-        });
-        const backButton = this.add.text(960, this.getY(y + sortedScores.length * 40 + 60), 'RETURN TO LOBBY', backButtonConfig)
-            .setInteractive({ useHandCursor: true })
-            .on('pointerdown', () => {
-                this.scene.start('LobbyHostScene');
-            });
+        // data.scores is a dictionary of playerID: score
+        // Create a sorted array of player scores from lowest to highest score
+        const sortedScores = Object.entries(data.scores)
+            .sort(([, scoreA], [, scoreB]) => scoreB - scoreA);
 
-        this.UIContainer.add([titleText, winnerText, backButton]);
+        // also find the highest and lowest scores - use this to determine position/scale (in event of tie)
+        const highestScore = sortedScores[0] ? sortedScores[0][1] : 0;
+        const lowestScore = sortedScores[sortedScores.length - 1] ? sortedScores[sortedScores.length - 1][1] : 0;
 
+        console.log('Sorted Scores:', sortedScores, { highestScore, lowestScore });
+
+        // Display the top 3 players
+        for (let i = 0; i < sortedScores.length; i++) {
+            const [playerID, score] = sortedScores[i];
+            const player = this.phaserPlayers.get(playerID);
+            if (player) {
+                this.tweens.killTweensOf(player);
+                this.playerContainer.bringToTop(player);
+                const scoreRatio = (score - lowestScore) / (highestScore - lowestScore);
+                this.tweens.add({
+                    targets: player,
+                    x: 180 + scoreRatio * 900,
+                    y: this.getY(480 + i * this.getY(120)),
+                    scale: 1 + scoreRatio * 1,
+                    duration: 3000,
+                    ease: 'Power2',
+                    delay: (sortedScores.length - i) * 750,
+                    onComplete: () => {
+                        console.log(`Player ${playerID} animation complete.`);
+                        player.updatePlayerScore(score ? score : 0);
+                        player.addShine();
+                    }
+                });
+            } else {
+                console.log(`Player with ID ${playerID} not found.`);
+            }
+        }
     }
 
     private clearUI(): void {

@@ -100,11 +100,13 @@ export default class OrderingQuestion extends BaseQuestion {
         this.submitButton = new NineSliceButton(this.scene, 'Submit');
         this.answerContainer.add(this.submitButton);
 
+        // Make invisible for all screens (becomes visible when all dropzones filled)
+        this.submitButton.setVisible(false);
+
         // Make interactive if in ask mode and player screen
-        // if (this.questionData.mode === 'ask' && this.scene.TYPE !== 'host') {
-        //     this.makeInteractive();
-        // }
-        this.makeInteractive();
+        if (this.questionData.mode === 'ask' && this.scene.TYPE !== 'host') {
+            this.makeInteractive();
+        }
     }
 
     /**
@@ -375,8 +377,7 @@ export default class OrderingQuestion extends BaseQuestion {
         }
 
         // Show submit button if all dropzones filled
-        // UPDATE - just leave it visible all the time 
-        // this.submitButton.setVisible(this.checkDropzonesFull());
+        this.submitButton.setVisible(this.checkDropzonesFull());
     }
 
     private handleDrag(pointer: Phaser.Input.Pointer, gameObject: any, dragX: number, dragY: number): void {

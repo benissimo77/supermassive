@@ -1283,7 +1283,7 @@ export default class Quiz extends Game {
 		if (this.question.type === 'draw') {
 			this.submitToPlayersForScoring(localQuestion);
 		} else {
-			const scores = this.calculatePlayerScores(localQuestion);
+			const scores = this.calculateQuestionScore(localQuestion);
 			console.log('showAnswer: calculated scores:', scores);
 			this.room.emitToAllPlayers('server:showanswer', { 'scores': scores });
 		}
@@ -1335,6 +1335,16 @@ export default class Quiz extends Game {
 	updateScores() {
 		console.log('server.quiz:: updateScores:', this.roundNumber, this.questionNumber);
 
+		const scores = this.calculateCumulativeScore();
+		console.log('updateScores:', scores);
+		this.room.emitToHosts('server:updatescores', { 'scores': scores });
+	}
+
+	// calculateCumulativeScore
+	// Uses the current round and question number and loops through all questions up to this point
+	// returns a scores object, keyed on player sessionID with cumulative score as value
+	calculateCumulativeScore() {
+
 		// Function to add values from dict2 to dict1
 		function addDictionaries(dict1, dict2) {
 			for (const key in dict2) {
@@ -1356,7 +1366,7 @@ export default class Quiz extends Game {
 		for (var i = 0; i < this.roundNumber; i++) {
 			const lastQuestion = (i == this.roundNumber - 1) ? this.questionNumber : this.quizData.rounds[i].questions.length;
 			for (var j = 0; j < lastQuestion; j++) {
-				const scoreQuestion = this.calculatePlayerScores(this.quizData.rounds[i].questions[j]);
+				const scoreQuestion = this.calculateQuestionScore(this.quizData.rounds[i].questions[j]);
 				addDictionaries(scores, scoreQuestion);
 				console.log('Round Question:', i, j);
 				console.log('Results:', this.quizData.rounds[i].questions[j].results);
@@ -1364,16 +1374,16 @@ export default class Quiz extends Game {
 				console.log('Scores:', scores);
 			}
 		}
-		console.log('updateScores:', scores);
-		this.room.emitToHosts('server:updatescores', { 'scores': scores });
+	
+		return scores;
 	}
 
-	// calculatePlayerScores
+	// calculateQuestionScore
 	// For a single question we have all the player's answers stored in question.results
 	// This is a dictionary, keyed on player sessionID, with the value being the answer
 	// Each question type has its own scoring method - principle is the same:
 	// Loop through the keys of the results dictionary calculating a score for each player
-	calculatePlayerScores(question) {
+	calculateQuestionScore(question) {
 		console.log('calculatePlayerScores:', question);
 
 		var scores = {};
@@ -1559,9 +1569,9 @@ export default class Quiz extends Game {
 	}
 
 	endQuiz() {
-		console.log('endQuiz:', this.quizData);
-		const scores = this.calculatePlayerScores();
-		this.room.emitToHosts('server:endquiz', { quiz: this.quizData } );
+		console.log('endQuiz:', this.quizData, this.roundNumber, this.questionNumber);
+		const scores = this.calculateCumulativeScore();
+		this.room.emitToHosts('server:endquiz', { quizTitle: this.quizData.title, scores: scores });
 	}
 
 	getPlayers() {

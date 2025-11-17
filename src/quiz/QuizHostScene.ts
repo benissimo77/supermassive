@@ -11,7 +11,6 @@ import { Racetrack } from "./Racetrack";
 import { PlayerConfig, PhaserPlayerState, PhaserPlayer } from './PhaserPlayer';
 import { YouTubePlayerUI } from './YouTubePlayerUI';
 
-import { SoundManager } from 'src/audio/SoundManager';
 import { GlobalNavbar } from 'src/ui/GlobalNavbar';
 import { SoundSettingsPanel } from 'src/ui/SoundSettingsPanel';
 
@@ -19,15 +18,9 @@ export class QuizHostScene extends BaseScene {
 
     static readonly KEY = 'QuizHostScene';
 
-    // SoundManager is public so that all questions can access it easily
-    public soundManager: SoundManager;
-
     private socketDebugger: SocketDebugger;
 
     private currentQuestion: BaseQuestion;
-    private currentRound: any = null;
-    private currentQuestionIndex: number = 0;
-    private currentRoundIndex: number = 0;
     private phaserPlayers: Map<string, PhaserPlayer> = new Map();
     private playerScores: Map<string, number> = new Map();
     private playerAnswers: Map<string, any> = new Map();
@@ -36,7 +29,6 @@ export class QuizHostScene extends BaseScene {
     // UI elements
     private timerBar: Phaser.GameObjects.Graphics;
     private timerText: Phaser.GameObjects.Text;
-    private scoreBoard: Phaser.GameObjects.Container;
     private globalNavbar: GlobalNavbar;
     private soundSettings: SoundSettingsPanel;
 
@@ -66,7 +58,6 @@ export class QuizHostScene extends BaseScene {
         this.playerScores = new Map();
         this.playerAnswers = new Map();
         this.questionFactory = new QuestionFactory(this);
-        this.soundManager = SoundManager.getInstance(this);
 
         // General keyboard listener - useful for keyboard control
         if (this.input?.keyboard) {
@@ -108,6 +99,7 @@ export class QuizHostScene extends BaseScene {
         this.load.audio('quiz-music-intro', '/assets/audio/quiz/music/modern-beat-jingle-intro-149598.mp3');
         this.load.audio('quiz-countdown', '/assets/audio/quiz/music/quiz-countdown-337785.mp3');
         this.load.audio('quiz-race', '/assets/audio/quiz/music/1-01 Title.m4a');
+        this.load.audio('quiz-end', '/assets/audio/quiz/music/2-10 Koopa Cape (Final Lap).m4a');
 
         // Audio - voice
         // this.load.audio('quiz-voice-intro', '/assets/audio/quiz/music/quiz-intro-Gabriella.mp3');
@@ -375,7 +367,7 @@ export class QuizHostScene extends BaseScene {
 
         // End quiz
         this.socket.on('server:endquiz', (data) => {
-            this.showFinalScores();
+            this.showFinalScores(data);
         });
 
         // Start timer
@@ -832,7 +824,9 @@ export class QuizHostScene extends BaseScene {
         );
     }
 
-    private showFinalScores(): void {
+    private showFinalScores(data: any): void {
+
+        console.log('QuizHostScene:: showFinalScores:', data);
 
         // Clear the screen
         this.clearUI();

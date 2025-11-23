@@ -505,9 +505,6 @@ export class QuizHostScene extends BaseScene {
             strokeThickness: 3
         });
         this.timerText = this.add.text(960, this.getY(600), '', timerTextConfig);
-
-        // Score board
-        this.scoreBoard = this.add.container(50, this.getY(650));
     }
 
     private showQuizIntro(title: string, description: string): void {
@@ -896,7 +893,7 @@ export class QuizHostScene extends BaseScene {
             if (player) {
                 this.tweens.killTweensOf(player);
                 this.playerContainer.bringToTop(player);
-                const scoreRatio = (score - lowestScore) / (highestScore - lowestScore);
+                const scoreRatio = (highestScore == lowestScore) ? 0 : (score - lowestScore) / (highestScore - lowestScore);
                 this.tweens.add({
                     targets: player,
                     x: 180 + scoreRatio * 900,
@@ -906,7 +903,7 @@ export class QuizHostScene extends BaseScene {
                     ease: 'Power2',
                     delay: (sortedScores.length - i) * 750,
                     onComplete: () => {
-                        console.log(`Player ${playerID} animation complete.`);
+                        console.log(`Player ${playerID} animation complete: ${player.x}, ${player.y}, scale: ${player.scale}`);0.0
                         player.updatePlayerScore(score ? score : 0);
                         player.addShine();
                     }

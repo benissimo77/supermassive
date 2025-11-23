@@ -426,16 +426,6 @@ export default class HotspotQuestion extends BaseQuestion {
 
 	protected showResults(answerHeight: number): void {
 
-		// First mark all the guesses made by the players
-		if (this.questionData.results) {
-			Object.entries(this.questionData.results).forEach(([sessionID, result]) => {
-				if (result && result.x !== undefined && result.y !== undefined) {
-					const guessCrosshair = this.addCrosshairAtNormalizedPosition(this.answerImage, result.x, result.y);
-					guessCrosshair.setTint(0x008000);
-				}
-			});
-		}
-
 		// HOTSPOT: display the crosshair at the answer position
 		// POINT-IT-OUT: display a rectangle at the answer position
 		if (this.questionData.type === 'hotspot') {
@@ -449,6 +439,16 @@ export default class HotspotQuestion extends BaseQuestion {
 				y: (this.questionData.answer.start.y + this.questionData.answer.end.y) / 2
 			};
 			this.addRectangleAtNormalizedPosition(this.answerImage, this.questionData.answer);
+		}
+
+		// Mark all the guesses made by the players
+		if (this.questionData.results) {
+			Object.entries(this.questionData.results).forEach(([sessionID, result]) => {
+				if (result && result.x !== undefined && result.y !== undefined) {
+					const guessCrosshair = this.addCrosshairAtNormalizedPosition(this.answerImage, result.x, result.y);
+					guessCrosshair.setScale(0.8);
+				}
+			});
 		}
 
 		// Experiemnt with zooming the image to make the answer more visible

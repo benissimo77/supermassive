@@ -13,6 +13,7 @@ const QuizState = {
 	END_QUESTION: 'END_QUESTION',
 	COLLECT_ANSWERS: 'COLLECT_ANSWERS',
 	SHOW_ANSWER: 'SHOW_ANSWER',
+	MARK_ANSWERS: 'MARK_ANSWERS',
 	UPDATE_SCORES: 'UPDATE_SCORES',
 	END_ROUND: 'END_ROUND',
 	END_QUIZ: 'END_QUIZ'
@@ -71,6 +72,21 @@ class QuizStateMachine {
 
 			case QuizState.SHOW_ANSWER:
 				console.log('SHOW_ANSWER:', this.quiz.round.showAnswer, this.quiz.round.updateScores);
+				// For Draw question types (and maybe others) we want to pass to players to mark correct/incorrect
+				if (this.quiz.doesQuestionNeedMarking()) {
+					console.log('... DRAW! move to MARK_ANSWERS');
+					this.transitionTo(QuizState.MARK_ANSWERS);
+				} else {
+					if (this.quiz.round.updateScores == "question") {
+						this.transitionTo(QuizState.UPDATE_SCORES);
+					} else {
+						this.transitionTo(QuizState.NEXT_QUESTION);
+					}
+				}
+				break;
+
+			// after MARK_ANSWERS we duplicate the logic from SHOW_ANSWER
+			case QuizState.MARK_ANSWERS:
 				if (this.quiz.round.updateScores == "question") {
 					this.transitionTo(QuizState.UPDATE_SCORES);
 				} else {
@@ -145,6 +161,7 @@ class QuizStateMachine {
 			case QuizState.QUESTION:
 			case QuizState.COLLECT_ANSWERS:
 			case QuizState.SHOW_ANSWER:
+			case QuizState.MARK_ANSWERS:
 			case QuizState.UPDATE_SCORES:
 			case QuizState.END_QUESTION:
 			case QuizState.END_ROUND:
@@ -232,6 +249,10 @@ class QuizStateMachine {
 
 			case QuizState.SHOW_ANSWER:
 				this.quiz.showAnswer();
+				break;
+
+			case QuizState.MARK_ANSWERS:
+				this.quiz.submitToPlayersForScoring();
 				break;
 
 			case QuizState.UPDATE_SCORES:
@@ -1281,7 +1302,7 @@ export default class Quiz extends Game {
 
 		// Special case for draw questions - we show all answers on the host screen but send each player a different player's answer and get them to score it
 		if (this.question.type === 'draw') {
-			this.submitToPlayersForScoring(localQuestion);
+			// this.submitToPlayersForScoring(localQuestion);
 		} else {
 			const scores = this.calculateQuestionScore(localQuestion);
 			console.log('showAnswer: calculated scores:', scores);
@@ -1289,10 +1310,24 @@ export default class Quiz extends Game {
 		}
 	}
 
+	doesQuestionNeedMarking() {
+		// For now only draw questions need marking
+		if (this.question.type === 'draw') {
+			return true;
+		}
+		return false;
+	}
+
 	// submitToPlayersForScoring
 	// For draw questions we want to divide up all the answers and distribute them to players for scoring
 	submitToPlayersForScoring(question) {
 
+		console.log('server.quiz:: submitToPlayersForScoring:', question);
+		if (!question.results) {
+			console.log('server.quiz:: submitToPlayersForScoring: no results to score');
+			return;
+		}
+		
 		// We need to send each player a different answer to score, from the players who answered the question
 		const players = question.results ? this.room.players.filter(player => question.results[player.sessionID]) : [];
 		console.log('server.quiz:: submitToPlayersForScoring: players:', players.length, players);
@@ -1569,8 +1604,8 @@ export default class Quiz extends Game {
 	}
 
 	endQuiz() {
-		console.log('endQuiz:', this.quizData, this.roundNumber, this.questionNumber);
 		const scores = this.calculateCumulativeScore();
+		console.log('endQuiz:', this.quizData, this.roundNumber, this.questionNumber, scores);
 		this.room.emitToHosts('server:endquiz', { quizTitle: this.quizData.title, scores: scores });
 	}
 

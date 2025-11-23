@@ -247,8 +247,8 @@
 				</summary>
 				<div class="form-two-column">
 					<div class="form-left-column">
-						<label>Text:</label><input type="text" data-field="question-text" class="question-field"
-							placeholder="Enter question">
+						<label>Text:</label>
+						<input type="text" data-field="question-text" class="question-field" placeholder="Enter question">
 						<label>Picture:</label>
 						<div data-field="image-selection">
 							<input type="text" data-field="question-image-url" class="question-text"
@@ -256,33 +256,32 @@
 							<p class="add-from-library">OR <button class="select-image-btn">Add from Library</button>
 							</p>
 							<img data-field="question-image" class="image-selector-preview"
-								style="max-width:100%;height:120px;display:none;" />
+								style="max-width:100%;display:none;" />
 							<button class="clear-image-btn" style="display:none;"">Remove</button>
 						</div>
-						<label>Audio:</label><input type=" text" data-field="question-audio" class="question-text"
-								placeholder="Enter URL of music track">
-								<iframe width="200" height="80" title="YouTube video player" frameborder="0"
-									referrerpolicy="strict-origin-when-cross-origin"></iframe>
-						</div>
-						<div class="form-right-column">
-							<label>Answer Type:</label>
-							<select class="question-type">
-								<option value="text">Text</option>
-								<option value="number-exact">Number (exact match)</option>
-								<option value="number-closest">Number (closest guess)</option>
-								<option value="true-false">True/False</option>
-								<option value="multiple-choice">Multiple Choice</option>
-								<option value="ordering">Place in Order</option>
-								<option value="matching">Matching Pairs</option>
-								<option value="hotspot">Hotspot</option>
-								<option value="point-it-out">Point It Out</option>
-								<option value="draw">Draw the Answer</option>
-							</select>
-							<!-- Short message to explain the question type -->
-							<p class="question-type-hint"></p>
-							<div class="question-specific-content"></div>
-						</div>
+						<label>Audio:</label>
+						<input type="text" data-field="question-audio" class="question-text" placeholder="Enter URL of music track">
+						<iframe width="200" height="80" title="YouTube video player" frameborder="0" referrerpolicy="strict-origin-when-cross-origin"></iframe>
 					</div>
+					<div class="form-right-column">
+						<label>Answer Type:</label>
+						<select class="question-type">
+							<option value="text">Text</option>
+							<option value="number-exact">Number (exact match)</option>
+							<option value="number-closest">Number (closest guess)</option>
+							<option value="true-false">True/False</option>
+							<option value="multiple-choice">Multiple Choice</option>
+							<option value="ordering">Place in Order</option>
+							<option value="matching">Matching Pairs</option>
+							<option value="hotspot">Hotspot</option>
+							<option value="point-it-out">Point It Out</option>
+							<option value="draw">Draw the Answer</option>
+						</select>
+						<!-- Short message to explain the question type -->
+						<p class="question-type-hint"></p>
+						<div class="question-specific-content"></div>
+					</div>
+				</div>
 			</details>
 		</li>
 	</template>

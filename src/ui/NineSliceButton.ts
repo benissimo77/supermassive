@@ -6,6 +6,7 @@ export class NineSliceButton extends Phaser.GameObjects.Container {
     private normalSlice: Phaser.GameObjects.NineSlice;
     private hoverSlice: Phaser.GameObjects.NineSlice;
     private text: Phaser.GameObjects.Text;
+    private buttonScale: number = 1;
 
     constructor(scene: BaseScene, text: string, styleOverride: any = {}) {
 
@@ -73,10 +74,11 @@ export class NineSliceButton extends Phaser.GameObjects.Container {
         this.on('pointerover', this.onPointerOver, this);
         this.on('pointerout', this.onPointerOut, this);
         this.on('pointerdown', () => {
-            this.setScale(1.05);
+            this.buttonScale = this.scale;
+            this.setScale(this.buttonScale * 1.05);
             this.scene.soundManager.playFX('button-click', 0.1);
         });
-        this.on('pointerup', () => this.setScale(1));
+        this.on('pointerup', () => this.setScale(this.buttonScale));
 
         // Add to scene
         scene.add.existing(this);

@@ -4,6 +4,7 @@ import { BaseScene } from "src/BaseScene";
 import { BaseQuestion } from "./BaseQuestion";
 import { NineSliceButton } from "src/ui/NineSliceButton";
 import { PlayerConfig } from "../PhaserPlayer";
+import { Scale } from "phaser";
 
 type Stroke = {
     points: Array<{ x: number; y: number; pressure?: number }>;
@@ -16,15 +17,20 @@ export default class DrawQuestion extends BaseQuestion {
     private background: Phaser.GameObjects.Rectangle;
     private canvas: Phaser.GameObjects.Graphics;
     private submitButton: NineSliceButton;
-    private clearButton: NineSliceButton;
+    private clearButton: Phaser.GameObjects.Rectangle;
     private drawingData: Stroke[] = [];
 
     private isDrawing: boolean = false;
     private currentStroke: Stroke = this.createNewStroke();
 
+    // Control panel
+    private controlsPanel: Phaser.GameObjects.Container;
+    private colorPickerContainer: Phaser.GameObjects.Container;
+    private lineWidthContainer: Phaser.GameObjects.Container;
     private colorButtons: Map<number, Phaser.GameObjects.Container> = new Map();
     private sizeButtons: Map<number, Phaser.GameObjects.Container> = new Map();
-    private controlsPanel: Phaser.GameObjects.Container;
+    private currentColor: number = 0x000000;
+    private currentLineWidth: number = 20;
 
     constructor(scene: BaseScene, questionData: any) {
         super(scene, questionData);
@@ -39,6 +45,21 @@ export default class DrawQuestion extends BaseQuestion {
         console.log('DrawQuestion::createAnswerUI:', this.questionData.mode, this.scene.TYPE);
 
         this.answerContainer.removeAll(true);
+
+        // Create a container for all drawing-related elements
+        // Note: looks like we move the origin back to top-left corner, why?
+        this.drawingContainer = this.scene.add.container(-960, 0);
+        this.answerContainer.add(this.drawingContainer);
+
+        // Place the control panel slightly in from the edge to give a margin
+        this.controlsPanel = this.scene.add.container(-960 + 4, 4);
+        this.answerContainer.add(this.controlsPanel);
+
+        this.colorPickerContainer = this.scene.add.container(60, 0);
+        this.controlsPanel.add(this.colorPickerContainer);
+
+        this.lineWidthContainer = this.scene.add.container(-60, 0);
+        this.controlsPanel.add(this.lineWidthContainer);
 
         if (this.scene.TYPE === 'hostX') {
             // For the host screen, show a message like "Players are drawing..."
@@ -59,6 +80,14 @@ export default class DrawQuestion extends BaseQuestion {
         } else {
             // Player screen - add drawing canvas using the full screen
             this.createDrawingCanvas();
+            this.createControlPanel();
+            
+            // Add submit button at the bottom of the canvas
+            this.submitButton = new NineSliceButton(this.scene, 'Submit');
+            this.submitButton.setButtonSize(200, this.scene.getY(80));
+            // this.submitButton.setPosition(960 - 100 - 20, this.scene.getY(answerHeight - 40 - 20));
+            this.answerContainer.add(this.submitButton);
+
 
             // there might be scenarios where we want a canvas but NOT an interactive one
             // but for now just make it interactive
@@ -67,8 +96,10 @@ export default class DrawQuestion extends BaseQuestion {
     }
 
     protected displayAnswerUI(answerHeight: number): void {
-        console.log('DrawQuestion::displayAnswerUI:', answerHeight);
 
+        console.log('DrawQuestion::displayAnswerUI:', answerHeight, this.scene.getY(answerHeight), this.scene.isPortrait(), this.scene.cameras.main.zoom, window.devicePixelRatio, this.scene.scale.displayScale);
+        this.scene.socket?.emit('consolelog', `DrawQuestion::displayAnswerUI: answerHeight=${answerHeight}, isPortrait=${this.scene.isPortrait()} UIScaleFactor:${this.scene.getUIScaleFactor()} camera zoom: ${this.scene.cameras.main.zoom} devicePixelRatio: ${window.devicePixelRatio} displayScale: ${JSON.stringify(this.scene.scale.displayScale)}`);
+        
         // Position and scale submit button (EXACT copy from Number.ts)
 		const scaleFactor = this.scene.getUIScaleFactor();
 		this.submitButton.setButtonSize(320 * scaleFactor, 80 * scaleFactor);
@@ -79,17 +110,64 @@ export default class DrawQuestion extends BaseQuestion {
 		);
 		this.answerContainer.add(this.submitButton);	// Ensure button is on top
 
+        // Logic to determine size and position of control panel elements
+        if (this.scene.isPortrait()) {
 
-        // First determine where to place the control panel - size and position
-        // Then position the canvas and background to fill the remainder of the screen
-        this.controlsPanel.setPosition(60, answerHeight / 2);
+            // Portrait mode - position controls along top
+            this.colorPickerContainer.setRotation(-Math.PI / 2);
+            this.lineWidthContainer.setRotation(-Math.PI / 2);
+
+            console.log('DrawQuestion::displayAnswerUI: portrait positioning color picker at', this.colorPickerContainer.x, this.colorPickerContainer.y, this.colorPickerContainer.getBounds());
+            console.log('DrawQuestion::displayAnswerUI: portrait positioning line width at', this.lineWidthContainer.x, this.lineWidthContainer.y, this.lineWidthContainer.getBounds());
+            this.scene.socket?.emit('consolelog', `DrawQuestion::displayAnswerUI: portrait mode - color picker bounds ${JSON.stringify(this.colorPickerContainer.getBounds())}, line width bounds ${JSON.stringify(this.lineWidthContainer.getBounds())}`);
+
+            // Calculate a reasonable scale factor based on the color picker panel - scale up to full width or to a max of 3x normal size
+            const scale:number = Math.min( 1920 / (this.colorPickerContainer.getBounds().width), 4);
+            this.colorPickerContainer.setScale(scale);
+            this.lineWidthContainer.setScale(scale);
+
+            this.colorPickerContainer.setPosition(0, 30 * scale);
+            this.lineWidthContainer.setPosition(0, this.colorPickerContainer.getBounds().height + 30 * scale);
+
+        } else {
+
+            this.colorPickerContainer.setRotation(0);
+            this.lineWidthContainer.setRotation(0);
+            this.colorPickerContainer.setScale(1);
+            this.lineWidthContainer.setScale(1);
+
+            // Note: we subtract 8 from answerHeight to allow for the 4 margin top and bottom to fit control panel neatly into canvas
+            const scale:number = Math.min( this.scene.getY(answerHeight - 8) / (this.colorPickerContainer.getBounds().height), 3);
+            this.colorPickerContainer.setScale(scale);
+            this.lineWidthContainer.setScale(scale);
+
+
+            // Landscape mode - position controls down left side
+            // this.colorPickerContainer.setPosition(0, 0);
+            console.log('DrawQuestion::displayAnswerUI: positioning color picker at', this.colorPickerContainer.x, this.colorPickerContainer.y, this.colorPickerContainer.getBounds());
+            console.log('DrawQuestion::displayAnswerUI: positioning line width at', this.lineWidthContainer.x, this.lineWidthContainer.y, this.lineWidthContainer.getBounds());
+
+            // Can we fit pickers within answerHeight?
+            if (this.colorPickerContainer.getBounds().height + this.lineWidthContainer.getBounds().height < this.scene.getY(answerHeight)) {
+                this.colorPickerContainer.setPosition(30 * scale, 0);
+                this.lineWidthContainer.setPosition(30 * scale, this.colorPickerContainer.getBounds().height);
+            } else {
+                this.colorPickerContainer.setPosition(30 * scale, 0);
+                this.lineWidthContainer.setPosition(90 * scale, 0);
+            }
+
+        }
+
+        this.highlightAllButtons();
 
         // Resize background and canvas to fill the rest of the screen
-        const newWidth = 1920 - 120;
-        const newHeight = answerHeight;
+        // Subtracting 8 from answerHeight just to confirm it reaches bottom of screen
+        const newWidth = 1920;
+        const newHeight = this.scene.getY(answerHeight);
         this.background.setSize(newWidth, newHeight); // Update interactive area
         this.canvas.clear();
         this.renderDrawingFromData(this.drawingData);
+
     }
 
     // SetupDrawingCanvas
@@ -100,11 +178,6 @@ export default class DrawQuestion extends BaseQuestion {
     // Above two objects are positioned together so that input and output are aligned
     private createDrawingCanvas(): void {
 
-        // Create a container for all drawing-related elements
-        // Note: looks like we move the origin back to top-left corner
-        this.drawingContainer = this.scene.add.container(-960, 0);
-        this.answerContainer.add(this.drawingContainer);
-
         // Use full screen dimensions (consistent with other questions)
         // Note: this is just placeholder dimensions - we will size in the display functions later
         const canvasWidth = 1920;
@@ -114,14 +187,15 @@ export default class DrawQuestion extends BaseQuestion {
         // Allow 120px (logical) for the control panel on the left
         // Note: there is a reason why we create a rectangle here AND a canvas graphics object
         // The rectangle has a function getBounds() which gives us the position on the screen, ideal for aligning with pointer coordindates
-        this.background = this.scene.add.rectangle(120, 0, canvasWidth - 120, canvasHeight, 0xDDDDDD);
+        this.background = this.scene.add.rectangle(0, 0, canvasWidth, canvasHeight, 0xDDDDDD);
         this.background.setOrigin(0, 0);
         this.background.setInteractive({ useHandCursor: true });
         this.drawingContainer.add(this.background);
 
         console.log('DrawQuestion::createDrawingCanvas: created background at', this.background.x, this.background.y, 'size', this.background.width, this.background.height, this.background.getBounds(), this.scene.scale);
-        // Create the drawing canvas using Phaser Graphics
-        this.canvas = this.scene.add.graphics({ x: 120, y: 0 });
+
+        // Create the drawing canvas using Phaser Graphics - directly overlays background
+        this.canvas = this.scene.add.graphics({ x: 0, y: 0 });
         this.drawingContainer.add(this.canvas);
 
         // If we're in answer mode, disable drawing and show the submitted drawing
@@ -130,15 +204,6 @@ export default class DrawQuestion extends BaseQuestion {
             return;
         }
 
-        // Add control panel to the scene - position it later
-        this.createControlPanel();
-
-        // Add submit button at the bottom of the canvas
-        this.submitButton = new NineSliceButton(this.scene, 'Submit');
-        this.submitButton.setButtonSize(200, this.scene.getY(80));
-        // this.submitButton.setPosition(960 - 100 - 20, this.scene.getY(answerHeight - 40 - 20));
-        this.answerContainer.add(this.submitButton);
-
     }
 
     // Create the control panel with color picker, line width picker, and action buttons
@@ -146,40 +211,45 @@ export default class DrawQuestion extends BaseQuestion {
     // So make each element individually and allow them to be sized/positioned based on screen dimensions
     private createControlPanel(): void {
 
+        // Taking the unusual step of creating the control panel entirely when displaying
+        // And just destroying and re-creating it each time
+        // I think this will in the end be faster since then I don't have to worry about re-sizing/scaling etc
+        // Just draw it when I already know the exact size available...
+
+        // If landscape we will display the controls down the left side
+        // If portrait we will display controls along the top
+
+
         // Create a container for controls (120 width, answerHeight height)
         // Define a placeholder canvasHeight for now...
         // In line with other questions aim to fix the width to 120 logical pixels and see if that works
-        const canvasHeight = 1080;
-        this.controlsPanel = this.scene.add.container(60, canvasHeight / 2);
-        this.drawingContainer.add(this.controlsPanel);
+        const canvasHeight = 120;
 
         // Semi-transparent background for the control panel
-        const panelBg = this.scene.add.rectangle(0, 0, 120, canvasHeight, 0x333333, 0.7);
-        panelBg.setOrigin(0.5, 0.5);
-        panelBg.setStrokeStyle(1, 0xFFFFFF, 0.3);
-        this.controlsPanel.add(panelBg);
+        // const panelBg = this.scene.add.rectangle(0, 0, 120, canvasHeight, 0x333333, 0.7);
+        // panelBg.setOrigin(0.5, 0.5);
+        // panelBg.setStrokeStyle(1, 0xFFFFFF, 0.3);
+        // this.controlsPanel.add(panelBg);
 
         // Panel title
-        const titleText = this.scene.add.text(0, -canvasHeight / 2 + 20, "TOOLS", {
-            fontSize: '18px',
-            fontFamily: 'Arial',
-            color: '#FFFFFF',
-            align: 'center',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
-        this.controlsPanel.add(titleText);
+        // const titleText = this.scene.add.text(0, -canvasHeight / 2 + 20, "TOOLS", {
+        //     fontSize: '18px',
+        //     fontFamily: 'Arial',
+        //     color: '#FFFFFF',
+        //     align: 'center',
+        //     fontStyle: 'bold'
+        // }).setOrigin(0.5);
+        // this.controlsPanel.add(titleText);
 
         // Add color picker - vertical layout
-        this.addColorPicker(-canvasHeight / 2 + 80);
+        this.createColorPicker();
 
         // Add line width picker - vertical layout
-        this.addLineWidthPicker(-canvasHeight / 2 + 80 + 8 * 50 + 50); // 8 colors, each spaced by 50px
-
-        // Add action buttons at the bottom
-        this.addActionButtons(canvasHeight / 2 - 20);
+        // Note: this also includes the clear canvas button
+        this.createLineWidthPicker();
     }
 
-    private addColorPicker(startY: number): void {
+    private createColorPicker(): void {
 
         // The palette of colors available to users
         const colors: { color: number, name: string }[] = [
@@ -193,29 +263,33 @@ export default class DrawQuestion extends BaseQuestion {
             { color: 0xFFFFFF, name: 'White' }
         ];
 
-        const spacing = 50;
-        let yPos = startY;
+        const spacing: number = 48;
+
+        const bg: Phaser.GameObjects.Rectangle = this.scene.add.rectangle(-30, 0, 60, spacing + colors.length * spacing, 0x222222, 0.5);
+        bg.setOrigin(0);
+        bg.setStrokeStyle(1, 0xFFFFFF, 0.3);
+        this.colorPickerContainer.add(bg);
 
         // Add "Colors" label
-        const colorsLabel = this.scene.add.text(0, yPos - 30, "COLORS", {
-            fontSize: '14px',
-            fontFamily: 'Arial',
-            color: '#FFFFFF'
-        }).setOrigin(0.5);
-        this.controlsPanel.add(colorsLabel);
+        // const colorsLabel = this.scene.add.text(0, yPos - 30, "COLORS", {
+        //     fontSize: '14px',
+        //     fontFamily: 'Arial',
+        //     color: '#FFFFFF'
+        // }).setOrigin(0.5);
+        // this.controlsPanel.add(colorsLabel);
 
-        colors.forEach(colorInfo => {
+        colors.forEach( (colorInfo, index) => {
             const colorButton = this.createColorButton(colorInfo.color, colorInfo.name);
-            colorButton.setPosition(0, yPos);
-            this.controlsPanel.add(colorButton);
+            colorButton.setPosition(0 , spacing + index * spacing);
             this.colorButtons.set(colorInfo.color, colorButton);
+            this.colorPickerContainer.add(colorButton);
 
-            if (colorInfo.color === this.currentColor) {
-                this.highlightColorButton(colorInfo.color);
-            }
+            // if (colorInfo.color === this.currentColor) {
+            //     this.highlightColorButton(colorInfo.color);
+            // }
 
-            yPos += spacing;
         });
+
     }
 
     private createColorButton(color: number, name: string): Phaser.GameObjects.Container {
@@ -235,27 +309,27 @@ export default class DrawQuestion extends BaseQuestion {
         });
 
         // Add tooltip on hover
-        container.on('pointerover', () => {
-            const tooltip = this.scene.add.text(30, 0, name, {
-                fontSize: '14px',
-                backgroundColor: '#000000',
-                padding: { x: 5, y: 3 },
-                color: '#ffffff'
-            }).setOrigin(0, 0.5);
+        // container.on('pointerover', () => {
+        //     const tooltip = this.scene.add.text(30, 0, name, {
+        //         fontSize: '14px',
+        //         backgroundColor: '#000000',
+        //         padding: { x: 5, y: 3 },
+        //         color: '#ffffff'
+        //     }).setOrigin(0, 0.5);
 
-            container.add(tooltip);
+        //     container.add(tooltip);
 
-            // Store the tooltip for removal
-            container.setData('tooltip', tooltip);
-        });
+        //     // Store the tooltip for removal
+        //     container.setData('tooltip', tooltip);
+        // });
 
-        container.on('pointerout', () => {
-            const tooltip = container.getData('tooltip');
-            if (tooltip) {
-                tooltip.destroy();
-                container.setData('tooltip', null);
-            }
-        });
+        // container.on('pointerout', () => {
+        //     const tooltip = container.getData('tooltip');
+        //     if (tooltip) {
+        //         tooltip.destroy();
+        //         container.setData('tooltip', null);
+        //     }
+        // });
 
         return container;
     }
@@ -275,34 +349,49 @@ export default class DrawQuestion extends BaseQuestion {
         });
     }
 
-    private addLineWidthPicker(startY: number): void {
+    private createLineWidthPicker(): void {
 
         // Available line widths
-        const lineWidths: number[] = [2, 5, 10, 20, 30];
+        const lineWidths: number[] = [7, 12, 20, 32, 48];
 
-        const spacing = 50;
-        let yPos = startY;
+        const spacing = 48;
+        const padding = 48;
+
+        // Strange addition to generate the height - based on the lineWidths + a button space + button size for clear button
+        const bg: Phaser.GameObjects.Rectangle = this.scene.add.rectangle(-30, 0, 60, padding + lineWidths.length * spacing + padding + spacing, 0x220000, 0.5);
+        bg.setOrigin(0);
+        bg.setStrokeStyle(1, 0xFFFFFF, 0.3);
+        this.lineWidthContainer.add(bg);
 
         // Add "Brush Size" label
-        const sizeLabel = this.scene.add.text(0, yPos - 30, "BRUSH SIZE", {
-            fontSize: '14px',
-            fontFamily: 'Arial',
-            color: '#FFFFFF'
-        }).setOrigin(0.5);
-        this.controlsPanel.add(sizeLabel);
+        // const sizeLabel = this.scene.add.text(0, yPos - 30, "BRUSH SIZE", {
+        //     fontSize: '14px',
+        //     fontFamily: 'Arial',
+        //     color: '#FFFFFF'
+        // }).setOrigin(0.5);
+        // this.controlsPanel.add(sizeLabel);
 
-        lineWidths.forEach(width => {
+        lineWidths.forEach( (width, index) => {
             const sizeButton = this.createSizeButton(width);
-            sizeButton.setPosition(0, yPos);
-            this.controlsPanel.add(sizeButton);
+            sizeButton.setPosition(0, padding + index * spacing);
             this.sizeButtons.set(width, sizeButton);
+            this.lineWidthContainer.add(sizeButton);
 
-            if (width === this.currentLineWidth) {
-                this.highlightSizeButton(width);
-            }
-
-            yPos += spacing;
+            // if (width === this.currentLineWidth) {
+            //     this.highlightSizeButton(width);
+            // }
         });
+
+        // Add a clear button in the same panel just for convenience
+        const clearButtonY = padding + lineWidths.length * spacing + padding;
+        this.clearButton = this.scene.add.rectangle(0, clearButtonY, 36, 36, 0xDDDDDD);
+        this.clearButton.setStrokeStyle(2, 0x000000);
+        this.clearButton.setSize(36, 36);
+        this.clearButton.setInteractive({ useHandCursor: true });
+        this.clearButton.on('pointerup', () => {
+            this.clearCanvas();
+        });
+        this.lineWidthContainer.add(this.clearButton);
     }
 
     private createSizeButton(width: number): Phaser.GameObjects.Container {
@@ -312,8 +401,8 @@ export default class DrawQuestion extends BaseQuestion {
         const bg = this.scene.add.circle(0, 0, buttonSize / 2, 0xDDDDDD);
         bg.setStrokeStyle(2, 0x000000);
 
-        // Add a circle representing the line width
-        const sizeIndicator = this.scene.add.circle(0, 0, width / 2, 0x000000);
+        // Add a circle representing the line width - note slightly smaller than the actual width
+        const sizeIndicator = this.scene.add.circle(0, 0, width / 3, 0x000000);
 
         container.add([bg, sizeIndicator]);
         container.setSize(buttonSize, buttonSize);
@@ -325,27 +414,27 @@ export default class DrawQuestion extends BaseQuestion {
         });
 
         // Add tooltip on hover
-        container.on('pointerover', () => {
-            const tooltip = this.scene.add.text(30, 0, `${width}px`, {
-                fontSize: '14px',
-                backgroundColor: '#000000',
-                padding: { x: 5, y: 3 },
-                color: '#ffffff'
-            }).setOrigin(0, 0.5);
+        // container.on('pointerover', () => {
+        //     const tooltip = this.scene.add.text(30, 0, `${width}px`, {
+        //         fontSize: '14px',
+        //         backgroundColor: '#000000',
+        //         padding: { x: 5, y: 3 },
+        //         color: '#ffffff'
+        //     }).setOrigin(0, 0.5);
 
-            container.add(tooltip);
+        //     container.add(tooltip);
 
             // Store the tooltip for removal
-            container.setData('tooltip', tooltip);
-        });
+        //     container.setData('tooltip', tooltip);
+        // });
 
-        container.on('pointerout', () => {
-            const tooltip = container.getData('tooltip');
-            if (tooltip) {
-                tooltip.destroy();
-                container.setData('tooltip', null);
-            }
-        });
+        // container.on('pointerout', () => {
+        //     const tooltip = container.getData('tooltip');
+        //     if (tooltip) {
+        //         tooltip.destroy();
+        //         container.setData('tooltip', null);
+        //     }
+        // });
 
         return container;
     }
@@ -363,19 +452,6 @@ export default class DrawQuestion extends BaseQuestion {
                 button.setScale(1);
             }
         });
-    }
-
-    private addActionButtons(yPos: number): void {
-
-        // Clear button
-        this.clearButton = new NineSliceButton(this.scene, 'Clear');
-        this.clearButton.setButtonSize(80, 40);
-        this.clearButton.setPosition(0, yPos);
-        this.clearButton.setInteractive({ useHandCursor: true });
-        this.clearButton.on('pointerup', () => {
-            this.clearCanvas();
-        });
-        this.controlsPanel.add(this.clearButton);
     }
 
     private highlightAllButtons(): void {

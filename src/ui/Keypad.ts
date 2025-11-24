@@ -106,7 +106,7 @@ export class Keypad extends Phaser.GameObjects.Container {
         });
 
     }
-    public makeNonInteracetive(): void {
+    public makeNonInteractive(): void {
 
         this.keys.forEach((button: NineSliceButton, char: string) => {
             button.removeAllListeners();

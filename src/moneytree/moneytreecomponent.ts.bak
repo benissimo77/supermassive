@@ -1,0 +1,194 @@
+import { BaseScene } from "./BaseScene";
+import MoneyTreeSlot from "./moneytreeslot";
+
+export default class MoneyTreeComponent {
+    private scene: BaseScene;
+    private container: Phaser.GameObjects.Container;
+    private slots: MoneyTreeSlot[] = [];
+    private data: string[] | number[];
+
+    constructor(scene: BaseScene, data: string[] | number[], x: number, startY: number, endY: number) {
+        this.scene = scene;
+        this.data = data;
+        this.container = this.scene.add.container(x, 0);
+        this.createTree(startY, endY);
+    }
+
+    private createTree(startY:number, endY:number): void {
+        const spacingY = (endY - startY) / (this.data.length - 1); // Adjust spacing based on the number of slots - runs negatively from bottom of screen to top
+
+        for (let i = 0; i < this.data.length; i++) {
+            const slot = new MoneyTreeSlot(this.scene, this.data[i]);
+            slot.setX(0);
+            slot.setY(startY + i * spacingY); // Set the position of the slot
+            this.container.add(slot);
+            this.slots.push(slot);
+        }
+    }
+
+    // Accepts an index of the desired slot to end on and runs an animation to arrive at that slot
+    animateCorrectAnswer(index: number, callback: () => void): void {
+
+        // Storeo the audio files ready for playing during animation
+        const hightick = this.scene.sound.add('hightick', { volume: 0.3 });
+
+        const availableIndices = this.slots
+        .map((slot, i) => ({ slot, i }))
+        .filter(({ slot }) => slot.getData('state') !== 'revealed')
+        .map(({ i }) => i);
+
+        if (availableIndices.length === 0) {
+            console.warn("No available slots to animate!");
+            return;
+        }
+
+        const targetIndexInAvailable = availableIndices.indexOf(index);
+        if (targetIndexInAvailable === -1) {
+            console.error("Target index not in available slots!");
+            return;
+        }
+
+        let path: number[] = [];
+        const cycles = Phaser.Math.Between(2, 4); // number of up/down sweeps
+        let direction = 1; // start going up
+        let current = 0; // position inside availableIndices array
+
+        for (let c = 0; c < cycles; c++) {
+            while ((direction === 1 && current < availableIndices.length - 1) || (direction === -1 && current > 0)) {
+                path.push(availableIndices[current]);
+                current += direction;
+            }
+            // after reaching end or start, flip direction
+            direction *= -1;
+        }
+
+        // Now land naturally onto the target slot
+        if (current <= targetIndexInAvailable) {
+            while (current <= targetIndexInAvailable) {
+                path.push(availableIndices[current]);
+                current++;
+            }
+        } else if (current > targetIndexInAvailable) {
+            while (current >= targetIndexInAvailable) {
+                path.push(availableIndices[current]);
+                current--;
+            }
+        }
+        // No duplicates, no jumps, nice smooth arrival
+        
+        // Build delay timings using an easing function
+        const delays:number[] = [];
+        const baseDelay = 10; // start at 20ms
+        // const maxDelay = Phaser.Math.Between(500,650); // end around 300ms
+        const maxDelay = Phaser.Math.Between(50,50); // end around 300ms
+        const easing = (t: number) => Math.pow(t, 4); // cubic slow down
+    
+        for (let i = 0; i < path.length; i++) {
+            const t = i / (path.length - 1); // Normalized time 0..1
+            const delay = Phaser.Math.Interpolation.Linear([baseDelay, maxDelay], easing(t));
+            delays.push(delay);
+        }
+        console.log('Path:', path);
+        // console.log('Delays:', delays);
+    
+        const highlightSlot = (idx: number) => {
+            availableIndices.forEach((i) => {
+                if (i === idx) {
+                    this.slots[i].highlightSlot();
+                } else {
+                    this.slots[i].unhighlightSlot();
+                }
+            });
+        };
+    
+        const animate = (step: number) => {
+            if (step >= path.length) {
+                // Finished the moving animation - now flash the final slot
+                flashFinalSlot(index, () => {
+                    // After flashing is done call the callback to return control
+                    callback();
+                });
+                return;
+            }
+        
+            const idx = path[step];
+            highlightSlot(idx);
+
+            // play the sound effect
+            hightick.play();
+        
+            this.scene.time.delayedCall(delays[step], () => animate(step + 1));
+        };
+        const flashFinalSlot = (slotIndex: number, onComplete: () => void) => {
+            const flashTimes = 8; // How many times to flash (on + off = 1 flash)
+            const flashInterval = 100; // Milliseconds between flashes
+            let flashes = 0;
+            let isYellow = false;
+        
+            const flash = () => {
+                if (flashes >= flashTimes) {
+                    onComplete(); // Done flashing, now proceed
+                    return;
+                }
+        
+                // Alternate colors
+                if (isYellow) {
+                    this.slots[slotIndex].highlightSlot();
+                } else {
+                    this.slots[slotIndex].unhighlightSlot();
+                }
+                isYellow = !isYellow;
+                flashes++;
+        
+                this.scene.time.delayedCall(flashInterval, flash);
+            };
+        
+            flash(); // Start flashing
+        };   
+        animate(0);
+    }
+    
+    public getEmptySlots(): MoneyTreeSlot[] {
+        return this.slots.filter((slot) => slot.state === 'empty');
+    }
+    public getSlotIndex(slot: MoneyTreeSlot): number {
+        return this.slots.indexOf(slot);
+    }
+    public getSlotByIndex(index: number): MoneyTreeSlot {
+        return this.slots[index];
+    }
+    public updateSlots(backgroundColor: string, textColor: string, borderColor:string): void {
+        for (var index = 0; index < this.slots.length; index++) {
+            const slot = this.slots[index];
+            slot.setBackgroundColor(backgroundColor);
+            slot.setTextColor(textColor);
+            slot.setBorderColor(borderColor);
+        }
+    }
+    public updateSlot(index: number, backgroundColor: string, textColor: string, borderColor:string): void {
+        const slot = this.slots[index];
+        slot.setBackgroundColor(backgroundColor);
+        slot.setTextColor(textColor);
+        slot.setBorderColor(borderColor);
+    }
+
+    public getSlot(index: number): MoneyTreeSlot {
+        return this.slots[index];
+    }
+    public setSlotState(index:number, state:string): void {
+        const slot = this.slots[index];
+        slot.setSlotState(state);
+    }
+    public setSlotText(index:number, text:string): void {
+        const slot = this.slots[index];
+        slot.setText(text);
+    }
+
+    public getContainer(): Phaser.GameObjects.Container {
+        return this.container;
+    }
+
+    public destroy(): void {
+        this.container.destroy(true);
+    }
+}

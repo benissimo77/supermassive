@@ -45,34 +45,51 @@ const layoutMode = () => {
     const formTitle = document.getElementById('formTitle');
     const submitButton = document.getElementById('submitButton');
     const switchMessage = document.getElementById('switchMessage');
-    const switchButton = document.getElementById('switchLink');
+    const switchButton = document.getElementById('switchButton') || document.getElementById('switchLink');
     const socialButtons = document.getElementById('socialButtons');
     const passwordInput = document.getElementById('password');
+    const forgotPasswordLink = document.getElementById('forgotPassword');
 
-    if (isSignupMode || forgotPasswordMode) {
-        formTitle.textContent = 'Create an account';
-        submitButton.textContent = 'Sign Up';
-        switchButton.textContent = 'Sign In';
-        switchMessage.textContent = 'Already have an account?';
-        socialButtons.style.display = 'none';
-        passwordInput.style.display = 'none';
-    } else {
-        formTitle.textContent = 'Sign in to your account';
-        submitButton.textContent = 'Sign In';
-        switchButton.textContent = 'Sign Up';
-        switchMessage.textContent = 'Don\'t have an account?';
-        socialButtons.style.display = 'block';
-        passwordInput.style.display = 'block';
-    }
     if (forgotPasswordMode) {
-        formTitle.textContent = 'Forgotten password?';
-        submitButton.textContent = 'Send reset email';
+        if (formTitle) formTitle.textContent = 'Forgotten password?';
+        if (submitButton) submitButton.textContent = 'Send reset email';
+        if (switchButton) switchButton.textContent = 'Back to Sign In';
+        if (switchMessage) switchMessage.textContent = '';
+        if (socialButtons) socialButtons.style.display = 'none';
+        if (passwordInput) {
+            passwordInput.style.display = 'none';
+            passwordInput.required = false;
+        }
+        if (forgotPasswordLink) forgotPasswordLink.style.display = 'none';
+    } else if (isSignupMode) {
+        if (formTitle) formTitle.textContent = 'Create an account';
+        if (submitButton) submitButton.textContent = 'Sign Up';
+        if (switchButton) switchButton.textContent = 'Sign In';
+        if (switchMessage) switchMessage.textContent = 'Already have an account?';
+        if (socialButtons) socialButtons.style.display = 'none';
+        if (passwordInput) {
+            passwordInput.style.display = 'block';
+            passwordInput.required = true;
+        }
+        if (forgotPasswordLink) forgotPasswordLink.style.display = 'none';
+    } else {
+        if (formTitle) formTitle.textContent = 'Sign in to your account';
+        if (submitButton) submitButton.textContent = 'Sign In';
+        if (switchButton) switchButton.textContent = 'Sign Up';
+        if (switchMessage) switchMessage.textContent = 'Don\'t have an account?';
+        if (socialButtons) socialButtons.style.display = 'block';
+        if (passwordInput) {
+            passwordInput.style.display = 'block';
+            passwordInput.required = true;
+        }
+        if (forgotPasswordLink) forgotPasswordLink.style.display = 'block';
     }
 
     // Clear the message element no matter which mode we are in
     const messageElement = document.getElementById('message');
     if (messageElement) {
         messageElement.textContent = '';
+        messageElement.style.display = 'none';
     }
 };
 
@@ -87,8 +104,13 @@ const handleSubmit = async (event) => {
     const password = formData.get('password');
 
     // Logic depends on the mode
-    if (!email || !password) {
-        displayMessage('Please enter both email and password', true);
+    if (!email) {
+        displayMessage('Please enter your email', true);
+        return;
+    }
+
+    if (!forgotPasswordMode && !password) {
+        displayMessage('Please enter your password', true);
         return;
     }
 
@@ -115,9 +137,17 @@ const handleSubmit = async (event) => {
             if (forgotPasswordMode) {
                 terminateForgotPasswordFlow();
             } else {
-                // If it's a successful login or registration, redirect to dashboard
-                window.location.href = '/host/dashboard';
-                console.log('Redirecting to dashboard');
+                // Check for redirect parameter
+                const urlParams = new URLSearchParams(window.location.search);
+                const redirect = urlParams.get('redirect');
+                
+                if (redirect) {
+                    window.location.href = decodeURIComponent(redirect);
+                } else {
+                    // If it's a successful login or registration, redirect to dashboard
+                    window.location.href = '/host/dashboard';
+                }
+                console.log('Redirecting after login/signup');
             }
         } else {
             // Handle different types of errors based on status codes
@@ -228,16 +258,29 @@ const terminateForgotPasswordFlow = () => {
 
 // Function to handle social logins
 const handleSocialLogin = (provider) => {
-    window.location.href = `/auth/${provider}`;
+    const urlParams = new URLSearchParams(window.location.search);
+    const redirect = urlParams.get('redirect');
+    let url = `/auth/${provider}`;
+    if (redirect) {
+        url += `?redirect=${encodeURIComponent(redirect)}`;
+    }
+    window.location.href = url;
 };
 
 // Add event listeners when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    const form = document.getElementById('authForm');
-    const switchButton = document.getElementById('switchLink');
+    const form = document.getElementById('auth-form') || document.getElementById('authForm');
+    const switchButton = document.getElementById('switchButton') || document.getElementById('switchLink');
     const forgotPasswordLink = document.getElementById('forgotPassword');
     const googleBtn = document.getElementById('googleLogin');
     const facebookBtn = document.getElementById('facebookLogin');
+
+    // Check for mode=signup in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('mode') === 'signup') {
+        isSignupMode = true;
+        layoutMode();
+    }
 
     if (form) form.addEventListener('submit', handleSubmit);
     if (switchButton) switchButton.addEventListener('click', toggleAuthMode);
@@ -255,7 +298,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // We might have a message to display immediately if we arrived here from a redirect
     const messageElement = document.getElementById('message');
-    const urlParams = new URLSearchParams(window.location.search);
     const error = urlParams.get('error');
     if (error) {
         switch (error) {

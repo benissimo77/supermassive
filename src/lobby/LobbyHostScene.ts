@@ -13,7 +13,8 @@ import { ThemeManager } from 'src/ui/ThemeManager';
 
 // I have a Player class which uses Phaser objects but DOMPlayer is slightly smoother with animations
 // Note: it needs its own setScale function to ensure correct scaling...
-import { PlayerConfig, DOMPlayer } from '../DOMPlayer';
+// Not worth keeping both classes so going with PhaserPlayer for now
+import { PlayerConfig, PhaserPlayer } from 'src/quiz/PhaserPlayer';
 
 // Define a simple interface for menu items
 // Ensures correct typing in createButtonCallback
@@ -33,11 +34,14 @@ export class LobbyHostScene extends BaseScene {
 		// Add more games as needed
 	};
 
-	private players: Map<string, DOMPlayer> = new Map<string, DOMPlayer>();
+	private players: Map<string, PhaserPlayer> = new Map<string, PhaserPlayer>();
 
-	private soundManager: SoundManager;
-	private themeManager: ThemeManager;
-	private soundPanel: Phaser.GameObjects.Container;
+	public soundManager: SoundManager;
+	public themeManager: ThemeManager;
+	public soundPanel: Phaser.GameObjects.Container;
+	public games: { name: string; key: string; description: string }[] = [];
+	private gameCards: Phaser.GameObjects.Container[] = [];
+	private selectedGameIndex:number = 0;
 
 	constructor() {
 		super({ key: LobbyHostScene.KEY });
@@ -97,12 +101,8 @@ export class LobbyHostScene extends BaseScene {
 	}
 
 	create(): void {
-
 		console.log('Lobby.create: hello.');
-
-		// Output the list of scenes...
-		const loadedScenes = this.scene.manager.scenes;
-		console.log('loaded scenes:', loadedScenes, 'scenemanager keys:', this.scene.manager.keys);
+		super.create();
 
 		// Provide ability to go instantly to a quiz with a known ID
 		const urlParams = new URLSearchParams(window.location.search);
@@ -112,6 +112,147 @@ export class LobbyHostScene extends BaseScene {
 			console.log(`LobbyHostScene::init: quizID provided: ${quizID}`);
 			this.socket.emit('host:requestgame', 'quiz', { quizID: quizID });
 		}
+
+		// Define available games (add more as needed)
+		this.games = [
+			{ name: 'Quiz', key: 'quiz', description: 'Test your knowledge with fun questions!' },
+			// { name: 'Drawing', key: 'drawing', description: 'Draw and guess with friends!' },
+			// Add more games here
+		];
+
+		this.createGameGrid();
+
+		// Keyboard navigation
+		this.input.keyboard.on('keydown-LEFT', () => this.navigate(-1, 0));
+		this.input.keyboard.on('keydown-RIGHT', () => this.navigate(1, 0));
+		this.input.keyboard.on('keydown-UP', () => this.navigate(0, -1));
+		this.input.keyboard.on('keydown-DOWN', () => this.navigate(0, 1));
+		this.input.keyboard.on('keydown-ENTER', () => this.selectGame());
+
+		// Instructions panel button
+		this.createButton(1680, this.getY(50), 'Join Instructions', () => this.showInstructions());
+
+		// Let server know host is ready (should trigger server to send room code)
+		this.socket.emit('host:ready', { socketID: this.socket.id }, (response: any) => {
+			console.log('host:ready ack received:', response)
+			if (response.roomID) {
+				this.roomID = response.roomID;
+				this.load.image('roomQR', `/assets/qr/${this.roomID}.png`);
+				this.load.once('complete', () => {
+					console.log('Room QR code image loaded');
+					this.showInstructions();
+				});
+				this.load.start();
+			}
+		});
+
+	}
+
+	// Add these methods to the class:
+	private createGameGrid(): void {
+		const cardWidth = 320;
+		const cardHeight = 200;
+		const cols = 3;
+		const spacing = 40;
+		const totalWidth = cols * cardWidth + (cols - 1) * spacing;
+		const startX = 960 - totalWidth / 2;
+		const startY = 320;
+		this.gameCards = [];
+		for (let i = 0; i < this.games.length; i++) {
+			const col = i % cols;
+			const row = Math.floor(i / cols);
+			const x = startX + col * (cardWidth + spacing);
+			const y = startY + row * (cardHeight + spacing);
+			const card = this.createGameCard(x, y, this.games[i], i);
+			this.gameCards.push(card);
+		}
+		this.updateCardSelection();
+	}
+
+	private createGameCard(x: number, y: number, game: any, index: number): Phaser.GameObjects.Container {
+		const card = this.add.container(x, y);
+		const bg = this.add.rectangle(0, 0, 320, 200, 0x333344).setStrokeStyle(3, 0xffffff);
+		card.add(bg);
+		const title = this.add.text(0, -60, game.name, { fontSize: '28px', color: '#fff', fontFamily: 'Titan One' }).setOrigin(0.5);
+		card.add(title);
+		const desc = this.add.text(0, 20, game.description, { fontSize: '18px', color: '#ccc', align: 'center', wordWrap: { width: 280 } }).setOrigin(0.5);
+		card.add(desc);
+		bg.setInteractive({ useHandCursor: true });
+		bg.on('pointerdown', () => {
+			this.selectedGameIndex = index;
+			this.updateCardSelection();
+			this.selectGame();
+		});
+		bg.on('pointerover', () => bg.setFillStyle(0x555577));
+		bg.on('pointerout', () => this.updateCardSelection());
+		return card;
+	}
+
+	private updateCardSelection(): void {
+		this.gameCards.forEach((card, idx) => {
+			const bg = card.getAt(0) as Phaser.GameObjects.Rectangle;
+			bg.setFillStyle(idx === this.selectedGameIndex ? 0x7b5e9c : 0x333344);
+		});
+	}
+
+	private navigate(dx: number, dy: number): void {
+		const cols = 3;
+		const rows = Math.ceil(this.games.length / cols);
+		let col = this.selectedGameIndex % cols;
+		let row = Math.floor(this.selectedGameIndex / cols);
+		col += dx;
+		row += dy;
+		if (col < 0) col = cols - 1;
+		if (col >= cols) col = 0;
+		if (row < 0) row = rows - 1;
+		if (row >= rows) row = 0;
+		const newIndex = row * cols + col;
+		if (newIndex < this.games.length) {
+			this.selectedGameIndex = newIndex;
+			this.updateCardSelection();
+		}
+	}
+
+	private selectGame(): void {
+		const game = this.games[this.selectedGameIndex];
+		this.socket.emit('host:requestgame', game.key);
+	}
+
+	private showInstructions(): void {
+		const panel = this.add.container(960, this.getY(1080) - 480);
+		const bg = this.add.rectangle(0, 0, 1600, 400, 0x000000, 0.4).setOrigin(0.5, 0);
+		panel.add(bg);
+		const title = this.add.text(0, 60, 'How to Join', { fontSize: '64px', color: '#fff', fontFamily: 'Titan One' }).setOrigin(0.5);
+		panel.add(title);
+		
+		// Two-column layout
+		// - left column for manual steps: 1. Go to VIDEOSWIPE.NET 2. Tap 'Start Playing Now' card 3. Enter room code: ROOMID
+		// - right column display message 'Or scan QR code' and show QR code image below
+		// Enter your name and select an avatar to join the game
+		const instr = this.add.text(-700, 120, "VIDEOSWIPE.NET\nTap 'Start Playing Now'\nRoom code: " + this.roomID, { fontFamily: 'Titan One', fontSize: '48px', color: '#ccc', align: 'left', wordWrap: { width: 800 }, lineSpacing: 30 }).setOrigin(0);
+		panel.add(instr);
+
+		const orText = this.add.text(0, 190, 'OR', { fontFamily: 'Titan One', fontSize: '48px', color: '#77e', align: 'center' }).setOrigin(0.5);
+		panel.add(orText);
+
+		const qrImage = this.add.image(500, 240, 'roomQR').setDisplaySize(240, 240).setOrigin(0.5);
+		panel.add(qrImage);
+
+		const closeBtn = this.add.text(760, 20, 'X', { fontSize: '32px', color: '#fff' }).setInteractive({ useHandCursor: true });
+		closeBtn.on('pointerdown', () => panel.destroy());
+		panel.add(closeBtn);
+		bg.setInteractive();
+	}
+
+	// Function to test out various RexUI components
+	// Not used any more but useful to see what's possible
+	testRexUI(): void {
+
+		console.log('Lobby.testRexUI: hello.');
+
+		// Output the list of scenes...
+		const loadedScenes = this.scene.manager.scenes;
+		console.log('loaded scenes:', loadedScenes, 'scenemanager keys:', this.scene.manager.keys);
 
 
 		// Testing of correct canvas scaling / positioning
@@ -227,7 +368,7 @@ export class LobbyHostScene extends BaseScene {
 			value: 0,
 			duration: 10000, // 10 seconds
 			onUpdate: () => {
-				// timer.layout();
+				timer.layout();
 			},
 			onComplete: () => {
 				// Time's up logic
@@ -286,9 +427,6 @@ export class LobbyHostScene extends BaseScene {
 		// const renderTexture: Phaser.GameObjects.RenderTexture = this.add.renderTexture(960, this.getY(540), avatar.width, avatar.height).setOrigin(1);
 		// renderTexture.setTint(0x00ff00).fill(0x000080);
 		// renderTexture.draw(avatar, avatar.width / 2, avatar.height / 2);
-
-		// Last thing to do is to call the server to let them know we are ready
-		this.socket.emit('host:ready', { socketID: this.socket.id });
 
 		this.testSizer();
 	}
@@ -409,7 +547,7 @@ export class LobbyHostScene extends BaseScene {
 		// Listen for player connection events
 		this.socket.on('playerconnect', (playerConfig: PlayerConfig) => {
 			console.log('Socket:: playerconnect:', playerConfig);
-			this.addDOMPlayer(playerConfig);
+			this.addPhaserPlayer(playerConfig);
 		});
 
 		this.socket.on('playerdisconnect', (sessionID: string) => {
@@ -421,7 +559,7 @@ export class LobbyHostScene extends BaseScene {
 		this.socket.on('server:players', (playerList: PlayerConfig[]) => {
 			console.log('Socket:: server:players:', playerList);
 			playerList.forEach((playerConfig: PlayerConfig) => {
-				this.addDOMPlayer(playerConfig);
+				this.addPhaserPlayer(playerConfig);
 			});
 		});
 
@@ -460,7 +598,7 @@ export class LobbyHostScene extends BaseScene {
 		return button;
 	}
 
-	getPlayerBySessionID(sessionID: string): DOMPlayer {
+	getPlayerBySessionID(sessionID: string): PhaserPlayer {
 		console.log('LobbyHostScene:: getPlayerBySessionID:', sessionID);
 		const player = this.players.get(sessionID);
 		if (player) {
@@ -469,24 +607,26 @@ export class LobbyHostScene extends BaseScene {
 			throw Error('Player not found:' + sessionID);
 		}
 	}
-	addDOMPlayer(playerConfig: PlayerConfig): void {
-		console.log('Adding DOM player:', playerConfig);
+
+	addPhaserPlayer(playerConfig: PlayerConfig): void {
+		console.log('Adding PhaserPlayer:', playerConfig);
 		const player = this.players.get(playerConfig.sessionID);
 		if (player) {
 			console.log('Player already exists:', playerConfig.sessionID);
 			return;
 		}
-		const newPlayer: DOMPlayer = new DOMPlayer(this, playerConfig);
+		const newPlayer: PhaserPlayer = new PhaserPlayer(this, playerConfig);
 		this.add.existing(newPlayer);
+		this.backgroundContainer.add(newPlayer);
 		this.players.set(playerConfig.sessionID, newPlayer);
 		this.animatePlayer(newPlayer);
 	}
 
 	removePlayer(sessionID: string): void {
 		console.log('Removing player:', sessionID, this.playerConfigs);
-		const domPlayer: DOMPlayer = this.getPlayerBySessionID(sessionID);
-		if (domPlayer) {
-			domPlayer.destroy();
+		const phaserPlayer: PhaserPlayer = this.getPlayerBySessionID(sessionID);
+		if (phaserPlayer) {
+			phaserPlayer.destroy();
 		}
 	}
 

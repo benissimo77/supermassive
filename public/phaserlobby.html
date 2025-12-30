@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Lobby</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            background-color: #0000DD;
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+    <meta charset="utf-8">
+    <!-- <link href="https://fonts.googleapis.com/css2?family=Titan+One&display=swap" rel="stylesheet"> -->
+    <link rel="stylesheet" href="css/lobby.css">
+</head>
+
+<body>
+    <div id="container"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.0/dist/phaser.min.js"></script> -->
+    <script src="modules/phaser.min.js"></script>
+    <script src="modules/phaser.host.lobby.min.js"></script>
+</body>
+
+</html>

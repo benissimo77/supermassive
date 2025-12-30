@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gaming Auth - Login/Sign Up</title>
+    <link rel="stylesheet" href="css/login.css">
+</head>
+<body>
+    <div class="container">
+        <div class="auth-form">
+            <h2 id="formTitle">Sign in to your account</h2>
+            <div id="socialButtons">
+                <button class="google" id="googleLogin">
+                    Sign in with Google
+                </button>
+                <button class="facebook" id="facebookLogin">
+                    Sign in with Facebook
+                </button>
+                <div class="divider">
+                    <span>Or continue with</span>
+                </div>
+            </div>
+            <form id="auth-form" method="POST">
+                <input type="email" name="email" placeholder="Email address" value="ben.silburn@gmail.com" required></input>
+                <input type="password" id="password" name="password" placeholder="Password" value="123" required></input>
+                <div id="message" style="display: none;"></div>
+                <button type="submit" id="submitButton">Sign in</button>
+            </form>
+            <div class="switch-form">
+                <span id="switchMessage">Don't have an account?</span>
+                <button id="switchButton" class="text">Sign up</button>
+            </div>
+            <div style="margin-top: 10px; text-align: center;">
+                <a href="#" id="forgotPassword" style="color: var(--clr-text-muted); font-size: 0.85rem; text-decoration: none;">Forgot password?</a>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="/modules/login.min.js"></script>
+</body>
+</html>

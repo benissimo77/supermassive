@@ -4,6 +4,7 @@ import { BaseQuestion } from "./BaseQuestion";
 import { Keypad } from "src/ui/Keypad";
 import { NineSliceButton } from "src/ui/NineSliceButton";
 import { NumberQuestionData } from "./QuestionTypes";
+import { PhaserPlayer } from "../PhaserPlayer";
 
 export default class NumberQuestion extends BaseQuestion {
 
@@ -72,13 +73,13 @@ export default class NumberQuestion extends BaseQuestion {
 
     protected displayAnswerUI(answerHeight: number): void {
 
-        let scale:number = 1;
+        let scale: number = 1;
 
         // HOST display either the answer or a message to type answer
         // Text already placed at (0,0) so no need to re-position
         if (this.scene.TYPE === 'host') {
             let answerText: string = '';
-            if (this.questionData.mode == 'answer' && this.questionData.answer !== undefined) {
+            if (this.questionData.mode == 'answer' && this.questionData.answer) {
                 answerText = this.questionData.answer.toString();
             } else {
                 answerText = 'Type your answer';
@@ -94,7 +95,7 @@ export default class NumberQuestion extends BaseQuestion {
             this.submitButton.setButtonSize(320 * scaleFactor, 80 * scaleFactor);
             this.submitButton.setTextSize(46 * scaleFactor);
             this.submitButton.setPosition(960 - 160 * scaleFactor - 20, this.scene.getY(answerHeight) - 40 * scaleFactor - 20);
-            
+
             // for portrait mode we can safely reduce answer height as we have loads of space
             if (scaleFactor > 1) {
                 answerHeight -= 80 * scaleFactor;
@@ -143,7 +144,7 @@ export default class NumberQuestion extends BaseQuestion {
 
     }
     protected makeNonInteractive(): void {
-        this.keypad.makeNonInteracetive();
+        this.keypad.makeNonInteractive();
         this.submitButton.removeAllListeners();
         this.submitButton.disableInteractive();
     }
@@ -175,7 +176,7 @@ export default class NumberQuestion extends BaseQuestion {
             ease: 'back.in'
         }, "<");
         tl.to(this.answerText, {
-            scale: this.answerText.scale *  1.8,
+            scale: this.answerText.scale * 1.8,
             duration: 1.8,
             ease: 'power2.out'
         }, "<");
@@ -195,7 +196,59 @@ export default class NumberQuestion extends BaseQuestion {
             const answerText = this.questionData.answer.toString();
             this.answerText.setText(answerText);
         }
+        if (this.questionData.type === 'number-average') {
+            const values = Object.values(this.questionData.results).map(v => Number(v));
+            const average = values.length ? values.reduce((sum, val) => sum + val, 0) / values.length : 0;
+            this.answerText.setText(`${average.toFixed(1)}`);
+            // For average question type we want to show the players arranged on a horizontal line representing their guess
+            this.displayAverageAnswerVisualization();
+        }
     }
+
+    // Display visualization for average number question
+    // this.questionData.results is a dictionary of sessionIDs and their numeric guesses
+    private displayAverageAnswerVisualization(): void {
+        console.log('NumberQuestion::displayAverageAnswerVisualization:', this.questionData.results);
+
+        if (!this.questionData.results) {
+            return;
+        }
+
+        const guesses = Object.values(this.questionData.results);
+        let minGuess = Math.min(...guesses);
+        let maxGuess = Math.max(...guesses);
+        if (minGuess === maxGuess) {
+            maxGuess = maxGuess + 1;
+        }
+        const spread = 1400;
+
+        for (const sessionId in this.questionData.results) {
+            const playerGuess = this.questionData.results[sessionId];
+            const player: PhaserPlayer = this.scene.getPlayerBySessionID(sessionId) as PhaserPlayer;
+            if (player) {
+                this.scene.tweens.killTweensOf(player);
+
+                let x = 960; // default center
+                if (guesses.length > 1) {
+                    // Center average at 960, spread guesses (adjust by -120 to allow for width of playername panels)
+                    x = 960 - spread/2 - 120 + (playerGuess - minGuess) / (maxGuess - minGuess) * spread;
+                    x = Phaser.Math.Clamp(x, 160, 1760);
+                }
+
+                this.scene.tweens.add({
+                    targets: player,
+                    x: x,
+                    y: this.scene.getY(this.answerContainer.y + 40),
+                    duration: Phaser.Math.Between(2000, 4000),
+                    ease: 'Cubic.easeInOut',
+                    onComplete: () => {
+                        player.setPlayerScoreText(playerGuess.toString());
+                    }
+                });
+            }
+        }
+    }
+
 
 
     public destroy(): void {

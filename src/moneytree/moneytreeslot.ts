@@ -1,0 +1,101 @@
+import { BaseScene } from './BaseScene';
+
+
+const backgroundColour: string = '#5555AA'; // Blue background
+const textColour: string = '#ffffff'; // White text
+const borderColour: string = '#aaaaff'; // Light blue border
+
+const revealedBackgroundColour: string = '#333333';
+const revealedTextColour: string = '#000000';
+const revealedBorderColour: string = '#555555';
+
+
+export default class MoneyTreeSlot extends Phaser.GameObjects.Container {
+    private background: Phaser.GameObjects.Rectangle;
+    private text: Phaser.GameObjects.Text;
+
+    constructor(scene: BaseScene, textValue: string | number) {
+        super(scene);
+
+        // Create a container to group the background and text
+        // this.container = this.scene.add.container(x, y);
+
+        // Create the text first to calculate its dimensions
+        this.text = scene.add.text(0, 0, `${textValue}`)
+            .setFontFamily('Arial')
+            .setFontStyle('bold')
+            .setFontSize(scene.getY(24))
+            .setColor(textColour)
+            .setOrigin(0.5);
+
+
+        // Calculate the width and height of the background based on the text size
+        const paddingX = 20;
+        const paddingY = scene.getY(6);
+        const textWidth = this.text.width;
+        const textHeight = this.text.height;
+        const backgroundWidth = textWidth + paddingX * 2;
+        const backgroundHeight = textHeight + paddingY * 2;
+
+        // Create the background rectangle
+        this.background = scene.add.rectangle(0, 0, backgroundWidth, backgroundHeight)
+            .setOrigin(0.5, 0.5) // Center the rectangle
+            .setStrokeStyle(1);
+
+        this.setSlotState('empty'); // Set the initial state to empty
+
+        // Add the background and text to the container
+        this.add([this.background, this.text]);
+    }
+
+    public setSlotState(state: string): void {
+
+        // hardcode the possible states here since they are unlikely to change (empty and revealed)
+        if (state == 'empty') {
+            this.background.setFillStyle(Phaser.Display.Color.HexStringToColor(backgroundColour).color);
+            this.background.setStrokeStyle(0.5, Phaser.Display.Color.HexStringToColor(borderColour).color) // Set the border color
+            this.text.setColor(textColour);
+        } else {
+            this.background.setFillStyle(Phaser.Display.Color.HexStringToColor(revealedBackgroundColour).color);
+            this.background.setStrokeStyle(0.5, Phaser.Display.Color.HexStringToColor(revealedBorderColour).color) // Set the border color
+            this.text.setColor(revealedTextColour);
+        }
+        this.state = state; // Set the state property to the new state
+    }
+
+    public setText(value: string | number, padding: number = 20): void {
+        this.text.setText(`${value}`);
+
+        // Recalculate the background size based on the new text
+        const textWidth = this.text.width;
+        const textHeight = this.text.height;
+        const backgroundWidth = textWidth + padding * 2;
+        const backgroundHeight = textHeight + padding * 2;
+
+        this.background.setSize(backgroundWidth, backgroundHeight);
+    }
+
+    public highlightSlot(): void {
+        this.background.setFillStyle(Phaser.Display.Color.HexStringToColor('#ffff00').color); // Yellow background
+        this.background.setStrokeStyle(4, Phaser.Display.Color.HexStringToColor('#5555AA').color); // Blue border
+        this.text.setColor('#000000'); // Black text
+    }
+    public unhighlightSlot(): void {
+        this.setSlotState(this.state as string);
+    }
+    public setBackgroundColor(color: string): void {
+        this.background.setFillStyle(Phaser.Display.Color.HexStringToColor(color).color);
+    }
+
+    public setBorderColor(color: string): void {
+        this.background.setStrokeStyle(4, Phaser.Display.Color.HexStringToColor(color).color);
+    }
+
+    public setTextColor(color: string): void {
+        this.text.setColor(color);
+    }
+
+    public destroy(): void {
+        this.destroy();
+    }
+}

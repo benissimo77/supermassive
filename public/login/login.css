@@ -1,144 +1,149 @@
-:root{
-    --base-clr: #11121a;
-    --line-clr: #42434a;
-    --hover-clr: #222533;
-    --text-clr: #e6e6ef;
-    --accent-clr: #5e63ff;
-    --secondary-text-clr: #b0b3c1;
-  }
-* {
-    margin: 0;
-    padding: 0;
-}
-
-html {
-    font-family: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    line-height: 1.5rem;
-}
+/* Login Page Specific Styles */
+/* Inherits variables and base styles from dashboard.css */
 
 body {
-    background-color: var(--base-clr);
-    color: var(--text-clr);
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
     margin: 0;
+    background-color: var(--clr-bg);
+    grid-template-columns: 1fr; /* Override dashboard grid */
 }
 
-.container {
-    background-color: #16213e;
-    padding: 2rem;
-    border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+.login-wrapper {
     width: 100%;
-    max-width: 400px;
+    max-width: 420px;
+    padding: var(--space-md);
 }
 
-h2 {
+.auth-card {
+    background: var(--clr-surface-alt);
+    border: 1px solid var(--clr-border);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.auth-card h2 {
     text-align: center;
-    margin-bottom: 2rem;
+    margin-bottom: var(--space-xl);
+    font-size: 1.5rem;
+    color: var(--clr-text);
 }
 
+/* Button Styles (Synced with quizbuilder.css) */
+.btn {
+    padding: var(--space-sm) var(--space-lg);
+    font-size: 0.9rem;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+}
+
+.btn-primary { background-color: var(--clr-primary); color: white; }
+.btn-secondary { background-color: var(--clr-secondary); color: white; }
+.btn-accent { background-color: var(--clr-accent); color: white; }
+
+/* Social Buttons */
+.google-btn {
+    background-color: #ffffff !important;
+    color: #3c4043 !important;
+    border: 1px solid #dadce0 !important;
+    margin-bottom: var(--space-sm);
+}
+
+.facebook-btn {
+    background-color: #1877f2 !important;
+    color: #ffffff !important;
+    margin-bottom: var(--space-md);
+}
+
+.google-btn svg, .facebook-btn svg {
+    margin-right: 10px;
+}
+
+/* Divider */
 .divider {
     display: flex;
     align-items: center;
     text-align: center;
-    margin: 2rem 0 1rem 0;
+    margin: var(--space-lg) 0;
 }
 
 .divider::before,
 .divider::after {
     content: '';
     flex: 1;
-    border-bottom: 1px solid #4a4a6a;
+    border-bottom: 1px solid var(--clr-line);
 }
 
 .divider span {
-    padding: 0 10px;
-    color: #4a4a6a;
-    font-size: 0.9rem;
+    padding: 0 15px;
+    color: var(--clr-text-muted);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
-button, input
- {
+/* Form Elements */
+.form-group label {
     display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--clr-text-label);
+    margin-bottom: var(--space-xs);
+    text-transform: uppercase;
+}
+
+input {
     width: 100%;
-    margin-bottom: 1rem;
-}
-
-button {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border: none;
-    border-radius: 5px;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: filter 0.3s ease;
-    color: white;
-}
-
-button.google {
-    background-color: #db4437;
-}
-
-button.facebook {
-    background-color: #4267B2;
-}
-
-button[type="submit"] {
-    background-color: #0f3460;
-}
-
-button:hover {
-    filter: brightness(1.1);
-}
-
- input {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border: 1px solid #4a4a6a;
-    border-radius: 5px;
-    background-color: #1f2b46;
-    color: #ffffff;
-    font-size: 1rem;
     box-sizing: border-box;
 }
 
- input:focus {
-    outline: none;
-    border-color: #0f3460;
+/* Links */
+.link-accent {
+    color: var(--clr-accent);
+    text-decoration: none;
+    font-weight: 600;
 }
 
-.form-links a {
-    color: rgb(100, 100, 201);
-    font-weight: bold;
+.link-accent:hover {
+    text-decoration: underline;
 }
-#switchMessage {
-    color: white;
+
+.link-muted {
+    color: var(--clr-text-muted);
+    text-decoration: none;
+    font-size: 0.9rem;
 }
+
+.link-muted:hover {
+    color: var(--clr-text);
+}
+
 .switch-form {
     text-align: center;
-    margin-top: 1rem;
+    font-size: 0.95rem;
 }
 
-button.text {
-    background: none;
-    color: #4a4a6a;
-    padding: 0;
-    font-weight: bold;
+#switchMessage {
+    color: var(--clr-text-muted);
 }
 
-button.text:hover {
-    color: #ffffff;
+/* Messages */
+.message {
+    min-height: 1.5rem;
+    text-align: center;
+    margin-bottom: var(--space-md);
+    font-size: 0.9rem;
 }
 
-#message {
-    color: --base-clr;
-    margin-bottom: 10px;
+.message.error {
+    color: var(--clr-error);
 }
-.error {
-    font-size:small;
-    color:red;
+
+.message.success {
+    color: var(--clr-success);
 }
+
+.text-center { text-align: center; }
+.mt-sm { margin-top: var(--space-sm); }
 

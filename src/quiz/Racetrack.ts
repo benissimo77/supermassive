@@ -166,7 +166,7 @@ export class Racetrack extends Phaser.GameObjects.Container {
             }
         });
 
-        // Set the new scale
+        // Set the new scale (ensures that by end of animation all distances are correct)
         this.racetrackScale = newScale;
 
         // Update each player

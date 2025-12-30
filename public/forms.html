@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Selection Form</title>
+    <style>
+        .image-option {
+            display: inline-block;
+            margin: 10px;
+            cursor: pointer;
+        }
+        .image-option input[type="radio"] {
+            display: none;
+        }
+        .image-option img {
+            border: 2px solid transparent;
+            border-radius: 5px;
+        }
+        .image-option input[type="radio"]:checked + img {
+            border-color: blue;
+        }
+    </style>
+</head>
+<body>
+    <form>
+        <label class="image-option">
+            <input type="radio" name="image" value="image1">
+            <img src="img/avatar-100/image-from-rawpixel-id-12138118-original.png" alt="Image 1" width="100" >
+        </label>
+        <label class="image-option">
+            <input type="radio" name="image" value="image2">
+            <img src="img/avatar-100/image-from-rawpixel-id-12138231-original.png" alt="Image 2" width="100" >
+        </label>
+        <label class="image-option">
+            <input type="radio" name="image" value="image3">
+            <img src="img/avatar-100/image-from-rawpixel-id-12138743-original.png" alt="Image 3" width="100" >
+        </label>
+
+        <input type="text" name="name" placeholder="Enter your name">
+    </form>
+</body>
+</html>

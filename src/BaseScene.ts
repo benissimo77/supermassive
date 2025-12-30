@@ -17,13 +17,14 @@ export abstract class BaseScene extends Phaser.Scene {
     protected backgroundContainer: Phaser.GameObjects.Container;
     protected mainContainer: Phaser.GameObjects.Container;
     protected UIContainer: Phaser.GameObjects.Container;
-    protected topContainer: Phaser.GameObjects.Container;
+    public topContainer: Phaser.GameObjects.Container;
     protected debugContainer: Phaser.GameObjects.Container;
 
     public soundManager: SoundManager;
     public rexUI!: any;
     public rexToggleSwitch!: any;
     protected socket: Socket;
+    protected roomID: string = '';
 
     protected playerConfigs: Map<string, PlayerConfig> = new Map<string, PlayerConfig>();
 
@@ -89,7 +90,7 @@ export abstract class BaseScene extends Phaser.Scene {
 
         // Initialize the SoundManager
         this.soundManager = SoundManager.getInstance(this);
-        
+
         // This is useful for debugging but quite noisy
         // this.socket.onAny((event, ...args) => {
         //     console.log('BaseScene:: Socket event:', event, args);
@@ -156,6 +157,12 @@ export abstract class BaseScene extends Phaser.Scene {
             // this.requestFullscreenLandscape();
             this.requestWakeLock();
         });
+
+        // Max debugging of all input events
+        // This is VERY noisy so use with caution
+        if (__DEV__ && 0) {
+            this.enableInputDebug();
+        }
     }
 
     private initPingTest(): void {
@@ -331,6 +338,64 @@ export abstract class BaseScene extends Phaser.Scene {
         this.debugContainer.add(graphics);
 
     }
+
+
+    enableInputDebug() {
+
+        // Pointer events - manually list the events we want to debug
+        const pointerEvents = [
+            'pointerdown',
+            'pointerup',
+            'pointermove',
+            'pointerover',
+            'pointerout',
+            'dragstart',
+            'drag',
+            'dragend',
+            'drop',
+            'pointerenter',
+            'pointerleave',
+            'pointercancel',
+            'pointerupoutside',
+            'pointerdownoutside',
+            'gameout',
+            'gameover'
+        ];
+        pointerEvents.forEach(eventName => {
+            this.input.on(eventName, (...args) => {
+                this.socket?.emit('consolelog', `[Pointer Event] ${eventName}, ${args}`);
+            });
+        });
+
+        // Multi-touch events
+        this.input.on('pointer1down', (...args) => {
+            this.socket?.emit('consolelog', `[Pointer Event] pointer1down, ${args}`);
+        });
+        this.input.on('pointer2down', (...args) => {
+            this.socket?.emit('consolelog', `[Pointer Event] pointer2down, ${args}`);
+        });
+        this.input.on('pointer3down', (...args) => {
+            this.socket?.emit('consolelog', `[Pointer Event] pointer3down, ${args}`);
+        });
+        this.input.on('pointer1up', (...args) => {
+            this.socket?.emit('consolelog', `[Pointer Event] pointer1up, ${args}`);
+        });
+        this.input.on('pointer2up', (...args) => {
+            this.socket?.emit('consolelog', `[Pointer Event] pointer2up, ${args}`);
+        });
+        this.input.on('pointer3up', (...args) => {
+            this.socket?.emit('consolelog', `[Pointer Event] pointer3up, ${args}`);
+        });
+
+        // Keyboard events
+        const kb = this.input.keyboard;
+        ['keydown', 'keyup'].forEach(eventName => {
+            kb.on(eventName, (event) => {
+                this.socket?.emit('consolelog', `[Keyboard Event] ${eventName}, ${event.key}, ${event}`);
+            });
+        });
+    }
+
 
     updateHeight(newHeight: number): void {
         console.log('BaseScene:: updateHeight:', newHeight);

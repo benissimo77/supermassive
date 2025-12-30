@@ -16,7 +16,7 @@ const displayMessage = (message, isError = false) => {
     const messageElement = document.getElementById('message');
     if (messageElement) {
         messageElement.innerHTML = message;
-        messageElement.className = isError ? 'error' : 'success';
+        messageElement.className = isError ? 'message error' : 'message success';
         messageElement.style.display = 'block';
     } else {
         alert(message); // Fallback if message element doesn't exist
@@ -48,31 +48,29 @@ const layoutMode = () => {
     const switchButton = document.getElementById('switchLink');
     const socialButtons = document.getElementById('socialButtons');
     const passwordInput = document.getElementById('password');
+    const passwordGroup = passwordInput ? passwordInput.closest('.form-group') : null;
 
     if (isSignupMode || forgotPasswordMode) {
-        formTitle.textContent = 'Create an account';
-        submitButton.textContent = 'Sign Up';
+        formTitle.textContent = isSignupMode ? 'Create an account' : 'Forgotten password?';
+        submitButton.textContent = isSignupMode ? 'Sign Up' : 'Send reset email';
         switchButton.textContent = 'Sign In';
         switchMessage.textContent = 'Already have an account?';
         socialButtons.style.display = 'none';
-        passwordInput.style.display = 'none';
+        if (passwordGroup) passwordGroup.style.display = 'none';
     } else {
         formTitle.textContent = 'Sign in to your account';
         submitButton.textContent = 'Sign In';
         switchButton.textContent = 'Sign Up';
         switchMessage.textContent = 'Don\'t have an account?';
         socialButtons.style.display = 'block';
-        passwordInput.style.display = 'block';
-    }
-    if (forgotPasswordMode) {
-        formTitle.textContent = 'Forgotten password?';
-        submitButton.textContent = 'Send reset email';
+        if (passwordGroup) passwordGroup.style.display = 'block';
     }
 
     // Clear the message element no matter which mode we are in
     const messageElement = document.getElementById('message');
     if (messageElement) {
         messageElement.textContent = '';
+        messageElement.className = 'message';
     }
 };
 
@@ -87,9 +85,16 @@ const handleSubmit = async (event) => {
     const password = formData.get('password');
 
     // Logic depends on the mode
-    if (!email || !password) {
-        displayMessage('Please enter both email and password', true);
-        return;
+    if (forgotPasswordMode || isSignupMode) {
+        if (!email) {
+            displayMessage('Please enter your email address', true);
+            return;
+        }
+    } else {
+        if (!email || !password) {
+            displayMessage('Please enter both email and password', true);
+            return;
+        }
     }
 
     // Determine the endpoint based on the mode (forgot password, signup or login)

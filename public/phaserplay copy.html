@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+
+    <!-- Add this before your other scripts -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <script>eruda.init();</script> -->
+
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <!-- <meta name="viewport" content="width=device-width, initial-scale=1.0"> -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+
+    <!-- tags for PWA settings -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#051C55">
+
+    <!-- Add these meta tags for better iOS fullscreen support -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+    <!-- <link rel="apple-touch-icon" href="/img/app-icon.png"> -->
+    <link rel="apple-touch-icon" href="/img/w3logo.png">
+
+    <!-- Add these orientation-specific meta tags -->
+    <!-- <meta name="screen-orientation" content="landscape">
+    <meta name="x5-orientation" content="landscape">
+    <meta name="msapplication-orientation" content="landscape"> -->
+
+    <meta name="HandheldFriendly" content="true">
+    <meta name="MobileOptimized" content="320">
+    <meta name="apple-mobile-web-app-title" content="VideoSwipe">
+    <meta name="application-name" content="VideoSwipe">
+
+
+    <title>Lobby</title>
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            background-color: #0000DD;
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+    <link rel="stylesheet" href="/css/lobby.css">
+
+</head>
+
+<body>
+    <div id="container"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.0/dist/phaser.min.js"></script> -->
+    <script src="/modules/phaser.min.js"></script>
+    <script src="/modules/phaser.play.lobby.min.js"></script>
+</body>
+
+</html>

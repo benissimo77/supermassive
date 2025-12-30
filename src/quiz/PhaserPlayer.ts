@@ -136,6 +136,20 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 			this.playerScoreText.setText(this.playerScore.toString());
 		}
 	}
+	// setPlayerScoreText
+	// This method allows setting arbitrary text (eg "+100" for score updates)
+	// without changing the actual score number
+	setPlayerScoreText(text: string) {
+		if (this.playerScoreText) {
+			this.playerScoreText.setText(text);
+		}
+	}
+	resetPlayerScoreText() {
+		this.playerScoreText.setText('');
+		if (this.playerScore) {
+			this.updatePlayerScore(this.playerScore);
+		}
+	}
 
 	public addShine(): void {
 

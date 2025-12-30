@@ -26,6 +26,7 @@ export class QuestionFactory {
             ['text', TextQuestion],
             ['number-exact', NumberQuestion],
             ['number-closest', NumberQuestion],
+            ['number-average', NumberQuestion],
             ['ordering', OrderingQuestion],
             ['matching', OrderingQuestion],
             ['hotspot', HotspotQuestion],

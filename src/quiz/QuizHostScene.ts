@@ -189,11 +189,17 @@ export class QuizHostScene extends BaseScene {
         // host:ready informs server host is ready to receive player data and other socket events
         // host:ready event also sends acknowledgment callback data including IMPORTANT: room ID
         this.socket.emit('host:ready', {}, (response: any) => {
-            console.log('Host is ready:', response);
-            if (response.room) {
-               // this.showRoomID(response.room);
+            console.log('host:ready ack received:', response)
+            if (response.roomID) {
+                this.roomID = response.roomID;
+                this.load.image('roomQR', `/assets/qr/${this.roomID}.png`);
+                this.load.once('complete', () => {
+                    console.log('Room QR code image loaded');
+                    this.showInstructions();
+                });
+                this.load.start();
             }
-        });
+       });
 
         // We might want to run some kind of introduction - think opening credits of a TV quiz show
         // But since I don't have this yet, let's just show the quiz intro
@@ -312,6 +318,7 @@ export class QuizHostScene extends BaseScene {
                     this.playerContainer.add(player);
                 }
                 player.setPlayerState(PhaserPlayerState.ANSWERING);
+                player.resetPlayerScoreText();
                 this.animatePlayer(player);
                 this.racetrack.flyOut().play();
             });
@@ -507,6 +514,33 @@ export class QuizHostScene extends BaseScene {
         this.timerText = this.add.text(960, this.getY(600), '', timerTextConfig);
     }
 
+    private showInstructions(): void {
+		const panel = this.add.container(960, this.getY(1080) - 480);
+		const bg = this.add.rectangle(0, 0, 1600, 400, 0x000000, 0.4).setOrigin(0.5, 0);
+		panel.add(bg);
+		const title = this.add.text(0, 60, 'How to Join', { fontSize: '64px', color: '#fff', fontFamily: 'Titan One' }).setOrigin(0.5);
+		panel.add(title);
+		
+		// Two-column layout
+		// - left column for manual steps: 1. Go to VIDEOSWIPE.NET 2. Tap 'Start Playing Now' card 3. Enter room code: ROOMID
+		// - right column display message 'Or scan QR code' and show QR code image below
+		// Enter your name and select an avatar to join the game
+		const instr = this.add.text(-700, 120, "VIDEOSWIPE.NET\nTap 'Start Playing Now'\nRoom code: " + this.roomID, { fontFamily: 'Titan One', fontSize: '48px', color: '#ccc', align: 'left', wordWrap: { width: 800 }, lineSpacing: 30 }).setOrigin(0);
+		panel.add(instr);
+
+		const orText = this.add.text(0, 190, 'OR', { fontFamily: 'Titan One', fontSize: '48px', color: '#77e', align: 'center' }).setOrigin(0.5);
+		panel.add(orText);
+
+		const qrImage = this.add.image(500, 240, 'roomQR').setDisplaySize(240, 240).setOrigin(0.5);
+		panel.add(qrImage);
+
+		const closeBtn = this.add.text(760, 20, 'X', { fontSize: '32px', color: '#fff' }).setInteractive({ useHandCursor: true });
+		closeBtn.on('pointerdown', () => panel.destroy());
+		panel.add(closeBtn);
+		bg.setInteractive();
+	}
+
+
     private showQuizIntro(title: string, description: string): void {
 
         // Clear previous UI
@@ -515,23 +549,24 @@ export class QuizHostScene extends BaseScene {
         // Show quiz title
         const titleConfig = Object.assign({}, this.labelConfig, {
             fontSize: 80,
-            strokeThickness: 6
+            strokeThickness: 6,
+            wordWrap: { width: 1400, useAdvancedWrap: true }
         });
         const titleText = this.add.text(960, this.getY(180), title, titleConfig)
-            .setOrigin(0.5)
-            .setWordWrapWidth(1400);
+            .setOrigin(0.5);
 
         // Remove HTML tags from description (until I can find a way to render them properly)
-        const cleanDescription = description.replace(/<\/?[^>]+(>|$)/g, "");
+        // const cleanDescription = description.replace(/<\/?[^>]+(>|$)/g, "");
+        const cleanDescription = description;
 
         // Show description
         const descConfig = Object.assign({}, this.labelConfig, {
             fontSize: 48,
             strokeThickness: 3,
+            wordWrap: { width: 1600, useAdvancedWrap: true }
         });
         const descText = this.add.text(960, this.getY(350), cleanDescription, descConfig)
-            .setOrigin(0.5, 0)
-            .setWordWrapWidth(1600);
+            .setOrigin(0.5, 0);
 
         // Add "Start" button
         const startButton = this.createSimpleButton(960, descText.y + descText.height + this.getY(120), 'START QUIZ');
@@ -559,20 +594,20 @@ export class QuizHostScene extends BaseScene {
         // Show round title
         const titleConfig = Object.assign({}, this.labelConfig, {
             fontSize: this.getY(80),
-            strokeThickness: 6
+            strokeThickness: 6,
+            wordWrap: { width: 1400, useAdvancedWrap: true }
         });
         const roundTitle = this.add.text(960, this.getY(180), `Round ${roundNumber}: ${title}`, titleConfig)
-            .setWordWrapWidth(1400)
             .setOrigin(0.5);
 
         // Show description
         const descriptionConfig = Object.assign({}, this.labelConfig, {
             fontSize: this.getY(48),
             strokeThickness: 3,
+            wordWrap: { width: 1600, useAdvancedWrap: true }
         });
         const cleanDescription = description.replace(/<\/?[^>]+(>|$)/g, "");
         const descText = this.add.text(960, this.getY(350), cleanDescription, descriptionConfig)
-            .setWordWrapWidth(1600)
             .setOrigin(0.5, 0);
 
         // Next button

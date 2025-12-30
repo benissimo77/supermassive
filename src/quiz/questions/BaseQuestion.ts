@@ -179,6 +179,7 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
             case 'text': return 180;
             case 'number-exact': return 180;
             case 'number-closest': return 180;
+            case 'number-average': return 180;
             case 'ordering': return 640;
             case 'matching': return 640;
             case 'hotspot': return 640;
@@ -193,6 +194,7 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
             case 'text': return 240;
             case 'number-exact': return 240;
             case 'number-closest': return 240;
+            case 'number-average': return 240;
             case 'ordering': return 720;
             case 'matching': return 720;
             case 'hotspot': return 720;
@@ -262,7 +264,7 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
         const imageHeight = allocated['image'] || 0;
         const answerHeight = allocated['answers'] || 0;
 
-        console.log('BaseQuestion::display:', this.questionData.mode, this.scene.TYPE, {
+        console.log('BaseQuestion::displayHost:', this.questionData.mode, this.scene.TYPE, {
             answerHeight, textHeight, audioHeight, videoHeight, imageHeight
         });
 
@@ -420,6 +422,7 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
 
         const scale = Math.min(maxWidth / image.width, this.scene.getY(height) / image.height);
         image.setScale(scale);
+        console.log('BaseQuestion::configureImageSize:', image.width, image.height, scale);
     }
 
 

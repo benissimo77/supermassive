@@ -46,11 +46,15 @@ export class SoundManager {
 
     private muted = {
         master: false,
-        music: true,
+        music: false,
         fx: false,
         voice: false
     };
 
+    if (__DEV__) {
+        console.log('SoundManager initialized');
+        this.muted.music = true;
+    }
     private constructor(scene: BaseScene) {
         this.scene = scene;
     }

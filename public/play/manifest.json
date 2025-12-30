@@ -1,0 +1,17 @@
+{
+    "name": "VideoSwipe",
+    "short_name": "VideoSwipe",
+    "theme_color": "#051C55",
+    "background_color": "#051C55",
+    "display": "standalone",
+    "scope": "/play/",
+    "start_url": "/play/",
+    "description": "VideoSwipe Quiz",
+    "icons": [
+        {
+            "src": "/img/w3logo.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        }
+    ]
+}

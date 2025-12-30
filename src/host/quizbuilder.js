@@ -74,6 +74,9 @@ document.addEventListener('DOMContentLoaded', () => {
 					// Show clear button / hide add button
 					questionElement.querySelector('.clear-image-btn').style.display = 'inline-block';
 					questionElement.querySelector('.add-from-library').style.display = 'none';
+
+					// In the event that we are on a Hotspot or Point-it-out question, update the image selector src too
+					setImageSelectorSrc(questionElement, image.url);
 				}
 			});
 
@@ -140,19 +143,19 @@ document.addEventListener('DOMContentLoaded', () => {
 	});
 
 	// Quill is loaded via the HTML page
-	const quill = new Quill('#quiz-description', {
-		theme: 'snow',
-		modules: {
-			toolbar: [
-				['bold', 'italic', 'underline', 'strike'],
-				[{ 'header': 1 }, { 'header': 2 }],
-				[{ 'list': 'ordered' }, { 'list': 'bullet' }]
-			]
-		},
-		placeholder: 'Enter quiz description',
-		bounds: '#quiz-description',
-		maxHeight: '300px'
-	});
+	// const quill = new Quill('#quiz-description', {
+	// 	theme: 'snow',
+	// 	modules: {
+	// 		toolbar: [
+	// 			['bold', 'italic', 'underline', 'strike'],
+	// 			[{ 'header': 1 }, { 'header': 2 }],
+	// 			[{ 'list': 'ordered' }, { 'list': 'bullet' }]
+	// 		]
+	// 	},
+	// 	placeholder: 'Enter quiz description',
+	// 	bounds: '#quiz-description',
+	// 	maxHeight: '300px'
+	// });
 
 
 	// importQuizFromURL('quiz-new.json');
@@ -163,6 +166,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	// Function to fetch quizzes from the API
 	async function fetchQuizzes() {
+		console.log('fetchQuizzes');
+
 		try {
 			const response = await fetch('/api/quiz', {
 				method: 'GET',
@@ -237,13 +242,17 @@ document.addEventListener('DOMContentLoaded', () => {
 		}
 	}
 
-
+	// saveQuiz
+	// First validates the quiz and, if valid, sends to server to save
 	async function saveQuiz(event) {
 		event.preventDefault(); // Prevent the default form submission
 
 		// Collect quiz data from the form
 		const quizJSON = createJSONfromQuiz();
 
+		// Update the full JSON object into the HTML page for debugging
+		document.getElementById('quiz-json').textContent = JSON.stringify(quizJSON, null, 2);
+		
 		// Re-validate the quiz before saving
 		const validation = await validateQuizSchema(quizJSON);
 		if (!validation.valid) {
@@ -327,6 +336,9 @@ document.addEventListener('DOMContentLoaded', () => {
 		const roundSorttable = new Sortable(questionsContainer, {
 			animation: 150,
 			handle: 'summary',
+			group: 'questions',
+			scroll: true, // enables auto-scrolling while dragging
+			scrollSensitivity: 60,
 			onSort: (evt) => {
 				console.log('roundSorttable onSort:', evt);
 				addRoundQuestionNumbers();
@@ -401,7 +413,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
 				break
 
-			case 'multiple-choice':
+			case 'number-average':
+				questionHint.textContent = 'Answer is numeric - players who get closest to the average of all player guesses score the points. Question may have an answer, or could be totally subjective.';
+				contentContainer.innerHTML = `
+                    <label>Answer:</label><input type="number" data-field="answer" placeholder="Optional answer - if there is one">
+                `;
+				break
+
+				case 'multiple-choice':
 				questionHint.textContent = 'Players select an answer from the provided options';
 				contentContainer.innerHTML = `
                         <input class="question-field" type="text" data-field="option-1" placeholder="This is the correct answer">
@@ -692,13 +711,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
 		const quizJSON = {
 			_id: document.getElementById('quiz-id').value,
-			owner: document.getElementById('quiz-owner').value,
+			schemaVersion: document.getElementById('quiz-schema-version').value,
+			ownerID: document.getElementById('quiz-owner').value,
 			title: document.getElementById('quiz-title').value,
+			description: document.getElementById('quiz-description').value,
 			// description: document.querySelector('#quiz-description .ql-editor').innerHTML,
-			description: quill.root.innerHTML,
+			// description: quill.root.innerHTML,
 			rounds: Array.from(roundsContainer.querySelectorAll('details.round')).map(roundElement => ({
 				_id: roundElement.querySelector('.round-id').value,
-				owner: roundElement.querySelector('.round-owner').value,
+				ownerID: roundElement.querySelector('.round-owner').value,
 				title: roundElement.querySelector('.round-title').value,
 				description: roundElement.querySelector('.round-description').value,
 				roundTimer: roundElement.querySelector('[data-field="round-timer"]').value,
@@ -707,6 +728,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				questions: Array.from(roundElement.querySelectorAll('details.question')).map(questionElement => gatherQuestionData(questionElement))
 			}))
 		}
+		console.log('createJSONfromQuiz:', quizJSON);
 		return quizJSON;
 	}
 
@@ -783,19 +805,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
 					// Provide specific messages based on question type
 					switch (question.type) {
+
+						case 'multiple-choice':
+							return "This question requires at least 2 options and a correct answer";
+
+						case 'true-false':
+							return "This question requires a True or False answer";
+
 						case 'text':
 						case 'number-exact':
-						case 'number-matching':
+						case 'number-closest':
 							return "This question requires an answer";
 
-						case 'multichoice':
-							return "This question requires at least 2 options and a correct answer";
+						case 'number-average':
+							return "This question does not require an answer";
 
 						case 'hotspot':
 							return "This question requires hotspot coordinates";
 
+						case 'point-it-out':
+							return "This question requires coordinates of two opposite corners of the rectangle";
+
 						case 'ordering':
-							return "This question requires 2-6 items to order and start/end labels";
+							return "This question requires 2-6 items to order plus optional start/end labels";
 
 						case 'matching':
 							return "This question requires at least 2 matching pairs";
@@ -1153,25 +1185,22 @@ document.addEventListener('DOMContentLoaded', () => {
 		const type = questionElement.querySelector('.question-type').value;
 		const baseData = {
 			type: type,
+			_id: questionElement.querySelector('.question-id').value,
+			ownerID: questionElement.querySelector('.question-owner').value,
 			text: questionElement.querySelector('[data-field="question-text"]').value,
 			image: questionElement.querySelector('[data-field="question-image"]').getAttribute('src'),
-			audio: questionElement.querySelector('[data-field="question-audio"]').value
+			audio: questionElement.querySelector('[data-field="question-audio"]').value,
+			answer: null,
+			options: [],
+			pairs: [],
+			items: [],
+			extra: {}
 		};
 
 		console.log('gatherQuestionData:', type, baseData);
 
 		switch (type) {
-			case 'text':
-				baseData.answer = questionElement.querySelector('[data-field="answer"]').value;
-				break;
-			case 'number-exact':
-			case 'number-closest':
-				const numValue = questionElement.querySelector('[data-field="answer"]').value;
-				baseData.answer = numValue !== '' ? Number(numValue) : null;
-				break;
-			case 'true-false':
-				baseData.answer = questionElement.querySelector('[data-field="answer"]').value;
-				break;
+
 			case 'multiple-choice':
 				let options = [
 					questionElement.querySelector('[data-field="option-1"]').value,
@@ -1186,7 +1215,19 @@ document.addEventListener('DOMContentLoaded', () => {
 				baseData.options = options.filter((option) => { return option != ""; });
 				break;
 
-			case 'picture':
+			case 'true-false':
+				baseData.answer = questionElement.querySelector('[data-field="answer"]').value;
+				break;
+
+			case 'text':
+				baseData.answer = questionElement.querySelector('[data-field="answer"]').value;
+				break;
+
+			case 'number-exact':
+			case 'number-closest':
+			case 'number-average':
+				const numValue = questionElement.querySelector('[data-field="answer"]').value;
+				baseData.answer = numValue !== '' ? Number(numValue) : null;
 				break;
 
 			case 'matching':
@@ -1206,11 +1247,12 @@ document.addEventListener('DOMContentLoaded', () => {
 				break;
 
 			case 'hotspot':
-				// Convert the values to numbers using '+'
-				baseData.answer = {
+				// Convert the values to numbers using '+' - send null if x not set
+				console.log('gatherQuestionData: hotspot:', questionElement.querySelector('[data-field="hotspot-x"]').value);
+				baseData.answer = questionElement.querySelector('[data-field="hotspot-x"]').value ? {
 					x: +questionElement.querySelector('[data-field="hotspot-x"]').value,
 					y: +questionElement.querySelector('[data-field="hotspot-y"]').value
-				};
+				} : null;
 				break;
 
 			case 'point-it-out':
@@ -1429,6 +1471,8 @@ document.addEventListener('DOMContentLoaded', () => {
 			// Validate the basic structure of the quiz - this ensures it will still render in the editor
 			quizJSON = validateQuizStructure(quizJSON);
 
+			console.table(quizJSON);
+
 			// Validate the quiz JSON against the schema via API
 			const validation = await validateQuizSchema(quizJSON);
 			console.log('Validation result:', validation);
@@ -1458,6 +1502,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			quizJSON.rounds.forEach(round => {
 				if (round.questions && Array.isArray(round.questions)) {
 					round.questions.forEach(question => {
+						console.log('Normalizing question:', question);
 						// Convert true-false from boolean to string if needed
 						if (question.type === 'true-false' && typeof question.answer === 'boolean') {
 							question.answer = question.answer ? 'true' : 'false';
@@ -1469,7 +1514,7 @@ document.addEventListener('DOMContentLoaded', () => {
 								'Type:', typeof question.answer);
 						}
 						// Convert number types from string to number if needed
-						if ((question.type === 'number-exact' || question.type === 'number-closest') &&
+						if ((question.type === 'number-exact' || question.type === 'number-closest' || question.type === 'number-average') &&
 							typeof question.answer === 'string' && question.answer !== '') {
 							question.answer = Number(question.answer);
 						}
@@ -1528,11 +1573,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 		document.getElementById('quiz-json').value = JSON.stringify(quizJSON, null, 2);
 		document.getElementById('quiz-id').value = quizJSON._id || "";
-		document.getElementById('quiz-owner').value = quizJSON.owner || "";
+		document.getElementById('quiz-owner').value = quizJSON.ownerID || "";
+		document.getElementById('quiz-schema-version').value = quizJSON.schemaVersion || "";
 		document.getElementById('quiz-edit').querySelector('.header-title').textContent = quizJSON.title;
 		document.getElementById('quiz-title').value = quizJSON.title;
 		// document.getElementById('validation-summary').innerHTML = JSON.stringify(quizJSON.validation);
-		quill.root.innerHTML = quizJSON.description;
+		// quill.root.innerHTML = quizJSON.description;
+		document.getElementById('quiz-description').value = quizJSON.description || "";
 
 		const summaryElement = document.getElementById('quiz-edit').querySelector('.header-quiz');
 		if (summaryElement) {
@@ -1547,7 +1594,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			roundElement.querySelector('.round-title').value = roundJSON.title || "";
 			roundElement.querySelector('.round-description').value = roundJSON.description || "";
 			roundElement.querySelector('.round-id').value = roundJSON._id || "";
-			roundElement.querySelector('.round-owner').value = roundJSON.owner || "";
+			roundElement.querySelector('.round-owner').value = roundJSON.ownerID || "";
 			const rt = roundElement.querySelector('[data-field="round-timer"]');
 			roundElement.querySelector('[data-field="round-timer"]').value = roundJSON.roundTimer;
 			roundElement.querySelector('[data-field="show-answer"]').value = roundJSON.showAnswer;
@@ -1563,6 +1610,10 @@ document.addEventListener('DOMContentLoaded', () => {
 				// We always have a question text field, this is not question-specific
 				questionElement.querySelector('[data-field="question-text"]').value = questionJSON.text;
 				questionElement.querySelector('.header-title').textContent = questionJSON.text;
+
+				// We also always have an _id and owner (unless its a new question)
+				questionElement.querySelector('.question-id').value = questionJSON._id || "";
+				questionElement.querySelector('.question-owner').value = questionJSON.ownerID || "";
 
 				// If we have imageData then we need to set the image selector src
 				if (questionJSON.image) {
@@ -1584,20 +1635,19 @@ document.addEventListener('DOMContentLoaded', () => {
 				// contentContainer.querySelector('[data-field="question-text"]').value = question.text || '';
 
 				switch (questionJSON.type) {
-					case 'text':
-					case 'number-exact':
-					case 'number-closest':
-						contentContainer.querySelector('[data-field="answer"]').value = questionJSON.answer || '';
-						break;
-					case 'true-false':
-						contentContainer.querySelector('[data-field="answer"]').value = String(questionJSON.answer) || '';
-						break;
+
 					case 'multiple-choice':
 						questionJSON.options.forEach((option, index) => {
 							contentContainer.querySelector(`[data-field="option-${index + 1}"]`).value = option || '';
 						});
 						break;
-					case 'picture':
+
+					case 'true-false':
+					case 'text':
+					case 'number-exact':
+					case 'number-closest':
+					case 'number-average':
+						contentContainer.querySelector('[data-field="answer"]').value = String(questionJSON.answer) || '';
 						break;
 
 					case 'matching':

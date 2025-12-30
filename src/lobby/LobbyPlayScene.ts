@@ -60,7 +60,7 @@ export class LobbyPlayScene extends BaseScene {
 		this.setupSocketListeners();
 
 		// Since this is the player version of the game we are likely on mobile so set orientation and fullscreen
-		this.scale.lockOrientation('landscape');
+		// this.scale.lockOrientation('landscape');
 		// Next line must be called from a pointer event
 		// this.scale.startFullscreen();
 	}

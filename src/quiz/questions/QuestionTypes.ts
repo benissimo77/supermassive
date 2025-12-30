@@ -50,7 +50,7 @@ export type OrderMatchQuestionData =
 
 // NUMBER
 export interface NumberQuestionData extends BaseQuestionData {
-    type: 'number-closest' | 'number-exact';
+    type: 'number-closest' | 'number-exact' | 'number-average';
     answer?: number;
 }
 

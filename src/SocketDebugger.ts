@@ -76,14 +76,24 @@ export class SocketDebugger {
         },
         {
             event: 'server:showanswer', label: 'Show Answer', payload: {
-                id: "q1",
-                answer: "Paris",
-                stats: {
-                    "Paris": 2,
-                    "London": 1,
-                    "Berlin": 0,
-                    "Madrid": 0
-                }
+                type: 'hotspot',
+                text: '',
+                image: '/uploads/67150d8c98c76cabc58b7160/c4f7c763-fdb8-49b7-9310-acc9587ba00e.png',
+                audio: '',
+                options: undefined,
+                items: undefined,
+                pairs: undefined,
+                answer: { x: 359, y: 170 },
+                questionNumber: 1,
+                results: {
+                    1: { x: 673, y: 566 },
+                    2: { x: 400, y: 300 },
+                    3: { x: 200, y: 150 },
+                    4: { x: 100, y: 75 },
+                    5: { x: 50, y: 37 },
+                },
+                mode: 'answer',
+                direction: 'forward'
             }
         },
         {

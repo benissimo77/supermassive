@@ -1,4 +1,10 @@
 import Game from './server.game.js';
+import GameSession from '../models/mongo.gameSession.js';
+import PlayerResult from '../models/mongo.playerResult.js';
+
+// For V2 QUIZ :
+// import { QuizV2 as QuizModel} from '../models/mongo.quizv2.js';
+// For V1 QUIZ :
 import QuizModel from '../models/mongo.quiz.js';
 
 const QuizState = {
@@ -986,6 +992,8 @@ export default class Quiz extends Game {
 	init() {
 		this.round = null;
 		this.question = null;
+		this.started = false;
+		this.startTime = null;
 		this.mode = "ask";	// ask or answer - whether we are collecting answers or showing them
 
 		// In this state we are waiting for players to arrive and for the host to start
@@ -995,9 +1003,17 @@ export default class Quiz extends Game {
 
 	// startGame is a required function for a class that extends Game
 	// Called by room when it receives a host:requeststart from the host - this is the entry point to the game
+	// Update: store a flag when started so that if host refreshes we can resume the game
 	async startGame(config) {
 		// Game start logic for game 1
-		console.log('Quiz: startGame:', config, this.players);
+		console.log('Quiz: startGame:', config, this.players, this.started);
+
+		if (this.started) {
+			console.log('Quiz::startGame: game already started, resuming...');
+			return;
+		}
+		this.started = true;
+		this.startTime = new Date();
 
 		// Initialize player scores to 0
 		this.players.forEach(player => {
@@ -1174,6 +1190,8 @@ export default class Quiz extends Game {
 		// Add the general quiz state to the question - do this before copying the question
 		this.question.questionNumber = this.questionNumber;
 
+		console.log('doQuestion: preparing question:', this.mode, this.questionNumber, this.question);
+		
 		// Prepare the question by mutating answer options
 		// Function also sets up the question.answer since sometimes the answer is derived from the question data (eg first item in options array)
 		this.prepareMutatedQuestion(this.question);
@@ -1503,6 +1521,67 @@ export default class Quiz extends Game {
 				}
 				break;
 
+			// number-average is similar to number-closest except we calculate the average of all answers first
+			// Could probably factor our some of this functionality into useful helper functions...
+			case 'number-average':
+				// Calculate distance from correct answer using objects with named properties
+				let total = 0;
+				Object.keys(question.results).forEach((sessionID) => {
+					total += parseFloat(question.results[sessionID]);
+				}
+				);
+				question.answer = Math.floor(total / Object.keys(question.results).length);
+				var distances = [];
+				Object.keys(question.results).forEach((sessionID) => {
+					distances.push({
+						sessionID: sessionID,
+						distance: Math.abs(parseFloat(question.results[sessionID]) - parseFloat(question.answer))
+					});
+				});
+
+				var distances = [];
+				Object.keys(question.results).forEach((sessionID) => {
+					distances.push({
+						sessionID: sessionID,
+						distance: Math.abs(parseFloat(question.results[sessionID]) - parseFloat(question.answer))
+					});
+				});
+
+				// Sort by distance (ascending)
+				distances = distances.sort((a, b) => a.distance - b.distance);
+
+				// Closest gets 2 points, next 1 point
+				console.log('number-average:', question.answer, question.results, distances);
+
+				var nextPlayer = 1;
+				if (distances.length > 0) {
+					scores[distances[0].sessionID] = 2;
+
+					// Award 2 points to any players tied for first place
+					for (let i = nextPlayer; i < distances.length; i++) {
+						if (distances[i].distance === distances[0].distance) {
+							scores[distances[i].sessionID] = 2;
+							nextPlayer++;
+						}
+					}
+				}
+
+				// If more than one team was assigned 2 points above then don't award any more points
+				if (distances.length > 1 && nextPlayer === 1) {
+					scores[distances[1].sessionID] = 1;
+					nextPlayer = 2;
+
+					// Award 1 point to any players tied for second place
+					if (distances.length > 2) {
+						for (let i = nextPlayer; i < distances.length; i++) {
+							if (distances[i].distance === distances[1].distance) {
+								scores[distances[i].sessionID] = 1;
+							}
+						}
+					}
+				}
+				break;
+
 			// matching is similar to ordering - except our answer contains a left and right pair
 			// We only need to consider the left and check the order of the result is the same
 			// question.answer holds the correct order
@@ -1603,10 +1682,96 @@ export default class Quiz extends Game {
 		this.room.emitToHosts('server:endround', information)
 	}
 
-	endQuiz() {
+	async endQuiz() {
 		const scores = this.calculateCumulativeScore();
 		console.log('endQuiz:', this.quizData, this.roundNumber, this.questionNumber, scores);
 		this.room.emitToHosts('server:endquiz', { quizTitle: this.quizData.title, scores: scores });
+
+		// Save results to database
+		try {
+			const hostID = this.room.host ? this.room.host.userID : null;
+			const duration = this.startTime ? Math.floor((new Date() - this.startTime) / 1000) : 0;
+			
+			const session = await GameSession.create({
+				gameType: 'quiz',
+				gameID: this.quizData._id,
+				hostID: hostID,
+				roomCode: this.room.id,
+				startTime: this.startTime || new Date(),
+				duration: duration,
+				metadata: {
+					title: this.quizData.title,
+					totalRounds: this.quizData.rounds.length,
+					totalQuestions: this.quizData.rounds.reduce((acc, r) => acc + r.questions.length, 0)
+				}
+			});
+
+			// Sort scores to determine rank
+			const sortedScores = Object.entries(scores)
+				.sort(([, a], [, b]) => b - a);
+
+			const playerResults = sortedScores.map(([sessionID, score], index) => {
+				const player = this.players.find(p => p.sessionID === sessionID);
+				
+				// Extract granular stats for this player
+				const playerStats = {
+					correctCount: 0,
+					totalQuestions: 0,
+					avgResponseTime: 0,
+					responses: []
+				};
+
+				let totalTime = 0;
+				let answeredCount = 0;
+
+				this.quizData.rounds.forEach(round => {
+					round.questions.forEach(question => {
+						playerStats.totalQuestions++;
+						const result = question.results ? question.results[sessionID] : null;
+						const time = question.times ? question.times[sessionID] : null;
+						
+						if (result !== undefined && result !== null) {
+							answeredCount++;
+							if (time) totalTime += time;
+							
+							// Get the score for this specific question if available
+							let questionScore = 0;
+							if (question.scores && question.scores[sessionID]) {
+								questionScore = question.scores[sessionID];
+							}
+
+							playerStats.responses.push({
+								questionText: question.text,
+								answer: result,
+								time: time,
+								score: questionScore
+							});
+						}
+					});
+				});
+
+				if (answeredCount > 0) {
+					playerStats.avgResponseTime = totalTime / answeredCount;
+				}
+
+				return {
+					sessionID: session._id,
+					userID: player ? player.userID : null,
+					displayName: player ? player.name : 'Unknown',
+					avatar: player ? player.avatar : null,
+					score: score,
+					rank: index + 1,
+					stats: playerStats
+				};
+			});
+
+			if (playerResults.length > 0) {
+				await PlayerResult.insertMany(playerResults);
+				console.log(`Successfully saved ${playerResults.length} player results for session ${session._id}`);
+			}
+		} catch (err) {
+			console.error('Error saving quiz results:', err);
+		}
 	}
 
 	getPlayers() {

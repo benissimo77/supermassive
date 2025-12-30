@@ -77,6 +77,7 @@ export default function createSocketServer(server) {
 			userObj.sessionID = socket.request.sessionID;
 		}
 		userObj.socketID = socket.id;
+		userObj.userID = userObj.passport?.user || userObj.user?._id || null;
 
 		console.log('io.connection:', session, userObj);
 
@@ -89,6 +90,7 @@ export default function createSocketServer(server) {
 		// Create a new room if it doesn't exist
 		if (!rooms[userObj.room]) {
 			rooms[userObj.room] = new Room(io, userObj.room);
+			console.log('Created new room:', userObj.room);
 		}
 		const thisRoom = rooms[userObj.room];
 

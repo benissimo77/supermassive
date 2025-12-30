@@ -7,11 +7,11 @@ class User {
   }
 
   // Example method to get user data by ID
-  getUserById(userId) {
+  getUserById(userID) {
     // In a real application, this method might fetch data from a database
     // For simplicity, we're using a hardcoded user here
     const user = {
-      id: userId,
+      id: userID,
       username: 'john_doe'
     };
 

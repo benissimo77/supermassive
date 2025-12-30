@@ -3,10 +3,10 @@
 const User = require('../models/userModel');
 
 const userController = {
-  getUserById: (userId) => {
+  getUserById: (userID) => {
     // Instantiate the User class and call the getUserById method
     const userModel = new User();
-    return userModel.getUserById(userId);
+    return userModel.getUserById(userID);
   },
   // Other user-related controller functions...
 };

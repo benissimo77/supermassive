@@ -70,7 +70,8 @@ router.post('/validate', async (req, res) => {
 
 // Create or update a quiz
 router.post('/save', async (req, res) => {
-    console.log('api.quiz /save:', req.body, req.user, req.session.user);
+    console.log('api.quiz /save:', req.body.title, req.user, req.session.user);
+    
     try {
         const savedQuiz = await QuizService.saveQuiz(req.body, req.user);
         return res.status(200).json(apiResponse(
@@ -105,6 +106,7 @@ router.get('/', async (req, res) => {
     try {
         const quizzes = await QuizService.getAllQuizzes(req.user);
         console.log('Quizzes found:', quizzes.length, req.user);
+
         res.status(200).json(apiResponse(
             true,
             quizzes,

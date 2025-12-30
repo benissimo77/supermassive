@@ -13,9 +13,13 @@ passport.serializeUser((user, done) => {
   done(null, user._id);
 });
 
-passport.deserializeUser((user, done) => {
-  // console.log('passport.deserializeUser:', user);
-  done(null, user);
+passport.deserializeUser(async (id, done) => {
+  try {
+    const user = await userService.findUserById(id);
+    done(null, user);
+  } catch (error) {
+    done(error);
+  }
 });
 
 passport.use(new LocalStrategy(

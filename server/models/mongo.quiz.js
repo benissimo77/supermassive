@@ -24,19 +24,20 @@ const questionSchema = new mongoose.Schema({
 const quizRoundSchema = new mongoose.Schema({
     title: { type: String },
     description: { type: String },
-    owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // Reference to the User model
+    ownerID: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // Reference to the User model
     roundTimer: { type: String, required: true, default: '0' },
     showAnswer: { type: String, required: true, default: 'round' },
     updateScores: { type: String, required: true, default: 'round' },
     questions: [questionSchema] // Array of questions without _id
-});
+}, { _id: false });
 
 
 // Define the Quiz schema
 const quizSchema = new mongoose.Schema({
+    schemaVersion: { type: Number, default: 1 },
     title: { type: String },
     description: { type: String },
-    owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    ownerID: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     public: { type: mongoose.Schema.Types.Boolean, required: true, default: true },
     validation: [ {type: Object} ],
     rounds: [quizRoundSchema] // Array of rounds

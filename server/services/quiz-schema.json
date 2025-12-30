@@ -30,7 +30,10 @@
 			"type": "object",
 			"required": [
 				"title",
-				"questions"
+				"questions",
+				"roundTimer",
+				"showAnswer",
+				"updateScores"
 			],
 			"properties": {
 				"title": {
@@ -43,7 +46,10 @@
 				},
 				"roundTimer": {
 					"type": "string",
-					"description": "Timer for the entire round (in seconds or '0' for no timer)"
+					"enum": [
+						"0", "10", "20", "30", "60"
+					],
+					"description": "Timer for the entire round (selection from fixed values representing the allowed time in seconds, a value of 0 means no timer)"
 				},
 				"showAnswer": {
 					"type": "string",
@@ -88,11 +94,12 @@
 						"point-it-out",
 						"number-exact",
 						"number-closest",
+						"number-average",
 						"ordering",
 						"matching",
 						"draw"
 					],
-					"description": "The type of question"
+					"description": "The type of question. 'hotspot': Player must click as close as possible to a specific point (x, y) in the image. Closest to the point scores higherst. 'point-it-out': answer is a rectangle defined by two opposite corners, 'start' and 'end' - if player selects a point within the rectangle they are correct. 'number-exact': player must provide exact numeric answer. 'number-closest': player must provide numeric answer, closest to the correct answer scores highest. 'number-average': players provide numeric answers, and the average of all answers is computed; players closest to the average score highest."
 				},
 				"text": {
 					"type": "string",
@@ -103,14 +110,14 @@
 						"string",
 						"null"
 					],
-					"description": "URL to image file"
+					"description": "Optional URL to image file to allow questions to include images. Only use images that are publicly viewable and CORS-allowed in browsers. Use file format PNG or JPG"
 				},
 				"audio": {
 					"type": [
 						"string",
 						"null"
 					],
-					"description": "URL for YouTube link"
+					"description": "Optional URL for audio file to allow questions to include audio. Only include URLs from YouTube available to play in the YouTube IFrame Player API"
 				}
 			},
 			"allOf": [
@@ -132,6 +139,7 @@
 							"options": {
 								"type": "array",
 								"minItems": 2,
+								"description": "The first item in the array is the correct answer. The quiz engine will shuffle options when displaying.",
 								"items": {
 									"type": "string"
 								}
@@ -144,7 +152,7 @@
 						"properties": {
 							"type": {
 								"enum": [
-									"true-false"
+									"true-false", "text" 
 								]
 							}
 						}
@@ -156,6 +164,7 @@
 						"properties": {
 							"answer": {
 								"type": "string",
+								"minLength": 1,
 								"description": "The correct answer"
 							}
 						}
@@ -256,6 +265,7 @@
 						"properties": {
 							"answer": {
 								"type": "object",
+								"description": "Defines a rectangular target area on the image. The user places an X on the image, and the answer is correct if the X lies anywhere inside the rectangle (inclusive). The rectangle is defined by two opposite corners: `start` and `end`. These coordinates do not need to be in any specific order; the quiz engine will compute the min/max to form the rectangle. Coordinates use a normalized range of 0–1000 on both axes.",
 								"required": [
 									"start",
 									"end"
@@ -263,6 +273,7 @@
 								"properties": {
 									"start": {
 										"type": "object",
+										"description": "First corner of the rectangle (any corner).",
 										"required": [
 											"x",
 											"y"
@@ -278,6 +289,7 @@
 									},
 									"end": {
 										"type": "object",
+										"description": "Opposite corner of the rectangle.",
 										"required": [
 											"x",
 											"y"
@@ -292,6 +304,29 @@
 										}
 									}
 								}
+							}
+						}
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"type": {
+								"enum": [
+									"hotspot",
+									"point-it-out"
+								]
+							}
+						}
+					},
+					"then": {
+						"required": [
+							"image"
+						],
+						"properties": {
+							"image": {
+								"type": "string",
+								"minLength": 1
 							}
 						}
 					}

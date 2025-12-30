@@ -13,6 +13,7 @@ const userSchema = mongoose.Schema({
     password: { type: 'string' },
     displayname: { type: 'string' },
     avatar: { type: 'string' },
+    role: { type: 'string', default: 'user' },
 
     googleprofile: { type: 'object' },
     facebookprofile: { type: 'object' },

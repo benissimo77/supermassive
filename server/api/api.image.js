@@ -24,10 +24,10 @@ router.use([checkHost]);
 const storage = multer.diskStorage({
 	destination: (req, file, cb) => {
 		// Store in user-specific folder
-		const userId = req.user;
+		const userID = req.user._id;
 		const folder = req.body.folder || '';
 
-		let uploadDir = path.join(process.cwd(), 'public', 'uploads', userId);
+		let uploadDir = path.join(process.cwd(), 'public', 'uploads', userID);
 		if (folder) {
 			uploadDir = path.join(uploadDir, folder);
 		}
@@ -74,15 +74,15 @@ router.post('/upload', upload.single('image'), async (req, res) => {
 			});
 		}
 
-		const userId = req.user;
+		const userID = req.user._id;
 		const folder = req.body.folder || '';
 
 		// Create relative URL
-		const relativeUrl = `/uploads/${userId}${folder ? '/' + folder : ''}/${req.file.filename}`;
+		const relativeUrl = `/uploads/${userID}${folder ? '/' + folder : ''}/${req.file.filename}`;
 
 		// Save to database
 		const image = new Image({
-			userId: userId,
+			userID: userID,
 			filename: req.file.filename,
 			originalName: req.file.originalname,
 			mimetype: req.file.mimetype,
@@ -114,13 +114,13 @@ router.post('/upload', upload.single('image'), async (req, res) => {
 // Get user's image library
 router.get('/library', async (req, res) => {
 
-	console.log('api/image/library:', req.body, req.user);
+	console.log('api/image/library:', req.query, req.user);
 
 	try {
-		const userId = req.user;
+		const userID = req.user._id;
 		const folder = req.query.folder || '';
 
-		const query = { userId };
+		const query = { userID };
 		if (folder) {
 			query.folder = folder;
 		}
@@ -145,10 +145,10 @@ router.get('/library', async (req, res) => {
 // Get user's folders
 router.get('/folders', async (req, res) => {
 	try {
-		const userId = req.user;
+		const userID = req.user._id;
 
 		// Get distinct folders for this user
-		const folders = await Image.distinct('folder', { userId, folder: { $ne: '' } });
+		const folders = await Image.distinct('folder', { userID, folder: { $ne: '' } });
 
 		return res.status(200).json({
 			success: true,
@@ -169,7 +169,7 @@ router.get('/folders', async (req, res) => {
 router.post('/folders', async (req, res) => {
 	try {
 		const { name } = req.body;
-		const userId = req.user;
+		const userID = req.user._id;
 
 		if (!name) {
 			return res.status(400).json({
@@ -180,7 +180,7 @@ router.post('/folders', async (req, res) => {
 		}
 
 		// Create folder in filesystem
-		const folderPath = path.join(process.cwd(), 'public', 'uploads', userId, name);
+		const folderPath = path.join(process.cwd(), 'public', 'uploads', userID, name);
 		if (!fs.existsSync(folderPath)) {
 			fs.mkdirSync(folderPath, { recursive: true });
 		}
@@ -205,7 +205,8 @@ router.post('/folders', async (req, res) => {
 router.delete('/:imageId', async (req, res) => {
 	try {
 		const { imageId } = req.params;
-		const userId = req.user; // Assuming req.user contains the authenticated user id
+		 // Assuming req.user contains the authenticated user id
+		const userID = req.user._id;
 
 		// Find the image
 		const image = await Image.findOne({ _id: imageId });
@@ -219,7 +220,7 @@ router.delete('/:imageId', async (req, res) => {
 		}
 
 		// Check if the user owns this image
-		if (image.userId && image.userId.toString() !== userId.toString()) {
+		if (image.userID && image.userID.toString() !== userID.toString()) {
 			return res.status(403).json({
 				success: false,
 				message: 'Permission denied',

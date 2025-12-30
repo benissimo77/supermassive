@@ -16,7 +16,7 @@ const isAuth = (req, res, next) => {
 }
 
 const isAdmin = (req, res, next) => {
-	if (req.isAuthenticated() && req.user.admin) {
+	if (req.isAuthenticated() && req.user.role === 'admin') {
 		next();
 	} else {
 		res.redirect('/login');
@@ -112,10 +112,14 @@ router.use([isAuth, checkHost, checkRoom]);
 // });
 
 // INSTEAD - just serve the static files from the host directory
+// /host redirects to /host/dashboard
+// This done just to keep host directory clean and place every page into a folder
+// dashboard is the 'main' host page - other folders contain the other pages
 router.get('/', (req, res) => {
 	console.log('routes.host.js: /');
 	res.redirect('/host/dashboard');
 });
+
 // // Repeat above but without the slash... (?)
 // router.get('/dashboard', (req, res) => {
 // 	console.log('routes.host.js: /dashboard');
@@ -131,14 +135,14 @@ router.use(express.static('host'));
 
 
 // For development - admin console (shouldn't be placed in the public folder...)
-router.get('/admin', (req, res) => {
+router.get('/admin', isAdmin, (req, res) => {
 	// Authorise user here
 	res.sendFile('index.html', { root: './public/admin' })
 })
 
 
 const generateNewRoomName = () => {
-	return 'GOLF';
+	return 'SNOW';
 }
 
 export default router;

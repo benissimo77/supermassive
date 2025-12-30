@@ -34,8 +34,12 @@ class AuthController {
                     // Add profile data if needed
                     await userService.addProfileData(user);
 
+                    // Check for redirect in session
+                    const redirectUrl = req.session.returnTo || '/host/dashboard';
+                    delete req.session.returnTo;
+
                     // Redirect to a success page or dashboard
-                    return res.redirect('/host/dashboard');
+                    return res.redirect(redirectUrl);
                 } catch (error) {
                     console.error('Error processing profile:', error);
                     return res.redirect('/login?error=profile_error');
@@ -68,12 +72,52 @@ class AuthController {
                     return res.status(500).json(error('Session error'));
                 }
                 console.log('Session saved successfully:', JSON.stringify(req.session));
-                res.status(200).json(success('Logged in successfully', { user: req.user }));
+                
+                // Map roles for the response
+                let effectiveRole = req.user.role || 'user';
+                if (effectiveRole === 'user' && !req.user.emailVerified) {
+                    effectiveRole = 'new';
+                } else if (effectiveRole === 'user' && req.user.emailVerified) {
+                    effectiveRole = 'host';
+                }
+
+                res.status(200).json(success('Logged in successfully', { 
+                    user: {
+                        id: req.user._id,
+                        email: req.user.email,
+                        displayname: req.user.displayname,
+                        avatar: req.user.avatar,
+                        role: effectiveRole
+                    }
+                }));
             });
 
         } else {
             console.log('User not logged in');
             res.status(400).json(error());
+        }
+    }
+
+    async me(req, res) {
+        if (req.isAuthenticated() && req.user) {
+            let effectiveRole = req.user.role || 'user';
+            if (effectiveRole === 'user' && !req.user.emailVerified) {
+                effectiveRole = 'new';
+            } else if (effectiveRole === 'user' && req.user.emailVerified) {
+                effectiveRole = 'host';
+            }
+
+            res.status(200).json(success('User found', {
+                user: {
+                    id: req.user._id,
+                    email: req.user.email,
+                    displayname: req.user.displayname,
+                    avatar: req.user.avatar,
+                    role: effectiveRole
+                }
+            }));
+        } else {
+            res.status(401).json(error('Not authenticated'));
         }
     }
 
@@ -145,9 +189,14 @@ class AuthController {
         }
     }
 
-    logout(req, res) {
-        req.logout();
-        res.json(success('Logged out successfully'));
+    logout(req, res, next) {
+        req.logout((err) => {
+            if (err) {
+                console.error('Logout error:', err);
+                return res.status(500).json(error('Logout failed', 500));
+            }
+            res.json(success('Logged out successfully'));
+        });
     }
 
 

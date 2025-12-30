@@ -14,7 +14,7 @@ class UserService {
   // As far as I can tell this is not used....
   async findUserById(id) {
     console.log('userService: findUserById :', id);
-    return this.userModel.findOne({ id });
+    return this.userModel.findById(id);
   }
 
   async findUserByToken(token) {
@@ -107,10 +107,10 @@ class UserService {
     return false;
   }
 
-  async storeTokenWithUser(userId, token) {
-    console.log('userService: storeTokenWithUser :', userId, token);
+  async storeTokenWithUser(userID, token) {
+    console.log('userService: storeTokenWithUser :', userID, token);
     const tokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
-    return this.userModel.findByIdAndUpdate(userId, { token: token, tokenExpiry: tokenExpiry });
+    return this.userModel.findByIdAndUpdate(userID, { token: token, tokenExpiry: tokenExpiry });
   }
 
   async verifyPassword(user, suppliedPassword) {
@@ -137,9 +137,9 @@ class UserService {
     return false;
   }
 
-  async clearUserToken(userId) {
-    console.log('userService: clearUserToken :', userId);
-    return this.userModel.findByIdAndUpdate(userId, { token: null, tokenExpiry: null });
+  async clearUserToken(userID) {
+    console.log('userService: clearUserToken :', userID);
+    return this.userModel.findByIdAndUpdate(userID, { token: null, tokenExpiry: null });
   }
 }
 

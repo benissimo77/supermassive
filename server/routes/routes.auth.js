@@ -7,12 +7,25 @@ const router = express.Router();
 // Local login
 router.post('/login', passport.authenticate('local'), authController.login);
 
+// Get current user
+router.get('/me', authController.me);
+
 // Google authentication
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+router.get('/google', (req, res, next) => {
+    if (req.query.redirect) {
+        req.session.returnTo = req.query.redirect;
+    }
+    passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
+});
 router.get('/google/callback', authController.googleCallback);
 
 // Facebook authentication
-router.get('/facebook', passport.authenticate('facebook', { scope: ['public_profile', 'email'] }));
+router.get('/facebook', (req, res, next) => {
+    if (req.query.redirect) {
+        req.session.returnTo = req.query.redirect;
+    }
+    passport.authenticate('facebook', { scope: ['public_profile', 'email'] })(req, res, next);
+});
 router.get('/facebook/callback', authController.facebookCallback);
 
 // Sign up

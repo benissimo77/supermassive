@@ -9,6 +9,7 @@ class Player {
 		// Player data
 		this.name = obj.name;
 		this.avatar = obj.avatar;
+		this.userID = obj.userID;
 		// Game data
 		this.role = null;
 		this.alive = true;

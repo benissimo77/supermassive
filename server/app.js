@@ -86,6 +86,9 @@ app.use(passport.session());
 // Serve static files from the public directory
 app.use(express.static('public'));
 
+// Serve shared utilities
+app.use('/utils', express.static('src/utils'));
+
 
 // Direct cookie setting (works)
 app.get('/test-direct-cookie', (req, res) => {

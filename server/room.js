@@ -15,6 +15,9 @@ class Room {
 		this.game = undefined;
 		this.players = [];
 
+		// Generate QR code for room
+		// Note: this is async but we don't need to await it here since we're leaving...
+		// this.generateQRCode(this.id);
 	}
 
 	// we say user because at this point we don't know if they are a player or a host/moderator/viewer etc...
@@ -120,7 +123,7 @@ class Room {
 			console.log('Received host:ready from client:', socket.id, data);
 			// Send acknowledgment back
 			if (callback && typeof callback === 'function') {
-				callback({ received: true, room: this.id });
+				callback({ received: true, roomID: this.id });
 			}
 			socket.emit('server:players', this.getConnectedPlayers());
 		});
@@ -131,33 +134,36 @@ class Room {
 			// We might already be in this game - do nothing if this is the case...
 			if (this.game && this.game.name == game) {
 				console.log('Already running this game - ignore:', this.game.name);
-				// return;
-			}
+			} else {
 
-			try {
-				const gameModule = await import(`./games/server.${game}.js`);
-				// Use the default export if your game modules use default export
-				const NewGame = gameModule.default;
-				// If your game modules use named exports instead, use: const { GameClass } = gameModule;
+				try {
+					const gameModule = await import(`./games/server.${game}.js`);
+					// Use the default export if your game modules use default export
+					const NewGame = gameModule.default;
+					// If your game modules use named exports instead, use: const { GameClass } = gameModule;
 
-				this.game = new NewGame(this);
+					this.game = new NewGame(this);
 
-				// there might need to be some more checks here to make sure the game is valid...
-				const valid = this.game.checkGameRequirements();
-				console.log('Game is valid:', valid);
-				if (valid || true) {
-					this.emitToAllPlayers('server:loadgame', game);
-					console.log('emitted to all players - now emitting to host');
-					this.emitToHosts('server:loadgame', game);
+				} catch (error) {
+					console.error(`Error loading game '${game}':`, error);
+					// Notify host about the error
+					socket.emit('server:error', {
+						message: `Could not load game '${game}'`,
+						details: error.message
+					});
+					return;
 				}
-			} catch (error) {
-				console.error(`Error loading game '${game}':`, error);
-				// Notify host about the error
-				socket.emit('server:error', {
-					message: `Could not load game '${game}'`,
-					details: error.message
-				});
 			}
+
+			// there might need to be some more checks here to make sure the game is valid...
+			const valid = this.game.checkGameRequirements();
+			console.log('Game is valid:', valid);
+			if (valid || true) {
+				this.emitToAllPlayers('server:loadgame', game);
+				console.log('emitted to all players - now emitting to host');
+				this.emitToHosts('server:loadgame', game);
+			}
+
 		});
 
 		// requeststart
@@ -174,7 +180,7 @@ class Room {
 					// This might be the best place to check for a single-player mode
 					// Maybe the game config will include a flag to indicate if this is allowed - for now assume it is
 					// For now comment out since I want to get it working for Veluwe
-					if (this.players.length == 0) {
+					if (this.players.length == 0 && 0) {
 						console.log('No players in game - SINGLE-PLAYER MODE:');
 						var player = this.addUserAsPlayer(socket, this.host);
 
@@ -374,6 +380,22 @@ class Room {
 		return this.players.filter((player) => player.connected);
 	}
 
+	async generateQRCode(roomID) {
+		// For now we simply generate a QR code using an external service and save it as a PNG file in the host/qr folder
+		// In future we might want to generate these dynamically on request
+		// Using goqr.me API - limit of 1000 requests per day for free usage
+		const qrURL = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://videoswipe.net/play/${roomID}`;
+		const fs = await import('fs');
+		const https = await import('https');
+		const file = fs.createWriteStream(`./public/assets/qr/${roomID}.png`);
+		https.get(qrURL, (response) => {
+			response.pipe(file);
+			file.on('finish', () => {
+				file.close();
+				console.log('QR code generated for room:', roomID);
+			});
+		});
+	}
 }
 
 export { Room }

@@ -1,0 +1,180 @@
+<!doctype html>
+<html style="background-color:black;">
+    <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Titan+One&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="host.werewolves.css">
+    </head>
+    <body style="background-color:black;">
+        <div id="wrapper">
+
+        <p>Welcome Host!!</p>
+        <button id="buttonQuiz" type="button">QUIZ</button>
+        <button id="buttonStart" type="button">START</button>
+        <button id="buttonNight" type="button">NIGHT</button>
+        <button id="buttonDay" type="button">DAY</button>
+
+        <!--
+        <button onclick="buttonListPlayers()" type="button">LIST PLAYERS</button>
+        <button onclick="buttonListGames()" type="button">LIST GAMES</button>
+        -->
+        <button id="buttonTest" type="button">TEST</button>
+        <button id="buttonEnd" type="button">END</button>
+
+        <!-- Content for the game itself -->
+        <div id="largepanel">
+            <div id="largepanelcontent">
+                <div id="startgame">
+                    <div id="startgame-title">INSTRUCTIONS</div>
+                    <div id="startgame-options">
+                        <ul>
+                            <li>
+                                Don't let anyone see your screen!
+                            </li>
+                            <li>
+                                Press 'ROLE' button to see your role
+                            </li>
+                            <li>
+                                Release 'ROLE'button to hide your role
+                            </li>
+                        </ul>
+                    </div>
+                    <div id="startgame-start">
+                        <button onclick="buttonReady()" type="button">READY!</button>
+                    </div>
+                </div>
+                <div id="nightaction">
+                    <div id="nightaction-title">NIGHT</div>
+                    <div id="nightaction-options">
+                        <ul>
+                            <li>
+                                WOLVES: Choose a victim
+                            </li>
+                            <li>
+                                HEALER: Choose someone to heal
+                            </li>
+                            <li>
+                                WITCH: Choose someone to save and/or kill
+                            </li>
+                            <li>
+                                SEER: Choose someone to see
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div id="dayaction">
+                    <div id="dayaction-title">DAY</div>
+                    <div id="dayaction-options">
+                        <ul>
+                            <li>
+                                VILLAGERS: Try to find a wolf!
+                            </li>
+                        </ul>
+                    </div>
+                    <div id="dayaction-start">
+                        <button onclick="buttonDayReady()" type="button">READY!</button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+        <div id="instructions">
+            <div id="instructions-title">VIDEOSWIPE.NET</div>
+            <div id="instructions-content">
+                <h1>Room: WOLF</h1>
+            </div>
+            <div id="instructions-close">
+                <button id="buttonHostComplete" type="button">READY!</button>
+            </div>
+        </div>
+
+        <!-- Containers to hold the various lists of players -->
+        <div id="nightphase">
+            <img src="img/werewolves/nightdayimages_0000_night.png" alt="Nighttime" width="240" class="paneltop">
+            <div id="killedbywolves"></div>
+        </div>
+        <div id="dayphase">
+            <img src="img/werewolves/nightdayimages_0001_day.png" alt="Daytime" width="240">
+            <div id="killedbyvillagers"></div>
+        </div>
+        
+        <div id="voters"></div>
+        <div id="candidates"></div>
+        <div id="safe"></div>
+        <div id="playerlist"></div>
+
+        <div id="timer"> 
+            <div class="timer_progress"></div>
+        </div>
+
+        </div> <!-- wrapper (used to hide entire display)-->
+
+        <script>
+            // Host-generated events
+            // Defined here since they are really just part of the test hosting page - probably replaced in future
+            function buttonQuiz() {
+                console.log('Button: Quiz');
+                socket.emit('host:choosegame', 'quiz');
+            }
+            function buttonStart() {
+                console.log('Button: Start');
+                // socket.emit('host:requeststart');
+                socket.emit('host:choosegame', 'werewolves');
+            }
+            function buttonReady() {
+                console.log('Button: Ready');
+                // socket.emit('host:requestready');
+                // Hide the start game options directly here rather than waiting for a separate socket event
+                document.getElementById('startgame').style.display = 'none';
+                document.getElementById('largepanel').style.display = 'none';
+
+            }
+            function buttonNight() {
+                console.log('Button: Night');
+                socket.emit('host:requestnight');
+                audioManager.playTrack(musicTracks.NIGHT);
+            }
+            function buttonDay() {
+                console.log('Button: Day');
+                socket.emit('host:requestday');
+                audioManager.playTrack(musicTracks.DAY);
+            }
+
+            function buttonListGames() {
+                console.log('Button: ListGames');
+                socket.emit('host:listgames');
+            }
+            function buttonListPlayers() {
+                console.log('Button: listPlayers:');
+                socket.emit('listplayers');
+            }
+            function buttonTest() {
+                console.log('Button: test');
+                // socket.emit('buttontest');
+                audioManager.stopAllAudio();
+            }
+            function buttonHostComplete() {
+                console.log('Button: HostComplete');
+                // clear up all possible audio/visuals
+                gsap.set("#instructions", {display: 'none'});
+                socket.emit('host:response');
+            }
+
+        </script>
+
+        <script src="/socket.io/socket.io.js"></script>
+        <script src="werewolves.min.js"></script>
+        <!-- following files are all now bundled into werewolves.min.js (not sure about the bootstrap one, not using yet)
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.4/gsap.min.js"></script>
+        <script src="/vm.js"></script>
+        <script src="/domhost.js"></script>
+        <script src="/socket-host.js"></script>
+        <script src="/audio.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+        -->
+    </body>
+</html>
+
+
+

@@ -9,3 +9,26 @@ NOTES.md
 certs/
 .vscode/
 
+# Assets and Data
+public/assets/
+public/img/
+public/uploads/
+host/audio/
+host/img/
+quizdata/
+migrations/
+
+# Media files
+*.wav
+*.mp3
+*.m4a
+*.ogg
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+*.svg
+*.xlsx
+*.xlsx#
+

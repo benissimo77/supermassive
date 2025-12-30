@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Quiz Editor</title>
+	<link rel="stylesheet" href="/css/dashboard.css">
+	<link rel="stylesheet" href="/css/quizbuilder.css">
+	<link rel="stylesheet" href="/css/imagelibrary.css">
+	<script type="module" src="./dashboard.js" defer></script>
+
+	<!-- External links  -->
+	<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+	<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+
+</head>
+
+<body>
+	<nav id="sidebar"></nav>
+	<main data-role="host">
+		<div id="quiz-edit" class="quiz-container">
+			<div class="editor-header">
+				<div class="flex items-center gap-md">
+					<a href="/host/dashboard/quiz.html" class="btn btn-ghost">
+						<svg xmlns="http://www.w3.org/2000/svg" height="18" viewBox="0 -960 960 960" width="18" fill="currentColor">
+							<path d="M400-240 160-480l240-240 56 56-144 144h488v80H312l144 144-56 56Z" />
+						</svg>
+						Back
+					</a>
+					<h1>Quiz Editor</h1>
+				</div>
+				<div class="flex gap-md">
+					<button id="host-quiz" class="btn btn-accent">
+						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+						Host Quiz
+					</button>
+					<button class="save-quiz-btn btn btn-primary">
+						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+						Save Quiz
+					</button>
+				</div>
+			</div>
+
+			<details class="card quiz-card" open id="quiz-details">
+				<summary class="card-header">
+					<div class="flex justify-between w-full items-center">
+						<div class="flex items-center gap-sm">
+							<span class="header-quiz-label">Quiz:</span>
+							<span class="header-title" style="font-weight: 600;"></span>
+						</div>
+					</div>
+				</summary>
+				<div class="card-body">
+					<div id="validation-summary"></div>
+					<input type="hidden" id="quiz-id" value="" />
+					<input type="hidden" id="quiz-owner" value="" />
+					<input type="hidden" id="quiz-schema-version" value="" />
+					
+					<div class="form-grid mb-md">
+						<label for="quiz-title">Title</label>
+						<input type="text" id="quiz-title" placeholder="Enter quiz title">
+						
+						<label for="quiz-description">Description</label>
+						<textarea id="quiz-description" placeholder="Enter quiz description" rows="2"></textarea>
+					</div>
+
+					<div id="rounds-container"></div>
+					
+					<div class="flex justify-between mt-md">
+						<button id="add-round" class="btn">
+							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+							Add Round
+						</button>
+						<button class="save-quiz-btn btn btn-primary">Save Quiz</button>
+					</div>
+				</div>
+			</details>
+
+			<details class="mt-md">
+				<summary style="cursor: pointer; color: var(--clr-text-muted); font-size: 0.9rem;">Advanced: Quiz JSON</summary>
+				<div class="card mt-md">
+					<div class="card-body">
+						<textarea id="quiz-json" style="width: 100%; height: 800px; font-family: monospace; font-size: 0.8rem;" placeholder="Quiz JSON will appear here"></textarea>
+					</div>
+				</div>
+			</details>
+		</div>
+	</main>
+
+	<template id="round-template">
+		<details class="card round" open>
+			<summary class="card-header">
+				<div class="flex justify-between w-full items-center">
+					<div class="flex items-center gap-sm">
+						<span class="drag-handle" style="cursor: grab;">☰</span>
+						<span class="header-round-label">Round <span class="header-round-number"></span>:</span>
+						<span class="header-title" style="font-weight: 600;"></span>
+					</div>
+					<div class="flex items-center gap-sm">
+						<span class="error-indicator" style="display:none; color: var(--clr-error);">⚠</span>
+						<button class="delete-btn btn btn-xs btn-danger">
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+							Delete
+						</button>
+					</div>
+				</div>
+			</summary>
+			<div class="card-body">
+				<div class="form-two-column">
+					<div class="form-left-column">
+						<input type="hidden" class="round-id" value="" />
+						<input type="hidden" class="round-owner" value="" />
+						<div class="form-group mb-md">
+							<label>Round Title</label>
+							<input type="text" class="round-title" placeholder="Enter round title" maxlength="50" />
+						</div>
+						<div class="form-group">
+							<label>Description</label>
+							<textarea class="round-description" placeholder="Enter round description" rows="2"></textarea>
+						</div>
+					</div>
+					<div class="form-right-column">
+						<div class="form-group mb-md">
+							<label>Timed questions?</label>
+							<select data-field="round-timer">
+								<option value="0" selected>No timer, I will decide</option>
+								<option value="10">10 seconds (fast)</option>
+								<option value="20">20 seconds (average)</option>
+								<option value="30">30 seconds (relaxed)</option>
+								<option value="60">1 minute (very relaxed)</option>
+							</select>
+						</div>
+						<div class="form-group mb-md">
+							<label>Show answer:</label>
+							<select data-field="show-answer">
+								<option value="round" selected>End of round</option>
+								<option value="question">Every question</option>
+							</select>
+						</div>
+						<div class="form-group">
+							<label>Update team scores:</label>
+							<select data-field="update-scores">
+								<option value="round" selected>End of round</option>
+								<option value="question">Every question</option>
+							</select>
+						</div>
+					</div>
+				</div>
+				
+				<div class="questions-container mt-md"></div>
+				
+				<button class="question-btn btn btn-sm mt-md">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+					Add Question
+				</button>
+			</div>
+		</details>
+	</template>
+
+	<template id="question-template">
+		<details class="card question" open>
+			<summary class="card-header">
+				<div class="flex justify-between w-full items-center">
+					<div class="flex items-center gap-sm">
+						<span class="drag-handle" style="cursor: grab;">☰</span>
+						<span class="header-question-label">Question <span class="header-question-number"></span>:</span>
+						<span class="header-title" style="font-weight: 600;"></span>
+					</div>
+					<div class="flex items-center gap-sm">
+						<span class="error-indicator" style="display:none; color: var(--clr-error);">⚠</span>
+						<button class="delete-btn btn btn-xs btn-danger">
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+							Delete
+						</button>
+					</div>
+				</div>
+			</summary>
+			<div class="card-body">
+				<div class="form-two-column">
+					<div class="form-left-column">
+						<input type="hidden" class="question-id" value="" />
+						<input type="hidden" class="question-owner" value="" />
+						
+						<div class="form-group mb-md">
+							<label>Question Text</label>
+							<input type="text" data-field="question-text" class="question-field" placeholder="Enter question">
+						</div>
+
+						<div class="form-group mb-md">
+							<label>Media (Image/Audio)</label>
+							<div data-field="image-selection" class="flex flex-col gap-sm">
+								<div class="flex gap-sm">
+									<input type="text" data-field="question-image-url" class="w-full" placeholder="Image URL">
+									<button class="select-image-btn btn btn-sm btn-ghost">
+										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+										Library
+									</button>
+								</div>
+								<div class="image-preview-container" style="display:none;">
+									<img data-field="question-image" />
+									<button class="clear-image-btn btn btn-xs btn-danger" style="position: absolute; top: 5px; right: 5px;">×</button>
+								</div>
+								<input type="text" data-field="question-audio" placeholder="Audio URL (YouTube/MP3)">
+							</div>
+						</div>
+					</div>
+					<div class="form-right-column">
+						<div class="form-group mb-md">
+							<label>Answer Type</label>
+							<select class="question-type">
+								<option value="text">Text</option>
+								<option value="number-exact">Number (exact match)</option>
+								<option value="number-closest">Number (closest guess)</option>
+								<option value="number-average">Number (closest to average)</option>
+								<option value="true-false">True/False</option>
+								<option value="multiple-choice">Multiple Choice</option>
+								<option value="ordering">Place in Order</option>
+								<option value="matching">Matching Pairs</option>
+								<option value="hotspot">Hotspot</option>
+								<option value="point-it-out">Point It Out</option>
+								<option value="draw">Draw the Answer</option>
+							</select>
+						</div>
+						<p class="question-type-hint" style="font-size: 0.8rem; color: var(--clr-text-muted); margin-bottom: var(--space-md);"></p>
+						<div class="question-specific-content"></div>
+					</div>
+				</div>
+			</div>
+		</details>
+	</template>
+
+
+	<script type="module">
+		import { initDashboardQuizEdit } from '/modules/dashboard-quizedit.min.js';
+		initDashboardQuizEdit();
+	</script>
+</body>
+
+</html>

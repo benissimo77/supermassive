@@ -11,6 +11,7 @@ import { fileURLToPath } from 'url';
 // ROUTES
 import indexRoutes from './routes/routes.public.js';
 import hostRoutes from './routes/routes.host.js';
+import adminRoutes from './routes/routes.admin.js';
 import loginRoutes from './routes/routes.auth.js';
 
 import apiQuiz from './api/api.quiz.js';
@@ -30,6 +31,13 @@ if (missing.length > 0) {
 
 // Initialize the Express app
 const app = express();
+
+// Serve static files from the public directory
+// Note: placed before session/passport to avoid overhead for public assets
+app.use(express.static('public'));
+
+// Serve shared utilities
+app.use('/utils', express.static('src/utils'));
 
 // Set up DB connection
 dbConnect()
@@ -82,12 +90,6 @@ app.use(sessionMiddleware);
 // Passport initialization (note: should be placed after session middleware)
 app.use(passport.initialize());
 app.use(passport.session());
-
-// Serve static files from the public directory
-app.use(express.static('public'));
-
-// Serve shared utilities
-app.use('/utils', express.static('src/utils'));
 
 
 // Direct cookie setting (works)
@@ -260,6 +262,7 @@ app.get('/compare-headers', (req, res) => {
 app.use('/', indexRoutes);
 app.use('/auth', loginRoutes);
 app.use('/host', hostRoutes);
+app.use('/admin', adminRoutes);
 
 // API ROUTES
 app.use('/api/quiz', apiQuiz);

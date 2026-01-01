@@ -54,22 +54,44 @@ export default function createSocketServer(server) {
 		//
 
 		const session = socket.request.session;
-		let userObj = session;
+		let userObj = { ...session };
 
-		// For development, override session data with query string parameters
-		// Allows single browser session to simulate multiple users and one host
-		if (process.env.NODE_ENV === 'development') {
-			const queryString = socket.handshake.headers.referer.split('?')[1] || '';
-			const urlParams = new URLSearchParams(queryString);
+		// Identify role and room from the referer URL path
+		// This is more reliable than session data which can be shared across tabs
+		const referer = socket.handshake.headers.referer;
+		if (referer) {
+			try {
+				const url = new URL(referer);
+				const pathSegments = url.pathname.split('/').filter(s => s.length > 0);
 
-			// Merge query string parameters into the user object
-			if (userObj.host) {
-				delete userObj.host;
+				// If path starts with /host, it's a host
+				if (pathSegments[0] === 'host') {
+					userObj.host = 1;
+					if (pathSegments[1] && pathSegments[1].length === 4) {
+						userObj.room = pathSegments[1];
+					}
+				} else if (pathSegments[0] === 'admin') {
+					// If path starts with /admin, it's an admin
+					userObj.role = 'admin';
+					if (pathSegments[1] && pathSegments[1].length === 4) {
+						userObj.room = pathSegments[1];
+					}
+				} else if (pathSegments[0] === 'play') {
+					userObj.host = false;
+					if (pathSegments[1]) {
+						userObj.room = pathSegments[1];
+					}
+				}
+
+				// For development, allow query string overrides
+				if (process.env.NODE_ENV === 'development') {
+					const urlParams = new URLSearchParams(url.search);
+					const params = Object.fromEntries(urlParams);
+					userObj = { ...userObj, ...params };
+				}
+			} catch (e) {
+				console.error('SocketServer:: Error parsing referer URL:', e);
 			}
-			userObj = {
-				...userObj,
-				...Object.fromEntries(urlParams),
-			};
 		}
 
 		// Add session and socket IDs to the user object

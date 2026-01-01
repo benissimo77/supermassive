@@ -36,7 +36,7 @@ export default [
     {
         input: 'src/AppHost.ts',
         output: {
-            file: 'public/modules/phaser.host.lobby.min.js',
+            file: 'public/modules/phaser.host.min.js',
             format: 'iife',
             sourcemap: false,
             globals: {

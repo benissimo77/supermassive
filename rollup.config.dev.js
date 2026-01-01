@@ -32,7 +32,7 @@ export default [
         treeshake: true,
         output: {
             // Change the output file path here
-            file: 'public/modules/phaser.host.lobby.min.js',
+            file: 'public/modules/phaser.host.min.js',
             format: 'iife',
             sourcemap: true,
             globals: {
@@ -101,5 +101,40 @@ export default [
             }),
         ],
         external: ['io', 'phaser']
+    },
+
+    {
+        input: 'src/AppAdmin.ts',
+        treeshake: true,
+        output: {
+            file: 'public/modules/phaser.admin.min.js',
+            format: 'iife',
+            sourcemap: true,
+            globals: {
+                phaser: 'Phaser',
+                io: 'io'
+            }
+        },
+        external: ['phaser', 'io'],
+        plugins: [
+            replace({
+                preventAssignment: true,
+                '__DEV__': 'true'
+            }),
+            typescript({
+                ...hostTypescriptOptions,
+                include: ['src/**/*.ts'],
+                exclude: [
+                    'src/ui/SoundSettingsPanel-orig.ts',
+                    'src/vector/VectorGameScene.ts'
+                ]
+            }),
+            nodeResolve({
+                browser: true,
+                preferBuiltins: false,
+                extensions: ['.js', '.ts']
+            }),
+            commonjs()
+        ]
     }
 ]

@@ -1,6 +1,6 @@
 import { BaseScene } from "src/BaseScene";
 import { PhaserPlayer, PhaserPlayerState, PlayerConfig } from "src/quiz/PhaserPlayer";
-import { gsap } from "gsap";
+import gsap from "gsap";
 
 enum RacetrackState {
     IN,

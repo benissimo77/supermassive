@@ -4,7 +4,7 @@ import { BaseQuestion } from "./BaseQuestion";
 import { NineSliceButton } from "src/ui/NineSliceButton";
 import { HotspotQuestionData } from "./QuestionTypes";
 
-type Coordinate {
+type Coordinate = {
 	x: number;
 	y: number;
 }

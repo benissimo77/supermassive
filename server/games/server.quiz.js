@@ -16,6 +16,7 @@ const QuizState = {
 	NEXT_QUESTION: 'NEXT_QUESTION',
 	PREVIOUS_QUESTION: 'PREVIOUS_QUESTION',
 	QUESTION: 'QUESTION',
+	WAITING_FOR_STREAM: 'WAITING_FOR_STREAM',
 	END_QUESTION: 'END_QUESTION',
 	COLLECT_ANSWERS: 'COLLECT_ANSWERS',
 	SHOW_ANSWER: 'SHOW_ANSWER',
@@ -59,10 +60,18 @@ class QuizStateMachine {
 
 			case QuizState.QUESTION:
 				if (this.quiz.mode == "ask") {
-					this.transitionTo(QuizState.COLLECT_ANSWERS);
+					if (this.quiz.liveStream) {
+						this.transitionTo(QuizState.WAITING_FOR_STREAM);
+					} else {
+						this.transitionTo(QuizState.COLLECT_ANSWERS);
+					}
 				} else {
 					this.transitionTo(QuizState.SHOW_ANSWER);
 				}
+				break;
+
+			case QuizState.WAITING_FOR_STREAM:
+				this.transitionTo(QuizState.COLLECT_ANSWERS);
 				break;
 
 			case QuizState.COLLECT_ANSWERS:
@@ -142,6 +151,7 @@ class QuizStateMachine {
 			case QuizState.END_QUIZ:
 				this.transitionTo(QuizState.END_QUIZ);
 				break;
+
 			default:
 				console.error(`Unknown state: ${this.state}`);
 		}
@@ -154,37 +164,51 @@ class QuizStateMachine {
 		switch (this.state) {
 
 			case QuizState.INTRO_ROUND:
-				const previousRound = this.quiz.moveToPreviousRound(); // Decrement round number and reset question number
-				if (previousRound) {
+				// If we are at the intro of a round, go to the last question of the previous round
+				if (this.quiz.moveToPreviousRound()) {
 					this.transitionTo(QuizState.QUESTION);
 				} else {
 					this.transitionTo(QuizState.INTRO_QUIZ);
 				}
 				break;
 
-			case QuizState.NEXT_QUESTION:
-			case QuizState.PREVIOUS_QUESTION:
 			case QuizState.QUESTION:
 			case QuizState.COLLECT_ANSWERS:
 			case QuizState.SHOW_ANSWER:
 			case QuizState.MARK_ANSWERS:
 			case QuizState.UPDATE_SCORES:
 			case QuizState.END_QUESTION:
-			case QuizState.END_ROUND:
-			case QuizState.END_QUIZ:
-				const previousQuestion = this.quiz.moveToPreviousQuestion(); // Decrement question number and get question
-				if (previousQuestion) {
+				// Move to the previous question from these states
+				if (this.quiz.moveToPreviousQuestion()) {
 					this.transitionTo(QuizState.QUESTION);
 				} else {
-					this.transitionTo(QuizState.PREVIOUS_ROUND);
+					// We are on Question 1, so go back to the Round Intro
+					this.transitionTo(QuizState.INTRO_ROUND);
 				}
 				break;
 
-			default:
-				console.error(`Unknown state: ${this.state}`);
+			case QuizState.END_ROUND:
+			case QuizState.END_QUIZ:
+				// If we are at the end of a round/quiz, go back to the start of the last question
+				this.transitionTo(QuizState.PREVIOUS_QUESTION);
 				break;
 
+			default:
+				this.transitionTo(QuizState.INTRO_QUIZ);
+				break;
 		}
+	}
+
+	fastForward() {
+		console.log('fastForward:', this.state);
+		this.direction = 'forward';
+		this.transitionTo(QuizState.NEXT_ROUND);
+	}
+
+	fastBackward() {
+		console.log('fastBackward:', this.state);
+		this.direction = 'backward';
+		this.transitionTo(QuizState.PREVIOUS_ROUND);
 	}
 
 	transitionTo(newState) {
@@ -247,6 +271,10 @@ class QuizStateMachine {
 			// Tweaked logic QUESTION now expects the question number to be already set correctly
 			case QuizState.QUESTION:
 				this.quiz.doQuestion()
+				break;
+
+			case QuizState.WAITING_FOR_STREAM:
+				this.quiz.waitingForStream();
 				break;
 
 			case QuizState.COLLECT_ANSWERS:
@@ -989,16 +1017,28 @@ export default class Quiz extends Game {
 		console.log('Quiz: introduction');
 	}
 
-	init() {
+	async init(config) {
+		console.log('Quiz::init:', config);
 		this.round = null;
 		this.question = null;
 		this.started = false;
 		this.startTime = null;
 		this.mode = "ask";	// ask or answer - whether we are collecting answers or showing them
+		this.liveStream = false; // whether we are in live stream mode or not (affects state machine - need to account for latency of the stream)
 
-		// In this state we are waiting for players to arrive and for the host to start
-		// So we want to display players as they enter, plus the room code and login instructions...
-
+		// Config should pass a quiz ID to select the quiz to load
+		// We load the quiz from DB using the passed ID (see api.quiz.js)
+		if (config && config.quizID) {
+			try {
+				const thisQuizData = await QuizModel.getQuizByID(config.quizID);
+				if (thisQuizData) {
+					this.quizData = thisQuizData;
+					console.log('Quiz::init: loaded quiz data:', this.quizData.title);
+				}
+			} catch (error) {
+				console.error('Quiz::init: error loading quiz data for ID:', config.quizID, error);
+			}
+		}
 	}
 
 	// startGame is a required function for a class that extends Game
@@ -1010,6 +1050,12 @@ export default class Quiz extends Game {
 
 		if (this.started) {
 			console.log('Quiz::startGame: game already started, resuming...');
+			// Resend intro quiz data so host can rebuild the quiz map
+			this.introQuiz();
+			// Resend current question if we are in a question state
+			if (this.questionNumber > 0) {
+				this.doQuestion();
+			}
 			return;
 		}
 		this.started = true;
@@ -1020,58 +1066,119 @@ export default class Quiz extends Game {
 			player.score = 0;
 		});
 
-		// Config should pass a quiz ID to select the quiz to load
-		// We load the quiz from DB using the passed ID (see api.quiz.js)
-		if (config.quizID) {
-			// Load the quiz from DB
-			// Since this is a DB operation we better catch errors
-			try {
-				const thisQuizData = await QuizModel.getQuizByID(config.quizID);
-				if (thisQuizData) {
-					this.quizData = thisQuizData;
-					console.log('Quiz::startGame: loaded quiz data:', this.quizData);
-				}
-			} catch (error) {
-				console.error('Quiz::startGame: no quiz data found for ID:', config.quizID);
-				console.log('Quiz::startGame: using default quiz data instead');
-			}
-		}
-
-		// Load the quiz from file and start the state machine
-		// parseQuizFromCSV('quiz1.v1').then((quiz) => {
-		// 	this.quizData = quiz;
-		// 	this.stateMachine.start();
-		// });
-
 		// For now, just start the state machine
 		this.stateMachine.start();
 	}
 
+	// endGame is a required function for a class that extends Game
 	endGame() {
 		console.log('Quiz::endGame: clean up here...');
 
 		// Not much to do here - we rely on room.js for all the heavy-lifting, game itself is pretty lightweight
 	}
 
+	// onPlayerReconnect is a required function for a class that extends Game
+	// Called by room when a player connects OR reconnects to the game
+	// We need to resend any current question or answer state to the reconnected player
+	// socket is the new socket for the (re)connected player
+	onPlayerReconnect(player, socket) {
+
+		console.log('Quiz::onPlayerReconnect:', player.sessionID, 'State:', this.stateMachine.state);
+
+		// If we are currently in a question, send it to the reconnected player
+		if (this.stateMachine.state === QuizState.COLLECT_ANSWERS) {
+			
+			// Check if player has already answered
+			if (this.question && this.question.results && this.question.results[player.sessionID]) {
+				console.log('Player already answered - client will remain in waiting state');
+				return;
+			}
+
+			if (this.question) {
+				// Prepare player question (logic duplicated from collectAnswers for now)
+				let playerQuestion = {};
+				playerQuestion.mode = 'ask';
+				playerQuestion.direction = this.stateMachine.direction;
+				playerQuestion.questionNumber = this.question.questionNumber;
+				playerQuestion.type = this.question.type;
+				playerQuestion.options = this.question.optionsShuffled;
+				playerQuestion.items = this.question.itemsShuffled;
+				playerQuestion.pairs = this.question.pairsShuffled;
+				playerQuestion.extra = this.question.extra;
+				if (playerQuestion.type == 'hotspot' || playerQuestion.type == 'point-it-out') {
+					playerQuestion.image = this.question.image;
+				}
+
+				console.log('Re-sending question to reconnected player:', player.sessionID);
+				socket.emit('server:question', playerQuestion, (acknowledgement) => {
+					console.log('Acknowledgement from player:', player.sessionID, acknowledgement);
+				});
+			}
+		}
+		// If we are currently showing an answer, send it to the reconnected player
+		if (this.stateMachine.state === QuizState.SHOW_ANSWER) {
+			if (this.question) {
+				let localQuestion = structuredClone(this.question);
+				localQuestion.mode = 'answer';
+				localQuestion.direction = this.stateMachine.direction;
+				localQuestion.options = this.question.optionsShuffled;
+				localQuestion.items = this.question.itemsShuffled;
+				localQuestion.pairs = this.question.pairsShuffled;
+				localQuestion.results = this.question.results;
+
+				const scores = this.calculateQuestionScore(localQuestion);
+				socket.emit('server:showanswer', { 'scores': scores });
+			}
+		}
+	}
+
+
 	// keyPressHandler
 	// Recieves keypresses from the host and acts
 	keypressHandler(socket, keyObject) {
 		console.log('Quiz::keypressHandler:', keyObject);
 		// If right or left arrow then step forward or back in the quiz
-		// If CTRL also pressed then jump to end/beginning of the round
+		// If SHIFT also pressed then jump to next/previous round
 		if (keyObject.key == 'ArrowRight') {
-			this.stateMachine.nextState();
+			if (keyObject.shiftKey) {
+				this.stateMachine.fastForward();
+			} else {
+				this.stateMachine.nextState();
+			}
 		}
 		if (keyObject.key == 'ArrowLeft') {
-			this.stateMachine.previousState();
+			if (keyObject.shiftKey) {
+				this.stateMachine.fastBackward();
+			} else {
+				this.stateMachine.previousState();
+			}
+		}
+		if (keyObject.key == 'KeyS') {
+			this.liveStream = !this.liveStream;
+			console.log('Stream mode:', this.liveStream);
+			this.room.emitToHosts('server:streammode', { enabled: this.liveStream });
 		}
 	}
+
 	// introQuiz
 	// Run introductory animation, plus run any set up data tasks
 	introQuiz() {
 		console.log('introQuiz:');
 		this.roundNumber = 0;
-		this.room.emitToHosts('server:introquiz', { title: this.quizData.title, description: this.quizData.description }, true)
+
+		// Create a map of the quiz structure for the host display
+		const quizMap = this.quizData.rounds.map((round) => ({
+			title: round.title,
+			questionCount: round.questions.length,
+			showAnswer: round.showAnswer,
+			updateScores: round.updateScores
+		}));
+
+		this.room.emitToHosts('server:introquiz', {
+			title: this.quizData.title,
+			description: this.quizData.description,
+			quizMap: quizMap
+		}, true)
 	}
 
 	// introRound
@@ -1079,6 +1186,7 @@ export default class Quiz extends Game {
 	// Note: this function expects this.round to hold the round to intro (is this the best pattern?)
 	introRound() {
 		console.log('introRound:');
+		this.round = this.quizData.rounds[this.roundNumber - 1];
 		this.questionNumber = 0;
 
 		// Check if we are overriding question/answer types for this round (not used yet)
@@ -1090,13 +1198,12 @@ export default class Quiz extends Game {
 
 	// nextRound
 	// A function that can be called to start a round
-	// Function returns the round data, or false if there are no more rounds
+	// Function returns true/false if there are more rounds
 	moveToNextRound() {
 		if (this.roundNumber < this.quizData.rounds.length) {
-			this.round = this.quizData.rounds[this.roundNumber];
 			this.roundNumber++;
 			this.questionNumber = 0;
-			return this.round;
+			return true;
 		}
 		return false;
 	}
@@ -1105,36 +1212,33 @@ export default class Quiz extends Game {
 	moveToPreviousRound() {
 		if (this.roundNumber > 1) {
 			this.roundNumber--;
-			this.round = this.quizData.rounds[this.roundNumber - 1];
-			this.questionNumber = this.round.questions.length;
-			return this.round;
+			const round = this.quizData.rounds[this.roundNumber - 1];
+			this.questionNumber = round.questions.length;
+			return true;
 		}
 		return false;
 	}
 
 	// nextQuestion
-	// Similar to nextRound above - returns the question data or null if there are no more questions in this round
+	// Similar to nextRound above - returns true/false if there are no more questions in this round
 	moveToNextQuestion() {
-		if (this.questionNumber < this.round.questions.length) {
-			this.question = this.round.questions[this.questionNumber];
+		const round = this.quizData.rounds[this.roundNumber - 1];
+		if (this.questionNumber < round.questions.length) {
 			this.questionNumber++;
-			return this.question;
+			return true;
 		}
 		return false;
 	}
 
-
 	// moveToPreviousQuestion - reverse of moveToNextQuestion
-	// At end of rouund this.questionNumber will be the length of the questions array
+	// At end of round this.questionNumber will be the length of the questions array
 	moveToPreviousQuestion() {
 		console.log('moveToPreviousQuestion:', this.questionNumber);
 		if (this.questionNumber > 1) {
 			this.questionNumber--;
-			this.question = this.round.questions[this.questionNumber];
-			return this.question;
-		} else {
-			return this.moveToPreviousRound();
+			return true;
 		}
+		return false;
 	}
 
 	// copyQuestionForMutating
@@ -1184,6 +1288,9 @@ export default class Quiz extends Game {
 	// Mode is the form of the question - asking it or showing the question and answer
 	doQuestion() {
 
+		console.log('doQuestion:', this.roundNumber, this.questionNumber);
+		this.round = this.quizData.rounds[this.roundNumber - 1];
+
 		// this.question holds a pointer into the master quizData to allow mutating for storing results
 		this.question = this.round.questions[this.questionNumber - 1];
 
@@ -1199,6 +1306,7 @@ export default class Quiz extends Game {
 		let hostQuestion = structuredClone(this.question);
 		hostQuestion.mode = this.mode;
 		hostQuestion.direction = this.stateMachine.direction;
+		hostQuestion.roundNumber = this.roundNumber;
 		hostQuestion.options = this.question.optionsShuffled;
 		hostQuestion.items = this.question.itemsShuffled;
 		hostQuestion.pairs = this.question.pairsShuffled;
@@ -1226,10 +1334,21 @@ export default class Quiz extends Game {
 
 		console.log('doQuestion:', this.mode, this.questionNumber, this.question, hostQuestion);
 		this.room.emitToHosts('server:question', hostQuestion);
-		this.room.registerHostResponseHandler(() => {
-			this.room.deregisterHostResponseHandler();
-			this.stateMachine.nextState();
-		});
+
+		// In cases where we are live streaming we DON'T want to move to the next state automatically
+		// So only do this if we are NOT live streaming
+		// OR when answering the question - even live streaming we can still show the answer straight away
+		if (!this.liveStream || this.mode === 'answer') {
+			this.room.registerHostResponseHandler(() => {
+				this.room.deregisterHostResponseHandler();
+				this.stateMachine.nextState();
+			});
+		}
+	}
+
+	waitingForStream() {
+		console.log('waitingForStream:');
+		this.room.emitToHosts('server:waitingforstream', { questionNumber: this.questionNumber });
 	}
 
 	collectAnswers() {
@@ -1292,6 +1411,10 @@ export default class Quiz extends Game {
 			}, this.round.roundTimer * 1000);
 			this.room.emitToHosts('server:starttimer', { duration: this.round.roundTimer });
 		}
+
+		// Also send a message to the host so they can indicate that we are waiting for players to answer
+		// This is currently only used when live streaming so that host display can remove the stream latency indicator
+		this.room.emitToHosts('server:collectanswers', { questionNumber: this.questionNumber });
 	}
 
 	// showAnswer
@@ -1440,6 +1563,11 @@ export default class Quiz extends Game {
 		console.log('calculatePlayerScores:', question);
 
 		var scores = {};
+
+		// Just in case we arrive here and we have not collected any results then initialize the result object
+		if (!question.results) {
+			question.results = {};
+		}
 
 		function createSimpleString(str) {
 			if (str === null || str === undefined) {
@@ -1814,25 +1942,4 @@ function levenshteinDistance(str1, str2) {
 
 console.log(levenshteinDistance('kitten', 'sitting'));
 
-// Notes:
-// From New York Times Quiz
-// President-elect Donald J. Trump was convicted of falsifying records to cover up a sex scandal that threatened to derail his 2016 presidential campaign. On how many felony counts did a Manhattan jury find Mr. Trump guilty on May 30?
 
-// (Climate) In June, more than 1,300 people died while attending what major event in Saudi Arabia as temperatures surpassed 100 degrees Fahrenheit?
-
-// “Inside Out 2,” the summer’s biggest movie, delivered a fresh crop of emotions for Riley, the Pixar film’s 13-year-old protagonist. What emotion, pictured center above, stole the show in the sequel?
-
-// Unlike his victory in 2016, Mr. Trump did something he didn’t do in his first successful campaign for the White House. What was that?
-
-// Republicans cemented their control of the House of Representatives on Nov. 13, handing them a “governing trifecta” in Washington to enact President-elect Donald J. Trump’s agenda.
-
-// What does a governing trifecta mean?
-
-// Early on Dec. 4, a masked gunman assassinated Brian Thompson on a Midtown Manhattan street. Mr. Thompson was a chief executive in what industry?
-
-// Taylor Swift ended her 21-month-long Eras Tour on Dec. 8, capping another monster year for the pop superstar.
-// Whata was the name of the World Tour?
-
-// In a stunning turn of events after 13 years of civil war, rebels marched into Damascus as Syria’s president fled to Russia. Until Dec. 8, what family had ruled Syria for more than five decades?
-
-// What word was named Oxford’s 2024 Word of the Year?

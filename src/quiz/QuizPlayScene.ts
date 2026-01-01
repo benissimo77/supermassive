@@ -12,6 +12,7 @@ export class QuizPlayScene extends BaseScene {
     static readonly KEY = 'QuizPlayScene';
 
     private currentQuestion: BaseQuestion;
+    private currentQuestionNumber: number = -1;
     private questionFactory: QuestionFactory;
     private waitingState: Boolean = false;
     private phaserPlayer: PhaserPlayer;
@@ -91,17 +92,22 @@ export class QuizPlayScene extends BaseScene {
         this.waitingPanel.setScale(this.getUIScaleFactor());
         this.waitingPanel.setVisible(true);
 
-        // Let the server know we're ready - this could come from a button click or other event
-        // Note: at the moment all this does is receive the player details via the callback function
-        this.socket.emit('player:ready', {}, (playerConfig: PlayerConfig) => {
-            console.log('QuizPlayScene:: player:ready callback:', playerConfig);
-            this.phaserPlayer = new PhaserPlayer(this, playerConfig);
-            this.phaserPlayer.setScale(this.getUIScaleFactor());
-            this.add.existing(this.phaserPlayer);
-            this.phaserPlayer.setPosition(-480, Phaser.Math.Between(this.getY(200), this.getY(880)));
-            this.animatePlayer(this.phaserPlayer);
+        const sendReady = () => {
+            console.log('QuizPlayScene:: sending player:ready');
+            this.socket.emit('player:ready', {}, (playerConfig: PlayerConfig) => {
+                console.log('QuizPlayScene:: player:ready callback:', playerConfig);
+                if (!this.phaserPlayer) {
+                    this.phaserPlayer = new PhaserPlayer(this, playerConfig);
+                    this.phaserPlayer.setScale(this.getUIScaleFactor());
+                    this.add.existing(this.phaserPlayer);
+                    this.phaserPlayer.setPosition(-480, Phaser.Math.Between(this.getY(200), this.getY(880)));
+                    this.animatePlayer(this.phaserPlayer);
+                }
+            });
+        };
 
-        });
+        this.socket.on('connect', sendReady);
+        sendReady();
     }
 
 
@@ -123,11 +129,21 @@ export class QuizPlayScene extends BaseScene {
 
         // Listen for intro round message
         this.socket.on('server:introround', (data) => {
+            this.currentQuestionNumber = -1;
             this.showRoundIntro(data.roundnumber, data.title, data.description);
         });
 
         // Listen for question
         this.socket.on('server:question', async (question, callback) => {
+
+            // If we are already displaying this question, ignore the message
+            // This prevents wiping out player progress during silent reconnections
+            if (this.currentQuestionNumber === question.questionNumber) {
+                console.log('QuizPlayScene:: server:question - already displaying this question, ignoring');
+                return;
+            }
+
+            this.currentQuestionNumber = question.questionNumber;
 
             this.waitingPanel.setVisible(false);
             this.tweens.killAll();

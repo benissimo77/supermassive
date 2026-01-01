@@ -16,13 +16,6 @@ import { PlayerConfig, DOMPlayer } from '../DOMPlayer';
 
 export class LobbyPlayScene extends BaseScene {
 
-	// Game name to scene key mapping
-	private gameToSceneMap: Record<string, string> = {
-		'quiz': 'QuizPlayScene',
-		'werewolf': 'WerewolfPlayScene',
-		// Add more games as needed
-	};
-
 	private players: Map<string, DOMPlayer> = new Map<string, DOMPlayer>();
 
 	constructor() {
@@ -115,8 +108,12 @@ export class LobbyPlayScene extends BaseScene {
 		button.setAngle(0); // Set rotation angle
 		button.w = 540; // override the w property (unused by Phaser) to store the logical y position
 
-		// Last thing to do is to call the server to let them know we are ready
-		this.socket.emit('player:ready', { socketID: this.socket.id });
+		const sendReady = () => {
+			this.socket.emit('player:ready', { socketID: this.socket.id });
+		};
+
+		this.socket.on('connect', sendReady);
+		sendReady();
 	}
 
 	setupSocketListeners(): void {
@@ -139,21 +136,6 @@ export class LobbyPlayScene extends BaseScene {
 			playerList.forEach((playerConfig: PlayerConfig) => {
 				this.addDOMPlayer(playerConfig);
 			});
-		});
-
-		this.socket.on('server:loadgame', (game: string) => {
-
-			// Get the corresponding scene key
-			const sceneKey = this.gameToSceneMap[game] || game;
-
-			console.log('LobbyPlay:: Socket:server:loadgame:', game, sceneKey);
-
-			if (this.scene.get(sceneKey)) {
-				console.log('Already loaded - start immediately');
-				this.scene.start(sceneKey);
-			} else {
-				console.log('Not loaded - ignore...');
-			}
 		});
 
 		this.socket.on('server:ping', (message: string) => {

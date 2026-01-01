@@ -10,6 +10,7 @@
 
 
 export default class Game {
+  
   constructor(room) {
     if (new.target === Game) {
       throw new TypeError("Cannot construct Game instances directly");
@@ -52,6 +53,10 @@ export default class Game {
 
   endGame() {
     // Placeholder method
+  }
+
+  onPlayerReconnect(player, socket) {
+    // Placeholder method - can be overridden by child classes to sync player state
   }
 }
 

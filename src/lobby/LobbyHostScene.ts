@@ -27,13 +27,6 @@ export class LobbyHostScene extends BaseScene {
 
 	static readonly KEY: string = 'LobbyHostScene';
 
-	// Game name to scene key mapping
-	private gameToSceneMap: Record<string, string> = {
-		'quiz': 'QuizHostScene',
-		'werewolf': 'WerewolfHostScene',
-		// Add more games as needed
-	};
-
 	private players: Map<string, PhaserPlayer> = new Map<string, PhaserPlayer>();
 
 	public soundManager: SoundManager;
@@ -103,15 +96,6 @@ export class LobbyHostScene extends BaseScene {
 	create(): void {
 		console.log('Lobby.create: hello.');
 		super.create();
-
-		// Provide ability to go instantly to a quiz with a known ID
-		const urlParams = new URLSearchParams(window.location.search);
-		const quizID = urlParams.get('q');
-		// Provide ability to go instantly to a quiz with a known ID
-		if (quizID) {
-			console.log(`LobbyHostScene::init: quizID provided: ${quizID}`);
-			this.socket.emit('host:requestgame', 'quiz', { quizID: quizID });
-		}
 
 		// Define available games (add more as needed)
 		this.games = [
@@ -215,7 +199,9 @@ export class LobbyHostScene extends BaseScene {
 
 	private selectGame(): void {
 		const game = this.games[this.selectedGameIndex];
-		this.socket.emit('host:requestgame', game.key);
+		this.socket.emit('host:requestgame', game.key, {}, (response: any) => {
+			console.log('LobbyHostScene:: selectGame ack:', response);
+		});
 	}
 
 	private showInstructions(): void {
@@ -561,20 +547,6 @@ export class LobbyHostScene extends BaseScene {
 			playerList.forEach((playerConfig: PlayerConfig) => {
 				this.addPhaserPlayer(playerConfig);
 			});
-		});
-
-		this.socket.on('server:loadgame', (game: string) => {
-			console.log('Socket:: server:loadgame:', game);
-
-			// Get the corresponding scene key
-			const sceneKey = this.gameToSceneMap[game] || game;
-
-			if (this.scene.get(sceneKey)) {
-				console.log('Already loaded - start immediately');
-				this.scene.start(sceneKey);
-			} else {
-				console.log('Not loaded - ignore...');
-			}
 		});
 
 		this.socket.on('server:ping', (message: string) => {

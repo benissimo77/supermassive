@@ -4,6 +4,7 @@ declare const __DEV__: boolean;
 
 import { BaseScene } from "src/BaseScene";
 import { SocketDebugger } from "src/SocketDebugger";
+import { QuizMap, QuizMapData } from "./QuizMap";
 
 import { QuestionFactory } from "./questions/QuestionFactory";
 import { BaseQuestion } from "./questions/BaseQuestion";
@@ -21,6 +22,9 @@ export class QuizHostScene extends BaseScene {
     private socketDebugger: SocketDebugger;
 
     private currentQuestion: BaseQuestion;
+    private currentRoundNumber: number = 0;
+    private currentQuestionNumber: number = 0;
+    private quizMap: QuizMap;
     private phaserPlayers: Map<string, PhaserPlayer> = new Map();
     private playerScores: Map<string, number> = new Map();
     private playerAnswers: Map<string, any> = new Map();
@@ -32,6 +36,9 @@ export class QuizHostScene extends BaseScene {
     private globalNavbar: GlobalNavbar;
     private soundSettings: SoundSettingsPanel;
 
+    private streamModeIndicator: Phaser.GameObjects.Text;
+    private streamCue: Phaser.GameObjects.Graphics;
+
     // Containers - created once in order to set the ordering
     private playerContainer: Phaser.GameObjects.Container;
     private questionContainer: Phaser.GameObjects.Container;
@@ -41,6 +48,9 @@ export class QuizHostScene extends BaseScene {
 
     // Racetrack for animating scores
     private racetrack: Racetrack;
+
+    private background: Phaser.GameObjects.Image;
+    private backgroundOverlay: Phaser.GameObjects.Graphics;
 
     // Add this constructor to set the scene key
     constructor() {
@@ -133,15 +143,15 @@ export class QuizHostScene extends BaseScene {
         }
 
         // Create background
-        const background: Phaser.GameObjects.Image = this.add.image(0, 0, 'quiz-background').setOrigin(0, 0);
-        background.setDisplaySize(1920, this.getY(1080));
-        this.backgroundContainer.add(background);
+        this.background = this.add.image(0, 0, 'quiz-background').setOrigin(0, 0);
+        this.background.setDisplaySize(1920, this.getY(1080));
+        this.backgroundContainer.add(this.background);
 
         // Overlay to darken the background
-        const overlay: Phaser.GameObjects.Graphics = this.add.graphics();
-        overlay.fillStyle(0x000000, 0.7);
-        overlay.fillRect(0, 0, 1920, this.getY(1080));
-        this.backgroundContainer.add(overlay);
+        this.backgroundOverlay = this.add.graphics();
+        this.backgroundOverlay.fillStyle(0x000000, 0.7);
+        this.backgroundOverlay.fillRect(0, 0, 1920, this.getY(1080));
+        this.backgroundContainer.add(this.backgroundOverlay);
 
         // Create score racetrack but begin with it off-screen
         // TODO: factor this out into its own SCENE
@@ -154,6 +164,10 @@ export class QuizHostScene extends BaseScene {
         this.add.existing(this.racetrack);
         this.mainContainer.add(this.racetrack);
         this.racetrack.flyOut().play();
+
+        this.quizMap = new QuizMap(this, 0, this.getY(1000));
+        this.add.existing(this.quizMap);
+        this.mainContainer.add(this.quizMap);
 
         // Create the containers for all UI elements (eg round intro)
         // Note: these are added to the 'base' containers set up in BaseScene: background, UI, main, top, overlay
@@ -184,34 +198,51 @@ export class QuizHostScene extends BaseScene {
             this.soundSettings.toggle();
         });
 
+        // Ensure initial layout is correct before starting bootstrap
+        this.sceneDisplay();
 
-        // Let the server know we're ready - this could come from a button click or other event
-        // host:ready informs server host is ready to receive player data and other socket events
-        // host:ready event also sends acknowledgment callback data including IMPORTANT: room ID
-        this.socket.emit('host:ready', {}, (response: any) => {
-            console.log('host:ready ack received:', response)
-            if (response.roomID) {
-                this.roomID = response.roomID;
+        // SEQUENTIAL BOOTSTRAP:
+        // 1. host:ready -> get roomID
+        // 2. host:requestgame -> load game module
+        // 3. host:requeststart -> start game logic
+
+        console.log('QuizHostScene:: Starting sequential bootstrap...');
+        this.socket?.emit('consolelog', 'QuizHostScene:: Starting sequential bootstrap...');
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const quizID = this.scene.settings.data?.quizID || urlParams.get('q');
+
+        // 1. host:ready -> get roomID and show instructions
+        this.socket.emit('host:ready', {}, (readyResponse: any) => {
+            console.log('QuizHostScene:: host:ready ack received:', readyResponse);
+            this.socket?.emit('consolelog', `QuizHostScene:: host:ready ack received: ${JSON.stringify(readyResponse)}`);
+            if (readyResponse && readyResponse.roomID) {
+                this.roomID = readyResponse.roomID;
                 this.load.image('roomQR', `/assets/qr/${this.roomID}.png`);
                 this.load.once('complete', () => {
-                    console.log('Room QR code image loaded');
+                    console.log('QuizHostScene:: Room QR code image loaded');
                     this.showInstructions();
                 });
                 this.load.start();
             }
-       });
+        });
 
-        // We might want to run some kind of introduction - think opening credits of a TV quiz show
-        // But since I don't have this yet, let's just show the quiz intro
+        // 2. Request the game module and pass the quizID config
+        console.log('QuizHostScene:: Requesting game "quiz" from server...');
+        this.socket.emit('host:requestgame', 'quiz', { quizID }, (gameResponse: any) => {
+            console.log('QuizHostScene:: host:requestgame ack received:', gameResponse);
+            this.socket?.emit('consolelog', `QuizHostScene:: host:requestgame ack received: ${JSON.stringify(gameResponse)}`);
 
-        // DEVELOPMENT - look for quiz ID in URL and if so go straight to that quiz
-        // Note: host:requeststart loads the quiz BUT we don't actually start the quiz until the host clicks 'Start Quiz' button
-        const urlParams = new URLSearchParams(window.location.search);
-        const quizID = urlParams.get('q');
-        // Provide ability to go instantly to a quiz with a known ID
-        if (quizID) {
-            this.socket.emit('host:requeststart', { quizID: quizID });
-        }
+            if (gameResponse && gameResponse.success) {
+                // 3. Auto-start if quizID is present
+                if (quizID) {
+                    console.log('QuizHostScene:: Auto-starting quiz:', quizID);
+                    this.socket.emit('host:requeststart');
+                }
+            } else {
+                console.error('QuizHostScene:: Failed to load game "quiz":', gameResponse ? gameResponse.error : 'No response');
+            }
+        });
     }
 
 
@@ -252,16 +283,31 @@ export class QuizHostScene extends BaseScene {
 
         // Listen for intro quiz message
         this.socket.on('server:introquiz', (data) => {
+            if (data.quizMap) {
+                this.quizMap.setMapData(data.quizMap);
+                this.quizMap.updatePosition(0, 0, 'INTRO_QUIZ');
+            }
             this.showQuizIntro(data.title, data.description);
         });
 
         // Listen for intro round message
         this.socket.on('server:introround', (data) => {
+            if (data.roundnumber) {
+                this.currentRoundNumber = data.roundnumber;
+                this.currentQuestionNumber = 0;
+                this.quizMap.updatePosition(this.currentRoundNumber, 0, 'INTRO_ROUND');
+            }
             this.showRoundIntro(data.roundnumber, data.title, data.description);
         });
 
         // Listen for question - not sure if this should all be here...
         this.socket.on('server:question', async (question, callback) => {
+            if (question.roundNumber && question.questionNumber) {
+                this.currentRoundNumber = question.roundNumber;
+                this.currentQuestionNumber = question.questionNumber;
+                const state = question.mode === 'answer' ? 'SHOW_ANSWER' : 'QUESTION';
+                this.quizMap.updatePosition(this.currentRoundNumber, this.currentQuestionNumber, state);
+            }
             let receivedTime = Date.now();
             await this.createQuestion(question);
             const displayTime = Date.now() - receivedTime;
@@ -356,6 +402,7 @@ export class QuizHostScene extends BaseScene {
 
         // Show answer
         this.socket.on('server:showanswer', async (question) => {
+            this.quizMap.updatePosition(this.currentRoundNumber, this.currentQuestionNumber, 'SHOW_ANSWER');
             await this.createQuestion(question);
             // Make sure it's added to the scene, and to the question container (for depth management)
             this.add.existing(this.currentQuestion);
@@ -365,17 +412,20 @@ export class QuizHostScene extends BaseScene {
 
         // Update scores
         this.socket.on('server:updatescores', (data) => {
+            this.quizMap.updatePosition(this.currentRoundNumber, this.currentQuestionNumber, 'UPDATE_SCORES');
             this.updateScores(data.scores);
         });
 
         // End round
         this.socket.on('server:endround', (data) => {
+            this.quizMap.updatePosition(this.currentRoundNumber, this.currentQuestionNumber, 'END_ROUND');
             this.soundManager.stopAll( 3000 );
             this.endRound(data);
         });
 
         // End quiz
         this.socket.on('server:endquiz', (data) => {
+            this.quizMap.updatePosition(this.currentRoundNumber, this.currentQuestionNumber, 'END_QUIZ');
             this.showFinalScores(data);
         });
 
@@ -383,9 +433,31 @@ export class QuizHostScene extends BaseScene {
         this.socket.on('server:starttimer', (data) => {
             this.startTimer(data.duration);
         });
+
+        this.socket.on('server:waitingforstream', (data) => {
+            console.log('QuizHostScene:: server:waitingforstream:', data);
+            this.showStreamCue();
+        });
+
+        this.socket.on('server:streammode', (data) => {
+            console.log('QuizHostScene:: server:streammode:', data);
+            this.updateStreamModeIndicator(data.enabled);
+        });
+
+        this.socket.on('server:collectanswers', () => {
+            console.log('QuizHostScene:: server:collectanswers:');
+            if (this.streamCue) {
+                this.streamCue.destroy();
+            }
+        });
     }
 
     private handleKeyDown(event: KeyboardEvent): void {
+
+        // Ignore modifier keys themselves to prevent them from triggering debouncing or server events
+        if (['Shift', 'Control', 'Alt', 'Meta'].includes(event.key)) {
+            return;
+        }
 
         // Debounce key presses to prevent rapid firing
         const currentTime: number = Date.now();
@@ -397,8 +469,8 @@ export class QuizHostScene extends BaseScene {
         // Get the key name (convert to uppercase for consistency)
         const keyName = event.key.toUpperCase();
 
-        console.log(`Key pressed: ${keyName} (code: ${event.code})`);
-        this.socket.emit('host:keypress', { key: event.code });
+        console.log(`Key pressed: ${keyName} (code: ${event.code}) ${event.shiftKey ? 'with Shift' : ''} ${event.ctrlKey ? 'with Ctrl' : '' }`);
+        this.socket.emit('host:keypress', { key: event.code, shiftKey: event.shiftKey, ctrlKey: event.ctrlKey });
         this.flyQuestionOut(event.code);
     }
 
@@ -512,6 +584,14 @@ export class QuizHostScene extends BaseScene {
             strokeThickness: 3
         });
         this.timerText = this.add.text(960, this.getY(600), '', timerTextConfig);
+
+        // Stream mode indicator
+        this.streamModeIndicator = this.add.text(10, this.getY(1070), 'STREAM MODE: OFF', {
+            fontSize: '24px',
+            color: '#ffffff',
+            fontFamily: 'Arial'
+        }).setOrigin(0, 1).setAlpha(0.5);
+        this.topContainer.add(this.streamModeIndicator);
     }
 
     private showInstructions(): void {
@@ -543,6 +623,9 @@ export class QuizHostScene extends BaseScene {
 
     private showQuizIntro(title: string, description: string): void {
 
+        console.log('QuizHostScene:: showQuizIntro:', title);
+        this.socket?.emit('consolelog', `QuizHostScene:: showQuizIntro: ${title}`);
+
         // Clear previous UI
         this.clearUI();
 
@@ -556,8 +639,8 @@ export class QuizHostScene extends BaseScene {
             .setOrigin(0.5);
 
         // Remove HTML tags from description (until I can find a way to render them properly)
-        // const cleanDescription = description.replace(/<\/?[^>]+(>|$)/g, "");
-        const cleanDescription = description;
+        const cleanDescription = description.replace(/<\/?[^>]+(>|$)/g, "");
+        // const cleanDescription = description;
 
         // Show description
         const descConfig = Object.assign({}, this.labelConfig, {
@@ -569,9 +652,20 @@ export class QuizHostScene extends BaseScene {
             .setOrigin(0.5, 0);
 
         // Add "Start" button
+        console.log('QuizHostScene:: showQuizIntro: creating start button');
         const startButton = this.createSimpleButton(960, descText.y + descText.height + this.getY(120), 'START QUIZ');
 
+        console.log('QuizHostScene:: showQuizIntro: adding elements to UIContainer');
         this.UIContainer.add([titleText, descText, startButton]);
+
+        console.log('QuizHostScene:: showQuizIntro: starting GSAP animation. GSAP version:', gsap?.version);
+        this.socket?.emit('consolelog', `QuizHostScene:: showQuizIntro: starting GSAP animation. GSAP version: ${gsap?.version}`);
+
+        if (!gsap) {
+            console.error('QuizHostScene:: showQuizIntro: GSAP is undefined!');
+            this.socket?.emit('consolelog', 'QuizHostScene:: showQuizIntro: GSAP is undefined!');
+            return;
+        }
 
         gsap.fromTo(this.UIContainer,
             { y: this.getY(-1080) },
@@ -580,13 +674,17 @@ export class QuizHostScene extends BaseScene {
                 y: 0,
                 ease: 'power2.out',
                 onComplete: () => {
-                    console.log('GSAP animation complete!');
+                    console.log('QuizHostScene:: showQuizIntro: GSAP animation complete!');
+                    this.socket?.emit('consolelog', 'QuizHostScene:: showQuizIntro: GSAP animation complete!');
                 }
             }
         );
     }
 
     private showRoundIntro(roundNumber: number, title: string, description: string): void {
+
+        console.log('QuizHostScene:: showRoundIntro:', roundNumber, title);
+        this.socket?.emit('consolelog', `QuizHostScene:: showRoundIntro: ${roundNumber} ${title}`);
 
         // Clear previous UI
         this.clearUI();
@@ -611,11 +709,14 @@ export class QuizHostScene extends BaseScene {
             .setOrigin(0.5, 0);
 
         // Next button
+        console.log('QuizHostScene:: showRoundIntro: creating next button');
         const nextButton = this.createSimpleButton(960, descText.y + descText.height + this.getY(120), 'START ROUND');
 
+        console.log('QuizHostScene:: showRoundIntro: adding elements to UIContainer');
         this.UIContainer.add([roundTitle, descText, nextButton]);
 
         // Animation
+        console.log('QuizHostScene:: showRoundIntro: starting GSAP animation');
         gsap.fromTo(this.UIContainer,
             { y: this.getY(-1080) },
             {
@@ -623,7 +724,8 @@ export class QuizHostScene extends BaseScene {
                 y: 0,
                 ease: 'power2.out',
                 onComplete: () => {
-                    console.log('GSAP animation complete!');
+                    console.log('QuizHostScene:: showRoundIntro: GSAP animation complete!');
+                    this.socket?.emit('consolelog', 'QuizHostScene:: showRoundIntro: GSAP animation complete!');
                 }
             }
         );
@@ -958,6 +1060,7 @@ export class QuizHostScene extends BaseScene {
             this.UIContainer.removeAll(true);
         } else {
             this.UIContainer = this.add.container(0, 0);
+            this.add.existing(this.UIContainer);
         }
         if (this.currentQuestion) {
             this.currentQuestion.destroy();
@@ -965,10 +1068,46 @@ export class QuizHostScene extends BaseScene {
         }
     }
 
+    private updateStreamModeIndicator(enabled: boolean): void {
+        if (this.streamModeIndicator) {
+            this.streamModeIndicator.setText(`STREAM MODE: ${enabled ? 'ON' : 'OFF'}`);
+            this.streamModeIndicator.setColor(enabled ? '#00ff00' : '#ffffff');
+            this.streamModeIndicator.setAlpha(enabled ? 1 : 0.5);
+        }
+    }
+
+    private showStreamCue(): void {
+
+        // Create a visual cue that the host needs to press a key to continue
+        // This is to sync with the stream delay
+        if (this.streamCue) {
+            this.streamCue.destroy();
+        }
+
+        this.streamCue = this.add.graphics();
+        this.streamCue.fillStyle(0xff0000, 0.8);
+        this.streamCue.fillCircle(1880, this.getY(1040), 20);
+        this.topContainer.add(this.streamCue);
+
+    }
+
     sceneDisplay(): void {
         // Called from BaseScene when the screen is resized
-        // Works for the question but I need to extend this to all other elements...
         console.log('QuizHostScene:: sceneDisplay: updating layout for new size');
+
+        if (this.background) {
+            this.background.setDisplaySize(1920, this.getY(1080));
+        }
+        if (this.backgroundOverlay) {
+            this.backgroundOverlay.clear();
+            this.backgroundOverlay.fillStyle(0x000000, 0.7);
+            this.backgroundOverlay.fillRect(0, 0, 1920, this.getY(1080));
+        }
+
+        // if (this.racetrack) {
+        //     this.racetrack.setPosition(0, this.getY(640));
+        // }
+
         if (this.currentQuestion) {
             this.currentQuestion.displayHost();
         }

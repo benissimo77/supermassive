@@ -4,6 +4,7 @@ import UserModel from '../models/mongo.user.js';
 class UserService {
   constructor() {
     this.userModel = UserModel;
+    this.userCache = new Map();
   }
 
   async findUserByEmail(email) {
@@ -11,10 +12,18 @@ class UserService {
     return this.userModel.findOne({ email });
   }
 
-  // As far as I can tell this is not used....
+  // As far as I can tell this is not used.... wrong, used when user attempts to login
   async findUserById(id) {
-    console.log('userService: findUserById :', id);
-    return this.userModel.findById(id);
+    const now = Date.now();
+    const cached = this.userCache.get(id.toString());
+    if (cached && (now - cached.timestamp < 5000)) {
+      // return cached.user;
+    }
+
+    console.log('userService: findUserById (DB hit) :', id);
+    const user = await this.userModel.findById(id);
+    this.userCache.set(id.toString(), { user, timestamp: now });
+    return user;
   }
 
   async findUserByToken(token) {

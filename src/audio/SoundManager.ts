@@ -2,6 +2,8 @@
 import path from 'path';
 import { BaseScene } from 'src/BaseScene';
 
+declare const __DEV__: boolean;
+
 // Extend Phaser's Sound types to include missing methods
 declare module 'phaser' {
     namespace Sound {
@@ -48,15 +50,17 @@ export class SoundManager {
         master: false,
         music: false,
         fx: false,
+        fx: false,
         voice: false
     };
 
-    if (__DEV__) {
-        console.log('SoundManager initialized');
-        this.muted.music = true;
-    }
     private constructor(scene: BaseScene) {
         this.scene = scene;
+
+        if (__DEV__) {
+            console.log('SoundManager initialized');
+            this.muted.music = true;
+        }
     }
 
     // Static method to get the single instance

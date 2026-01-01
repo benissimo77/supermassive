@@ -119,7 +119,7 @@ export function initDashboardQuizEdit() {
 	function hostQuiz() {
 		const quizID = document.getElementById('quiz-id').value;
 		if (quizID) {
-			window.location.href = `/host/lobby?host=1&q=${quizID}`;
+			window.location.href = `/host/quiz/start?q=${quizID}`;
 		} else {
 			alert('Please save the quiz before hosting it');
 		}
@@ -1536,6 +1536,6 @@ export function initDashboardQuizEdit() {
 
 	function backToQuizList() {
 		// Always redirect to the quiz list page (modular navigation)
-		window.location.href = '/host/dashboard/quiz.html';
+		window.location.href = '/host/dashboard/quiz';
 	}
 }

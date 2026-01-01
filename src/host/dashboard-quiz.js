@@ -95,7 +95,7 @@ export function initDashboardQuiz() {
 	}
 
 	function gotoQuizEdit(quiz) {
-		window.location.href = '/host/dashboard/quizedit.html' + (quiz && quiz._id ? `?id=${quiz._id}` : '');
+		window.location.href = '/host/dashboard/quiz/edit' + (quiz && quiz._id ? `?id=${quiz._id}` : '');
 	}
 
 	async function importQuizFromFile(file) {

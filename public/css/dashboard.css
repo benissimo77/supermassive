@@ -272,11 +272,11 @@ button:hover {
   transform: rotate(180deg);
 }
 
-#sidebar .active a {
+#sidebar li.active > a, #sidebar li.active > .dropdown-btn {
   color: var(--clr-accent-alt);
 }
 
-#sidebar .active svg {
+#sidebar li.active > a svg, #sidebar li.active > .dropdown-btn svg {
   fill: var(--clr-accent-alt);
 }
 

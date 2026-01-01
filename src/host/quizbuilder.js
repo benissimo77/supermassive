@@ -236,7 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	function hostQuiz() {
 		const quizID = document.getElementById('quiz-id').value;
 		if (quizID) {
-			window.location.href = `/host/lobby?host=1&q=${quizID}`;
+			window.location.href = `/host/quiz/start?q=${quizID}`;
 		} else {
 			alert('Please save the quiz before hosting it');
 		}

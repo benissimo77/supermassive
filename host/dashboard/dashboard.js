@@ -72,20 +72,48 @@ document.addEventListener('DOMContentLoaded', () => {
 			await Auth.syncUI();
 
 			// Highlight the active menu item based on current URL
+			// We find the link with the longest href that matches the start of the current path
 			let thisPath = window.location.pathname;
-			if (thisPath.endsWith('/')) {
+			if (thisPath.endsWith('/') && thisPath.length > 1) {
 				thisPath = thisPath.slice(0, -1);
 			}
-			const links = sidebar.querySelectorAll('a');
-			links.forEach(link => {
-				console.log("Checking links in menu:", thisPath, link.getAttribute('href'));
-				if (thisPath === link.getAttribute('href')) {
+
+			const links = Array.from(sidebar.querySelectorAll('a'))
+				.filter(link => {
+					const href = link.getAttribute('href');
+					return href && href.startsWith('/');
+				})
+				.sort((a, b) => b.getAttribute('href').length - a.getAttribute('href').length);
+
+			for (const link of links) {
+				let href = link.getAttribute('href');
+				if (href.endsWith('/') && href.length > 1) {
+					href = href.slice(0, -1);
+				}
+
+				if (thisPath === href || thisPath.startsWith(href + '/')) {
 					const li = link.closest('li');
 					if (li) {
 						li.classList.add('active');
+
+						// If this link is inside a sub-menu, expand and highlight the parent
+						let parent = li.parentElement.closest('li');
+						while (parent) {
+							parent.classList.add('active');
+							const subMenu = parent.querySelector('.sub-menu');
+							if (subMenu) {
+								subMenu.classList.add('show');
+								const btn = subMenu.previousElementSibling;
+								if (btn && btn.classList.contains('dropdown-btn')) {
+									btn.classList.add('rotate');
+								}
+							}
+							parent = parent.parentElement.closest('li');
+						}
+						break; // Only highlight the best match
 					}
 				}
-			});
+			}
 		})
 		.catch(err => {
 			console.error('Failed to load menu:', err);

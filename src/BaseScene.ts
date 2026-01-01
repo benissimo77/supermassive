@@ -9,7 +9,7 @@ export abstract class BaseScene extends Phaser.Scene {
     private overlay: Phaser.GameObjects.Rectangle | null = null;
     private resizeCount: number = 0;
     private lastResizeTime: number = 0;
-    private resizeDebounceTimer: Phaser.Time.TimerEvent | null = null;
+    private resizeDebounceTimer: any = null;
     private resizeHandler: (gameSize: Phaser.Structs.Size) => void;
     private shutdownHandler: () => void;
 
@@ -27,6 +27,23 @@ export abstract class BaseScene extends Phaser.Scene {
     protected roomID: string = '';
 
     protected playerConfigs: Map<string, PlayerConfig> = new Map<string, PlayerConfig>();
+
+    // Mapping of game keys to Phaser scene keys
+    protected hostSceneMap: Record<string, string> = {
+        'lobby': 'LobbyHostScene',
+        'quiz': 'QuizHostScene',
+        'werewolf': 'WerewolfHostScene'
+    };
+
+    protected playSceneMap: Record<string, string> = {
+        'lobby': 'LobbyPlayScene',
+        'quiz': 'QuizPlayScene',
+        'werewolf': 'WerewolfPlayScene'
+    };
+
+    protected adminSceneMap: Record<string, string> = {
+        'quiz': 'QuizAdminScene'
+    };
 
     // TYPE is the type of screen we are showing, currently 'play' or 'host' (maybe 'admin', 'viewer' later)
     public TYPE: string;
@@ -110,6 +127,34 @@ export abstract class BaseScene extends Phaser.Scene {
             this.playerConfigs.clear();
             players.forEach((player: PlayerConfig) => this.handlePlayerConnect(player))
         });
+
+        // Listen for game load commands from the server
+        // This ensures all hosts/admins switch scenes simultaneously
+        this.socket.on('server:loadgame', (gameKey: string) => {
+            console.log(`${this.scene.key}:: Socket:: server:loadgame:`, gameKey);
+
+            let map = this.hostSceneMap;
+            if (this.TYPE === 'play') {
+                map = this.playSceneMap;
+            } else if (this.TYPE === 'admin') {
+                map = this.adminSceneMap;
+            }
+            
+            const sceneKey = map[gameKey] || gameKey;
+
+            if (this.scene.key === sceneKey) {
+                console.log(`${this.scene.key}:: Already in scene ${sceneKey}, ignoring load command.`);
+                return;
+            }
+
+            if (this.scene.get(sceneKey)) {
+                console.log(`${this.scene.key}:: Switching to scene: ${sceneKey}`);
+                this.scene.start(sceneKey);
+            } else {
+                console.warn(`${this.scene.key}:: Scene ${sceneKey} not found in game config.`);
+            }
+        });
+
         // Initialize the ping test handler
         this.initPingTest();
 
@@ -143,14 +188,22 @@ export abstract class BaseScene extends Phaser.Scene {
             this.requestWakeLock();
         });
 
-        this.backgroundContainer = this.add.container(0, 0);
-        this.add.existing(this.backgroundContainer);
-        this.mainContainer = this.add.container(0, 0);
-        this.add.existing(this.mainContainer);
-        this.UIContainer = this.add.container(0, 0);
-        this.add.existing(this.UIContainer);
-        this.topContainer = this.add.container(0, 0);
-        this.add.existing(this.topContainer);
+        if (!this.backgroundContainer) {
+            this.backgroundContainer = this.add.container(0, 0);
+            this.add.existing(this.backgroundContainer);
+        }
+        if (!this.mainContainer) {
+            this.mainContainer = this.add.container(0, 0);
+            this.add.existing(this.mainContainer);
+        }
+        if (!this.UIContainer) {
+            this.UIContainer = this.add.container(0, 0);
+            this.add.existing(this.UIContainer);
+        }
+        if (!this.topContainer) {
+            this.topContainer = this.add.container(0, 0);
+            this.add.existing(this.topContainer);
+        }
 
         // Especially on Apple devices we need to request wakelock only on user interaction
         this.input.once('pointerdown', () => {
@@ -249,19 +302,26 @@ export abstract class BaseScene extends Phaser.Scene {
         this.lastResizeTime = now;
 
         console.log(`Resize event received (${timeSinceLastResize}ms since last)`);
-        this.socket.emit('consolelog', `Resize event received (${timeSinceLastResize}ms since last)`);
+        if (this.socket) {
+            this.socket.emit('consolelog', `Resize event received (${timeSinceLastResize}ms since last)`);
+        }
 
         // Cancel any existing timer
         if (this.resizeDebounceTimer) {
-            this.resizeDebounceTimer.remove();
+            clearTimeout(this.resizeDebounceTimer);
+            this.resizeDebounceTimer = null;
         }
 
         // Set a new timer to process resize after 300ms of no events
-        this.resizeDebounceTimer = this.time.delayedCall(300, () => {
+        // Use window.setTimeout instead of this.time.delayedCall because this.time might not be ready in init()
+        this.resizeDebounceTimer = window.setTimeout(() => {
             console.log('Resize events settled, processing...');
-            this.socket.emit('consolelog', 'Resize events settled, processing...');
+            if (this.socket) {
+                this.socket.emit('consolelog', 'Resize events settled, processing...');
+            }
             this.handleResize(gameSize);
-        });
+            this.resizeDebounceTimer = null;
+        }, 300);
     }
 
     handleResize(gameSize: Phaser.Structs.Size): void {
@@ -274,10 +334,12 @@ export abstract class BaseScene extends Phaser.Scene {
         // UPDATE: DON'T use visualViewport just drop fullscreen / landscape lock for now
         let screenWidth = gameSize.width;
         let screenHeight = gameSize.height;
-        // if (window.visualViewport) {
-        // screenWidth = window.visualViewport.width;
-        // screenHeight = window.visualViewport.height;
-        // }
+
+        // Safety check for 0 dimensions
+        if (screenWidth === 0 || screenHeight === 0) {
+            console.warn(`${this.scene.key}:: BaseScene.handleResize: Dimensions are 0, skipping resize.`);
+            return;
+        }
 
         const scaleX = screenWidth / 1920;
         const logicalHeight = screenHeight / scaleX;

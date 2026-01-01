@@ -9,6 +9,28 @@ import RexPlugins from './scripts/rexUI';
 import { LobbyHostScene } from './lobby/LobbyHostScene';
 import { QuizHostScene } from './quiz/QuizHostScene';
 
+// Parse URL parameters and path to determine initial scene
+const urlParams = new URLSearchParams(window.location.search);
+const quizID = urlParams.get('q');
+
+// Extract role, room and game from path: /:role/:room/:game
+const pathSegments = window.location.pathname.split('/').filter(s => s.length > 0);
+console.log('AppHost:: window.location.pathname:', window.location.pathname);
+console.log('AppHost:: Path segments:', pathSegments);
+
+// Expected segments: ["host", "ROOMID", "GAME"]
+const role = pathSegments[0];
+const roomID = pathSegments[1];
+const gameKey = pathSegments[2];
+
+// Determine scene order - first scene in array starts automatically
+const scenes = [];
+if (gameKey === 'quiz') {
+    scenes.push(QuizHostScene, LobbyHostScene);
+} else {
+    scenes.push(LobbyHostScene, QuizHostScene);
+}
+
 const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
     width: 1920,
@@ -48,7 +70,7 @@ const config: Phaser.Types.Core.GameConfig = {
             }
         ]
     },
-    scene: [LobbyHostScene, QuizHostScene],
+    scene: scenes,
     parent: 'container'
 };
 
@@ -59,21 +81,29 @@ if (__DEV__) {
 }
 
 const game = new Phaser.Game(config);
-console.log('Game created:', game );
+console.log('AppHost:: Game created:', game);
 
+const startInitialScene = () => {
+    console.log('AppHost:: Ready. Path info:', { role, roomID, gameKey, quizID });
 
+    if (gameKey === 'quiz') {
+        console.log('AppHost:: Starting QuizHostScene');
+        game.scene.start(QuizHostScene.KEY, { quizID: quizID, roomID: roomID });
+    } else if (gameKey === 'lobby' || !gameKey || gameKey === 'dashboard') {
+        console.log('AppHost:: Starting LobbyHostScene');
+        game.scene.start(LobbyHostScene.KEY, { roomID: roomID });
+    } else {
+        console.log('AppHost:: Unknown gameKey, defaulting to LobbyHostScene:', gameKey);
+        game.scene.start(LobbyHostScene.KEY, { roomID: roomID });
+    }
+};
 
-// Start with the appropriate scene and pass data - this works....
-// game.events.once('ready', () => {
-
-//     console.log(`READY EVENT fired: Starting initial scene: {quizId: ${quizId}}`);
-
-//     // Stop all scenes first
-//     game.scene.scenes.forEach(scene => {
-//         scene.scene.stop();
-//     });
-    
-//     // Start the appropriate scene with configuration
-//     game.scene.start(QuizHostScene.KEY, { quizId: quizId });
-// });
+if (game.isBooted) {
+    // Small delay to ensure DOM is stable for resize calculations
+    setTimeout(startInitialScene, 100);
+} else {
+    game.events.once('ready', () => {
+        setTimeout(startInitialScene, 100);
+    });
+}
 

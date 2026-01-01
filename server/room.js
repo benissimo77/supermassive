@@ -12,12 +12,13 @@ class Room {
 		this.#io = io;
 		this.id = id;
 		this.host = undefined;
+		this.admins = [];
 		this.game = undefined;
 		this.players = [];
 
 		// Generate QR code for room
 		// Note: this is async but we don't need to await it here since we're leaving...
-		// this.generateQRCode(this.id);
+		this.generateQRCode(this.id);
 	}
 
 	// we say user because at this point we don't know if they are a player or a host/moderator/viewer etc...
@@ -41,19 +42,26 @@ class Room {
 			// I've removed this line from here and instead made the host responsible for contacting the server when its ready
 			// this.#io.to(socket.id).emit('hostconnect', { room: this.id, players: this.getConnectedPlayers() });
 			this.attachHostEvents(socket);
+		} else if (userObj.role === 'admin') {
+			// Admin role - can see host view and control game
+			console.log('User is admin:', socket.id, userObj);
+			this.admins.push(userObj);
+			this.attachHostEvents(socket);
 		} else {
 
 			var player = this.addUserAsPlayer(socket, userObj);
 
-			// Send message to host (if there is one)
-			if (this.host) {
-				this.#io.to(this.host.socketID).emit('playerconnect', player);
-			}
+			// Send message to host and admins
+			this.emitToHosts('playerconnect', player);
 
 			// TODO: some games might not allow players to join after the game has started - need to handle logic in this case...
 			// In this case we allow player to join...
 			if (this.game) {
+
+				// This call works if player is connecting for the first time OR if re-connecting
+				// Play client checks if the game is already running and does NOT restart it
 				this.#io.to(socket.id).emit('server:loadgame', this.game.name);
+
 			} else {
 				this.#io.to(socket.id).emit('server:loadgame', 'lobby');
 			}
@@ -69,12 +77,17 @@ class Room {
 
 		socket.on('player:ready', (data, callback) => {
 			console.log('player:ready from socket:', socket.id, data, callback);
+			const player = this.getPlayerBySocketID(socket.id);
 			if (callback && typeof callback === 'function') {
-				const player = this.getPlayerBySocketID(socket.id);
 				callback(player);
 			}
 			// and send the player their player object for display on the play page
 			// this.#io.to(socket.id).emit('playerconnect', player);
+
+			// Notify game of player (re)connection - function should work for both new and reconnected players
+			if (this.game) {
+				this.game.onPlayerReconnect(player, socket);
+			}
 
 		})
 
@@ -128,12 +141,19 @@ class Room {
 			socket.emit('server:players', this.getConnectedPlayers());
 		});
 
-		socket.on('host:requestgame', async (game) => {
-			console.log('host:requestgame:', game);
+		socket.on('host:requestgame', async (game, config, callback) => {
+			console.log('host:requestgame:', game, config);
+
+			// Support both (game, callback) and (game, config, callback)
+			if (typeof config === 'function') {
+				callback = config;
+				config = {};
+			}
 
 			// We might already be in this game - do nothing if this is the case...
 			if (this.game && this.game.name == game) {
 				console.log('Already running this game - ignore:', this.game.name);
+				if (callback) callback({ success: true, alreadyRunning: true });
 			} else {
 
 				try {
@@ -143,27 +163,31 @@ class Room {
 					// If your game modules use named exports instead, use: const { GameClass } = gameModule;
 
 					this.game = new NewGame(this);
+					this.game.name = game;
+
+					// If the game has an init method, call it with the config
+					// We await this so that the game can perform async setup (like loading data)
+					// before we acknowledge the host:requestgame event.
+					if (this.game.init && typeof this.game.init === 'function') {
+						await this.game.init(config);
+					}
+
+					this.emitToAllPlayers('server:loadgame', game);
+					this.emitToHosts('server:loadgame', game);
+
+					if (callback) callback({ success: true });
 
 				} catch (error) {
 					console.error(`Error loading game '${game}':`, error);
+					if (callback) callback({ success: false, error: error.message });
+
 					// Notify host about the error
 					socket.emit('server:error', {
 						message: `Could not load game '${game}'`,
 						details: error.message
 					});
-					return;
 				}
 			}
-
-			// there might need to be some more checks here to make sure the game is valid...
-			const valid = this.game.checkGameRequirements();
-			console.log('Game is valid:', valid);
-			if (valid || true) {
-				this.emitToAllPlayers('server:loadgame', game);
-				console.log('emitted to all players - now emitting to host');
-				this.emitToHosts('server:loadgame', game);
-			}
-
 		});
 
 		// requeststart
@@ -185,9 +209,7 @@ class Room {
 						var player = this.addUserAsPlayer(socket, this.host);
 
 						// Send message to host (ie this player)
-						if (this.host) {
-							this.#io.to(this.host.socketID).emit('playerconnect', player);
-						}
+						this.emitToHosts('playerconnect', player);
 
 					}
 
@@ -283,15 +305,22 @@ class Room {
 				callback(response);
 			}
 		};
-		// Get the actual socket object instead of using io.to()
-		const hostSocket = this.#io.sockets.sockets.get(this.host.socketID);
-
-		if (hostSocket) {
-			// Use direct socket.emit which properly supports acknowledgments
-			hostSocket.emit(event, data, wrappedCallback);
-		} else {
-			console.error(`Cannot emit to host - socket ${this.host.socketID} not found`);
+		
+		// Emit to primary host
+		if (this.host) {
+			const hostSocket = this.#io.sockets.sockets.get(this.host.socketID);
+			if (hostSocket) {
+				hostSocket.emit(event, data, wrappedCallback);
+			}
 		}
+
+		// Emit to admins (without callback to avoid double-processing)
+		this.admins.forEach(admin => {
+			const adminSocket = this.#io.sockets.sockets.get(admin.socketID);
+			if (adminSocket) {
+				adminSocket.emit(event, data);
+			}
+		});
 	}
 
 	// emitToPlayers
@@ -363,9 +392,9 @@ class Room {
 		}
 		// Either way we want to inform the host - we will remove the player from the host display even though we retain the player object
 		// Note that we pass the players sessionID not their socketID - sockets are used to send the messages, session used to identify users
-		if (this.host && player) {
-			console.log('Host:: sending playerdisconnect:', this.host.socketID, player);
-			this.#io.to(this.host.socketID).emit('playerdisconnect', player.sessionID);
+		if (player) {
+			console.log('Host:: sending playerdisconnect:', player);
+			this.emitToHosts('playerdisconnect', player.sessionID);
 		}
 	}
 	getPlayerBySocketID(socketID) {

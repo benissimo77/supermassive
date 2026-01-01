@@ -41,10 +41,12 @@ function checkHost(req, res, next) {
 
 // Middleware to check if the (host) user is in a room - creates a new room if not
 function checkRoom(req, res, next) {
-	// console.log('checkRoom:', req.baseUrl, req.originalUrl, req.url, req.path, req.params, req.query);
+	// If room is in the URL, use it
+	if (req.params.room) {
+		req.session.room = req.params.room;
+	}
 
 	// In development we want to be able to override the room name by adding directly to query
-	// console.log(process.env.NODE_ENV, req.query);
 	if (process.env.NODE_ENV === 'development') {
 		if (req.query.room) {
 			req.session.room = req.query.room;
@@ -54,95 +56,56 @@ function checkRoom(req, res, next) {
 	if (req.session && req.session.room) {
 		next();
 	} else {
-		req.session.room = generateNewRoomName();
-		next();
+		// If no room, redirect to dashboard to start one
+		console.log('checkRoom:: No room in session, redirecting to /host/dashboard');
+		res.redirect('/host/dashboard');
 	}
 }
 
-router.use([isAuth, checkHost, checkRoom]);
+// Base host routes (Auth only)
+router.use([isAuth, checkHost]);
 
+// Static files with extension support
+// This handles /host/dashboard -> host/dashboard/index.html
+// and /host/dashboard/quiz -> host/dashboard/quiz/index.html
+// and /host/dashboard/quiz/edit -> host/dashboard/quiz/edit.html
+router.use(express.static('host', { extensions: ['html'] }));
 
-// Before serving static files from the host directory, override some of the files to permit handlebars templating
-
-
-// Problem with all lines below - WHY DID I DO THIS USING HANDLEBARS???
-// One quick decision to allow handlebars to create a dynamic page and suddenly everything is a handlebars template
-// NO NEED FOR THIS!!!
-// Note that this route has a trailing slash - seems that either browser or server is adding slash at the end
-// router.get('/dashboard/', (req, res) => {
-// 	console.log('routes.host.js: /dashboard');
-//     res.render('home', { layout: 'dashboard' }); // Use a different layout
-// });
-// // Repeat above but without the slash... (?)
-// router.get('/dashboard', (req, res) => {
-// 	console.log('routes.host.js: /dashboard');
-//     res.render('home', { layout: 'dashboard' }); // Use a different layout
-// });
-// router.get('/dashboard/home', (req, res) => {
-// 	console.log('routes.host.js: /dashboard/home');
-//     res.render('home', { layout: 'dashboard' }); // Use a different layout
-// });
-// router.get('/dashboard/quiz', (req, res) => {
-// 	console.log('routes.host.js: /dashboard/quiz');
-//     res.render('quiz', { layout: false }); // Use a different layout
-// });
-// router.get('/dashboard/sample', (req, res) => {
-// 	console.log('routes.host.js: /dashboard/sample');
-//     res.render('sample', { layout: 'dashboard' }); // Use a different layout
-// });
-
-// The problem with the code below is that every request for a page in /dashboard gets rendered as a tempalte
-// But currently all the styles and javascript code is also accessed from /dashbaord (the static folder)
-// So these get treated as if they were templates...
-// // Nice idea but not right now
-// router.get('/dashboard/:page', (req, res) => {
-//     const page = req.params.page; // Get the page parameter from the URL
-//     console.log(`routes.host.js: /dashboard/${page}`);
-
-//     // Define a list of valid pages to prevent rendering invalid templates
-//     const validPages = ['quiz', 'sample', 'home']; // Add other valid page names here
-
-//     if (validPages.includes(page)) {
-//         // Render the corresponding template
-//         res.render(page, { layout: false }); // Use layout conditionally
-//     } else {
-//         // Handle invalid page requests
-// 		console.log('Not a page');
-//     }
-// });
-
-// INSTEAD - just serve the static files from the host directory
-// /host redirects to /host/dashboard
-// This done just to keep host directory clean and place every page into a folder
-// dashboard is the 'main' host page - other folders contain the other pages
+// Dashboard Home Redirect
 router.get('/', (req, res) => {
-	console.log('routes.host.js: /');
 	res.redirect('/host/dashboard');
 });
 
-// // Repeat above but without the slash... (?)
-// router.get('/dashboard', (req, res) => {
-// 	console.log('routes.host.js: /dashboard');
-//     res.render('home', { layout: 'dashboard' }); // Use a different layout
-// });
+// Start a game (The Redirector)
+// Generates a room and redirects to the Stage
+router.get('/:game/start', (req, res) => {
+	const room = generateNewRoomName();
+	req.session.room = room;
+	const game = req.params.game;
+	const q = req.query.q ? `?q=${req.query.q}` : '';
+	res.redirect(`/host/${room}/${game}${q}`);
+});
 
+// Active Game (The Stage)
+// Serves the game files at the Room-prefixed URL
+// We use a regex constraint [A-Z]{4} to ensure this only matches 4-character room codes,
+// preventing it from intercepting routes like /host/dashboard/something
+router.get('/:room([A-Z]{4})/:game', checkRoom, (req, res) => {
+	const { game } = req.params;
+	res.sendFile(`${game}/index.html`, { root: './host' });
+});
 
-// This works when it is described below - it does NOT seem to work when placed into a (req,res,next) type function
-// NOTE: this is placed after the checks above so it serves /host files only to authenticated hosts with a room
-// router.use( express.static(__dirname + '/host', { redirect: false }) );
-router.use(express.static('host'));
-
-
-
-// For development - admin console (shouldn't be placed in the public folder...)
-router.get('/admin', isAdmin, (req, res) => {
-	// Authorise user here
-	res.sendFile('index.html', { root: './public/admin' })
-})
-
+// Static files for games
+// We serve static files both at the root and with the room prefix to support relative paths
+router.use('/:room([A-Z]{4})', express.static('host'));
 
 const generateNewRoomName = () => {
-	return 'SNOW';
+	const chars = 'BCDFGHJKLMNPQRSTVWXYZ';
+	let result = '';
+	for (let i = 0; i < 4; i++) {
+		result += chars.charAt(Math.floor(Math.random() * chars.length));
+	}
+	return result;
 }
 
 export default router;

@@ -1,6 +1,7 @@
 // Models - note this should be placed into the werewolves file since it is game-specific
 import { Player, Phases, Roles } from './models/allModels.js';
 import { mongoose } from './db.js';
+import { GhostManager } from './services/GhostManager.js';
 
 
 class Room {
@@ -12,9 +13,12 @@ class Room {
 		this.#io = io;
 		this.id = id;
 		this.host = undefined;
+		this.hosts = [];
 		this.admins = [];
 		this.game = undefined;
 		this.players = [];
+
+		this.ghostManager = new GhostManager(this);
 
 		// Generate QR code for room
 		// Note: this is async but we don't need to await it here since we're leaving...
@@ -34,6 +38,7 @@ class Room {
 			// perform host initialisation...
 			console.log('User is host:', socket.id, userObj);
 			this.host = userObj;
+			this.hosts.push(userObj);
 
 			// Workaround - in case we will end up in SOLO player mode intialise the host fields for a player
 			this.host.name = 'HOST';
@@ -60,10 +65,11 @@ class Room {
 
 				// This call works if player is connecting for the first time OR if re-connecting
 				// Play client checks if the game is already running and does NOT restart it
-				this.#io.to(socket.id).emit('server:loadgame', this.game.name);
+				// Note: we now awit for an explicit 'player:ready' event from the player before sending the loadgame event
+				// socket.emit('server:loadgame', this.game.name);
 
 			} else {
-				this.#io.to(socket.id).emit('server:loadgame', 'lobby');
+				// this.#io.to(socket.id).emit('server:loadgame', 'lobby');
 			}
 		}
 
@@ -86,10 +92,22 @@ class Room {
 
 			// Notify game of player (re)connection - function should work for both new and reconnected players
 			if (this.game) {
+				console.log('Sending server:loadgame to player:', this.game.name);
+				socket.emit('server:loadgame', this.game.name);
 				this.game.onPlayerReconnect(player, socket);
 			}
+			// if we have no game then the player will remain in the lobby
 
 		})
+
+		// player:rating - sent by player at the end of a game/quiz
+		socket.on('player:rating', (data) => {
+			console.log('Room:: player:rating:', socket.id, data);
+			const player = this.getPlayerBySocketID(socket.id);
+			if (this.game && this.game.onPlayerRating) {
+				this.game.onPlayerRating(player, data);
+			}
+		});
 
 		// Just see if I can catch a socket connect/disconnect events
 		socket.on('connect', (data) => {
@@ -151,8 +169,22 @@ class Room {
 			}
 
 			// We might already be in this game - do nothing if this is the case...
-			if (this.game && this.game.name == game) {
+			// Update: If the game has ended, we can start a new one of the same type
+			const isEnded = this.game && typeof this.game.isEnded === 'function' ? this.game.isEnded() : false;
+			const isSame = this.game && typeof this.game.isSameGame === 'function' ? this.game.isSameGame(config) : true;
+
+			if (this.game && this.game.name == game && !isEnded && isSame) {
 				console.log('Already running this game - ignore:', this.game.name);
+
+				// If the game has not actually started yet (is in the lobby phase), we should allow it to re-initialize
+				// to pick up any changes made to the quiz data in the database.
+				// if (this.game.started === false && this.game.init && typeof this.game.init === 'function') {
+				// 	console.log('Game not started yet - re-initializing to pick up any data changes...');
+				// 	const initData = await this.game.init(config) || {};
+				// 	if (callback) callback({ success: true, ...initData });
+				// 	return;
+				// }
+
 				if (callback) callback({ success: true, alreadyRunning: true });
 			} else {
 
@@ -168,14 +200,17 @@ class Room {
 					// If the game has an init method, call it with the config
 					// We await this so that the game can perform async setup (like loading data)
 					// before we acknowledge the host:requestgame event.
+					let initData = {};
 					if (this.game.init && typeof this.game.init === 'function') {
-						await this.game.init(config);
+						initData = await this.game.init(config) || {};
 					}
 
 					this.emitToAllPlayers('server:loadgame', game);
-					this.emitToHosts('server:loadgame', game);
+					// Note: the next line is not needed since we pass data via the callback function below
+					// BUT it could be useful in future when we navigate via the lobby, THEN the host needs to load the quiz game
+					// this.emitToHosts('server:loadgame', { game, ...initData });
 
-					if (callback) callback({ success: true });
+					if (callback) callback({ success: true, ...initData });
 
 				} catch (error) {
 					console.error(`Error loading game '${game}':`, error);
@@ -226,19 +261,6 @@ class Room {
 			this.endGame();
 		})
 
-		// All the remaining event seem very game-specific - maybe they should be moved to the game object
-		socket.on('host:requestnight', () => {
-			console.log('host:requestnight:', this.game);
-			this.game.nightActionAsync();
-		})
-		socket.on('host:requestday', () => {
-			console.log('host:requestday', this.game);
-			this.game.dayAction();
-		})
-		socket.on('requestgamestate', () => {
-			console.log('requestgamestate:', socket.id, this.getPlayerBySocketID(socket.id));
-			this.#io.to(socket.id).emit('gamestate', this.players);
-		})
 		socket.on('host:response', (response) => {
 			console.log('host:response :', socket.id, response);
 			if (this.hostResponseHandler) {
@@ -254,6 +276,32 @@ class Room {
 			}
 		})
 
+		socket.on('admin:kickplayer', (sessionID) => {
+			console.log('Room:: host:kickplayer:', sessionID);
+			const player = this.players.find(p => p.sessionID === sessionID);
+			if (player) {
+				console.log('Room:: Found player to kick:', player);
+				const playerSocket = this.getSocket(player.socketID);
+				if (playerSocket) {
+					console.log(`Room:: Kicking player ${player.name} (${sessionID})`);
+					playerSocket.disconnect(true);
+				}
+				// The disconnect event will trigger removePlayer, which notifies hosts
+			} else {
+				console.error('Room:: Cannot find player to kick with sessionID:', sessionID);
+			}
+		})
+
+		socket.on('admin:spawn_ghost', () => {
+			console.log('Room:: host:spawn_ghost');
+			this.ghostManager.spawnGhost();
+		});
+
+		socket.on('admin:remove_ghosts', () => {
+			console.log('Room:: host:remove_ghosts');
+			this.ghostManager.removeAllGhosts();
+		});
+
 		// General purpose test event - can be used as a scratch to quickly check some functionality server-side
 		socket.on('buttontest', (data) => {
 			console.log('Host:: buttontest:', data);
@@ -263,9 +311,9 @@ class Room {
 		// Similar to above - can be used to simulate a socket event from the server
 		// Simply echoes directly back to the host whatever event was passed
 		socket.on('triggersocketevent', (data) => {
-			console.log('triggersocketevent:', data.eventname, data.payload);
-			this.emitToHosts(data.eventname, data.payload, true)
-			this.emitToAllPlayers(data.eventname, data.payload);
+			console.log('triggersocketevent:', data.event, data.payload);
+			this.emitToHosts(data.event, data.payload)
+			this.emitToAllPlayers(data.event, data.payload);
 		})
 	}
 
@@ -290,6 +338,23 @@ class Room {
 		this.hostKeypressHandler = null;
 	}
 
+	/**
+	 * Helper to get a socket by ID, checking both real and ghost sockets.
+	 */
+	getSocket(socketID) {
+		// Try real sockets first
+		let socket = this.#io.sockets.sockets.get(socketID);
+		if (socket) return socket;
+
+		// Try ghost sockets
+		if (this.ghostManager) {
+			const ghost = this.ghostManager.ghosts.find(g => g.socket.id === socketID);
+			if (ghost) return ghost.socket;
+		}
+
+		return null;
+	}
+
 	endGame() {
 		console.log('room.endGame: game has ended - clear up');
 		this.game = null;
@@ -300,23 +365,26 @@ class Room {
 	// Fixed version using socket.emit
 	emitToHosts(event, data, callback = null) {
 		console.log('emitToHosts:', event, data);
+		
+		let callbackCalled = false;
 		const wrappedCallback = (response) => {
-			if (typeof callback === 'function') {
+			if (typeof callback === 'function' && !callbackCalled) {
+				callbackCalled = true;
 				callback(response);
 			}
 		};
 		
-		// Emit to primary host
-		if (this.host) {
-			const hostSocket = this.#io.sockets.sockets.get(this.host.socketID);
+		// Emit to all hosts
+		this.hosts.forEach(host => {
+			const hostSocket = this.getSocket(host.socketID);
 			if (hostSocket) {
 				hostSocket.emit(event, data, wrappedCallback);
 			}
-		}
+		});
 
 		// Emit to admins (without callback to avoid double-processing)
 		this.admins.forEach(admin => {
-			const adminSocket = this.#io.sockets.sockets.get(admin.socketID);
+			const adminSocket = this.getSocket(admin.socketID);
 			if (adminSocket) {
 				adminSocket.emit(event, data);
 			}
@@ -333,7 +401,7 @@ class Room {
 			}
 		};
 		for (let i = 0; i < players.length; i++) {
-			const playerSocket = this.#io.sockets.sockets.get(players[i]);
+			const playerSocket = this.getSocket(players[i]);
 			if (playerSocket) {
 				playerSocket.emit(event, data, wrappedCallback);
 			} else {
@@ -345,12 +413,17 @@ class Room {
 	// emitToAllPlayers
 	// Send an event to all players in the room, with the data payload (note: NOT sent to the host)
 	emitToAllPlayers(event, data, callback = null) {
-		const playerSockets = this.players.map((player) => { return player.socketID });
+		const playerSockets = this.players
+			.filter(player => player.connected)
+			.map((player) => { return player.socketID });
 
 		// In single-player mode the host WILL be in the players array but we DON'T want to send the event to them
-		if (this.host && playerSockets.includes(this.host.socketID)) {
-			playerSockets.splice(playerSockets.indexOf(this.host.socketID), 1);
-		}
+		this.hosts.forEach(host => {
+			if (playerSockets.includes(host.socketID)) {
+				playerSockets.splice(playerSockets.indexOf(host.socketID), 1);
+			}
+		});
+
 		console.log('emitToAllPlayers:', playerSockets, event, data);
 		this.emitToPlayers(playerSockets, event, data, callback);
 	}
@@ -381,15 +454,35 @@ class Room {
 	// Remove a player from the room - only takes effect if game has not started
 	// If game HAS started then we need to handle the player leaving in a different way - maybe just mark them as disconnected
 	removePlayer(socketID) {
-		const player = this.getPlayerBySocketID(socketID);
-		console.log('removePlayer:', socketID, player);
-		if (this.started) {
+		const playerIndex = this.players.findIndex(p => p.socketID === socketID);
+		const player = playerIndex !== -1 ? this.players[playerIndex] : null;
+		
+		console.log('removePlayer:', socketID, player ? player.name : 'unknown');
+
+		// Clean up hosts and admins
+		this.hosts = this.hosts.filter(h => h.socketID !== socketID);
+		this.admins = this.admins.filter(a => a.socketID !== socketID);
+
+		// Update primary host if it was the one that disconnected
+		if (this.host && this.host.socketID === socketID) {
+			this.host = this.hosts.length > 0 ? this.hosts[this.hosts.length - 1] : undefined;
+		}
+
+		if (this.game && this.game.started) {
 			if (player) {
 				player.connected = false;
 			}
 		} else {
-			this.players = this.players.filter((player) => player.socketID != socketID);
+			if (playerIndex !== -1) {
+				this.players.splice(playerIndex, 1);
+			}
 		}
+
+		// Clean up ghost manager if it was a ghost
+		if (this.ghostManager) {
+			this.ghostManager.removeGhost(socketID);
+		}
+
 		// Either way we want to inform the host - we will remove the player from the host display even though we retain the player object
 		// Note that we pass the players sessionID not their socketID - sockets are used to send the messages, session used to identify users
 		if (player) {
@@ -413,7 +506,7 @@ class Room {
 		// For now we simply generate a QR code using an external service and save it as a PNG file in the host/qr folder
 		// In future we might want to generate these dynamically on request
 		// Using goqr.me API - limit of 1000 requests per day for free usage
-		const qrURL = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://videoswipe.net/play/${roomID}`;
+		const qrURL = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://videoswipe.net/play?room=${roomID}`;
 		const fs = await import('fs');
 		const https = await import('https');
 		const file = fs.createWriteStream(`./public/assets/qr/${roomID}.png`);

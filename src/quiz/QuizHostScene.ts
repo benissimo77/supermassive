@@ -3,7 +3,7 @@ import gsap from 'gsap';
 declare const __DEV__: boolean;
 
 import { BaseScene } from "src/BaseScene";
-import { SocketDebugger } from "src/SocketDebugger";
+import { SocketDebugger } from "src/utils/SocketDebugger";
 import { QuizMap, QuizMapData } from "./QuizMap";
 
 import { QuestionFactory } from "./questions/QuestionFactory";
@@ -14,19 +14,20 @@ import { YouTubePlayerUI } from './YouTubePlayerUI';
 
 import { GlobalNavbar } from 'src/ui/GlobalNavbar';
 import { SoundSettingsPanel } from 'src/ui/SoundSettingsPanel';
+import { BeatManager } from 'src/utils/BeatManager';
 
 export class QuizHostScene extends BaseScene {
 
     static readonly KEY = 'QuizHostScene';
 
     private socketDebugger: SocketDebugger;
+    private beatManager: BeatManager;
 
     private currentQuestion: BaseQuestion;
     private currentRoundNumber: number = 0;
     private currentQuestionNumber: number = 0;
     private quizMap: QuizMap;
     private phaserPlayers: Map<string, PhaserPlayer> = new Map();
-    private playerScores: Map<string, number> = new Map();
     private playerAnswers: Map<string, any> = new Map();
     private questionFactory: QuestionFactory;
 
@@ -36,7 +37,6 @@ export class QuizHostScene extends BaseScene {
     private globalNavbar: GlobalNavbar;
     private soundSettings: SoundSettingsPanel;
 
-    private streamModeIndicator: Phaser.GameObjects.Text;
     private streamCue: Phaser.GameObjects.Graphics;
 
     // Containers - created once in order to set the ordering
@@ -49,8 +49,22 @@ export class QuizHostScene extends BaseScene {
     // Racetrack for animating scores
     private racetrack: Racetrack;
 
+    private spotlights: Phaser.GameObjects.Graphics[] = [];
+    private podiums: Phaser.GameObjects.Graphics[] = [];
+
+    private introTimeline: gsap.core.Timeline | null = null;
+
     private background: Phaser.GameObjects.Image;
     private backgroundOverlay: Phaser.GameObjects.Graphics;
+
+    private instructionsPanel: Phaser.GameObjects.Container | null = null;
+    private instructionState: 'hidden' | 'minimized' | 'maximized' = 'maximized';
+
+    private startingSoonHUD: Phaser.GameObjects.Container | null = null;
+    private HUDTimerGraphics: Phaser.GameObjects.Graphics | null = null;
+    private HUDWaitingText: Phaser.GameObjects.Text | null = null;
+    private HUDCountdownSeconds: number = 900;
+    private lobbyTitle: string = 'THE GAUNTLET';
 
     // Add this constructor to set the scene key
     constructor() {
@@ -65,7 +79,6 @@ export class QuizHostScene extends BaseScene {
 
         // for host the TYPE will be 'host' or 'solo'
         this.TYPE = 'host';
-        this.playerScores = new Map();
         this.playerAnswers = new Map();
         this.questionFactory = new QuestionFactory(this);
 
@@ -78,8 +91,6 @@ export class QuizHostScene extends BaseScene {
         //     console.log(`Pointer moved to: x=${pointer.x}, y=${pointer.y}`);
         // }, this);
 
-        // Setup socket listeners
-        this.setupSocketListeners();
     }
 
     preload(): void {
@@ -96,6 +107,9 @@ export class QuizHostScene extends BaseScene {
         this.load.image('simple-button', '/assets/img/simplebutton.png');
         this.load.image('simple-button-hover', '/assets/img/simplebutton-hover.png');
         this.load.image('dropzone', '/assets/img/dropzone.png');
+
+        // Player UI assets
+        this.load.image('playernamepanel', '/assets/rounded-rect-grey-480x48x14.png');
 
         // YouTube player buttons
         this.load.image('player-play', '/assets/img/YouTubePlayerButtons_90px_0002_play.png');
@@ -121,6 +135,7 @@ export class QuizHostScene extends BaseScene {
         this.load.audio('submit-answer', '/assets/audio/quiz/fx/585256__lesaucisson__swoosh-2.mp3');
         this.load.audio('question-answered', '/assets/audio/quiz/fx/446100__justinvoke__bounce.wav');
         this.load.audio('end-question', '/assets/audio/quiz/fx/gong-hit-2-184010.mp3');
+        this.load.audio('crowd-cheer', '/assets/audio/quiz/fx/crowd-cheering-314920.mp3');
 
         // Load custom fonts
         this.load.rexWebFont({
@@ -134,6 +149,7 @@ export class QuizHostScene extends BaseScene {
     create(): void {
 
         super.create();
+        this.beatManager = new BeatManager();
 
         if (this.rexUI) {
             // Create your UI components
@@ -160,12 +176,12 @@ export class QuizHostScene extends BaseScene {
             1920,
             this.getY(400)
         );
-        this.racetrack.setPosition(0, this.getY(640));
+        this.racetrack.setPosition(0, this.getY(1200));
         this.add.existing(this.racetrack);
         this.mainContainer.add(this.racetrack);
         this.racetrack.flyOut().play();
 
-        this.quizMap = new QuizMap(this, 0, this.getY(1000));
+        this.quizMap = new QuizMap(this, this.getY(20), this.getY(240));
         this.add.existing(this.quizMap);
         this.mainContainer.add(this.quizMap);
 
@@ -201,16 +217,45 @@ export class QuizHostScene extends BaseScene {
         // Ensure initial layout is correct before starting bootstrap
         this.sceneDisplay();
 
+        // Create a simple white pixel for particles/confetti
+        // Using a 2x2 white texture to ensure it's visible and tintable
+        const graphics = this.make.graphics({ x: 0, y: 0 });
+        graphics.fillStyle(0xffffff, 1);
+        graphics.fillRect(0, 0, 2, 2);
+        graphics.generateTexture('white-pixel', 2, 2);
+
+        // Create a star texture for player FX
+        graphics.clear();
+        graphics.fillStyle(0xffffff, 1);
+        const starPoints = 5;
+        const outerRadius = 10;
+        const innerRadius = 4;
+        graphics.beginPath();
+        for (let i = 0; i < starPoints * 2; i++) {
+            const angle = (i * Math.PI) / starPoints - Math.PI / 2;
+            const radius = i % 2 === 0 ? outerRadius : innerRadius;
+            const x = 10 + Math.cos(angle) * radius;
+            const y = 10 + Math.sin(angle) * radius;
+            if (i === 0) graphics.moveTo(x, y);
+            else graphics.lineTo(x, y);
+        }
+        graphics.closePath();
+        graphics.fillPath();
+        graphics.generateTexture('star-particle', 20, 20);
+
+        // Setup socket listeners
+        this.setupSocketListeners();
+
         // SEQUENTIAL BOOTSTRAP:
-        // 1. host:ready -> get roomID
-        // 2. host:requestgame -> load game module
-        // 3. host:requeststart -> start game logic
+        // 1. host:ready -> server returns roomID
+        // 2. host:requestgame -> server loads game module returns quiz data (pre-game waiting state) 
+        // 3. host:requeststart -> start game logic (opening credits and into first round)
 
         console.log('QuizHostScene:: Starting sequential bootstrap...');
         this.socket?.emit('consolelog', 'QuizHostScene:: Starting sequential bootstrap...');
 
         const urlParams = new URLSearchParams(window.location.search);
-        const quizID = this.scene.settings.data?.quizID || urlParams.get('q');
+        const quizID = (this.scene.settings.data as any)?.quizID || urlParams.get('q');
 
         // 1. host:ready -> get roomID and show instructions
         this.socket.emit('host:ready', {}, (readyResponse: any) => {
@@ -231,18 +276,42 @@ export class QuizHostScene extends BaseScene {
         console.log('QuizHostScene:: Requesting game "quiz" from server...');
         this.socket.emit('host:requestgame', 'quiz', { quizID }, (gameResponse: any) => {
             console.log('QuizHostScene:: host:requestgame ack received:', gameResponse);
-            this.socket?.emit('consolelog', `QuizHostScene:: host:requestgame ack received: ${JSON.stringify(gameResponse)}`);
 
             if (gameResponse && gameResponse.success) {
-                // 3. Auto-start if quizID is present
-                if (quizID) {
-                    console.log('QuizHostScene:: Auto-starting quiz:', quizID);
-                    this.socket.emit('host:requeststart');
-                }
+                // Initialize the Waiting to Start display with the rich data returned from the server
+                this.waitingToStart(gameResponse);
             } else {
                 console.error('QuizHostScene:: Failed to load game "quiz":', gameResponse ? gameResponse.error : 'No response');
             }
         });
+    }
+    update(time: number, delta: number): void {
+        this.beatManager.update();
+        if (this.startingSoonHUD && this.HUDTimerGraphics) {
+            this.drawHUDTimer();
+        }
+    }
+
+    private waitingToStart(data: any): void {
+        console.log('QuizHostScene:: Initializing Lobby Phase:', data.title);
+        
+        // Start lobby music
+        this.soundManager.playMusic('quiz-music-intro', { volume: 0.5 });
+        const music = this.soundManager.getCurrentMusicTrack();
+        if (music && music.sound) {
+            // "modern-beat-jingle-intro" sounds like ~128 BPM
+            this.beatManager.start(music.sound, 128);
+        }
+
+        // Update Quiz Map if provided
+        if (data.quizMap && this.quizMap) {
+            this.quizMap.setMapData(data.quizMap);
+            this.quizMap.updatePosition(0, 0, 'LOBBY');
+        }
+
+        // Show the pulsing title and instructions
+        this.showStartingSoonHUD(data.title);
+        this.showInstructions();
     }
 
 
@@ -258,6 +327,14 @@ export class QuizHostScene extends BaseScene {
             } else {
                 this.addPlayer(playerConfig);
             }
+
+            // Refresh instructions and HUD
+            if (this.instructionState === 'maximized') {
+                this.showInstructions();
+            }
+            if (this.startingSoonHUD) {
+                this.showStartingSoonHUD();
+            }
         });
 
         // When player disconnects don't remove from list as they might re-join
@@ -270,6 +347,11 @@ export class QuizHostScene extends BaseScene {
             } else {
                 console.warn(`Player with session ID ${sessionID} not found.`);
             }
+
+            // Update HUD
+            if (this.startingSoonHUD) {
+                this.showStartingSoonHUD();
+            }
         });
 
         this.socket.on('server:players', (playerConfigs: PlayerConfig[]) => {
@@ -278,6 +360,10 @@ export class QuizHostScene extends BaseScene {
             playerConfigs.forEach((playerConfig: PlayerConfig) => {
                 this.addPlayer(playerConfig);
             });
+
+            if (this.startingSoonHUD) {
+                this.showStartingSoonHUD();
+            }
         });
 
 
@@ -285,9 +371,12 @@ export class QuizHostScene extends BaseScene {
         this.socket.on('server:introquiz', (data) => {
             if (data.quizMap) {
                 this.quizMap.setMapData(data.quizMap);
-                this.quizMap.updatePosition(0, 0, 'INTRO_QUIZ');
             }
-            this.showQuizIntro(data.title, data.description);
+        });
+
+        // Listen for opening credits message
+        this.socket.on('server:openingcredits', (data) => {
+            this.showOpeningCredits(data.title, data.description || '', data.samples || []);
         });
 
         // Listen for intro round message
@@ -358,11 +447,7 @@ export class QuizHostScene extends BaseScene {
             // - re-parent them in playerContainer
             // - animate them to the bottom of the screen on the next tween update
             this.phaserPlayers.forEach((player: PhaserPlayer) => {
-                if (player.parentContainer === this.racetrack) {
-                    player.x += this.racetrack.x;
-                    player.y += this.racetrack.y;
-                    this.playerContainer.add(player);
-                }
+                this.reparentObject(player, this.playerContainer);
                 player.setPlayerState(PhaserPlayerState.ANSWERING);
                 player.resetPlayerScoreText();
                 this.animatePlayer(player);
@@ -428,6 +513,10 @@ export class QuizHostScene extends BaseScene {
             this.quizMap.updatePosition(this.currentRoundNumber, this.currentQuestionNumber, 'END_QUIZ');
             this.showFinalScores(data);
         });
+        // Closing credits
+        this.socket.on('server:closingcredits', (data) => {
+            this.showClosingCredits(data);
+        });
 
         // Start timer
         this.socket.on('server:starttimer', (data) => {
@@ -437,11 +526,6 @@ export class QuizHostScene extends BaseScene {
         this.socket.on('server:waitingforstream', (data) => {
             console.log('QuizHostScene:: server:waitingforstream:', data);
             this.showStreamCue();
-        });
-
-        this.socket.on('server:streammode', (data) => {
-            console.log('QuizHostScene:: server:streammode:', data);
-            this.updateStreamModeIndicator(data.enabled);
         });
 
         this.socket.on('server:collectanswers', () => {
@@ -470,8 +554,30 @@ export class QuizHostScene extends BaseScene {
         const keyName = event.key.toUpperCase();
 
         console.log(`Key pressed: ${keyName} (code: ${event.code}) ${event.shiftKey ? 'with Shift' : ''} ${event.ctrlKey ? 'with Ctrl' : '' }`);
+        
+        // Handle local hotkeys
+        if (event.code === 'KeyI') {
+            this.toggleInstructions();
+            return;
+        }
+        if (event.code === 'KeyN') {
+            this.globalNavbar?.toggle();
+            return;
+        }
+
         this.socket.emit('host:keypress', { key: event.code, shiftKey: event.shiftKey, ctrlKey: event.ctrlKey });
         this.flyQuestionOut(event.code);
+    }
+
+    private toggleInstructions(): void {
+        if (this.instructionState === 'hidden') {
+            this.instructionState = 'maximized';
+        } else if (this.instructionState === 'maximized') {
+            this.instructionState = 'minimized';
+        } else {
+            this.instructionState = 'hidden';
+        }
+        this.showInstructions();
     }
 
     private showRoomID(roomID: string): void {
@@ -542,14 +648,15 @@ export class QuizHostScene extends BaseScene {
     animatePlayer(player: PhaserPlayer): void {
         // console.log('animatePlayer:', player);
         
-        // If player is racing, do not animate anymore since racetrack will control player
-        if (player.getPlayerState() === PhaserPlayerState.RACING) {
+        // If player is racing or revealing, do not animate anymore since racetrack will control player
+        if (player.getPlayerState() === PhaserPlayerState.RACING || player.getPlayerState() === PhaserPlayerState.REVEALING) {
             return;
         }
 
         this.tweens.killTweensOf(player);
         this.tweens.add({
             targets: player,
+            scale: 1,
             x: Phaser.Math.Between(0, 1920),
             y: player.getPlayerState() === PhaserPlayerState.FLOATING ? Phaser.Math.Between(0, this.getY(980)) : this.getY(1080 - 20),
             duration: Phaser.Math.Between(2000, 4000),
@@ -585,100 +692,430 @@ export class QuizHostScene extends BaseScene {
         });
         this.timerText = this.add.text(960, this.getY(600), '', timerTextConfig);
 
-        // Stream mode indicator
-        this.streamModeIndicator = this.add.text(10, this.getY(1070), 'STREAM MODE: OFF', {
-            fontSize: '24px',
-            color: '#ffffff',
-            fontFamily: 'Arial'
-        }).setOrigin(0, 1).setAlpha(0.5);
-        this.topContainer.add(this.streamModeIndicator);
     }
 
-    private showInstructions(): void {
-		const panel = this.add.container(960, this.getY(1080) - 480);
-		const bg = this.add.rectangle(0, 0, 1600, 400, 0x000000, 0.4).setOrigin(0.5, 0);
-		panel.add(bg);
-		const title = this.add.text(0, 60, 'How to Join', { fontSize: '64px', color: '#fff', fontFamily: 'Titan One' }).setOrigin(0.5);
-		panel.add(title);
-		
-		// Two-column layout
-		// - left column for manual steps: 1. Go to VIDEOSWIPE.NET 2. Tap 'Start Playing Now' card 3. Enter room code: ROOMID
-		// - right column display message 'Or scan QR code' and show QR code image below
-		// Enter your name and select an avatar to join the game
-		const instr = this.add.text(-700, 120, "VIDEOSWIPE.NET\nTap 'Start Playing Now'\nRoom code: " + this.roomID, { fontFamily: 'Titan One', fontSize: '48px', color: '#ccc', align: 'left', wordWrap: { width: 800 }, lineSpacing: 30 }).setOrigin(0);
-		panel.add(instr);
+    private drawHUDTimer(): void {
+        if (!this.HUDTimerGraphics) return;
 
-		const orText = this.add.text(0, 190, 'OR', { fontFamily: 'Titan One', fontSize: '48px', color: '#77e', align: 'center' }).setOrigin(0.5);
-		panel.add(orText);
+        const graphics = this.HUDTimerGraphics;
+        graphics.clear();
 
-		const qrImage = this.add.image(500, 240, 'roomQR').setDisplaySize(240, 240).setOrigin(0.5);
-		panel.add(qrImage);
+        const totalSeconds = this.HUDCountdownSeconds;
+        const subSecond = (this.time.now % 1000) / 1000;
+        
+        // Ticks represent seconds remaining in the current minute (0-59)
+        const secsInMinute = totalSeconds % 60;
+        
+        const centerX = 0;
+        const centerY = 0;
+        const radius = 150;
+        
+        // 1. Outer Ring: 60 Ticks
+        for (let i = 0; i < 60; i++) {
+            const angle = Phaser.Math.DegToRad((i * 6) - 90);
+            
+            // Ticks "disappear" as seconds count down
+            // If i < secsInMinute, it's a remaining second
+            const isActive = i < secsInMinute;
+            
+            const r1 = radius + 25;
+            const r2 = radius + 50;
+            
+            if (isActive) {
+                graphics.lineStyle(6, 0x00ccff, 1);
+            } else {
+                graphics.lineStyle(2, 0xffffff, 0.1);
+            }
+            
+            graphics.lineBetween(
+                centerX + Math.cos(angle) * r1,
+                centerY + Math.sin(angle) * r1,
+                centerX + Math.cos(angle) * r2,
+                centerY + Math.sin(angle) * r2
+            );
+        }
 
-		const closeBtn = this.add.text(760, 20, 'X', { fontSize: '32px', color: '#fff' }).setInteractive({ useHandCursor: true });
-		closeBtn.on('pointerdown', () => panel.destroy());
-		panel.add(closeBtn);
-		bg.setInteractive();
-	}
+        // 2. Inner Ring: Sweep logic (30s fill, 30s erase for active feel)
+        // We use actual time for smooth sub-second sweeping
+        const sweepProgress = ((this.time.now / 1000) % 2); // 0.0 to 2.0
+        
+        if (sweepProgress < 1) {
+            // Phase 1: Fill
+            graphics.lineStyle(12, 0x00ccff, 1);
+            graphics.beginPath();
+            graphics.arc(centerX, centerY, radius, Phaser.Math.DegToRad(-90), Phaser.Math.DegToRad(-90 + (sweepProgress * 360)), false);
+            graphics.strokePath();
+        } else {
+            // Phase 2: Erase
+            const eraseProgress = sweepProgress - 1;
+            // Draw full ring base
+            graphics.lineStyle(12, 0x00ccff, 1);
+            graphics.beginPath();
+            graphics.arc(centerX, centerY, radius, Phaser.Math.DegToRad(-90 + eraseProgress * 360), Phaser.Math.DegToRad(270), false);
+            graphics.strokePath();            
+        }
+    }
 
+    private showStartingSoonHUD(titleTextOverride?: string): void {
+        if (titleTextOverride) this.lobbyTitle = titleTextOverride;
+        
+        const playerCount = this.getPlayerConfigsAsArray().length;
 
-    private showQuizIntro(title: string, description: string): void {
-
-        console.log('QuizHostScene:: showQuizIntro:', title);
-        this.socket?.emit('consolelog', `QuizHostScene:: showQuizIntro: ${title}`);
-
-        // Clear previous UI
-        this.clearUI();
-
-        // Show quiz title
-        const titleConfig = Object.assign({}, this.labelConfig, {
-            fontSize: 80,
-            strokeThickness: 6,
-            wordWrap: { width: 1400, useAdvancedWrap: true }
-        });
-        const titleText = this.add.text(960, this.getY(180), title, titleConfig)
-            .setOrigin(0.5);
-
-        // Remove HTML tags from description (until I can find a way to render them properly)
-        const cleanDescription = description.replace(/<\/?[^>]+(>|$)/g, "");
-        // const cleanDescription = description;
-
-        // Show description
-        const descConfig = Object.assign({}, this.labelConfig, {
-            fontSize: 48,
-            strokeThickness: 3,
-            wordWrap: { width: 1600, useAdvancedWrap: true }
-        });
-        const descText = this.add.text(960, this.getY(350), cleanDescription, descConfig)
-            .setOrigin(0.5, 0);
-
-        // Add "Start" button
-        console.log('QuizHostScene:: showQuizIntro: creating start button');
-        const startButton = this.createSimpleButton(960, descText.y + descText.height + this.getY(120), 'START QUIZ');
-
-        console.log('QuizHostScene:: showQuizIntro: adding elements to UIContainer');
-        this.UIContainer.add([titleText, descText, startButton]);
-
-        console.log('QuizHostScene:: showQuizIntro: starting GSAP animation. GSAP version:', gsap?.version);
-        this.socket?.emit('consolelog', `QuizHostScene:: showQuizIntro: starting GSAP animation. GSAP version: ${gsap?.version}`);
-
-        if (!gsap) {
-            console.error('QuizHostScene:: showQuizIntro: GSAP is undefined!');
-            this.socket?.emit('consolelog', 'QuizHostScene:: showQuizIntro: GSAP is undefined!');
+        // If it already exists, just update the player count text and return
+        if (this.startingSoonHUD && this.HUDWaitingText) {
+            this.HUDWaitingText.setText(`${playerCount} PLAYERS JOINED`);
             return;
         }
 
-        gsap.fromTo(this.UIContainer,
-            { y: this.getY(-1080) },
-            {
-                duration: 1,
-                y: 0,
-                ease: 'power2.out',
-                onComplete: () => {
-                    console.log('QuizHostScene:: showQuizIntro: GSAP animation complete!');
-                    this.socket?.emit('consolelog', 'QuizHostScene:: showQuizIntro: GSAP animation complete!');
-                }
+        // Otherwise create from scratch
+        if (this.startingSoonHUD) {
+            this.startingSoonHUD.destroy(true);
+            this.startingSoonHUD = null;
+            this.HUDTimerGraphics = null;
+            this.HUDWaitingText = null;
+        }
+
+        // Center HUD higher and slightly smaller to avoid overlap
+        this.startingSoonHUD = this.add.container(960, 350).setScale(0.84);
+
+        // Circular Timer Graphics
+        this.HUDTimerGraphics = this.add.graphics();
+        this.startingSoonHUD.add(this.HUDTimerGraphics);
+
+        // Add Bloom effect to make the neon blue elements glow
+        // (color, offsetX, offsetY, blurStrength, strength)
+        this.HUDTimerGraphics.postFX.addBloom(0x00ccff, 1, 1, 2, 1.5);
+
+        // Pulsing Title (Branding)
+        const title = this.add.text(0, -320, this.lobbyTitle.toUpperCase(), {
+            fontFamily: 'Titan One',
+            fontSize: '110px',
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 12
+        }).setOrigin(0.5);
+
+        // Beat-synced Pulse
+        // We use the BeatManager to trigger a "bump" on every beat
+        this.beatManager.onBeat((index) => {
+            if (title && title.active) {
+                this.tweens.add({
+                    targets: title,
+                    scale: 1.08,
+                    duration: 150,
+                    yoyo: true,
+                    ease: 'Back.easeOut'
+                });
             }
-        );
+        });
+
+        // Fallback pulse if music isn't playing or BeatManager isn't used
+        this.tweens.add({
+            targets: title,
+            scale: 1.03,
+            duration: 2000,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+
+        // Precise Timer Typography (Prevents jumping by positioning segments individually)
+        const mins = Math.floor(this.HUDCountdownSeconds / 60);
+        const secs = this.HUDCountdownSeconds % 60;
+        
+        const timerStyle = {
+            fontFamily: 'Titan One',
+            fontSize: '72px',
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 8
+        };
+
+        // We use fixed offsets from center to ensure stable positioning regardless of character width
+        const minText = this.add.text(-15, 0, mins.toString().padStart(2, '0'), timerStyle).setOrigin(1, 0.5);
+        const colon = this.add.text(0, -6, ":", timerStyle).setOrigin(0.5, 0.5);
+        const secText = this.add.text(15, 0, secs.toString().padStart(2, '0'), timerStyle).setOrigin(0, 0.5);
+
+        // "Starting Soon" - larger than 960 x since entire container is scaled down
+        const startingText = this.add.text(1080, -320, "STARTING SOON!", {
+            fontFamily: 'Titan One',
+            fontSize: '44px',
+            color: '#FFFF00'
+        }).setOrigin(1, 1);
+
+        // Player Count
+        this.HUDWaitingText = this.add.text(1080, -280, `${playerCount} PLAYERS JOINED`, {
+            fontFamily: 'Titan One',
+            fontSize: '36px',
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 6
+        }).setOrigin(1,1);
+
+        this.startingSoonHUD.add([title, startingText, minText, colon, secText, this.HUDWaitingText]);
+
+        // Start countdown only once
+        if (!this.data.get('timerStarted')) {
+            this.data.set('timerStarted', true);
+            this.time.addEvent({
+                delay: 1000,
+                callback: () => {
+                    if (this.HUDCountdownSeconds > 0) {
+                        this.HUDCountdownSeconds--;
+                        if (this.startingSoonHUD && minText.active) {
+                            const m = Math.floor(this.HUDCountdownSeconds / 60);
+                            const s = this.HUDCountdownSeconds % 60;
+                            minText.setText(`${m.toString().padStart(2, '0')}`);
+                            secText.setText(`${s.toString().padStart(2, '0')}`);
+                        }
+                    }
+                },
+                loop: true
+            });
+        }
+    }
+
+    private showInstructions(): void {
+        if (this.instructionsPanel) {
+            this.instructionsPanel.destroy();
+            this.instructionsPanel = null;
+        }
+
+        if (this.instructionState === 'hidden') return;
+
+        if (this.instructionState === 'maximized') {
+            const panelWidth = 1600;
+            const panelHeight = 352; // Height is determined by QR(320) + 16px border top/bottom
+            const qrBlockSize = 352; // Width is determined by QR(320) + 16px border left/right
+            const textPanelWidth = panelWidth - qrBlockSize; 
+
+            // Position lower (bottom-heavy layout)
+            this.instructionsPanel = this.add.container(960, this.getY(1080) - 380);
+            
+            // Background for Text (Semi-transparent black)
+            const bgText = this.add.rectangle(-(panelWidth / 2), 0, textPanelWidth, panelHeight, 0x000000, 0.6)
+                .setOrigin(0, 0).setInteractive();
+            
+            // Background for QR (Solid White as requested for a perfect fit)
+            const bgQR = this.add.rectangle((panelWidth / 2) - qrBlockSize, 0, qrBlockSize, panelHeight, 0x000000, 0.6)
+                .setOrigin(0, 0).setInteractive();
+            
+            this.instructionsPanel.add([bgText, bgQR]);
+
+            // Left side: Join Text (Tweaked vertical offsets to center in 352 height)
+            const leftX = -(panelWidth / 2) + 60;
+            const joinText = this.add.text(leftX, 85, 'JOIN AT:', { 
+                fontFamily: 'Titan One', 
+                fontSize: '48px', 
+                color: '#fff' 
+            }).setOrigin(0, 1);
+            this.instructionsPanel.add(joinText);
+
+            const urlText = this.add.text(leftX, 185, 'VIDEOSWIPE.NET', { 
+                fontFamily: 'Titan One', 
+                fontSize: '80px', 
+                color: '#fff'
+            }).setOrigin(0, 1);
+            this.instructionsPanel.add(urlText);
+
+            const roomText = this.add.text(leftX, 285, 'ROOM: ' + this.roomID, { 
+                fontFamily: 'Titan One', 
+                fontSize: '80px', 
+                color: '#FFFF00' 
+            }).setOrigin(0, 1);
+            this.instructionsPanel.add(roomText);
+
+            const orText = this.add.text(textPanelWidth - 1100, 200, 'OR', { 
+                fontFamily: 'Titan One', 
+                fontSize: '72px', 
+                color: '#66d' 
+            }).setOrigin(0, 1);
+            this.instructionsPanel.add(orText);
+
+            // Right side: QR Code (Perfectly centered in the white 352x352 block)
+            if (this.textures.exists('roomQR')) {
+                const qrImageSize = 320;
+                const qr = this.add.image((panelWidth / 2) - (qrBlockSize / 2), panelHeight / 2, 'roomQR')
+                    .setDisplaySize(qrImageSize, qrImageSize);
+                this.instructionsPanel.add(qr);
+                console.log('QuizHostScene:: Added roomQR to instructions panel with 16px border');
+
+                // experiment with plane for 3D perspective - YES WORKS WELL!
+                // const qrPlane = this.add.plane(0, 0, 'roomQR');
+                // gsap.to(qrPlane, {
+                //     rotateY: 360,
+                //     duration: 1.5,
+                //     ease: 'back.out',
+                //     repeat: -1,
+                //     yoyo: true
+                // });
+                // this.instructionsPanel.add(qrPlane);
+                
+            } else {
+                console.warn('QuizHostScene:: roomQR texture not found for instructions panel');
+            }
+
+        } else if (this.instructionState === 'minimized') {
+            // Watermark state: Bottom-left corner
+            this.instructionsPanel = this.add.container(40, this.getY(1080) - 40);
+            
+            const bg = this.add.rectangle(0, 0, 400, 140, 0x000000, 0.6).setOrigin(0, 1).setInteractive();
+            this.instructionsPanel.add(bg);
+
+            if (this.textures.exists('roomQR')) {
+                const qrImage = this.add.image(10, -10, 'roomQR').setDisplaySize(120, 120).setOrigin(0, 1);
+                this.instructionsPanel.add(qrImage);
+            }
+
+            const joinText = this.add.text(140, -105, 'JOIN AT:', { 
+                fontFamily: 'Titan One', 
+                fontSize: '20px', 
+                color: '#77e' 
+            }).setOrigin(0, 1);
+            this.instructionsPanel.add(joinText);
+
+            const urlText = this.add.text(140, -70, 'VIDEOSWIPE.NET', { 
+                fontFamily: 'Titan One', 
+                fontSize: '24px', 
+                color: '#fff' 
+            }).setOrigin(0, 1);
+            this.instructionsPanel.add(urlText);
+
+            const roomText = this.add.text(140, -15, 'ROOM: ' + this.roomID, { 
+                fontFamily: 'Titan One', 
+                fontSize: '32px', 
+                color: '#FFFF00' 
+            }).setOrigin(0, 1);
+            this.instructionsPanel.add(roomText);
+        }
+    }
+
+
+    private showOpeningCredits(title: string, description: string, samples: any[]): void {
+        console.log('QuizHostScene:: showOpeningCredits:', title);
+        this.clearUI();
+        
+        // Minimize instructions automatically for the intro
+        this.instructionState = 'minimized';
+        this.showInstructions();
+
+        // Ensure Starting Soon HUD is gone
+        if (this.startingSoonHUD) {
+            this.startingSoonHUD.destroy(true);
+            this.startingSoonHUD = null;
+            this.HUDTimerGraphics = null;
+            this.HUDWaitingText = null;
+        }
+
+        // Play intro music
+        this.soundManager.playMusic('quiz-music-intro', { volume: 0.6, fadeIn: 1000 });
+        const music = this.soundManager.getCurrentMusicTrack();
+        if (music && music.sound) {
+            this.beatManager.start(music.sound, 128);
+            
+            // Add a musical "Impact" cue (e.g., at 4.3s where the jingle hits a climax)
+            this.beatManager.addCue(4.3, () => {
+                const flash = this.add.rectangle(960, 540, 1920, 1080, 0xffffff).setAlpha(0);
+                this.topContainer.add(flash);
+                gsap.to(flash, { alpha: 1, duration: 0.05 });
+                gsap.to(flash, { alpha: 0, duration: 0.5, onComplete: () => flash.destroy() });
+                this.cameras.main.shake(150, 0.005);
+            });
+        }
+
+        if (this.introTimeline) {
+            this.introTimeline.kill();
+        }
+
+        this.introTimeline = gsap.timeline();
+        const tl = this.introTimeline;
+
+        // 3. Question "Flybys" - Horizontal fast flybys for juice
+        samples.forEach((sample, index) => {
+            const flyText = this.add.text(-200, this.getY(150 + (index * 70)), (sample.text || "").toUpperCase(), {
+                fontFamily: 'Titan One',
+                fontSize: this.getY(32),
+                color: '#ffffff'
+            }).setOrigin(0, 0.5).setAlpha(0.1);
+            this.backgroundContainer?.add(flyText);
+
+            tl.to(flyText, {
+                x: 2000,
+                duration: 4 + Math.random() * 4,
+                ease: 'none'
+            }, index * 0.5); // Stagger them
+        });
+
+        // 4. Dramatic Title Blast
+        const creditsTitle = this.add.text(960, this.getY(500), title.toUpperCase(), {
+            fontFamily: 'Titan One',
+            fontSize: this.getY(160),
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 20,
+            align: 'center',
+            wordWrap: { width: 1600 }
+        }).setOrigin(0.5).setAlpha(0).setScale(0.1);
+        this.UIContainer.add(creditsTitle);
+
+        tl.to(creditsTitle, {
+            duration: 1.2,
+            alpha: 1,
+            scale: 1,
+            ease: 'back.out(1.5)',
+        }, 1.0);
+
+        // 5. Presenter / Description Reveal
+        const cleanDescription = description.replace(/<\/?[^>]+(>|$)/g, "");
+        const descText = this.add.text(960, this.getY(750), cleanDescription.toUpperCase(), {
+            fontFamily: 'Titan One',
+            fontSize: this.getY(48),
+            color: '#FFFF00',
+            stroke: '#000000',
+            strokeThickness: 8,
+            align: 'center',
+            wordWrap: { width: 1400 }
+        }).setOrigin(0.5).setAlpha(0);
+        this.UIContainer.add(descText);
+
+        tl.to(descText, {
+            alpha: 1,
+            y: this.getY(700),
+            duration: 1.5,
+            ease: 'power4.out'
+        }, 3.0);
+
+        // 6. "Are you ready?" Blast
+        const readyText = this.add.text(960, this.getY(850), "GET READY!", {
+            fontFamily: 'Titan One',
+            fontSize: this.getY(100),
+            color: '#00ccff',
+            stroke: '#ffffff',
+            strokeThickness: 10
+        }).setOrigin(0.5).setAlpha(0).setScale(2);
+        this.UIContainer.add(readyText);
+
+        tl.to(readyText, {
+            alpha: 1,
+            scale: 1,
+            duration: 1,
+            ease: 'expo.out'
+        }, 12.0);
+
+        // 7. Loop a subtle shake on the title (Moved out of timeline so it doesn't block completion)
+        tl.to(creditsTitle, {
+            rotation: 0.02,
+            duration: 0.1,
+            delay: 1.2,
+            repeat: -1,
+            yoyo: true,
+            ease: 'sine.easeInOut'
+        });
+
+        tl.add( () => {
+            console.log('QuizHostScene:: showOpeningCredits: Intro timeline complete!');
+            this.socket?.emit('host:keypress', { key: 'ArrowRight' });
+        }, '+=1' );
     }
 
     private showRoundIntro(roundNumber: number, title: string, description: string): void {
@@ -791,9 +1228,19 @@ export class QuizHostScene extends BaseScene {
      * Note that we don't pass questionData into the function since it has just been created so will be stored in this.currentQuestion
      */
     private showAnswer(): void {
-        if (this.currentQuestion) {
-            this.currentQuestion.showAnswer();
+
+        if (!this.currentQuestion) {
+            return;
         }
+
+        // Prepare the players to be moved around to represent their choices
+        for (const [playerID, player] of this.phaserPlayers) {
+            player.setPlayerState(PhaserPlayerState.REVEALING);
+            this.tweens.killTweensOf(player);
+            this.reparentObject(player, this.playerContainer);
+        }
+        this.currentQuestion.showAnswer();
+
     }
 
     private startTimer(duration: number): void {
@@ -866,11 +1313,7 @@ export class QuizHostScene extends BaseScene {
         this.phaserPlayers.forEach((player: PhaserPlayer) => {
             player.setPlayerState(PhaserPlayerState.RACING);
             this.tweens.killTweensOf(player);
-            if (player.parentContainer !== this.racetrack) {
-                player.x = player.x + this.playerContainer.x - this.racetrack.x;
-                player.y = player.y + this.playerContainer.y - this.racetrack.y;
-                this.racetrack.add(player);
-            }
+            this.reparentObject(player, this.racetrack);
         });
 
         // Build a (long) timeline animation for all the elements to run the race...
@@ -895,11 +1338,6 @@ export class QuizHostScene extends BaseScene {
         // ... and update/animate to their new scores
         tl.add(this.racetrack.updateScores(scores));
         tl.play();
-
-        // Store scores internally for other uses
-        Object.entries(scores).forEach(([playerID, score]) => {
-            this.playerScores.set(playerID, score);
-        });
     }
 
 
@@ -962,7 +1400,7 @@ export class QuizHostScene extends BaseScene {
 
     // showFinalScores - end quiz screen
     // the racetrack is still visible on screen (should be for all possible combinations of answer/score settings)
-    // this means top half of screen is available to just display the top 3 players using UI Container
+    // fly out the racetrack and bring in the final scores display
     // data.quizTitle: title of this quiz
     // data.score: dictionary object of playerID: score
     private showFinalScores(data: any): void {
@@ -974,35 +1412,38 @@ export class QuizHostScene extends BaseScene {
 
         // Show quiz complete message
         const titleTextConfig = Object.assign({}, this.labelConfig, {
-            fontSize: 120,
-            strokeThickness: 6
+            fontSize: 80,
+            strokeThickness: 6,
+            align: 'left'
         });
-        const titleText = this.add.text(960, this.getY(120), data.quizTitle, titleTextConfig)
-            .setOrigin(0.5);
+        const titleText = this.add.text(100, this.getY(100), data.quizTitle, titleTextConfig)
+            .setOrigin(0, 0.5);
 
         // Show complete message
         const completeTextConfig = Object.assign({}, this.labelConfig, {
-            fontSize: 60,
-            strokeThickness: 4
+            fontSize: 48,
+            strokeThickness: 4,
+            color: '#FFFF00'
         });
-        const completeText = this.add.text(960, this.getY(240), 'COMPLETE!', completeTextConfig)
-            .setOrigin(0.5);
+        const completeText = this.add.text(100, this.getY(180), 'QUIZ COMPLETE!', completeTextConfig)
+            .setOrigin(0, 0.5);
         this.UIContainer.add([titleText, completeText]);
-        this.UIContainer.setPosition(1920, 0);
+        this.UIContainer.setPosition(-1000, 0);
 
         // OK everything set up - now run animations with music background
         this.soundManager.playMusic('quiz-end', { volume: 0.5 });
 
+        // Create a master GSAP timeline for the entire sequence
+        const masterTl = gsap.timeline();
 
-        // Animate the UI container in
-        this.tweens.add({
-            targets: this.UIContainer,
+        // 1. Animate the UI container in
+        masterTl.to(this.UIContainer, {
             x: 0,
-            duration: 2000,
-            ease: 'Power2'
+            duration: 1.5,
+            ease: 'power2.out'
         });
 
-        // Animate all players to form a neat podium style design - scale increasing to create depth
+        // Prepare players for podium
         this.phaserPlayers.forEach((player: PhaserPlayer) => {
             if (player.parentContainer === this.racetrack) {
                 player.x += this.racetrack.x;
@@ -1015,45 +1456,435 @@ export class QuizHostScene extends BaseScene {
         // data.scores is a dictionary of playerID: score
         // Create a sorted array of player scores from lowest to highest score
         const sortedScores = Object.entries(data.scores)
-            .sort(([, scoreA], [, scoreB]) => scoreB - scoreA);
+            .sort(([, scoreA], [, scoreB]) => (scoreB as number) - (scoreA as number));
 
         // also find the highest and lowest scores - use this to determine position/scale (in event of tie)
-        const highestScore = sortedScores[0] ? sortedScores[0][1] : 0;
-        const lowestScore = sortedScores[sortedScores.length - 1] ? sortedScores[sortedScores.length - 1][1] : 0;
+        const highestScore = sortedScores[0] ? (sortedScores[0][1] as number) : 0;
+        const lowestScore = sortedScores[sortedScores.length - 1] ? (sortedScores[sortedScores.length - 1][1] as number) : 0;
 
         console.log('Sorted Scores:', sortedScores, { highestScore, lowestScore });
 
         // Display the top 3 players
-        for (let i = 0; i < sortedScores.length; i++) {
+        // Bottom align the podiums to this Y position
+        const Y_BOTTOM = this.getY(950);
+        const heights = [400, 250, 150];
+        const scales = [2.8, 2.3, 1.5];
+
+        // Offset x by -240 to account for left-aligned player origin (approx half width)
+        const podiumPositions = [
+            { x: 960 - 140, y: (Y_BOTTOM - heights[0]) - (40 * scales[0]), scale: 2.5, label: '1st' }, // 1st Place (Center)
+            { x: 500 - 140, y: (Y_BOTTOM - heights[1]) - (40 * scales[1]), scale: 1.8, label: '2nd' }, // 2nd Place (Left)
+            { x: 1420 - 140, y: (Y_BOTTOM - heights[2]) - (40 * scales[2]), scale: 1.5, label: '3rd' }  // 3rd Place (Right)
+        ];
+
+        // Create the podium cylinders - do this in order 1st to 3rd so largest podium is at back
+        const colors = [0xFFD700, 0xC0C0C0, 0xCD7F32]; // Gold, Silver, Bronze
+        
+        [0, 1, 2].forEach((rankIndex) => {
+
+            // Calculate feet position for spotlight and podium top
+            const pos = podiumPositions[rankIndex];
+            const spotX = pos.x + (60 * scales[rankIndex]);
+            const spotY = pos.y + (40 * scales[rankIndex]);
+
+            masterTl.add(() => {
+                this.createPodiumCylinder(spotX, spotY, 200 * scales[rankIndex], heights[rankIndex], colors[rankIndex]);
+            });
+        });
+
+        // 2. Move all players to the bottom row first
+        // Arrange players so that first place is lowest in stacking order (looks better on the podium)
+        const initialMoveTl = gsap.timeline();
+        for (let i = sortedScores.length; i-- > 0; ) {
             const [playerID, score] = sortedScores[i];
             const player = this.phaserPlayers.get(playerID);
             if (player) {
                 this.tweens.killTweensOf(player);
                 this.playerContainer.bringToTop(player);
-                const scoreRatio = (highestScore == lowestScore) ? 0 : (score - lowestScore) / (highestScore - lowestScore);
-                this.tweens.add({
-                    targets: player,
-                    x: 180 + scoreRatio * 900,
-                    y: this.getY(480 + i * this.getY(120)),
-                    scale: 1 + scoreRatio * 1,
-                    duration: 3000,
-                    ease: 'Power2',
-                    delay: (sortedScores.length - i) * 750,
-                    onComplete: () => {
-                        console.log(`Player ${playerID} animation complete: ${player.x}, ${player.y}, scale: ${player.scale}`);0.0
-                        player.updatePlayerScore(score ? score : 0);
-                        player.addShine();
-                    }
-                });
-            } else {
-                console.log(`Player with ID ${playerID} not found.`);
+                player.updatePlayerScore((score as any) ? (score as any) : 0);
+                
+                // All players start at the bottom, spread out
+                // Ensure they stay within screen bounds (panel width approx 400px)
+                const margin = 20;
+                const panelWidth = 400;
+                const availableWidth = 1920 - panelWidth - (margin * 2);
+                const targetX = margin + (i * (availableWidth / Math.max(sortedScores.length - 1, 1)));
+                const targetY = this.getY(980);
+
+                initialMoveTl.to(player, {
+                    x: targetX,
+                    y: targetY,
+                    scale: 0.8,
+                    duration: 1.5,
+                    ease: 'cubic.out',
+                }, 0); // Start all at once
             }
         }
+        masterTl.add(initialMoveTl, "-=1.0"); // Overlap with UI animation
+
+        // 3. Sequence the podium reveal (3rd -> 2nd -> 1st)
+        [2, 1, 0].forEach((rankIndex) => {
+            const scoreEntry = sortedScores[rankIndex];
+            if (!scoreEntry) return;
+
+            const [playerID, score] = scoreEntry;
+            const player = this.phaserPlayers.get(playerID);
+            if (player) {
+                const pos = podiumPositions[rankIndex];
+                const revealTl = gsap.timeline();
+
+                // Calculate feet position for spotlight and podium top
+                const spotX = pos.x + (60 * scales[rankIndex]);
+                const spotY = pos.y + (35 * scales[rankIndex]);
+
+                // Move player to podium
+                revealTl.to(player, {
+                    x: pos.x,
+                    y: pos.y,
+                    scale: pos.scale,
+                    duration: 1.2,
+                    ease: 'back.out',
+                    onComplete: () => {
+                        player.addShine();
+                        player.addStars();
+
+                        // Add spotlight effect
+                        const intensities = [1.0, 0.7, 0.5];
+                        this.createSpotlight(spotX, spotY, intensities[rankIndex]);
+                    }
+                });
+
+                // Add medal label
+                const isFirst = rankIndex === 0;
+                const medalY = isFirst ? -80 : 20;
+                const medal = this.add.text(100, medalY, pos.label, {
+                    fontFamily: 'Titan One',
+                    fontSize: this.getY(64),
+                    color: rankIndex === 0 ? '#FFD700' : (rankIndex === 1 ? '#C0C0C0' : '#CD7F32'),
+                    stroke: '#000000',
+                    strokeThickness: 8
+                }).setOrigin(0.5).setAlpha(0).setScale(0.5);
+                
+                player.add(medal);
+                
+                revealTl.to(medal, {
+                    alpha: 1,
+                    scale: 1,
+                    y: isFirst ? -120 : 120,
+                    duration: 0.5,
+                    ease: 'back.out'
+                }, "-=0.2"); // Pop medal slightly before player finishes
+
+                // If 1st place, trigger confetti and fanfare
+                if (isFirst) {
+                    revealTl.add(() => {
+                        this.soundManager.playFX('crowd-cheer', 0.6);
+                    }, "<-0.5");
+                    revealTl.add(() => {
+                        this.createConfetti();
+                    }, "+=1.5");
+                }
+
+                masterTl.add(revealTl, "+=0.5"); // 0.5s gap between each player's reveal
+            }
+        });
+
+    }
+
+    private showClosingCredits(data: any): void {
+        console.log('QuizHostScene:: showClosingCredits');
+
+        // 1. Transition existing visual elements out
+        // Fade out podiums and spotlights
+        this.podiums.forEach(p => {
+            if (p.active) {
+                this.tweens.add({ targets: p, alpha: 0, duration: 2000, onComplete: () => p.destroy() });
+            }
+        });
+        this.podiums = [];
+
+        this.spotlights.forEach(s => {
+            if (s.active) {
+                this.tweens.add({ targets: s, alpha: 0, duration: 2000, onComplete: () => s.destroy() });
+            }
+        });
+        this.spotlights = [];
+
+        // Fling out only the content of UIContainer, but keep the header title
+        this.tweens.add({
+            targets: this.UIContainer,
+            y: -1080,
+            duration: 1500,
+            ease: 'power2.in',
+            onComplete: () => {
+                this.clearUI();
+                this.UIContainer.setY(0);
+                this.createEndCreditsUI(data);
+            }
+        });
+
+        // Fade out the players
+        this.phaserPlayers.forEach(player => {
+            this.tweens.add({
+                targets: player,
+                alpha: 0,
+                duration: 2000,
+                ease: 'power2.out'
+            });
+        });
+
+    }
+
+    private createEndCreditsUI(data: any): void {
+
+        const endContainer = this.add.container(960, 0);
+        this.UIContainer.add(endContainer);
+
+        const thanksText = this.add.text(0, this.getY(200), 'THANKS FOR PLAYING!', {
+            fontFamily: 'Titan One',
+            fontSize: this.getY(100),
+            color: '#FFFF00',
+            stroke: '#000000',
+            strokeThickness: 10
+        }).setOrigin(0.5);
+
+        const creditsLines = [
+            'QUIZ COMPLETE',
+            '',
+            `  TITLE: ${data.quizTitle}`,
+            '  PLATFORM: SUPERMASSIVE',
+            '',
+            'FEATURING',
+            ...Array.from(this.phaserPlayers.values()).map(p => {
+                return '  ' + (p.name);
+            }),
+            '',
+            'DEVELOPED BY',
+            '  SUPERMASSIVE AI TEAM',
+            '',
+            'SEE YOU NEXT TIME!'
+        ];
+
+        const creditsContent = this.add.container(0, 0);
+        creditsLines.forEach((line, i) => {
+            // "Hack" workaround: Headers are all-caps and HAVE NO leading spaces.
+            // Content lines (even if all-caps like "BEN") are prefixed with spaces to force regular styling.
+            const isHeader = line.length > 0 && !line.startsWith(' ');
+            const displayText = line.trim();
+            
+            const txt = this.add.text(0, i * 60, displayText, {
+                fontFamily: 'Titan One',
+                fontSize: isHeader ? this.getY(48) : this.getY(36),
+                color: isHeader ? '#00FFFF' : '#FFFFFF',
+                stroke: '#000000',
+                strokeThickness: 4
+            }).setOrigin(0.5);
+            creditsContent.add(txt);
+        });
+
+        // Start credits below screen
+        creditsContent.setY(this.getY(1080));
+        endContainer.add([creditsContent, thanksText]);
+
+        // Scrolling credits tween
+        this.tweens.add({
+            targets: creditsContent,
+            y: creditsLines.length * -60 - 60,
+            duration: 20000,
+            ease: 'linear'
+        });
+
+        // Add "Return to Dashboard" button
+        const returnText = this.add.text(20, this.getY(50), '← Return to Dashboard', {
+            fontFamily: 'Arial',
+            fontSize: '38px',
+            color: '#ffffff'
+        })
+            .setOrigin(0, 0.5)
+            .setInteractive({ useHandCursor: true });
+
+        returnText.on('pointerup', () => {
+            window.location.href = '/host/dashboard';
+        });
+        returnText.setAlpha(0);
+        this.tweens.add({ targets: returnText, alpha: 1, duration: 1000, delay: 2000 });
+    }
+
+    private createConfetti(): void {
+        const emitter = this.add.particles(0, 0, 'white-pixel', {
+            x: { min: 0, max: 1920 },
+            y: -50,
+            lifespan: 5000,
+            speedY: { min: 150, max: 500 },
+            speedX: { min: -50, max: 50 },
+            scaleX: {
+                onUpdate: (particle: any) => {
+                    particle.tumblePhase += particle.tumbleSpeed || 0.1;
+                    return Math.cos(particle.tumblePhase) * particle.scaleY;
+                }
+            },
+            scaleY: { start: 12, end: 4 },
+            rotate: { start: 0, end: 720 },
+            gravityY: 150,
+            frequency: 30,
+            blendMode: 'NORMAL',
+            tint: [ 0xffff00, 0xff00ff, 0x00ffff, 0xffffff, 0xff0000, 0x00ff00 ]
+        });
+
+        emitter.onParticleEmit((particle: any) => {
+            particle.tumbleSpeed = Math.random() * 0.2 + 0.1;
+            particle.tumblePhase = Math.random() * Math.PI * 2;
+        });
+
+        this.overlayContainer.add(emitter);
+        
+        // Stop emitting after 5 seconds
+        this.time.delayedCall(5000, () => {
+            emitter.stop();
+            // Destroy after particles are gone
+            this.time.delayedCall(4000, () => emitter.destroy());
+        });
+    }
+
+    private createSpotlight(x: number, targetY: number, intensity: number): void {
+        const graphics = this.add.graphics();
+        this.backgroundContainer.add(graphics);
+        this.spotlights.push(graphics);
+
+        const topY = -400; // Start even higher for better beam angle
+        const topWidth = 100 * intensity;
+        const bottomWidth = 380 * intensity;
+        const ellipseWidth = bottomWidth; // Match width more closely
+        const ellipseHeight = bottomWidth / 4; // Match the 1/4 depth ratio of the podium
+        const maxAlpha = 0.4 * intensity;
+
+        // Draw the beam (trapezoid with curved bottom to match ellipse)
+        // Use a slightly lower alpha for the beam than the floor pool
+        graphics.fillStyle(0xffffff, 0.7);
+        graphics.beginPath();
+        graphics.moveTo(x - topWidth / 2, topY);
+        graphics.lineTo(x + topWidth / 2, topY);
+        graphics.lineTo(x + ellipseWidth / 2, targetY);
+        
+        // Curve the bottom of the beam to match the top of the floor pool
+        for (let i = 0; i <= 20; i++) {
+            const angle = (i / 20) * Math.PI;
+            const px = x + (Math.cos(angle) * ellipseWidth / 2);
+            const py = targetY - (Math.sin(angle) * ellipseHeight / 2);
+            graphics.lineTo(px, py);
+        }
+        
+        graphics.closePath();
+        graphics.fillPath();
+
+        // Draw the pool of light (ellipse) at the "feet" - slightly brighter
+        graphics.fillStyle(0xffffff, 1.0);
+        graphics.fillEllipse(x, targetY, ellipseWidth, ellipseHeight);
+
+        graphics.setAlpha(0);
+        
+        // Flicker on animation
+        this.tweens.add({
+            targets: graphics,
+            alpha: maxAlpha,
+            duration: 200,
+            ease: 'Back.easeOut',
+            onComplete: () => {
+                // Subtle atmospheric pulse
+                this.tweens.add({
+                    targets: graphics,
+                    alpha: maxAlpha * 0.7,
+                    duration: 1500 + Math.random() * 1000,
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
+            }
+        });
+    }
+
+    private createPodiumCylinder(x: number, y: number, width: number, height: number, color: number): void {
+        const graphics = this.add.graphics();
+        this.backgroundContainer.add(graphics);
+        this.podiums.push(graphics);
+
+        const depth = width / 4;
+        
+        // Shading colors
+        const colorObj = Phaser.Display.Color.IntegerToColor(color);
+        const darkColor = colorObj.clone().darken(30).color;
+        const midColor = color;
+        const lightColor = colorObj.clone().brighten(20).color;
+        
+        // Vertices for the hexagonal top (isometric look)
+        const topPoints = [
+            { x: x - width / 2, y: y },                       // Left
+            { x: x - width / 4, y: y - depth / 2 },          // Back-Left
+            { x: x + width / 4, y: y - depth / 2 },          // Back-Right
+            { x: x + width / 2, y: y },                       // Right
+            { x: x + width / 4, y: y + depth / 2 },          // Front-Right
+            { x: x - width / 4, y: y + depth / 2 }           // Front-Left
+        ];
+
+        // Vertices for the hexagonal bottom (simply top points + height)
+        const botPoints = topPoints.map(p => ({ x: p.x, y: p.y + height }));
+
+        // 1. Draw individual vertical panels for proper shading
+        // Left Panel (Lightest) - between p[0] and p[5]
+        graphics.fillStyle(lightColor, 1);
+        graphics.fillPoints([topPoints[0], topPoints[5], botPoints[5], botPoints[0]], true);
+
+        // Center Panel (Mid) - between p[5] and p[4]
+        graphics.fillStyle(midColor, 1);
+        graphics.fillPoints([topPoints[5], topPoints[4], botPoints[4], botPoints[5]], true);
+
+        // Right Panel (Darkest) - between p[4] and p[3]
+        graphics.fillStyle(darkColor, 1);
+        graphics.fillPoints([topPoints[4], topPoints[3], botPoints[3], botPoints[4]], true);
+
+        // 2. Draw the bottom edges to give it weight
+        graphics.lineStyle(2, midColor, 1);
+        graphics.strokePoints([botPoints[0], botPoints[5], botPoints[4], botPoints[3]], false);
+
+        // 3. Draw the top face (brighter surface)
+        graphics.fillStyle(lightColor, 1);
+        graphics.fillPoints(topPoints, true);
+        graphics.lineStyle(1, 0xffffff, 0.3); // Subtle highlight on top edge
+        graphics.strokePoints(topPoints, true);
+
+        // Animate in
+        graphics.setAlpha(0);
+        this.tweens.add({
+            targets: graphics,
+            alpha: 1,
+            duration: 500,
+            ease: 'Power2.out'
+        });
     }
 
     private clearUI(): void {
 
         console.log('QuizHostScene:: clearUI...');
+
+        // Clean up spotlights
+        this.spotlights.forEach(s => s.destroy());
+        this.spotlights = [];
+
+        // Clean up podiums
+        this.podiums.forEach(p => p.destroy());
+        this.podiums = [];
+
+        if (this.introTimeline) {
+            this.introTimeline.kill();
+            this.introTimeline = null;
+        }
+
+        if (this.startingSoonHUD) {
+            this.startingSoonHUD.destroy(true);
+            this.startingSoonHUD = null;
+            this.HUDTimerGraphics = null;
+            this.HUDWaitingText = null;
+        }
 
         // Clean up the previous question's display elements
         if (this.UIContainer) {
@@ -1065,14 +1896,6 @@ export class QuizHostScene extends BaseScene {
         if (this.currentQuestion) {
             this.currentQuestion.destroy();
             this.questionContainer.removeAll(true);
-        }
-    }
-
-    private updateStreamModeIndicator(enabled: boolean): void {
-        if (this.streamModeIndicator) {
-            this.streamModeIndicator.setText(`STREAM MODE: ${enabled ? 'ON' : 'OFF'}`);
-            this.streamModeIndicator.setColor(enabled ? '#00ff00' : '#ffffff');
-            this.streamModeIndicator.setAlpha(enabled ? 1 : 0.5);
         }
     }
 

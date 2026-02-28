@@ -70,7 +70,7 @@ export default [
         output: [
             {
                 // Keep the same output path for AppPlay
-                file: "public/modules/phaser.play.lobby.min.js",
+                file: "public/modules/phaser.play.min.js",
                 format: "iife",
                 sourcemap: true,
                 globals: {

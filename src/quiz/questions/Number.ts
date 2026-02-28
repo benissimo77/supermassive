@@ -4,7 +4,7 @@ import { BaseQuestion } from "./BaseQuestion";
 import { Keypad } from "src/ui/Keypad";
 import { NineSliceButton } from "src/ui/NineSliceButton";
 import { NumberQuestionData } from "./QuestionTypes";
-import { PhaserPlayer } from "../PhaserPlayer";
+import { PlayerConfig, PhaserPlayer, PhaserPlayerState } from "../PhaserPlayer";
 
 export default class NumberQuestion extends BaseQuestion {
 
@@ -79,11 +79,8 @@ export default class NumberQuestion extends BaseQuestion {
         // Text already placed at (0,0) so no need to re-position
         if (this.scene.TYPE === 'host') {
             let answerText: string = '';
-            if (this.questionData.mode == 'answer' && this.questionData.answer) {
-                answerText = this.questionData.answer.toString();
-            } else {
+            if (this.questionData.mode == 'ask') {
                 answerText = 'Type your answer';
-                answerText = '';
             }
             this.answerText.setText(answerText);
 
@@ -191,30 +188,266 @@ export default class NumberQuestion extends BaseQuestion {
         tl.play();
     }
 
+    // reveal answer - this is the BIG one, a fairly complex timeline animation that places all player guesses onto a central line
+    // guesses are added one player at a time with all avatars responding and scaling along the line as each new player guess is added
+    // KEY INSIGHT to build the timeline:
+    // Players are pulled randomly from the responses object - this maintains randomness
+    // A currentMin and currentMax are maintained which represent the min/max of the added player responses
+    // These are positioned on the line based on the number of players added:
+    // Divide the total line length (80 - 1920-80-320) by number of players added + 1
+    // So first player added, you divide the line by 2 to give the spacing amount
+    // currentMin is logically set to 80 + currentSpacing, currentMax to 1920-80-320 - currentSpacing
+    // Player is added in the dead centre of the line (so currentMin+currentMax/2)
+    // Then current player guess is added - currentMin/currentMax adjusted if this player exceed the existing bounds
+    // Then all player avatars, including currentPlayer, are re-positioned based on the new currentMin/Max
     protected revealAnswerUI(): void {
+
+        const tl = this.minimizeQuestionContent();
+
+        // For this quesiton type we will set answerContainer to 960,549 (logical) as base everything off that
+        tl.to(this.answerContainer, {
+            y: this.scene.getY(540),
+            duration: 0.5
+        }, 0);
+        // For neatness move all players to the bottom of the screen first
+        this.scene.getPlayerConfigsAsArray().forEach( (playerConfig) => {
+            const player: PhaserPlayer = this.scene.getPlayerBySessionID(playerConfig.sessionID) as PhaserPlayer;
+            tl.to(player, {
+                x: Math.random() * (1920 - 320),
+                y: this.scene.getY(1080 - 20),
+                duration: 0.5
+            }, 0); // all at once
+        });
+
+        // Animate the main number line - a graphics which scales from 0 to full width
+        const numberLine: Phaser.GameObjects.Rectangle = this.scene.add.rectangle(-960, 0, 0, 4, 0x00ff00, 1);
+        this.answerContainer.add(numberLine);
+        tl.to(numberLine, {
+            width: 1920,
+            duration: 0.5,
+            ease: 'power2.out'
+        }, "<");
+
+        // Set up all the variables we need to manage player positioning
+        // These are defined at the top since we also need these further down after players have been added
+        const xMin: number = 0;
+        const xMax: number = 1920;
+        let playersAdded: string[] = [];
+        let playerGuesses: Map<string, Phaser.GameObjects.Container> = new Map();
+        let currentMin: number | undefined;
+        let currentMax: number | undefined;
+        let currentSpacing: number = 0;
+
+        const tweenAllPlayersToPositions = (subTl: gsap.core.Timeline) => {
+            subTl.add("Label");
+            for (const thisSessionID of playersAdded) {
+                const thisPlayer: PhaserPlayer = this.scene.getPlayerBySessionID(thisSessionID) as PhaserPlayer;
+                const thisPlayerResponse = this.questionData.responses ? this.questionData.responses[thisSessionID] : null;
+                const thisPlayerGuess = thisPlayerResponse ? Number(thisPlayerResponse.answer) : 0;
+
+                // Experiment with using gsap utils here - I've already sovled it but now I'm curious
+                const mapper = gsap.utils.mapRange(currentMin!, currentMax!, xMin + currentSpacing, xMax - currentSpacing);
+                if (thisPlayer && thisPlayerResponse) {
+                    // Calculate target X based on current min/max spread
+                    // currentMin sits at (xMin + currentSpacing)
+                    // currentMax sits at (xMax - currentSpacing)
+                    // targetX = xMin + currentSpacing + ((thisPlayerGuess - currentMin) / (currentMax - currentMin)) * (xMax - xMin)
+                    // let targetX = xMin + currentSpacing + ((thisPlayerGuess - currentMin) / Math.max(currentMax - currentMin, 1)) * (xMax - 2 * currentSpacing);
+                    let targetX = mapper(thisPlayerGuess);
+                    subTl.to(thisPlayer, {
+                        x: targetX,
+                        duration: 0.5
+                    }, "Label");
+                    // Also update this playerGuess label (must subtract 960 since answerContainer is centred)
+                    const thisPlayerGuessContainer = playerGuesses.get(thisSessionID);
+                    if (thisPlayerGuessContainer) {
+                        subTl.to(thisPlayerGuessContainer, {
+                            x: targetX - 960,
+                            duration: 0.5
+                        }, "Label");
+                    } else {
+                        console.log('WARNING - playerGuessContainer not found for sessionID:', thisSessionID);
+                    }
+                }
+            }            
+        }
+
+        const addPlayerToLine = (sessionID: string, answer: number): gsap.core.Timeline => {
+            const subTl = gsap.timeline();
+
+            // Add the player to the playersAdded array, and create a guess label for them (hidden for now)
+            playersAdded.push(sessionID);
+            const playerGuess:Phaser.GameObjects.Container = this.scene.add.container(0, 0);
+            playerGuess.visible = false;
+            this.answerContainer.add(playerGuess);
+            const playerGuessTick: Phaser.GameObjects.Rectangle = this.scene.add.rectangle(-2, -20, 2, 30 * playersAdded.length + 20, 0xffffff, 1)
+                .setOrigin(0.5, 0);
+            playerGuess.add(playerGuessTick);
+            const playerGuessText = this.scene.add.text(0, 30 * playersAdded.length, answer.toString(), this.scene.labelConfig)
+                .setOrigin(0.5, 0);
+            playerGuess.add(playerGuessText);
+            playerGuesses.set(sessionID, playerGuess);
+
+            currentSpacing = (xMax - xMin) / (playersAdded.length + 1);
+
+            // First bit is easy - simply animate this avatar to its starting position - halfway along the line
+            const player: PhaserPlayer = this.scene.getPlayerBySessionID(sessionID) as PhaserPlayer;
+            if (player) {
+                subTl.to(player, {
+                    x: (xMax - xMin) / 2,
+                    y: this.scene.getY(540 - 120),
+                    duration: 0.5,
+                });
+
+                // Now we adjust currentMin/Max if needed
+                if (currentMin === undefined || answer < currentMin) {
+                    currentMin = answer;
+                }
+                if (currentMax === undefined || answer > currentMax) {
+                    currentMax = answer;
+                }
+
+                // And now we add tweens for all added players to re-scale them based on currentMin/Max
+                tweenAllPlayersToPositions(subTl);
+
+                // And now we finally adjust the currentPlayers y value to bring them down onto the line
+                subTl.to(player, {
+                    y: this.scene.getY(540 - 40),
+                    duration: 0.5
+                }, ">");
+                // ...and now that player is in position make the guess text visible
+                subTl.add(() => {
+                    playerGuess.visible = true;
+                }, ">");
+                subTl.to(playerGuessText, {
+                    scale: 2,
+                    duration: 0.5,
+                    repeat: 1,
+                    yoyo: true
+                }, ">");
+            }
+            return subTl;
+        };
+
+        // So our addPlayerToLine function is doing the heavy-lifting here
+        // All that is left is to loop through the responses and call it for each player
+        if (this.questionData.responses) {
+            const sessionIDs = Object.keys(this.questionData.responses);
+            for (const sessionID of sessionIDs) {
+                const playerResponse = this.questionData.responses[sessionID];
+                const playerAnswer = Number(playerResponse.answer);
+                tl.add(addPlayerToLine(sessionID, playerAnswer));
+            }
+        }
+
+        const answerTick: Phaser.GameObjects.Rectangle = this.scene.add.rectangle(-960, this.scene.getY(-20), 4, playersAdded.length * 30 + 80, 0x00ff00, 1)
+            .setOrigin(0.5, 0);
+        this.answerContainer.add(answerTick);
+        // Bounce the answerTick between the left/right edges of the number line a few times to draw attention
+        tl.to(answerTick, {
+            x: 960,
+            duration: 0.5,
+            repeat: 3,
+            ease: 'power2.inOut',
+            yoyo: true
+        });
+        // Finally tween the answerTick to its final resting place - either somewhere between the min/max or outside this range if everyone guessed too low or too high
+        // In the case that the answer is outside the currentMin/Max we modify the currentSpacing to treat the answerTick as an extra player
         if (this.questionData.answer) {
-            const answerText = this.questionData.answer.toString();
-            this.answerText.setText(answerText);
+
+            if (currentMin === undefined || this.questionData.answer < currentMin) {
+                currentMin = this.questionData.answer;
+                currentSpacing = (xMax - xMin) / (playersAdded.length + 2);
+            }
+            if (currentMax === undefined || this.questionData.answer > currentMax) {
+                currentMax = this.questionData.answer;
+                currentSpacing = (xMax - xMin) / (playersAdded.length + 2);
+            }
+            let finalAnswerX = -960 + gsap.utils.mapRange(currentMin, currentMax, xMin + currentSpacing, xMax - currentSpacing, this.questionData.answer);
+            console.log('NumberQuestion::revealAnswerUI: ', {currentMin, currentMax, xMin, xMax, currentSpacing, finalAnswerX});
+            tl.add('PositionAnswerTick');
+            tweenAllPlayersToPositions(tl);
+            tl.to(answerTick, {
+                x: finalAnswerX,
+                duration: 0.5,
+                ease: 'power2.inOut'
+            }, "PositionAnswerTick");
+            tl.add(() => {
+                this.answerText.setText(this.questionData.answer!.toString());
+                // Adjust answer text position to avoid going off screen
+                if (finalAnswerX + 960 < this.answerText.width / 2) {
+                    finalAnswerX = this.answerText.width / 2 - 960;
+                }
+                if (finalAnswerX + 960 > 1920 - this.answerText.width / 2) {
+                    finalAnswerX = 1920 - this.answerText.width / 2 - 960;
+                }
+                this.answerText.setPosition(finalAnswerX, this.scene.getY(playersAdded.length * 30 + 80));
+            });
+
+            // We start by animating the players who DIDN'T score any points (if any) to get them out of the way
+            const nonScoringPlayers = Object.entries(this.questionData.responses)
+                .filter(([sessionID, response]) => !response.score || response.score === 0);
+            tl.add("RemoveNonScorers");
+            nonScoringPlayers.forEach( ([sessionID, response], index) => {
+                const guess: Phaser.GameObjects.Container | undefined = playerGuesses.get(sessionID);
+                if (guess) {
+                    tl.to(guess, {
+                        alpha: 0,
+                        duration: 1.5,
+                        ease: 'power2.out',
+                        onComplete: () => {
+                            guess.destroy();
+                        }
+                    }, "RemoveNonScorers");                    
+                }
+                const player: PhaserPlayer = this.scene.getPlayerBySessionID(sessionID) as PhaserPlayer;
+                if (player) {
+                    tl.to(player, {
+                        y: this.scene.getY(1080-20),
+                        duration: 1.5,
+                        ease: 'power2.out'
+                    }, ">");
+                }
+            });
+
+            // Now we want to animate the players who scored the points in this question
+            // Sort the player responses by score from highest to lowest and then animate all those players whose score is > 0
+            const scoringPlayers = Object.entries(this.questionData.responses)
+                .filter(([sessionID, response]) => response.score && response.score > 0)
+                .sort((a, b) => (a[1].score - b[1].score));
+            scoringPlayers.forEach( ([sessionID, response], index) => {
+                const player: PhaserPlayer = this.scene.getPlayerBySessionID(sessionID) as PhaserPlayer;
+                if (player) {
+                    tl.add(() => {
+                        player.parentContainer.bringToTop(player);
+                    }, ">");
+                    tl.to(player, {
+                        scale: 1.5,
+                        duration: 1,
+                        ease: 'power2.out',
+                        repeat: 1,
+                        yoyo: true
+                    }, ">");
+                    tl.add(() => {
+                        player.flashText(`+${response.score}`, '#00ff00');
+                    }, ">");
+                }
+            }); 
         }
-        if (this.questionData.type === 'number-average') {
-            const values = Object.values(this.questionData.results).map(v => Number(v));
-            const average = values.length ? values.reduce((sum, val) => sum + val, 0) / values.length : 0;
-            this.answerText.setText(`${average.toFixed(1)}`);
-            // For average question type we want to show the players arranged on a horizontal line representing their guess
-            this.displayAverageAnswerVisualization();
-        }
+
+        tl.play();
     }
 
     // Display visualization for average number question
-    // this.questionData.results is a dictionary of sessionIDs and their numeric guesses
+    // this.questionData.responses is a dictionary with player sessionID as key and their choice as value
     private displayAverageAnswerVisualization(): void {
-        console.log('NumberQuestion::displayAverageAnswerVisualization:', this.questionData.results);
+        console.log('NumberQuestion::displayAverageAnswerVisualization:', this.questionData.responses);
 
-        if (!this.questionData.results) {
+        if (!this.questionData.responses) {
             return;
         }
 
-        const guesses = Object.values(this.questionData.results);
+        const guesses = Object.values(this.questionData.responses).map(r => Number(r.answer));
         let minGuess = Math.min(...guesses);
         let maxGuess = Math.max(...guesses);
         if (minGuess === maxGuess) {
@@ -222,15 +455,15 @@ export default class NumberQuestion extends BaseQuestion {
         }
         const spread = 1400;
 
-        for (const sessionId in this.questionData.results) {
-            const playerGuess = this.questionData.results[sessionId];
-            const player: PhaserPlayer = this.scene.getPlayerBySessionID(sessionId) as PhaserPlayer;
+        for (const sessionID in this.questionData.responses) {
+            const playerGuess = Number(this.questionData.responses[sessionID].answer);
+            const player: PhaserPlayer = this.scene.getPlayerBySessionID(sessionID) as PhaserPlayer;
             if (player) {
                 this.scene.tweens.killTweensOf(player);
 
                 let x = 960; // default center
                 if (guesses.length > 1) {
-                    // Center average at 960, spread guesses (adjust by -120 to allow for width of playername panels)
+                    // Center average at 960, spread guesses
                     x = 960 - spread/2 - 120 + (playerGuess - minGuess) / (maxGuess - minGuess) * spread;
                     x = Phaser.Math.Clamp(x, 160, 1760);
                 }

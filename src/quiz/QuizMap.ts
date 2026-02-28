@@ -85,10 +85,10 @@ export class QuizMap extends Phaser.GameObjects.Container {
         const roundRadius = 35;
         const questionRadius = 20;
         const phaseSize = 32; // Slightly larger
-        const baseY = -30; // Nudge up slightly
+        const baseX = 40; // Center of circles relative to container
         const strokeWidth = 6;
 
-        let currentX = 0; // This will track the right edge of the last drawn element
+        let currentY = 0; // This will track the bottom edge of the last drawn element
 
         // Determine which round to expand. 
         // If we haven't started (-1), don't expand any rounds.
@@ -106,10 +106,10 @@ export class QuizMap extends Phaser.GameObjects.Container {
             const currentRoundRadius = roundRadius;
 
             if (rIndex > 0) {
-                currentX += gap;
+                currentY += gap;
             }
 
-            const centerX = currentX + currentRoundRadius;
+            const centerY = currentY + currentRoundRadius;
 
             // --- Draw Round Circle ---
             let roundColor = 0x666666;
@@ -125,12 +125,12 @@ export class QuizMap extends Phaser.GameObjects.Container {
                 roundStroke = 0xaaaaaa;
             }
 
-            const roundCircle = this.scene.add.arc(centerX, baseY, currentRoundRadius, 0, 360, false, roundColor);
+            const roundCircle = this.scene.add.arc(baseX, centerY, currentRoundRadius, 0, 360, false, roundColor);
             roundCircle.setStrokeStyle(strokeWidth, roundStroke);
             this.add(roundCircle);
             this.roundCircles.push(roundCircle);
 
-            const roundText = this.scene.add.text(centerX, baseY, (rIndex + 1).toString(), {
+            const roundText = this.scene.add.text(baseX, centerY, (rIndex + 1).toString(), {
                 fontSize: '24px',
                 color: roundTextColor,
                 fontFamily: 'Arial',
@@ -139,7 +139,7 @@ export class QuizMap extends Phaser.GameObjects.Container {
             this.add(roundText);
             this.roundTexts.push(roundText);
 
-            currentX += currentRoundRadius * 2;
+            currentY += currentRoundRadius * 2;
 
             const questionsInThisRound: Phaser.GameObjects.Arc[] = [];
             const textsInThisRound: Phaser.GameObjects.Text[] = [];
@@ -152,8 +152,8 @@ export class QuizMap extends Phaser.GameObjects.Container {
                     const isPastQuestion = qIndex < this.currentQuestion;
                     const isCurrentQuestion = qIndex === this.currentQuestion;
 
-                    currentX += gap;
-                    const qCenterX = currentX + questionRadius;
+                    currentY += gap;
+                    const qCenterY = currentY + questionRadius;
 
                     let qColor = 0x444444;
                     let qStroke = 0x888888;
@@ -170,12 +170,12 @@ export class QuizMap extends Phaser.GameObjects.Container {
                         qStroke = 0xaaaaaa;
                     }
 
-                    const qCircle = this.scene.add.arc(qCenterX, baseY, qRadius, 0, 360, false, qColor);
+                    const qCircle = this.scene.add.arc(baseX, qCenterY, qRadius, 0, 360, false, qColor);
                     qCircle.setStrokeStyle(strokeWidth, qStroke);
                     this.add(qCircle);
                     questionsInThisRound.push(qCircle);
 
-                    const qText = this.scene.add.text(qCenterX, baseY, (qIndex + 1).toString(), {
+                    const qText = this.scene.add.text(baseX, qCenterY, (qIndex + 1).toString(), {
                         fontSize: isCurrentQuestion ? '18px' : '14px',
                         color: qTextColor,
                         fontFamily: 'Arial'
@@ -183,14 +183,14 @@ export class QuizMap extends Phaser.GameObjects.Container {
                     this.add(qText);
                     textsInThisRound.push(qText);
 
-                    currentX += questionRadius * 2;
+                    currentY += questionRadius * 2;
 
                     // Check if we should merge Answer and Score icons
                     const mergeIcons = round.showAnswer === 'question' && round.updateScores === 'question';
 
                     if (mergeIcons) {
-                        currentX += gap;
-                        const iconCenterX = currentX + (phaseSize / 2);
+                        currentY += gap;
+                        const iconCenterY = currentY + (phaseSize / 2);
                         
                         const isAnswering = isCurrentQuestion && this.currentState === 'SHOW_ANSWER';
                         const isScoring = isCurrentQuestion && this.currentState === 'UPDATE_SCORES';
@@ -213,22 +213,22 @@ export class QuizMap extends Phaser.GameObjects.Container {
                             iconStroke = 0xaaaaaa;
                         }
 
-                        const rect = this.scene.add.rectangle(iconCenterX, baseY, phaseSize, phaseSize, iconColor);
+                        const rect = this.scene.add.rectangle(baseX, iconCenterY, phaseSize, phaseSize, iconColor);
                         rect.setStrokeStyle(4, iconStroke);
                         this.add(rect);
                         answersInThisRound.push(rect);
                         scoresInThisRound.push(rect); // Both point to same rect
                         
-                        const t = this.scene.add.text(iconCenterX, baseY, 'A$', { fontSize: '14px', color: iconTextColor, fontStyle: 'bold' }).setOrigin(0.5);
+                        const t = this.scene.add.text(baseX, iconCenterY, 'A$', { fontSize: '14px', color: iconTextColor, fontStyle: 'bold' }).setOrigin(0.5);
                         this.add(t);
                         this.phaseTexts.push(t);
                         
-                        currentX += phaseSize;
+                        currentY += phaseSize;
                     } else {
                         // Per-question Answer icon
                         if (round.showAnswer === 'question') {
-                            currentX += gap;
-                            const iconCenterX = currentX + (phaseSize / 2);
+                            currentY += gap;
+                            const iconCenterY = currentY + (phaseSize / 2);
                             
                             const isAnswering = isCurrentQuestion && this.currentState === 'SHOW_ANSWER';
                             const isAnswered = isPastQuestion || (isCurrentQuestion && (this.currentState === 'UPDATE_SCORES' || this.currentState === 'NEXT_QUESTION' || this.currentState === 'END_ROUND'));
@@ -246,24 +246,24 @@ export class QuizMap extends Phaser.GameObjects.Container {
                                 aStroke = 0xaaaaaa;
                             }
 
-                            const aRect = this.scene.add.rectangle(iconCenterX, baseY, phaseSize, phaseSize, aColor);
+                            const aRect = this.scene.add.rectangle(baseX, iconCenterY, phaseSize, phaseSize, aColor);
                             aRect.setStrokeStyle(4, aStroke);
                             this.add(aRect);
                             answersInThisRound.push(aRect);
                             
-                            const t = this.scene.add.text(iconCenterX, baseY, 'A', { fontSize: '16px', color: aTextColor, fontStyle: 'bold' }).setOrigin(0.5);
+                            const t = this.scene.add.text(baseX, iconCenterY, 'A', { fontSize: '16px', color: aTextColor, fontStyle: 'bold' }).setOrigin(0.5);
                             this.add(t);
                             this.phaseTexts.push(t);
                             
-                            currentX += phaseSize;
+                            currentY += phaseSize;
                         } else {
                             answersInThisRound.push(null);
                         }
 
                         // Per-question Score icon
                         if (round.updateScores === 'question') {
-                            currentX += gap;
-                            const iconCenterX = currentX + (phaseSize / 2);
+                            currentY += gap;
+                            const iconCenterY = currentY + (phaseSize / 2);
                             
                             const isScoring = isCurrentQuestion && this.currentState === 'UPDATE_SCORES';
                             const isScored = isPastQuestion || (isCurrentQuestion && (this.currentState === 'NEXT_QUESTION' || this.currentState === 'END_ROUND'));
@@ -281,16 +281,16 @@ export class QuizMap extends Phaser.GameObjects.Container {
                                 sStroke = 0xaaaaaa;
                             }
 
-                            const sRect = this.scene.add.rectangle(iconCenterX, baseY, phaseSize, phaseSize, sColor);
+                            const sRect = this.scene.add.rectangle(baseX, iconCenterY, phaseSize, phaseSize, sColor);
                             sRect.setStrokeStyle(4, sStroke);
                             this.add(sRect);
                             scoresInThisRound.push(sRect);
 
-                            const t = this.scene.add.text(iconCenterX, baseY, '$', { fontSize: '16px', color: sTextColor, fontStyle: 'bold' }).setOrigin(0.5);
+                            const t = this.scene.add.text(baseX, iconCenterY, '$', { fontSize: '16px', color: sTextColor, fontStyle: 'bold' }).setOrigin(0.5);
                             this.add(t);
                             this.phaseTexts.push(t);
 
-                            currentX += phaseSize;
+                            currentY += phaseSize;
                         } else {
                             scoresInThisRound.push(null);
                         }
@@ -301,8 +301,8 @@ export class QuizMap extends Phaser.GameObjects.Container {
                 const mergeRoundIcons = round.showAnswer === 'round' && round.updateScores === 'round';
 
                 if (mergeRoundIcons) {
-                    currentX += gap;
-                    const iconCenterX = currentX + (phaseSize / 2);
+                    currentY += gap;
+                    const iconCenterY = currentY + (phaseSize / 2);
                     const isAnswering = isCurrentRound && this.currentState === 'SHOW_ANSWER';
                     const isScoring = isCurrentRound && this.currentState === 'UPDATE_SCORES';
                     const isDone = isPastRound || (isCurrentRound && this.currentState === 'NEXT_ROUND');
@@ -324,19 +324,19 @@ export class QuizMap extends Phaser.GameObjects.Container {
                         iconStroke = 0xaaaaaa;
                     }
 
-                    const rect = this.scene.add.rectangle(iconCenterX, baseY, phaseSize, phaseSize, iconColor);
+                    const rect = this.scene.add.rectangle(baseX, iconCenterY, phaseSize, phaseSize, iconColor);
                     rect.setStrokeStyle(4, iconStroke);
                     this.add(rect);
                     this.roundEndAnswerIcons.push(rect);
                     this.roundEndScoreIcons.push(rect);
-                    const t = this.scene.add.text(iconCenterX, baseY, 'A$', { fontSize: '14px', color: iconTextColor, fontStyle: 'bold' }).setOrigin(0.5);
+                    const t = this.scene.add.text(baseX, iconCenterY, 'A$', { fontSize: '14px', color: iconTextColor, fontStyle: 'bold' }).setOrigin(0.5);
                     this.add(t);
                     this.phaseTexts.push(t);
-                    currentX += phaseSize;
+                    currentY += phaseSize;
                 } else {
                     if (round.showAnswer === 'round') {
-                        currentX += gap;
-                        const iconCenterX = currentX + (phaseSize / 2);
+                        currentY += gap;
+                        const iconCenterY = currentY + (phaseSize / 2);
                         const isAnswering = isCurrentRound && this.currentState === 'SHOW_ANSWER';
                         const isAnswered = isPastRound || (isCurrentRound && (this.currentState === 'UPDATE_SCORES' || this.currentState === 'NEXT_ROUND'));
 
@@ -353,21 +353,21 @@ export class QuizMap extends Phaser.GameObjects.Container {
                             aStroke = 0xaaaaaa;
                         }
 
-                        const aRect = this.scene.add.rectangle(iconCenterX, baseY, phaseSize, phaseSize, aColor);
+                        const aRect = this.scene.add.rectangle(baseX, iconCenterY, phaseSize, phaseSize, aColor);
                         aRect.setStrokeStyle(4, aStroke);
                         this.add(aRect);
                         this.roundEndAnswerIcons.push(aRect);
-                        const t = this.scene.add.text(iconCenterX, baseY, 'A', { fontSize: '16px', color: aTextColor, fontStyle: 'bold' }).setOrigin(0.5);
+                        const t = this.scene.add.text(baseX, iconCenterY, 'A', { fontSize: '16px', color: aTextColor, fontStyle: 'bold' }).setOrigin(0.5);
                         this.add(t);
                         this.phaseTexts.push(t);
-                        currentX += phaseSize;
+                        currentY += phaseSize;
                     } else {
                         this.roundEndAnswerIcons.push(null);
                     }
 
                     if (round.updateScores === 'round') {
-                        currentX += gap;
-                        const iconCenterX = currentX + (phaseSize / 2);
+                        currentY += gap;
+                        const iconCenterY = currentY + (phaseSize / 2);
                         const isScoring = isCurrentRound && this.currentState === 'UPDATE_SCORES';
                         const isScored = isPastRound || (isCurrentRound && this.currentState === 'NEXT_ROUND');
 
@@ -384,14 +384,14 @@ export class QuizMap extends Phaser.GameObjects.Container {
                             sStroke = 0xaaaaaa;
                         }
 
-                        const sRect = this.scene.add.rectangle(iconCenterX, baseY, phaseSize, phaseSize, sColor);
+                        const sRect = this.scene.add.rectangle(baseX, iconCenterY, phaseSize, phaseSize, sColor);
                         sRect.setStrokeStyle(4, sStroke);
                         this.add(sRect);
                         this.roundEndScoreIcons.push(sRect);
-                        const t = this.scene.add.text(iconCenterX, baseY, '$', { fontSize: '16px', color: sTextColor, fontStyle: 'bold' }).setOrigin(0.5);
+                        const t = this.scene.add.text(baseX, iconCenterY, '$', { fontSize: '16px', color: sTextColor, fontStyle: 'bold' }).setOrigin(0.5);
                         this.add(t);
                         this.phaseTexts.push(t);
-                        currentX += phaseSize;
+                        currentY += phaseSize;
                     } else {
                         this.roundEndScoreIcons.push(null);
                     }
@@ -408,10 +408,10 @@ export class QuizMap extends Phaser.GameObjects.Container {
         });
 
         // Add Trophy icon at the very end
-        currentX += gap + 24; // Half of trophy width approx
-        this.trophyIcon = this.scene.add.text(currentX, baseY, '🏆', { fontSize: '48px' }).setOrigin(0.5);
+        currentY += gap + 24; 
+        this.trophyIcon = this.scene.add.text(baseX, currentY, '🏆', { fontSize: '48px' }).setOrigin(0.5);
         this.add(this.trophyIcon);
-        currentX += 24;
+        currentY += 24;
 
         if (isEndQuiz) {
             this.trophyIcon.setAlpha(1);
@@ -438,7 +438,9 @@ export class QuizMap extends Phaser.GameObjects.Container {
             this.trophyIcon.setScale(1);
         }
 
-        // Center the map
-        this.x = (1920 - currentX) / 2;
+        // Center the map vertically if needed, but the user wants it on the left
+        // We'll leave positioning to the parent scene
+    }
+}
     }
 }

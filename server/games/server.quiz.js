@@ -1,6 +1,7 @@
 import Game from './server.game.js';
 import GameSession from '../models/mongo.gameSession.js';
 import PlayerResult from '../models/mongo.playerResult.js';
+import QuizRating from '../models/mongo.quizRating.js';
 
 // For V2 QUIZ :
 // import { QuizV2 as QuizModel} from '../models/mongo.quizv2.js';
@@ -10,6 +11,7 @@ import QuizModel from '../models/mongo.quiz.js';
 const QuizState = {
 	INIT: 'INIT',
 	INTRO_QUIZ: 'INTRO_QUIZ',
+	OPENING_CREDITS: 'OPENING_CREDITS',
 	NEXT_ROUND: 'NEXT_ROUND',
 	PREVIOUS_ROUND: 'PREVIOUS_ROUND',
 	INTRO_ROUND: 'INTRO_ROUND',
@@ -23,7 +25,8 @@ const QuizState = {
 	MARK_ANSWERS: 'MARK_ANSWERS',
 	UPDATE_SCORES: 'UPDATE_SCORES',
 	END_ROUND: 'END_ROUND',
-	END_QUIZ: 'END_QUIZ'
+	END_QUIZ: 'END_QUIZ',
+	CLOSING_CREDITS: 'CLOSING_CREDITS'
 };
 
 class QuizStateMachine {
@@ -35,7 +38,7 @@ class QuizStateMachine {
 	}
 
 	start() {
-		this.transitionTo(QuizState.INTRO_QUIZ);
+		this.transitionTo(QuizState.OPENING_CREDITS);
 	}
 
 	// General purpose function which advamces the state machine to the next state
@@ -48,9 +51,11 @@ class QuizStateMachine {
 		switch (this.state) {
 
 			case QuizState.INIT:
-				this.transitionTo(QuizState.INTRO_QUIZ);
-				break;
 			case QuizState.INTRO_QUIZ:
+				this.transitionTo(QuizState.OPENING_CREDITS);
+				break;
+
+			case QuizState.OPENING_CREDITS:
 				this.transitionTo(QuizState.NEXT_ROUND);
 				break;
 
@@ -149,7 +154,12 @@ class QuizStateMachine {
 				break;
 
 			case QuizState.END_QUIZ:
-				this.transitionTo(QuizState.END_QUIZ);
+				this.transitionTo(QuizState.CLOSING_CREDITS);
+				break;
+
+			case QuizState.CLOSING_CREDITS:
+				// Quiz is over
+				console.log('Quiz is fully over.');
 				break;
 
 			default:
@@ -163,12 +173,16 @@ class QuizStateMachine {
 
 		switch (this.state) {
 
+			case QuizState.OPENING_CREDITS:
+				this.transitionTo(QuizState.INTRO_QUIZ);
+				break;
+
 			case QuizState.INTRO_ROUND:
 				// If we are at the intro of a round, go to the last question of the previous round
 				if (this.quiz.moveToPreviousRound()) {
 					this.transitionTo(QuizState.QUESTION);
 				} else {
-					this.transitionTo(QuizState.INTRO_QUIZ);
+					this.transitionTo(QuizState.OPENING_CREDITS);
 				}
 				break;
 
@@ -188,9 +202,13 @@ class QuizStateMachine {
 				break;
 
 			case QuizState.END_ROUND:
-			case QuizState.END_QUIZ:
 				// If we are at the end of a round/quiz, go back to the start of the last question
 				this.transitionTo(QuizState.PREVIOUS_QUESTION);
+				break;
+
+			case QuizState.END_QUIZ:
+			case QuizState.CLOSING_CREDITS:
+				console.log('Attempting to go back after end of quiz... do nothing here...');
 				break;
 
 			default:
@@ -228,6 +246,10 @@ class QuizStateMachine {
 
 			case QuizState.INTRO_QUIZ:
 				this.quiz.introQuiz()
+				break;
+
+			case QuizState.OPENING_CREDITS:
+				this.quiz.openingCredits();
 				break;
 
 			case QuizState.NEXT_ROUND:
@@ -303,6 +325,10 @@ class QuizStateMachine {
 
 			case QuizState.END_QUIZ:
 				this.quiz.endQuiz();
+				break;
+
+			case QuizState.CLOSING_CREDITS:
+				this.quiz.closingCredits();
 				break;
 
 			default:
@@ -1013,10 +1039,9 @@ export default class Quiz extends Game {
 		return this.players.length >= this.minplayers;
 	}
 
-	introduction() {
-		console.log('Quiz: introduction');
-	}
 
+	// init is a required function for a class that extends Game
+	// Called by room when the game is loaded into the room - allows game to perform initialisation before host/players load the game in clients
 	async init(config) {
 		console.log('Quiz::init:', config);
 		this.round = null;
@@ -1039,21 +1064,33 @@ export default class Quiz extends Game {
 				console.error('Quiz::init: error loading quiz data for ID:', config.quizID, error);
 			}
 		}
+
+		// Return metadata for the "Lobby Phase"
+		return {
+			title: this.quizData?.title || 'Untitled Quiz',
+			description: this.quizData?.description || '',
+			quizMap: this.quizData?.rounds?.map((round) => ({
+				title: round.title,
+				questionCount: round.questions.length,
+				showAnswer: round.showAnswer,
+				updateScores: round.updateScores
+			})) || []
+		};
 	}
 
 	// startGame is a required function for a class that extends Game
 	// Called by room when it receives a host:requeststart from the host - this is the entry point to the game
 	// Update: store a flag when started so that if host refreshes we can resume the game
-	async startGame(config) {
+	async startGame() {
 		// Game start logic for game 1
-		console.log('Quiz: startGame:', config, this.players, this.started);
+		console.log('Quiz: startGame:', this.players, this.started);
 
 		if (this.started) {
 			console.log('Quiz::startGame: game already started, resuming...');
 			// Resend intro quiz data so host can rebuild the quiz map
 			this.introQuiz();
 			// Resend current question if we are in a question state
-			if (this.questionNumber > 0) {
+			if (this.roundNumber > 0 && this.questionNumber > 0) {
 				this.doQuestion();
 			}
 			return;
@@ -1077,6 +1114,20 @@ export default class Quiz extends Game {
 		// Not much to do here - we rely on room.js for all the heavy-lifting, game itself is pretty lightweight
 	}
 
+	isEnded() {
+		return this.stateMachine.state === QuizState.CLOSING_CREDITS;
+	}
+
+	/**
+	 * Determines if the existing game instance can be considered the same as the one requested.
+	 * Used for refresh-resume logic in room.js.
+	 */
+	isSameGame(config) {
+		if (!config || !config.quizID) return true;
+		if (!this.quizData || !this.quizData._id) return false;
+		return String(config.quizID) === String(this.quizData._id);
+	}
+
 	// onPlayerReconnect is a required function for a class that extends Game
 	// Called by room when a player connects OR reconnects to the game
 	// We need to resend any current question or answer state to the reconnected player
@@ -1089,7 +1140,7 @@ export default class Quiz extends Game {
 		if (this.stateMachine.state === QuizState.COLLECT_ANSWERS) {
 			
 			// Check if player has already answered
-			if (this.question && this.question.results && this.question.results[player.sessionID]) {
+			if (this.question && this.question.responses && this.question.responses[player.sessionID]) {
 				console.log('Player already answered - client will remain in waiting state');
 				return;
 			}
@@ -1101,9 +1152,9 @@ export default class Quiz extends Game {
 				playerQuestion.direction = this.stateMachine.direction;
 				playerQuestion.questionNumber = this.question.questionNumber;
 				playerQuestion.type = this.question.type;
-				playerQuestion.options = this.question.optionsShuffled;
-				playerQuestion.items = this.question.itemsShuffled;
-				playerQuestion.pairs = this.question.pairsShuffled;
+				playerQuestion.optionsShuffled = this.question.optionsShuffled;
+				playerQuestion.itemsShuffled = this.question.itemsShuffled;
+				playerQuestion.pairsShuffled = this.question.pairsShuffled;
 				playerQuestion.extra = this.question.extra;
 				if (playerQuestion.type == 'hotspot' || playerQuestion.type == 'point-it-out') {
 					playerQuestion.image = this.question.image;
@@ -1121,12 +1172,12 @@ export default class Quiz extends Game {
 				let localQuestion = structuredClone(this.question);
 				localQuestion.mode = 'answer';
 				localQuestion.direction = this.stateMachine.direction;
-				localQuestion.options = this.question.optionsShuffled;
-				localQuestion.items = this.question.itemsShuffled;
-				localQuestion.pairs = this.question.pairsShuffled;
-				localQuestion.results = this.question.results;
+				localQuestion.optionsShuffled = this.question.optionsShuffled;
+				localQuestion.itemsShuffled = this.question.itemsShuffled;
+				localQuestion.pairsShuffled = this.question.pairsShuffled;
+				localQuestion.responses = this.question.responses;
 
-				const scores = this.calculateQuestionScore(localQuestion);
+				const scores = this.calculateQuestionScore(localQuestion, this.round);
 				socket.emit('server:showanswer', { 'scores': scores });
 			}
 		}
@@ -1164,7 +1215,6 @@ export default class Quiz extends Game {
 	// Run introductory animation, plus run any set up data tasks
 	introQuiz() {
 		console.log('introQuiz:');
-		this.roundNumber = 0;
 
 		// Create a map of the quiz structure for the host display
 		const quizMap = this.quizData.rounds.map((round) => ({
@@ -1179,6 +1229,34 @@ export default class Quiz extends Game {
 			description: this.quizData.description,
 			quizMap: quizMap
 		}, true)
+	}
+
+	openingCredits() {
+		console.log('openingCredits:');
+		
+		// Collect some sample question texts to fly across the screen for "Juice"
+		const samples = [];
+		this.quizData.rounds.forEach(round => {
+			round.questions.forEach(q => {
+				if (q.text && q.text.length < 100) samples.push(q.text);
+			});
+		});
+
+		samples.push('What is the capital of France?');
+		samples.push('Who won the 2025 World Series of Poker Main Event?');
+		samples.push('Draw a picture of a cat');
+		samples.push('Match these items together');
+		samples.push('Place these events in order');
+		samples.push('True or False: The sky is blue');
+		samples.push('Which planet is known as the Red Planet?');
+		// Shuffle and pick 10
+		const shuffledSamples = samples.sort(() => 0.5 - Math.random()).slice(0, 10);
+
+		this.room.emitToHosts('server:openingcredits', {
+			title: this.quizData.title,
+			description: this.quizData.description,
+			samples: shuffledSamples
+		}, true);
 	}
 
 	// introRound
@@ -1241,11 +1319,16 @@ export default class Quiz extends Game {
 		return false;
 	}
 
-	// copyQuestionForMutating
+	// prepareMutatedQuestion
 	// Used when asking questions - make a full copy of the question which will be used for sending to host/players
 	// Copy is mutated to eg shuffle option arrays for variety
 	// Plus copy can have answer removed if necessary
 	prepareMutatedQuestion(question) {
+
+		// If we've already prepared this question (eg by going back/forward) then don't do it again
+		if (question.optionsShuffled || question.pairsShuffled || question.itemsShuffled) {
+			return;
+		}
 
 		let localQuestion = structuredClone(question);
 
@@ -1291,7 +1374,7 @@ export default class Quiz extends Game {
 		console.log('doQuestion:', this.roundNumber, this.questionNumber);
 		this.round = this.quizData.rounds[this.roundNumber - 1];
 
-		// this.question holds a pointer into the master quizData to allow mutating for storing results
+		// this.question holds a pointer into the master quizData to allow mutating for storing player responses and scores
 		this.question = this.round.questions[this.questionNumber - 1];
 
 		// Add the general quiz state to the question - do this before copying the question
@@ -1307,13 +1390,13 @@ export default class Quiz extends Game {
 		hostQuestion.mode = this.mode;
 		hostQuestion.direction = this.stateMachine.direction;
 		hostQuestion.roundNumber = this.roundNumber;
-		hostQuestion.options = this.question.optionsShuffled;
-		hostQuestion.items = this.question.itemsShuffled;
-		hostQuestion.pairs = this.question.pairsShuffled;
+		hostQuestion.optionsShuffled = this.question.optionsShuffled;
+		hostQuestion.itemsShuffled = this.question.itemsShuffled;
+		hostQuestion.pairsShuffled = this.question.pairsShuffled;
 		delete hostQuestion.answer;
-		delete hostQuestion.optionsShuffled;
-		delete hostQuestion.itemsShuffled;
-		delete hostQuestion.pairsShuffled;
+		delete hostQuestion.options;
+		delete hostQuestion.items;
+		delete hostQuestion.pairs;
 
 		// This is an exception where we want to automatically move to next state without waiting for host
 		// WHY? Because after asking a question we know we instantly want to either collect answers or show the answer
@@ -1355,11 +1438,8 @@ export default class Quiz extends Game {
 
 		// Prepare a question object holding only the data needed for the players
 		// IMPORTANT: don't initialise this otherwise we can't go back and re-visit questions
-		if (!this.question.results) {
-			this.question.results = {};
-		}
-		if (!this.question.times) {
-			this.question.times = {};
+		if (!this.question.responses) {
+			this.question.responses = {};
 		}
 
 		// Prepare a local copy of the question for sending to players
@@ -1370,9 +1450,9 @@ export default class Quiz extends Game {
 		playerQuestion.direction = this.stateMachine.direction;
 		playerQuestion.questionNumber = this.question.questionNumber;
 		playerQuestion.type = this.question.type;
-		playerQuestion.options = this.question.optionsShuffled;
-		playerQuestion.items = this.question.itemsShuffled;
-		playerQuestion.pairs = this.question.pairsShuffled;
+		playerQuestion.optionsShuffled = this.question.optionsShuffled;
+		playerQuestion.itemsShuffled = this.question.itemsShuffled;
+		playerQuestion.pairsShuffled = this.question.pairsShuffled;
 		playerQuestion.extra = this.question.extra;
 		// Include the image if it is required for the answer (hotspot, point-it-out)
 		if (playerQuestion.type == 'hotspot' || playerQuestion.type == 'point-it-out') {
@@ -1384,8 +1464,11 @@ export default class Quiz extends Game {
 			console.log('quiz.responseHandler:', socket.id, response);
 			const player = this.room.getPlayerBySocketID(socket.id);
 			if (player) {
-				this.question.results[player.sessionID] = response.answer;
-				this.question.times[player.sessionID] = response.answerTime;
+				this.question.responses[player.sessionID] = {
+					answer: response.answer,
+					time: response.answerTime,
+					score: 0 // Initialized, will be calculated later
+				};
 				this.room.emitToHosts('server:questionanswered', { sessionID: player.sessionID, response: response });
 			}
 			console.log('quiz.responseHandler:', this.question);
@@ -1427,12 +1510,22 @@ export default class Quiz extends Game {
 		let localQuestion = structuredClone(this.question);
 		localQuestion.mode = 'answer';
 		localQuestion.direction = this.stateMachine.direction;
-		localQuestion.options = this.question.optionsShuffled;
-		localQuestion.items = this.question.itemsShuffled;
-		localQuestion.pairs = this.question.pairsShuffled;
+		localQuestion.options = this.question.options;
+		localQuestion.optionsShuffled = this.question.optionsShuffled;
+		localQuestion.items = this.question.items;
+		localQuestion.itemsShuffled = this.question.itemsShuffled;
+		localQuestion.pairs = this.question.pairs;
+		localQuestion.pairsShuffled = this.question.pairsShuffled;
 
-		// Don't forget to include the question results
-		localQuestion.results = this.question.results;
+		// Don't forget to include the question responses
+		localQuestion.responses = this.question.responses;
+
+		// Calculate scores and derived answers (like number-average) BEFORE emitting to Host
+		if (this.question.type !== 'draw') {
+			this.calculateQuestionScore(localQuestion, this.round);
+			// Sync derived values back to original question object
+			this.question.answer = localQuestion.answer;
+		}
 
 		console.dir('showAnswer:', localQuestion);
 		this.room.emitToHosts('server:showanswer', localQuestion);
@@ -1445,9 +1538,10 @@ export default class Quiz extends Game {
 		if (this.question.type === 'draw') {
 			// this.submitToPlayersForScoring(localQuestion);
 		} else {
-			const scores = this.calculateQuestionScore(localQuestion);
-			console.log('showAnswer: calculated scores:', scores);
-			this.room.emitToAllPlayers('server:showanswer', { 'scores': scores });
+			// Scoring already done above for non-draw questions
+			console.log('showAnswer: updated responses with scores:', localQuestion.responses);
+			// Send a focused update of responses/scores to all players
+			this.room.emitToAllPlayers('server:showanswer', { 'responses': localQuestion.responses });
 		}
 	}
 
@@ -1464,13 +1558,13 @@ export default class Quiz extends Game {
 	submitToPlayersForScoring(question) {
 
 		console.log('server.quiz:: submitToPlayersForScoring:', question);
-		if (!question.results) {
-			console.log('server.quiz:: submitToPlayersForScoring: no results to score');
+		if (!question.responses) {
+			console.log('server.quiz:: submitToPlayersForScoring: no responses to score');
 			return;
 		}
 		
 		// We need to send each player a different answer to score, from the players who answered the question
-		const players = question.results ? this.room.players.filter(player => question.results[player.sessionID]) : [];
+		const players = question.responses ? this.room.players.filter(player => question.responses[player.sessionID]) : [];
 		console.log('server.quiz:: submitToPlayersForScoring: players:', players.length, players);
 		if (players.length === 0) {
 			console.log('server.quiz:: submitToPlayersForScoring: no players answered the question, skipping draw scoring');
@@ -1483,18 +1577,18 @@ export default class Quiz extends Game {
 			console.log('server.quiz::submitToPlayersForScoring: responseHandler:', socket.id, response);
 			const player = this.room.getPlayerBySocketID(socket.id);
 			// We need to map this response back to the correct player
-			if (player && question.results[player.sessionID]) {
+			if (player && question.responses[player.sessionID]) {
 				const index = players.findIndex(p => p.sessionID === player.sessionID);
 				if (index >= 0) {
 					const targetPlayer = players[index + 1] || players[0];
-					question.results[targetPlayer.sessionID].score = response;
+					question.responses[targetPlayer.sessionID].score = response;
 				}
-				console.log('server.quiz::submitToPlayersForScoring: updated question results:', question.results);
+				console.log('server.quiz::submitToPlayersForScoring: updated question responses:', question.responses);
 			}
 		}
 
 		players.forEach((player, index) => {
-			const playerAnswer = question.results[player.sessionID];
+			const playerAnswer = question.responses[player.sessionID];
 			const targetPlayer = players[index - 1] || players[players.length - 1];
 			console.log('server.quiz::submitToPlayersForScoring: sending answer to player:', player.sessionID, 'target:', targetPlayer, 'answer:', playerAnswer);
 			if (playerAnswer) {
@@ -1507,7 +1601,7 @@ export default class Quiz extends Game {
 	// We have shown the correct answer to the players, now time to update the scores
 	// Note: we only calculate the scores at this point since some scoring relies on knowing all the player results (eg hotspot)
 	// IMPORTANT: if questions need further processing before a score can be calculated then that MUST be done before calling this function!
-	// This function assumes scores have ALREADY been stored in question.results
+	// This function assumes scores have ALREADY been stored in question.responses
 	updateScores() {
 		console.log('server.quiz:: updateScores:', this.roundNumber, this.questionNumber);
 
@@ -1540,12 +1634,13 @@ export default class Quiz extends Game {
 			scores[player.sessionID] = 0;
 		});
 		for (var i = 0; i < this.roundNumber; i++) {
-			const lastQuestion = (i == this.roundNumber - 1) ? this.questionNumber : this.quizData.rounds[i].questions.length;
+			const currentRound = this.quizData.rounds[i];
+			const lastQuestion = (i == this.roundNumber - 1) ? this.questionNumber : currentRound.questions.length;
 			for (var j = 0; j < lastQuestion; j++) {
-				const scoreQuestion = this.calculateQuestionScore(this.quizData.rounds[i].questions[j]);
+				const scoreQuestion = this.calculateQuestionScore(currentRound.questions[j], currentRound);
 				addDictionaries(scores, scoreQuestion);
 				console.log('Round Question:', i, j);
-				console.log('Results:', this.quizData.rounds[i].questions[j].results);
+				console.log('Responses:', currentRound.questions[j].responses);
 				console.log('Question:', scoreQuestion);
 				console.log('Scores:', scores);
 			}
@@ -1555,18 +1650,39 @@ export default class Quiz extends Game {
 	}
 
 	// calculateQuestionScore
-	// For a single question we have all the player's answers stored in question.results
+	// For a single question we have all the player's answers stored in question.responses
 	// This is a dictionary, keyed on player sessionID, with the value being the answer
 	// Each question type has its own scoring method - principle is the same:
-	// Loop through the keys of the results dictionary calculating a score for each player
-	calculateQuestionScore(question) {
-		console.log('calculatePlayerScores:', question);
+	// Loop through the keys of the responses dictionary calculating a score for each player
+	calculateQuestionScore(question, round) {
+		console.log('calculateQuestionScore:', question, round);
 
 		var scores = {};
 
-		// Just in case we arrive here and we have not collected any results then initialize the result object
-		if (!question.results) {
-			question.results = {};
+		// Just in case we arrive here and we have not collected any responses then initialize the responses object
+		if (!question.responses) {
+			question.responses = {};
+		}
+
+		// For scoring method snooze - if player has snoozed then we ignore their answer for this question
+		// Better to remove right away so they take no part in the scoring
+		if (round.scoreMethod === 'snooze') {
+			// Find the response with the highest time (ie the last response) and mark it as snoozed
+			// Note: we must consider that a team didn't answer at all - in which case they are the snoozer
+			if (Object.keys(question.responses).length === this.room.players.length) {
+				let latestTime = 0;
+				let latestSessionID = null;
+				Object.keys(question.responses).forEach((sessionID) => {
+					if (question.responses[sessionID].time > latestTime) {
+						latestTime = question.responses[sessionID].time;
+						latestSessionID = sessionID;
+					}
+				});
+				if (latestSessionID) {
+					question.responses[latestSessionID].snoozed = true;
+					console.log('Snoozing player:', latestSessionID);
+				}
+			}
 		}
 
 		function createSimpleString(str) {
@@ -1584,9 +1700,10 @@ export default class Quiz extends Game {
 
 			case 'text':
 				const simpleAnswerText = createSimpleString(question.answer);
-				Object.keys(question.results).forEach((sessionID) => {
-					const simpleResult = createSimpleString(question.results[sessionID]);
+				Object.keys(question.responses).forEach((sessionID) => {
+					const simpleResult = createSimpleString(question.responses[sessionID].answer);
 					if (levenshteinDistance(simpleAnswerText, simpleResult) < 3) {
+						question.responses[sessionID].score = 1;
 						scores[sessionID] = 1;
 					}
 				});
@@ -1596,9 +1713,10 @@ export default class Quiz extends Game {
 			case 'true-false':
 			case 'number-exact':
 				const simpleAnswer = createSimpleString(question.answer);
-				Object.keys(question.results).forEach((sessionID) => {
-					console.log('this.calculatePlayerScores: ', simpleAnswer, question.results[sessionID]);
-					if (createSimpleString(question.results[sessionID]) == simpleAnswer) {
+				Object.keys(question.responses).forEach((sessionID) => {
+					console.log('calculateQuestionScore: ', simpleAnswer, question.responses[sessionID].answer);
+					if (createSimpleString(question.responses[sessionID].answer) == simpleAnswer) {
+						question.responses[sessionID].score = 1;
 						scores[sessionID] = 1;
 					}
 				});
@@ -1607,10 +1725,10 @@ export default class Quiz extends Game {
 			case 'number-closest':
 				// Calculate distance from correct answer using objects with named properties
 				var distances = [];
-				Object.keys(question.results).forEach((sessionID) => {
+				Object.keys(question.responses).filter( (sessionID) => !(question.responses[sessionID].snoozed && question.responses[sessionID].snoozed === true)).forEach((sessionID) => {
 					distances.push({
 						sessionID: sessionID,
-						distance: Math.abs(parseFloat(question.results[sessionID]) - parseFloat(question.answer))
+						distance: Math.abs(parseFloat(question.responses[sessionID].answer) - parseFloat(question.answer))
 					});
 				});
 
@@ -1618,32 +1736,31 @@ export default class Quiz extends Game {
 				distances = distances.sort((a, b) => a.distance - b.distance);
 
 				// Closest gets 2 points, next 1 point
-				console.log('number-closest:', question.answer, question.results, distances);
+				console.log('number-closest:', question.answer, question.responses, distances);
 
 				var nextPlayer = 1;
 				if (distances.length > 0) {
-					scores[distances[0].sessionID] = 2;
-
 					// Award 2 points to any players tied for first place
-					for (let i = nextPlayer; i < distances.length; i++) {
+					for (let i = 0; i < distances.length; i++) {
 						if (distances[i].distance === distances[0].distance) {
+							question.responses[distances[i].sessionID].score = 2;
 							scores[distances[i].sessionID] = 2;
-							nextPlayer++;
+							nextPlayer = i + 1;
+						} else {
+							break;
 						}
 					}
 				}
 
-				// If more than one team was assigned 2 points above then don't award any more points
-				if (distances.length > 1 && nextPlayer === 1) {
-					scores[distances[1].sessionID] = 1;
-					nextPlayer = 2;
-
-					// Award 1 point to any players tied for second place
-					if (distances.length > 2) {
-						for (let i = nextPlayer; i < distances.length; i++) {
-							if (distances[i].distance === distances[1].distance) {
-								scores[distances[i].sessionID] = 1;
-							}
+				// If more than one team was assigned 2 points above then award 1 point to the next level
+				if (distances.length > nextPlayer) {
+					const secondPlaceDistance = distances[nextPlayer].distance;
+					for (let i = nextPlayer; i < distances.length; i++) {
+						if (distances[i].distance === secondPlaceDistance) {
+							question.responses[distances[i].sessionID].score = 1;
+							scores[distances[i].sessionID] = 1;
+						} else {
+							break;
 						}
 					}
 				}
@@ -1654,57 +1771,52 @@ export default class Quiz extends Game {
 			case 'number-average':
 				// Calculate distance from correct answer using objects with named properties
 				let total = 0;
-				Object.keys(question.results).forEach((sessionID) => {
-					total += parseFloat(question.results[sessionID]);
-				}
-				);
-				question.answer = Math.floor(total / Object.keys(question.results).length);
-				var distances = [];
-				Object.keys(question.results).forEach((sessionID) => {
-					distances.push({
-						sessionID: sessionID,
-						distance: Math.abs(parseFloat(question.results[sessionID]) - parseFloat(question.answer))
+				const responseKeys = Object.keys(question.responses);
+				if (responseKeys.length === 0) {
+					// If no responses, keep existing answer or set to 0
+					question.answer = question.answer || 0;
+				} else {
+					responseKeys.forEach((sessionID) => {
+						total += parseInt(question.responses[sessionID].answer);
 					});
-				});
-
-				var distances = [];
-				Object.keys(question.results).forEach((sessionID) => {
-					distances.push({
+					question.answer = (total / responseKeys.length).toFixed(0);
+				}
+				
+				var distancesAvg = [];
+				responseKeys.forEach((sessionID) => {
+					distancesAvg.push({
 						sessionID: sessionID,
-						distance: Math.abs(parseFloat(question.results[sessionID]) - parseFloat(question.answer))
+						distance: Math.abs(parseFloat(question.responses[sessionID].answer) - parseFloat(question.answer))
 					});
 				});
 
 				// Sort by distance (ascending)
-				distances = distances.sort((a, b) => a.distance - b.distance);
+				distancesAvg = distancesAvg.sort((a, b) => a.distance - b.distance);
 
 				// Closest gets 2 points, next 1 point
-				console.log('number-average:', question.answer, question.results, distances);
+				console.log('number-average:', question.answer, question.responses, distancesAvg);
 
-				var nextPlayer = 1;
-				if (distances.length > 0) {
-					scores[distances[0].sessionID] = 2;
-
-					// Award 2 points to any players tied for first place
-					for (let i = nextPlayer; i < distances.length; i++) {
-						if (distances[i].distance === distances[0].distance) {
-							scores[distances[i].sessionID] = 2;
-							nextPlayer++;
+				var nextPlayerAvg = 1;
+				if (distancesAvg.length > 0) {
+					for (let i = 0; i < distancesAvg.length; i++) {
+						if (distancesAvg[i].distance === distancesAvg[0].distance) {
+							question.responses[distancesAvg[i].sessionID].score = 2;
+							scores[distancesAvg[i].sessionID] = 2;
+							nextPlayerAvg = i + 1;
+						} else {
+							break;
 						}
 					}
 				}
 
-				// If more than one team was assigned 2 points above then don't award any more points
-				if (distances.length > 1 && nextPlayer === 1) {
-					scores[distances[1].sessionID] = 1;
-					nextPlayer = 2;
-
-					// Award 1 point to any players tied for second place
-					if (distances.length > 2) {
-						for (let i = nextPlayer; i < distances.length; i++) {
-							if (distances[i].distance === distances[1].distance) {
-								scores[distances[i].sessionID] = 1;
-							}
+				if (distancesAvg.length > nextPlayerAvg) {
+					const secondPlaceDistance = distancesAvg[nextPlayerAvg].distance;
+					for (let i = nextPlayerAvg; i < distancesAvg.length; i++) {
+						if (distancesAvg[i].distance === secondPlaceDistance) {
+							question.responses[distancesAvg[i].sessionID].score = 1;
+							scores[distancesAvg[i].sessionID] = 1;
+						} else {
+							break;
 						}
 					}
 				}
@@ -1715,59 +1827,82 @@ export default class Quiz extends Game {
 			// question.answer holds the correct order
 			case 'ordering':
 			case 'matching':
-				Object.keys(question.results).forEach((sessionID) => {
-					const length = Math.min(question.answer.length, question.results[sessionID].length);
+				Object.keys(question.responses).forEach((sessionID) => {
+					const length = Math.min(question.answer.length, question.responses[sessionID].answer.length);
 					var score = 0;
-					console.log('this.calculatePlayerScores: ordering:', question.answer, question.results[sessionID]);
+					console.log('calculateQuestionScore: ordering:', question.answer, question.responses[sessionID].answer);
 					for (let i = 0; i < length; i++) {
-						console.log(question.answer[i], question.results[sessionID][i]);
-						if (question.answer[i] == question.results[sessionID][i]) {
+						console.log(question.answer[i], question.responses[sessionID].answer[i]);
+						if (question.answer[i] == question.responses[sessionID].answer[i]) {
 							score++; // Increment score for matching elements
 						}
 					}
 					// You don't score for the final item since this is a given
 					if (score == question.answer.length) score--;
+					question.responses[sessionID].score = score;
 					scores[sessionID] = score;
 				});
 				break;
 
 			case 'hotspot':
 				// We would usually use a dictionary but since we have to sort the distances we use an array instead
-				var distances = [];
-				Object.keys(question.results).forEach((sessionID) => {
-					distances.push([sessionID, Math.hypot(parseInt(question.results[sessionID].x) - question.answer.x, parseInt(question.results[sessionID].y) - question.answer.y)]);
+				var hotspotDistances = [];
+				Object.keys(question.responses).forEach((sessionID) => {
+					const response = question.responses[sessionID].answer;
+					hotspotDistances.push([sessionID, Math.hypot(parseInt(response.x) - question.answer.x, parseInt(response.y) - question.answer.y)]);
 				});
-				distances = distances.sort(([, valueA], [, valueB]) => valueA - valueB);
-				// Closest gets 2 points, next 1 point. Plus a bonus point to all other values within a threshold of second place
-				console.log('hotspot:', question.answer, question.results, distances);
-				if (distances.length > 0) {
-					scores[distances[0][0]] = 2;
+				hotspotDistances = hotspotDistances.sort(([, valueA], [, valueB]) => valueA - valueB);
+				
+				console.log('hotspot:', question.answer, question.responses, hotspotDistances);
+				if (hotspotDistances.length > 0) {
+					const firstSessionID = hotspotDistances[0][0];
+					question.responses[firstSessionID].score = 2;
+					scores[firstSessionID] = 2;
 				}
-				if (distances.length > 1) {
-					scores[distances[1][0]] = 1;
+				if (hotspotDistances.length > 1) {
+					const secondSessionID = hotspotDistances[1][0];
+					question.responses[secondSessionID].score = 1;
+					scores[secondSessionID] = 1;
 				}
 				break;
 
 			case 'point-it-out':
 				// This is simpler than hotspot since its just a right/wrong answer based on the rectangle hit area
-				Object.keys(question.results).forEach((sessionID) => {
-					if ((question.results[sessionID].x >= question.answer.start.x) &
-						(question.results[sessionID].x <= question.answer.end.x) &
-						(question.results[sessionID].y >= question.answer.start.y) &
-						(question.results[sessionID].y <= question.answer.end.y)) {
+				Object.keys(question.responses).forEach((sessionID) => {
+					const response = question.responses[sessionID].answer;
+					if ((response.x >= question.answer.start.x) &
+						(response.x <= question.answer.end.x) &
+						(response.y >= question.answer.start.y) &
+						(response.y <= question.answer.end.y)) {
+						question.responses[sessionID].score = 1;
 						scores[sessionID] = 1;
 					}
 				});
 				break;
 
 			case 'draw':
-				Object.keys(question.results).forEach((sessionID) => {
-					if (question.results[sessionID].score) {
-						scores[sessionID] = question.results[sessionID].score;
+				Object.keys(question.responses).forEach((sessionID) => {
+					if (question.responses[sessionID].answer && question.responses[sessionID].answer.score) {
+						const score = question.responses[sessionID].answer.score;
+						question.responses[sessionID].score = score;
+						scores[sessionID] = score;
 					}
 				});
 				break;
 
+		}
+
+		// Handle "You Snooze You Lose" logic
+		// We already set the snoozer at the top of this function
+		// Since we then marked players are normal we simply look for any snoozers and set their score to 0
+		if (round && round.scoreMethod === 'snooze') {
+			const sessions = Object.keys(question.responses);
+			sessions.forEach(sessionID => {
+				if (question.responses[sessionID].snoozed) {
+					question.responses[sessionID].score = 0;
+					scores[sessionID] = 0;
+				}
+			});
 		}
 
 		return scores;
@@ -1813,6 +1948,7 @@ export default class Quiz extends Game {
 	async endQuiz() {
 		const scores = this.calculateCumulativeScore();
 		console.log('endQuiz:', this.quizData, this.roundNumber, this.questionNumber, scores);
+		console.log('Final quizData:', JSON.stringify(this.quizData));
 		this.room.emitToHosts('server:endquiz', { quizTitle: this.quizData.title, scores: scores });
 
 		// Save results to database
@@ -1820,6 +1956,13 @@ export default class Quiz extends Game {
 			const hostID = this.room.host ? this.room.host.userID : null;
 			const duration = this.startTime ? Math.floor((new Date() - this.startTime) / 1000) : 0;
 			
+			// Determine verification level based on host's role or specific official IDs
+			// For now, 0 = Official, 1 = Trusted, 2 = Verified, 3 = Everyone (Default)
+			let verificationLevel = 3;
+			if (this.room.host && this.room.host.role === 'admin') {
+				verificationLevel = 0; 
+			}
+
 			const session = await GameSession.create({
 				gameType: 'quiz',
 				gameID: this.quizData._id,
@@ -1827,6 +1970,8 @@ export default class Quiz extends Game {
 				roomCode: this.room.id,
 				startTime: this.startTime || new Date(),
 				duration: duration,
+				isLive: true, // If it's being played in a room, it's a live session
+				verificationLevel: verificationLevel,
 				metadata: {
 					title: this.quizData.title,
 					totalRounds: this.quizData.rounds.length,
@@ -1834,12 +1979,17 @@ export default class Quiz extends Game {
 				}
 			});
 
+			this.lastSessionID = session._id;
+
 			// Sort scores to determine rank
 			const sortedScores = Object.entries(scores)
 				.sort(([, a], [, b]) => b - a);
 
 			const playerResults = sortedScores.map(([sessionID, score], index) => {
 				const player = this.players.find(p => p.sessionID === sessionID);
+				
+				// NOTE: When calculating global question difficulty or aggregate stats, 
+				// always filter out results where isBot is true to avoid polluting data.
 				
 				// Extract granular stats for this player
 				const playerStats = {
@@ -1855,24 +2005,18 @@ export default class Quiz extends Game {
 				this.quizData.rounds.forEach(round => {
 					round.questions.forEach(question => {
 						playerStats.totalQuestions++;
-						const result = question.results ? question.results[sessionID] : null;
-						const time = question.times ? question.times[sessionID] : null;
+						const response = question.responses ? question.responses[sessionID] : null;
 						
-						if (result !== undefined && result !== null) {
+						if (response) {
 							answeredCount++;
-							if (time) totalTime += time;
-							
-							// Get the score for this specific question if available
-							let questionScore = 0;
-							if (question.scores && question.scores[sessionID]) {
-								questionScore = question.scores[sessionID];
-							}
+							if (response.time) totalTime += response.time;
+							if (response.score > 0) playerStats.correctCount++;
 
 							playerStats.responses.push({
 								questionText: question.text,
-								answer: result,
-								time: time,
-								score: questionScore
+								answer: response.answer,
+								time: response.time,
+								score: response.score || 0
 							});
 						}
 					});
@@ -1883,22 +2027,87 @@ export default class Quiz extends Game {
 				}
 
 				return {
-					sessionID: session._id,
+					gameSessionID: session._id,
+					sessionID: sessionID, // This is the player's transient session ID
 					userID: player ? player.userID : null,
 					displayName: player ? player.name : 'Unknown',
 					avatar: player ? player.avatar : null,
-					score: score,
+					isBot: player ? player.isBot : false,
 					rank: index + 1,
-					stats: playerStats
+					totalQuestions: playerStats.totalQuestions,
+					totalCorrect: playerStats.correctCount,
+					totalScore: score,
+					responses: playerStats.responses
 				};
 			});
 
 			if (playerResults.length > 0) {
 				await PlayerResult.insertMany(playerResults);
 				console.log(`Successfully saved ${playerResults.length} player results for session ${session._id}`);
+
+				// Notify each player of their final rank and the top 3
+				const top3 = playerResults.slice(0, 3).map(r => ({
+					displayName: r.displayName,
+					avatar: r.avatar,
+					score: r.score,
+					rank: r.rank
+				}));
+
+				playerResults.forEach(result => {
+					console.log('playerResults:', result);
+					const player = this.players.find(p => p.sessionID === result.sessionID);
+					if (player && player.socketID) {
+						console.log(`Notifying player ${player.name} of final rank ${result.rank}`);
+						this.room.emitToPlayers([player.socketID], 'server:endquiz', {
+							rank: result.rank,
+							score: result.score,
+							totalPlayers: playerResults.length
+						});
+					}
+				});
 			}
 		} catch (err) {
 			console.error('Error saving quiz results:', err);
+		}
+	}
+
+	closingCredits() {
+		console.log('closingCredits:');
+		this.room.emitToHosts('server:closingcredits', {
+			title: this.quizData.title
+		});
+		this.room.emitToAllPlayers('server:closingcredits', {
+			title: this.quizData.title
+		});
+	}
+
+async onPlayerRating(player, rating) {
+		console.log('onPlayerRating:', player.name, rating);
+
+		if (!this.lastSessionID) {
+			console.error('onPlayerRating: Missing last session ID. Cannot save rating.');
+			return;
+		}
+		if (!this.quizData?._id) {
+			console.error('onPlayerRating: Missing quiz data _id. Cannot save rating.');
+			return;
+		}
+
+		try {
+			await QuizRating.findOneAndUpdate(
+				{ gameSessionID: this.lastSessionID, playerSessionID: player.sessionID },
+				{
+					quizID: this.quizData._id,
+					gameSessionID: this.lastSessionID,
+					userID: player.userID || null,
+					playerSessionID: player.sessionID,
+					rating: rating.stars,
+				},
+				{ upsert: true, new: true }
+			);
+			console.log(`Successfully saved rating ${rating} for quiz ${this.quizData._id} from player ${player.name}`);
+		} catch (error) {
+			console.error('onPlayerRating: Error saving rating to DB:', error);
 		}
 	}
 

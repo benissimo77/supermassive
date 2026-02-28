@@ -1,4 +1,4 @@
-import { FileDropzone } from "./FileDropzone";
+import { FileDropzone } from "./FileDropzone.js";
 
 export class ImageLibrary {
   constructor(options = {}) {

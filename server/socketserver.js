@@ -32,6 +32,27 @@ export default function createSocketServer(server) {
 	// Store all room objects, keyed on the 4-CHAR ID of the room
 	const rooms = {};
 
+	// Helper to get stats for all active rooms
+	io.getRoomStats = () => {
+		const stats = {};
+		Object.keys(rooms).forEach(roomID => {
+			const room = rooms[roomID];
+			if (room) {
+				const playercount = (room.players ? room.players.length : 0);
+				const hostcount = (room.hosts ? room.hosts.length : 0);
+				// We include rooms with players/hosts, or non-default rooms
+				if (playercount > 0 || hostcount > 0 || (roomID !== '__default__' && roomID !== undefined)) {
+					stats[roomID] = {
+						players: playercount,
+						hosts: hostcount,
+						game: room.game ? (room.game.name || 'Active') : 'Lobby'
+					};
+				}
+			}
+		});
+		return stats;
+	};
+
 	const listSocketConnections = async () => {
 		const sockets = await io.fetchSockets();
 		console.log('listSocketConnections:', sockets.length);
@@ -43,73 +64,29 @@ export default function createSocketServer(server) {
 	io.on('connection', (socket) => {
 
 		// ADDED PURELY FOR MONEYTREE - not needed after this
-		//
 		socket.on('client:saveresults', (results) => {
 			console.log('Client save results:', results);
 			io.emit('connection', 'Caught results:', results);
 		});
-		//
-		//
-		//
-		//
 
-		const session = socket.request.session;
-		let userObj = { ...session };
+		// Identify the user and their room
+		const userObj = identifyUser(socket);
 
-		// Identify role and room from the referer URL path
-		// This is more reliable than session data which can be shared across tabs
-		const referer = socket.handshake.headers.referer;
-		if (referer) {
-			try {
-				const url = new URL(referer);
-				const pathSegments = url.pathname.split('/').filter(s => s.length > 0);
-
-				// If path starts with /host, it's a host
-				if (pathSegments[0] === 'host') {
-					userObj.host = 1;
-					if (pathSegments[1] && pathSegments[1].length === 4) {
-						userObj.room = pathSegments[1];
-					}
-				} else if (pathSegments[0] === 'admin') {
-					// If path starts with /admin, it's an admin
-					userObj.role = 'admin';
-					if (pathSegments[1] && pathSegments[1].length === 4) {
-						userObj.room = pathSegments[1];
-					}
-				} else if (pathSegments[0] === 'play') {
-					userObj.host = false;
-					if (pathSegments[1]) {
-						userObj.room = pathSegments[1];
-					}
-				}
-
-				// For development, allow query string overrides
-				if (process.env.NODE_ENV === 'development') {
-					const urlParams = new URLSearchParams(url.search);
-					const params = Object.fromEntries(urlParams);
-					userObj = { ...userObj, ...params };
-				}
-			} catch (e) {
-				console.error('SocketServer:: Error parsing referer URL:', e);
-			}
+		// Synchronize the identified data back to the session for persistence on refresh
+		if (socket.request.session) {
+			const s = socket.request.session;
+			s.name = userObj.name;
+			s.avatar = userObj.avatar;
+			s.room = userObj.room;
+			s.role = userObj.role;
+			s.host = userObj.host;
+			s.lastActive = Date.now();
+			s.save();
 		}
 
-		// Add session and socket IDs to the user object
-		if (!userObj.sessionID) {
-			userObj.sessionID = socket.request.sessionID;
-		}
-		userObj.socketID = socket.id;
-		userObj.userID = userObj.passport?.user || userObj.user?._id || null;
+		console.log(`Socket connected [${socket.id}] as ${userObj.name} in room ${userObj.room} (${userObj.role})`);
 
-		console.log('io.connection:', session, userObj);
-
-		// If no room is defined, ignore the connection
-		if (!userObj.room) {
-			console.log('No room defined - fallback to default room __default');
-			userObj.room = '__default__';
-		}
-
-		// Create a new room if it doesn't exist
+		// Create or get the room
 		if (!rooms[userObj.room]) {
 			rooms[userObj.room] = new Room(io, userObj.room);
 			console.log('Created new room:', userObj.room);
@@ -172,7 +149,6 @@ export default function createSocketServer(server) {
 					// Broadcast the new result to any admin UI clients
 					try {
 						const adminNs = io.of('/admin'); // admin namespace created by instrument()
-						// broadcast a small payload — avoid sending full heavy arrays every tick
 						adminNs.emit('server:ping-result', {
 							socketId: result.socketId,
 							device: result.device,
@@ -190,13 +166,71 @@ export default function createSocketServer(server) {
 		}
 	}, 2 * 60 * 1000); // Every 3 minutes
 
-
-	// Send keep-alive (ping) message to all connected clients every 60 seconds
-	// This was way simpler than the above - always more complexity...
-	// setInterval(() => {
-	// 	io.emit('server:ping');
-	// 	console.log('io.ping:', new Date());
-	// }, 60000); // 1 minute
-
 	return io;
 }
+
+/**
+ * Extracts identity and placement info from the session and referer URL.
+ * Supports development overrides for testing multiple clients in one browser.
+ */
+function identifyUser(socket) {
+	const session = socket.request.session || {};
+	const referer = socket.handshake.headers.referer;
+
+	// 1. Initial Identity (defaults or existing session data)
+	let userObj = {
+		sessionID: socket.request.sessionID,
+		socketID: socket.id,
+		userID: session.passport?.user || session.user?._id || null,
+		name: session.name || 'Guest',
+		avatar: session.avatar || 'default',
+		room: session.room || '__default__',
+		host: !!session.host,
+		role: session.role || 'player'
+	};
+
+	// 2. Override based on URL Path (e.g. /host/ROOM1 vs /play/ROOM1)
+	if (referer) {
+		try {
+			const url = new URL(referer);
+			const pathSegments = url.pathname.split('/').filter(s => s.length > 0);
+			const [type, roomCode] = pathSegments;
+
+			if (type === 'host') {
+				userObj.host = true;
+				userObj.role = 'host';
+				if (roomCode) userObj.room = roomCode.toUpperCase();
+			} else if (type === 'admin') {
+				userObj.role = 'admin';
+				if (roomCode) userObj.room = roomCode.toUpperCase();
+			} else if (type === 'play') {
+				userObj.host = false;
+				userObj.role = 'player';
+				if (roomCode) userObj.room = roomCode.toUpperCase();
+			}
+
+			// 3. Query Parameter Overrides (ONLY for dev testing)
+			if (process.env.NODE_ENV === 'development') {
+				const urlParams = new URLSearchParams(url.search);
+
+				// Support ?sessionID=XYZ ?name=Bob ?avatar=123 ?room=TEST
+				if (urlParams.get('sessionID')) userObj.sessionID = urlParams.get('sessionID');
+				if (urlParams.get('name')) userObj.name = urlParams.get('name');
+				if (urlParams.get('avatar')) userObj.avatar = urlParams.get('avatar');
+				if (urlParams.get('room')) userObj.room = urlParams.get('room').toUpperCase();
+				if (urlParams.get('role')) userObj.role = urlParams.get('role');
+				if (urlParams.has('host')) {
+					userObj.host = (urlParams.get('host') === 'true' || urlParams.get('host') === '1');
+					if (userObj.host) userObj.role = 'host';
+					else if (userObj.role === 'host') userObj.role = 'player';
+				}
+			}
+
+		} catch (e) {
+			console.error('SocketServer::identifyUser: Error parsing referer URL:', e);
+		}
+	}
+
+	return userObj;
+}
+

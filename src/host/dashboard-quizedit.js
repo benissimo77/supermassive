@@ -1,6 +1,7 @@
 import { FileDropzone } from './FileDropzone.js';
 import { ImageLibrary } from './ImageLibrary.js';
-import '../ImageSelector.js';
+import { Auth } from '../utils/auth.js';
+import '../utils/ImageSelector.js';
 
 export function initDashboardQuizEdit() {
 
@@ -11,6 +12,79 @@ export function initDashboardQuizEdit() {
 	const quizTitle = document.getElementById('quiz-title');
 	const saveQuizButtons = document.querySelectorAll('.save-quiz-btn');
 	const backToQuizListButton = document.getElementById('back-to-list-btn');
+
+	// AI Generator elements
+	const aiGenerateBtn = document.getElementById('ai-generate-btn');
+	const aiGeneratorPanel = document.getElementById('ai-generator-panel');
+	const aiSubmitBtn = document.getElementById('ai-submit-btn');
+	const aiCancelBtn = document.getElementById('ai-cancel-btn');
+	const aiPromptInput = document.getElementById('ai-prompt-input');
+	const aiStatus = document.getElementById('ai-status');
+
+	if (aiGenerateBtn) {
+		aiGenerateBtn.addEventListener('click', () => {
+			aiGeneratorPanel.style.display = aiGeneratorPanel.style.display === 'none' ? 'block' : 'none';
+			if (aiGeneratorPanel.style.display === 'block') {
+				aiPromptInput.focus();
+			}
+		});
+	}
+
+	if (aiCancelBtn) {
+		aiCancelBtn.addEventListener('click', () => {
+			aiGeneratorPanel.style.display = 'none';
+		});
+	}
+
+	if (aiSubmitBtn) {
+		aiSubmitBtn.addEventListener('click', generateAIQuiz);
+	}
+
+	if (aiPromptInput) {
+		aiPromptInput.addEventListener('keypress', (e) => {
+			if (e.key === 'Enter') {
+				generateAIQuiz();
+			}
+		});
+	}
+
+	async function generateAIQuiz() {
+		const isHost = await Auth.checkRole('host');
+		if (!isHost) {
+			alert('AI Generation is a Host feature. Please verify your email address to unlock this feature.');
+			return;
+		}
+
+		const prompt = aiPromptInput.value.trim();
+		if (!prompt) return;
+
+		aiSubmitBtn.disabled = true;
+		aiStatus.style.display = 'flex';
+
+		try {
+			const response = await fetch('/api/quiz/generate', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ prompt })
+			});
+
+			const result = await response.json();
+			if (result.success) {
+				await createQuizFromJSON(result.data);
+				markAsChanged();
+				aiGeneratorPanel.style.display = 'none';
+				aiPromptInput.value = '';
+			} else {
+				alert('AI Generation failed: ' + result.message);
+			}
+		} catch (error) {
+			console.error('Error generating AI quiz:', error);
+			alert('Error generating AI quiz');
+		} finally {
+			aiSubmitBtn.disabled = false;
+			aiStatus.style.display = 'none';
+		}
+	}
 
 	hostQuizButton && hostQuizButton.addEventListener('click', hostQuiz);
 	addRoundButton && addRoundButton.addEventListener('click', addRoundToDOM);
@@ -54,6 +128,37 @@ export function initDashboardQuizEdit() {
 			if (imageUrlField) imageUrlField.value = '';
 			event.target.style.display = 'none';
 		}
+		if (event.target.matches('.ai-search-btn')) {
+			const questionElement = event.target.closest('.question');
+			const query = questionElement.querySelector('.ai-search-query')?.textContent.replace('Search: ', '') || '';
+			const imageSelector = new ImageLibrary({
+				onSelect: (image) => {
+					const imagePreview = questionElement.querySelector('[data-field="question-image"]');
+					const imageUrlField = questionElement.querySelector('[data-field="question-image-url"]');
+					const previewContainer = questionElement.querySelector('.image-preview-container');
+					
+					if (imagePreview) {
+						imagePreview.src = image.url;
+						if (previewContainer) previewContainer.style.display = 'block';
+					}
+					if (imageUrlField) imageUrlField.value = image.url;
+					
+					const clearBtn = questionElement.querySelector('.clear-image-btn');
+					if (clearBtn) clearBtn.style.display = 'inline-block';
+					
+					setImageSelectorSrc(questionElement, image.url);
+					markAsChanged();
+				}
+			});
+			imageSelector.show();
+		}
+		if (event.target.matches('.ai-web-search-btn')) {
+			const questionElement = event.target.closest('.question');
+			const query = questionElement.querySelector('.ai-search-query')?.textContent.replace('Search: ', '') || '';
+			if (query) {
+				window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=isch`, '_blank');
+			}
+		}
 		if (event.target.classList.contains('delete-btn')) {
 			const elementToRemove = event.target.closest('.round, .question');
 			if (elementToRemove.classList.contains('round')) {
@@ -94,7 +199,7 @@ export function initDashboardQuizEdit() {
 				const result = await response.json();
 				console.log('Loaded quiz data:', result);
 				if (result.success && result.data) {
-					createQuizFromJSON(result.data);
+					await createQuizFromJSON(result.data);
 				} else {
 					alert('Failed to load quiz data.');
 				}
@@ -103,7 +208,7 @@ export function initDashboardQuizEdit() {
 			}
 		} else {
 			// New quiz
-			createQuizFromJSON({ title: 'New Quiz', description: '', rounds: [] });
+			await createQuizFromJSON({ title: 'New Quiz', description: '', rounds: [] });
 		}
 	}
 
@@ -177,7 +282,7 @@ export function initDashboardQuizEdit() {
 				clearTimeout(saveQuizTimeout);
 			}, 3000);
 
-			createQuizFromJSON(result.data);
+			await createQuizFromJSON(result.data);
 
 		} catch (error) {
 			console.error('Error saving quiz:', error);
@@ -365,16 +470,18 @@ export function initDashboardQuizEdit() {
 			case 'ordering':
 				questionHint.textContent = 'Players drag items into the correct order';
 				contentContainer.innerHTML = `
-                        <label>Start label:</label><input type="text" data-field="order-start" placeholder="eg Earliest">
-                        <label>End label:</label><input type="text" data-field="order-end" placeholder="eg Latest">
-                        <label>Items to Order (enter in correct order):</label>
-                        <div class="ordering-items">
-                            <input type="text" data-field="order-item" placeholder="Item 1">
-                            <input type="text" data-field="order-item" placeholder="Item 2">
-                            <input type="text" data-field="order-item" placeholder="Item 3">
-                            <input type="text" data-field="order-item" placeholder="Item 4">
-                            <input type="text" data-field="order-item" placeholder="Item 5">
-                            <input type="text" data-field="order-item" placeholder="Item 6">
+                        <div class="mb-sm"><label>Start label:</label><input type="text" data-field="order-start" placeholder="eg Earliest"></div>
+                        <div class="mb-sm"><label>End label:</label><input type="text" data-field="order-end" placeholder="eg Latest"></div>
+                        <div class="mb-sm">
+                        	<label>Items to Order (enter in correct order):</label>
+                        	<div class="ordering-items">
+                            	<input type="text" data-field="order-item" placeholder="Item 1">
+                            	<input type="text" data-field="order-item" placeholder="Item 2">
+                            	<input type="text" data-field="order-item" placeholder="Item 3">
+                            	<input type="text" data-field="order-item" placeholder="Item 4">
+                            	<input type="text" data-field="order-item" placeholder="Item 5">
+                            	<input type="text" data-field="order-item" placeholder="Item 6">
+                        	</div>
                         </div>
                 `;
 				break;
@@ -769,7 +876,7 @@ export function initDashboardQuizEdit() {
 		});
 
 		// Hide error indicators instead of removing them
-		document.querySelectorAll('.error-indicator').forEach(el => {
+		document.querySelectorAll('.error-indicator, .warning-indicator').forEach(el => {
 			el.style.display = 'none';
 			el.classList.remove('animate');
 			delete el.dataset.count;
@@ -803,6 +910,22 @@ export function initDashboardQuizEdit() {
 		}
 	}
 
+	function addRoundWarningIndicator(roundIndex, warningCount) {
+		const rounds = document.querySelectorAll('.round');
+		if (roundIndex >= 0 && roundIndex < rounds.length) {
+			const roundElement = rounds[roundIndex];
+			const indicator = roundElement.querySelector('.warning-indicator');
+
+			if (indicator) {
+				indicator.style.display = 'inline-flex';
+				indicator.title = `This round has ${warningCount} warning${warningCount > 1 ? 's' : ''}`;
+				if (warningCount > 1) indicator.dataset.count = warningCount;
+				else delete indicator.dataset.count;
+				setTimeout(() => indicator.classList.add('animate'), 100);
+			}
+		}
+	}
+
 	// Modify the addQuestionErrorIndicator function to toggle visibility
 	function addQuestionErrorIndicator(roundIndex, questionIndex, errorCount) {
 		const rounds = document.querySelectorAll('.round');
@@ -830,6 +953,25 @@ export function initDashboardQuizEdit() {
 					setTimeout(() => {
 						indicator.classList.add('animate');
 					}, 100);
+				}
+			}
+		}
+	}
+
+	function addQuestionWarningIndicator(roundIndex, questionIndex, warningText) {
+		const rounds = document.querySelectorAll('.round');
+		if (roundIndex >= 0 && roundIndex < rounds.length) {
+			const roundElement = rounds[roundIndex];
+			const questions = roundElement.querySelectorAll('.question');
+
+			if (questionIndex >= 0 && questionIndex < questions.length) {
+				const questionElement = questions[questionIndex];
+				const indicator = questionElement.querySelector('.warning-indicator');
+
+				if (indicator) {
+					indicator.style.display = 'inline-flex';
+					indicator.title = `AI Warning: ${warningText}`;
+					setTimeout(() => indicator.classList.add('animate'), 100);
 				}
 			}
 		}
@@ -980,6 +1122,8 @@ export function initDashboardQuizEdit() {
 			text: questionElement.querySelector('[data-field="question-text"]').value,
 			image: questionElement.querySelector('[data-field="question-image"]').getAttribute('src'),
 			audio: questionElement.querySelector('[data-field="question-audio"]').value,
+			searchQuery: questionElement.querySelector('.ai-search-query')?.textContent.replace('Search: ', '') || '',
+			reasoning: questionElement.querySelector('.ai-reasoning')?.textContent || '',
 			answer: null,
 			options: [],
 			pairs: [],
@@ -1302,153 +1446,201 @@ export function initDashboardQuizEdit() {
 	function populateQuizWithData(quizJSON) {
 		console.log('populateQuizWithData:', quizJSON);
 
-		document.getElementById('quiz-json').value = JSON.stringify(quizJSON, null, 2);
-		document.getElementById('quiz-id').value = quizJSON._id || "";
-		document.getElementById('quiz-owner').value = quizJSON.ownerID || "";
-		document.getElementById('quiz-schema-version').value = quizJSON.schemaVersion || "";
+		const currentTitle = document.getElementById('quiz-title').value;
+		const hasContent = currentTitle || roundsContainer.children.length > 0;
 		
-		const quizHeaderTitle = document.getElementById('quiz-edit').querySelector('.header-title');
-		if (quizHeaderTitle) quizHeaderTitle.textContent = quizJSON.title;
-		
-		document.getElementById('quiz-title').value = quizJSON.title;
-		document.getElementById('quiz-description').value = quizJSON.description || "";
+		// If we have an _id, it's a full quiz load or save refresh - we should overwrite
+		// If we don't have an _id and we already have content, we should append (AI generation)
+		const shouldAppend = hasContent && !quizJSON._id;
 
-		roundsContainer.innerHTML = '';
-		quizJSON.rounds.forEach(roundJSON => {
-			addRoundToDOM();
-			const roundElement = roundsContainer.lastElementChild;
-			roundElement.querySelector('.header-title').textContent = roundJSON.title || "";
-			roundElement.querySelector('.round-title').value = roundJSON.title || "";
-			roundElement.querySelector('.round-description').value = roundJSON.description || "";
-			roundElement.querySelector('.round-id').value = roundJSON._id || "";
-			roundElement.querySelector('.round-owner').value = roundJSON.ownerID || "";
-			const rt = roundElement.querySelector('[data-field="round-timer"]');
-			roundElement.querySelector('[data-field="round-timer"]').value = roundJSON.roundTimer;
-			roundElement.querySelector('[data-field="show-answer"]').value = roundJSON.showAnswer;
-			roundElement.querySelector('[data-field="update-scores"]').value = roundJSON.updateScores;
+		if (!shouldAppend) {
+			document.getElementById('quiz-json').value = JSON.stringify(quizJSON, null, 2);
+			document.getElementById('quiz-id').value = quizJSON._id || "";
+			document.getElementById('quiz-owner').value = quizJSON.ownerID || "";
+			document.getElementById('quiz-schema-version').value = quizJSON.schemaVersion || "";
+			
+			const quizHeaderTitle = document.getElementById('quiz-edit').querySelector('.header-title');
+			if (quizHeaderTitle) quizHeaderTitle.textContent = quizJSON.title;
+			
+			document.getElementById('quiz-title').value = quizJSON.title;
+			document.getElementById('quiz-description').value = quizJSON.description || "";
 
-			const questionsContainer = roundElement.querySelector('.questions-container');
-			roundJSON.questions.forEach(questionJSON => {
+			roundsContainer.innerHTML = '';
+		} else {
+			// In append mode, only set title/description if they are currently empty
+			if (!document.getElementById('quiz-title').value && quizJSON.title) {
+				document.getElementById('quiz-title').value = quizJSON.title;
+				const quizHeaderTitle = document.getElementById('quiz-edit').querySelector('.header-title');
+				if (quizHeaderTitle) quizHeaderTitle.textContent = quizJSON.title;
+			}
+			if (!document.getElementById('quiz-description').value && quizJSON.description) {
+				document.getElementById('quiz-description').value = quizJSON.description;
+			}
+		}
 
-				// Add a basic question template to the DOM, which we will then populate with the question data
-				addQuestionToDOM(questionsContainer);
-				const questionElement = questionsContainer.lastElementChild;
+		if (quizJSON.rounds) {
+			quizJSON.rounds.forEach((roundJSON, roundIndex) => {
+				addRoundToDOM();
+				const roundElement = roundsContainer.lastElementChild;
+				roundElement.querySelector('.header-title').textContent = roundJSON.title || "";
+				roundElement.querySelector('.round-title').value = roundJSON.title || "";
+				roundElement.querySelector('.round-description').value = roundJSON.description || "";
+				roundElement.querySelector('.round-id').value = roundJSON._id || "";
+				roundElement.querySelector('.round-owner').value = roundJSON.ownerID || "";
+				const rt = roundElement.querySelector('[data-field="round-timer"]');
+				roundElement.querySelector('[data-field="round-timer"]').value = roundJSON.roundTimer;
+				roundElement.querySelector('[data-field="show-answer"]').value = roundJSON.showAnswer;
+				roundElement.querySelector('[data-field="update-scores"]').value = roundJSON.updateScores;
 
-				// We always have a question text field, this is not question-specific
-				questionElement.querySelector('[data-field="question-text"]').value = questionJSON.text;
-				questionElement.querySelector('.header-title').textContent = questionJSON.text;
+				let roundWarningCount = 0;
 
-				// We also always have an _id and owner (unless its a new question)
-				questionElement.querySelector('.question-id').value = questionJSON._id || "";
-				questionElement.querySelector('.question-owner').value = questionJSON.ownerID || "";
+				const questionsContainer = roundElement.querySelector('.questions-container');
+				roundJSON.questions.forEach((questionJSON, questionIndex) => {
 
-				// If we have imageData then we need to set the image selector src
-				if (questionJSON.image) {
-					setImageSelectorSrc(questionElement, questionJSON.image);
-				}
+					// Add a basic question template to the DOM, which we will then populate with the question data
+					addQuestionToDOM(questionsContainer);
+					const questionElement = questionsContainer.lastElementChild;
 
-				// What about audio?
-				if (questionJSON.audio) {
-					const audioInput = questionElement.querySelector('[data-field="question-audio"]');
-					audioInput.value = questionJSON.audio;
-				}
+					// We always have a question text field, this is not question-specific
+					questionElement.querySelector('[data-field="question-text"]').value = questionJSON.text;
+					questionElement.querySelector('.header-title').textContent = questionJSON.text;
 
-				// Trigger the select chnage event which will insert the correct question type into the questionElement
-				const typeSelect = questionElement.querySelector('.question-type');
-				typeSelect.value = questionJSON.type;
-				typeSelect.dispatchEvent(new Event('change'));  // This will insert the correct question type into the questionElement
+					// We also always have an _id and owner (unless its a new question)
+					questionElement.querySelector('.question-id').value = questionJSON._id || "";
+					questionElement.querySelector('.question-owner').value = questionJSON.ownerID || "";
 
-				const contentContainer = questionElement.querySelector('.question-specific-content');
-				// contentContainer.querySelector('[data-field="question-text"]').value = question.text || '';
+					// If we have imageData then we need to set the image selector src
+					if (questionJSON.image) {
+						setImageSelectorSrc(questionElement, questionJSON.image);
+					}
 
-				switch (questionJSON.type) {
+					// What about audio?
+					if (questionJSON.audio) {
+						const audioInput = questionElement.querySelector('[data-field="question-audio"]');
+						audioInput.value = questionJSON.audio;
+					}
 
-					case 'multiple-choice':
-						questionJSON.options.forEach((option, index) => {
-							contentContainer.querySelector(`[data-field="option-${index + 1}"]`).value = option || '';
-						});
-						break;
-
-					case 'true-false':
-					case 'text':
-					case 'number-exact':
-					case 'number-closest':
-					case 'number-average':
-						contentContainer.querySelector('[data-field="answer"]').value = String(questionJSON.answer) || '';
-						break;
-
-					case 'matching':
-						questionJSON.pairs.forEach((pair, index) => {
-							contentContainer.querySelector(`[data-field="left-${index + 1}"]`).value = pair.left || '';
-							contentContainer.querySelector(`[data-field="right-${index + 1}"]`).value = pair.right || '';
-						});
-						break;
-
-					case 'ordering':
-						console.log('Ordering:', questionJSON);
-						contentContainer.querySelector('[data-field="order-start"]').value = questionJSON.extra.startLabel || '';
-						contentContainer.querySelector('[data-field="order-end"]').value = questionJSON.extra.endLabel || '';
-						questionJSON.items.forEach((item, index) => {
-							contentContainer.querySelectorAll('[data-field="order-item"]')[index].value = item || '';
-						});
-						break;
-
-					case 'hotspot':
-						if (questionJSON.image) {
-							const imageSelectorPreview = contentContainer.querySelector(".image-selector-preview");
-							if (imageSelectorPreview) {
-								imageSelectorPreview.setAttribute('src', questionJSON.image || '');
-								console.log('createQuizFromJSON.setAttribute:answer:', questionJSON.answer);
-								imageSelectorPreview.setAttribute('answer', JSON.stringify(questionJSON.answer));
-							}
+					// AI Helper Info
+					const aiHelper = questionElement.querySelector('.ai-helper-info');
+					if (aiHelper) {
+						if (questionJSON.searchQuery || questionJSON.reasoning) {
+							aiHelper.style.display = 'block';
+							const queryEl = aiHelper.querySelector('.ai-search-query');
+							const reasoningEl = aiHelper.querySelector('.ai-reasoning');
+							if (queryEl) queryEl.textContent = `Search: ${questionJSON.searchQuery || ''}`;
+							if (reasoningEl) reasoningEl.textContent = questionJSON.reasoning || '';
+						} else {
+							aiHelper.style.display = 'none';
 						}
-						if (questionJSON.answer) {
+					}
+
+					// Warnings
+					if (questionJSON.warning) {
+						addQuestionWarningIndicator(roundIndex, questionIndex, questionJSON.warning);
+						roundWarningCount++;
+					}
+
+					// Trigger the select chnage event which will insert the correct question type into the questionElement
+					const typeSelect = questionElement.querySelector('.question-type');
+					typeSelect.value = questionJSON.type;
+					typeSelect.dispatchEvent(new Event('change'));  // This will insert the correct question type into the questionElement
+
+					const contentContainer = questionElement.querySelector('.question-specific-content');
+					// contentContainer.querySelector('[data-field="question-text"]').value = question.text || '';
+
+					switch (questionJSON.type) {
+
+						case 'multiple-choice':
+							questionJSON.options.forEach((option, index) => {
+								contentContainer.querySelector(`[data-field="option-${index + 1}"]`).value = option || '';
+							});
+							break;
+
+						case 'true-false':
+						case 'text':
+						case 'number-exact':
+						case 'number-closest':
+						case 'number-average':
+							contentContainer.querySelector('[data-field="answer"]').value = String(questionJSON.answer) || '';
+							break;
+
+						case 'matching':
+							questionJSON.pairs.forEach((pair, index) => {
+								contentContainer.querySelector(`[data-field="left-${index + 1}"]`).value = pair.left || '';
+								contentContainer.querySelector(`[data-field="right-${index + 1}"]`).value = pair.right || '';
+							});
+							break;
+
+						case 'ordering':
+							console.log('Ordering:', questionJSON);
+							contentContainer.querySelector('[data-field="order-start"]').value = questionJSON.extra.startLabel || '';
+							contentContainer.querySelector('[data-field="order-end"]').value = questionJSON.extra.endLabel || '';
+							questionJSON.items.forEach((item, index) => {
+								contentContainer.querySelectorAll('[data-field="order-item"]')[index].value = item || '';
+							});
+							break;
+
+						case 'hotspot':
+							if (questionJSON.image) {
+								const imageSelectorPreview = contentContainer.querySelector(".image-selector-preview");
+								if (imageSelectorPreview) {
+									imageSelectorPreview.setAttribute('src', questionJSON.image || '');
+									console.log('createQuizFromJSON.setAttribute:answer:', questionJSON.answer);
+									imageSelectorPreview.setAttribute('answer', JSON.stringify(questionJSON.answer));
+								}
+							}
+							if (questionJSON.answer) {
+								contentContainer.querySelector('[data-field="hotspot-x"]').value = questionJSON.answer.x || '';
+								contentContainer.querySelector('[data-field="hotspot-y"]').value = questionJSON.answer.y || '';
+							}
+							break;
+
+						case 'point-it-out':
+							if (questionJSON.image) {
+								const imageSelectorPreview = contentContainer.querySelector(".image-selector-preview");
+								if (imageSelectorPreview) {
+									imageSelectorPreview.setAttribute('src', questionJSON.image || '');
+									imageSelectorPreview.setAttribute('answer', JSON.stringify(questionJSON.answer));
+								}
+							}
+							if (questionJSON.answer) {
+								contentContainer.querySelector('[data-field="point-it-out-startx"]').value = questionJSON.answer.start?.x || '';
+								contentContainer.querySelector('[data-field="point-it-out-starty"]').value = questionJSON.answer.start?.y || '';
+								contentContainer.querySelector('[data-field="point-it-out-endx"]').value = questionJSON.answer.end?.x || '';
+								contentContainer.querySelector('[data-field="point-it-out-endy"]').value = questionJSON.answer.end?.y || '';
+							}
+							break;
 							contentContainer.querySelector('[data-field="hotspot-x"]').value = questionJSON.answer.x || '';
 							contentContainer.querySelector('[data-field="hotspot-y"]').value = questionJSON.answer.y || '';
-						}
-						break;
+							break;
 
-					case 'point-it-out':
-						if (questionJSON.image) {
-							const imageSelectorPreview = contentContainer.querySelector(".image-selector-preview");
-							if (imageSelectorPreview) {
-								imageSelectorPreview.setAttribute('src', questionJSON.image || '');
-								imageSelectorPreview.setAttribute('answer', JSON.stringify(questionJSON.answer));
+						case 'point-it-out':
+							if (questionJSON.image) {
+								const imageSelectorPreview = contentContainer.querySelector(".image-selector-preview");
+								if (imageSelectorPreview) {
+									imageSelectorPreview.setAttribute('src', questionJSON.image || '');
+									imageSelectorPreview.setAttribute('answer', JSON.stringify(questionJSON.answer));
+
+								}
 							}
-						}
-						if (questionJSON.answer) {
-							contentContainer.querySelector('[data-field="point-it-out-startx"]').value = questionJSON.answer.start?.x || '';
-							contentContainer.querySelector('[data-field="point-it-out-starty"]').value = questionJSON.answer.start?.y || '';
-							contentContainer.querySelector('[data-field="point-it-out-endx"]').value = questionJSON.answer.end?.x || '';
-							contentContainer.querySelector('[data-field="point-it-out-endy"]').value = questionJSON.answer.end?.y || '';
-						}
-						break;
-						contentContainer.querySelector('[data-field="hotspot-x"]').value = questionJSON.answer.x || '';
-						contentContainer.querySelector('[data-field="hotspot-y"]').value = questionJSON.answer.y || '';
-						break;
+							contentContainer.querySelector('[data-field="point-it-out-startx"]').value = questionJSON.answer.start.x || '';
+							contentContainer.querySelector('[data-field="point-it-out-starty"]').value = questionJSON.answer.start.y || '';
+							contentContainer.querySelector('[data-field="point-it-out-endx"]').value = questionJSON.answer.end.x || '';
+							contentContainer.querySelector('[data-field="point-it-out-endy"]').value = questionJSON.answer.end.y || '';
+							break;
 
-					case 'point-it-out':
-						if (questionJSON.image) {
-							const imageSelectorPreview = contentContainer.querySelector(".image-selector-preview");
-							if (imageSelectorPreview) {
-								imageSelectorPreview.setAttribute('src', questionJSON.image || '');
-								imageSelectorPreview.setAttribute('answer', JSON.stringify(questionJSON.answer));
+						case 'draw':
+							contentContainer.querySelector('[data-field="answer"]').value = questionJSON.answer || '';
+							break;
+					}
 
-							}
-						}
-						contentContainer.querySelector('[data-field="point-it-out-startx"]').value = questionJSON.answer.start.x || '';
-						contentContainer.querySelector('[data-field="point-it-out-starty"]').value = questionJSON.answer.start.y || '';
-						contentContainer.querySelector('[data-field="point-it-out-endx"]').value = questionJSON.answer.end.x || '';
-						contentContainer.querySelector('[data-field="point-it-out-endy"]').value = questionJSON.answer.end.y || '';
-						break;
+				});
 
-					case 'draw':
-						contentContainer.querySelector('[data-field="answer"]').value = questionJSON.answer || '';
-						break;
+				if (roundWarningCount > 0) {
+					addRoundWarningIndicator(roundIndex, roundWarningCount);
 				}
-
 			});
-		});
+		}
 
 		// Start with all rounds and questions collapsed (all details children of main quiz summary element)
 		// const allDetails = summaryElement.querySelectorAll('details');
@@ -1460,6 +1652,12 @@ export function initDashboardQuizEdit() {
 			element.removeAttribute('open');
 		});
 		addRoundQuestionNumbers();
+
+		// If we appended data (no _id in incoming JSON), update the JSON textarea with the full quiz state
+		if (!quizJSON._id) {
+			const fullQuiz = createJSONfromQuiz();
+			document.getElementById('quiz-json').value = JSON.stringify(fullQuiz, null, 2);
+		}
 
 		// Hide the quiz list and show the quiz
 		document.getElementById('quiz-edit').style.display = 'block';
@@ -1487,7 +1685,10 @@ export function initDashboardQuizEdit() {
 	}
 
 	function handleFormChanges(event) {
+
 		// Check if the event came from a form element we care about
+		// Not if the input field was the AI Generate input field
+		if (event.target.id === 'ai-prompt-input') return;
 		if (event.target.matches('input, textarea, select')) {
 			markAsChanged();
 		}
@@ -1536,6 +1737,6 @@ export function initDashboardQuizEdit() {
 
 	function backToQuizList() {
 		// Always redirect to the quiz list page (modular navigation)
-		window.location.href = '/host/dashboard/quiz';
+		window.location.href = '/host/dashboard/quiz/list';
 	}
 }

@@ -1,5 +1,5 @@
 import { gsap } from 'gsap';
-import viewModel from './vm.js';
+import viewModel from '../core/vm.js';
 
 const vm = new viewModel();
 

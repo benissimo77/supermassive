@@ -11,13 +11,18 @@ export interface BaseQuestionData {
     
     // Optional fields (present when mode='answer')
     answer?: any;  // Each question type defines specific shape
-    results?: Record<string, any>;
+    responses?: Record<string, any>;
+    sessionId?: string;
+    options?: string[];
+    items?: string[];
+    extra?: { startLabel: string; endLabel: string };
+    pairs?: { left: string; right: string }[];
 }
 
 // MULTIPLE CHOICE
 export interface MultipleChoiceQuestionData extends BaseQuestionData {
     type: 'multiple-choice';
-    options: string[];
+    optionsShuffled: string[];
     answer?: string;  // Only present when mode='answer'
 }
 
@@ -30,14 +35,14 @@ export interface TrueFalseQuestionData extends BaseQuestionData {
 // MATCHING
 export interface MatchingQuestionData extends BaseQuestionData {
     type: 'matching';
-    pairs: { left: string; right: string }[];
+    pairsShuffled: { left: string; right: string }[];
     answer?: number[];  // Array of indices, only when mode='answer'
 }
 
 // ORDERING
 export interface OrderingQuestionData extends BaseQuestionData {
     type: 'ordering';
-    items: string[];
+    itemsShuffled: string[];
     extra: { startLabel:string; endLabel:string };
     answer?: number[];  // Array of indices, only when mode='answer'
 }

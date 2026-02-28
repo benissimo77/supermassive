@@ -8,6 +8,9 @@ declare namespace rexUI {
         layout(): any;
         add(gameObject: any, config?: any): any;
         setVisible(visible: boolean): any;
+        addBackground(gameObject: any, config?: any): any;
+        addSpace(size: number): any;
+        visible: boolean;
     }
 }
 
@@ -263,11 +266,11 @@ export class SoundSettingsPanel extends Phaser.GameObjects.Container {
         })
             .setInteractive({ useHandCursor: true })
             .on('pointerdown', () => this.toggle())
-            .on('pointerover', function () {
-                this.getElement('background').setFillStyle(theme.colors.primaryButtonBackgroundHover);
+            .on('pointerover', () => {
+                closeButton.getElement('background').setFillStyle(theme.colors.primaryButtonBackgroundHover);
             })
-            .on('pointerout', function () {
-                this.getElement('background').setFillStyle(theme.colors.primaryButtonBackground);
+            .on('pointerout', () => {
+                closeButton.getElement('background').setFillStyle(theme.colors.primaryButtonBackground);
             });
 
         this.soundPanel.add(closeButton, { align: 'center', padding: { top: this.scene.getY(20) } });

@@ -38,7 +38,7 @@ export default [
         output: {
             file: 'public/modules/phaser.host.min.js',
             format: 'iife',
-            sourcemap: false,
+            sourcemap: true,
             globals: {
                 phaser: 'Phaser',
                 io: 'io'
@@ -74,9 +74,9 @@ export default [
         output: [
             {
                 // Keep the same output path for AppPlay
-                file: "public/modules/phaser.play.lobby.min.js",
+                file: "public/modules/phaser.play.min.js",
                 format: "iife",
-                sourcemap: false,
+                sourcemap: true,
                 globals: {
                     io: 'io',
                     phaser: 'Phaser'
@@ -103,7 +103,53 @@ export default [
                 preventAssignment: true,
                 '__DEV__': 'false'
             }),
+            terser({
+                compress: {
+                    passes: 2,
+                    drop_console: true
+                }
+            })
         ],
         external: ['io', 'phaser']
+    },
+    {
+        input: 'src/AppAdmin.ts',
+        treeshake: true,
+        output: {
+            file: 'public/modules/phaser.admin.min.js',
+            format: 'iife',
+            sourcemap: true,
+            globals: {
+                phaser: 'Phaser',
+                io: 'io'
+            }
+        },
+        external: ['phaser', 'io'],
+        plugins: [
+            replace({
+                preventAssignment: true,
+                '__DEV__': 'false'
+            }),
+            typescript({
+                ...hostTypescriptOptions,
+                include: ['src/**/*.ts'],
+                exclude: [
+                    'src/ui/SoundSettingsPanel-orig.ts',
+                    'src/vector/VectorGameScene.ts'
+                ]
+            }),
+            nodeResolve({
+                browser: true,
+                preferBuiltins: false,
+                extensions: ['.js', '.ts']
+            }),
+            commonjs(),
+            terser({
+                compress: {
+                    passes: 2,
+                    drop_console: true
+                }
+            })
+        ]
     }
 ];

@@ -50,7 +50,6 @@ export class SoundManager {
         master: false,
         music: false,
         fx: false,
-        fx: false,
         voice: false
     };
 
@@ -59,7 +58,7 @@ export class SoundManager {
 
         if (__DEV__) {
             console.log('SoundManager initialized');
-            this.muted.music = true;
+            // this.muted.music = true;
         }
     }
 
@@ -277,7 +276,7 @@ export class SoundManager {
                 v: 0,
                 duration: fadeOut,
                 onUpdate: tween => {
-                    sound.setVolume(tween.getValue());
+                    sound.setVolume(tween.getValue() as number);
                 },
                 onComplete: () => {
                     sound.stop();
@@ -381,6 +380,14 @@ export class SoundManager {
     isPlaying(key: string): boolean {
         const sound = this.tracks.get(key)?.sound || null;
         return sound ? sound.isPlaying : false;
+    }
+
+    /**
+     * Get the current music track object
+     */
+    getCurrentMusicTrack(): Track | undefined {
+        if (!this.currentMusic) return undefined;
+        return this.tracks.get(this.currentMusic);
     }
 
     /**

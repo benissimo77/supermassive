@@ -16,20 +16,20 @@ export default class Game {
       throw new TypeError("Cannot construct Game instances directly");
     }
 
+    if (this.checkGameRequirements === undefined || this.checkGameRequirements === Game.prototype.checkGameRequirements) {
+      throw new TypeError("Must override method checkGameRequirements");
+    }
+    if (this.init === undefined || this.init === Game.prototype.init) {
+      throw new TypeError("Must override method init");
+    }
+
     if (this.startGame === undefined || this.startGame === Game.prototype.startGame) {
       throw new TypeError("Must override method startGame");
     }
-
     if (this.endGame === undefined || this.endGame === Game.prototype.endGame) {
       throw new TypeError("Must override method endGame");
     }
 
-    if (this.introduction === undefined || this.introduction === Game.prototype.introduction) {
-      throw new TypeError("Must override method introduction");
-    }
-    if (this.checkGameRequirements === undefined || this.checkGameRequirements === Game.prototype.checkGameRequirements) {
-      throw new TypeError("Must override method checkGameRequirements");
-    }
 
     // Perform typical startup functions that all games will likely use
     this.room = room;
@@ -53,6 +53,10 @@ export default class Game {
 
   endGame() {
     // Placeholder method
+  }
+
+  isSameGame(config) {
+    return true;
   }
 
   onPlayerReconnect(player, socket) {

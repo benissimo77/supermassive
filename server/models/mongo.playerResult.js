@@ -1,24 +1,32 @@
 import mongoose from 'mongoose';
 
 const playerResultSchema = new mongoose.Schema({
-    sessionID: { type: mongoose.Schema.Types.ObjectId, ref: 'GameSession', required: true, index: true },
+    gameSessionID: { type: mongoose.Schema.Types.ObjectId, ref: 'GameSession', required: true, index: true },
+    sessionID: { type: String, index: true }, // The transient browser session ID for guests
     userID: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true }, // Null for guests
     displayName: { type: String, required: true },
     avatar: { type: String },
+    isBot: { type: Boolean, default: false },
     
-    score: { type: Number, default: 0 },
     rank: { type: Number }, // 1 for winner, 2 for runner up, etc.
+
+    // Promoted stats for leaderboard performance
+    totalQuestions: { type: Number, default: 0 },
+    totalCorrect: { type: Number, default: 0 },
+    totalScore: { type: Number, default: 0 },
     
-    // Flexible stats object for granular data
-    // e.g. { correctCount: 10, totalQuestions: 12, avgResponseTime: 1.5 }
-    stats: { type: mongoose.Schema.Types.Mixed, default: {} },
-    
+    // Detailed responses for 'ghost playback' and granular analytics
+    // e.g. [{ questionText: "...", answer: "...", time: 1.2, score: 100 }]
+    responses: [{
+        questionText: String,
+        answer: mongoose.Schema.Types.Mixed,
+        time: Number,
+        score: Number
+    }],
+
     // Feedback/Rating (optional)
     rating: { type: Number, min: 1, max: 5 },
     feedback: { type: String }
 }, { timestamps: false });
-
-// Index for fast dashboard lookups
-playerResultSchema.index({ userID: 1, createdAt: -1 });
 
 export default mongoose.model('PlayerResult', playerResultSchema);

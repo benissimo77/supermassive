@@ -36,6 +36,7 @@ const quizRoundSchema = new mongoose.Schema({
     roundTimer: { type: String, required: true, default: '0' },
     showAnswer: { type: String, required: true, default: 'round' },
     updateScores: { type: String, required: true, default: 'round' },
+    scoreMethod: { type: String, required: true, default: 'regular' },
 
     // NEW — question references
     questions: [ mongoose.Schema.Types.ObjectId ]
@@ -50,6 +51,8 @@ const quizV2Schema = new mongoose.Schema({
     description: { type: String },
     ownerID: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     public: { type: mongoose.Schema.Types.Boolean, required: true, default: true },
+    rating: { type: Number, default: 0 },
+    isDeleted: { type: Boolean, default: false },
     collaborators: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     rounds: [quizRoundSchema],
 }, { _id: true, timestamps: false }); // Automatically manage createdAt and updatedAt fields - OFF for now...

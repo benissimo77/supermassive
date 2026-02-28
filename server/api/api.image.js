@@ -10,12 +10,18 @@ const router = express.Router();
 
 // Middleware to check if the user is a host
 function checkHost(req, res, next) {
-	// console.log('checkHost:', req.session, req.url, req.originalUrl, req.baseUrl, req.path, req.params, req.query);
-	if (req.session && req.session.host) {
-		next();
-	} else {
-		return res.status(404).json({ message: 'No user identified' });
+	if (req.isAuthenticated && req.isAuthenticated()) {
+		// Allow hosts, admins, and guests (who are allowed to use the editor)
+		const role = req.user.role;
+		if (['host', 'admin', 'guest'].includes(role)) {
+			return next();
+		}
+	} else if (process.env.NODE_ENV === 'development') {
+		// In development, allow access even if not logged in
+		return next();
 	}
+	
+	return res.status(401).json({ message: 'No user identified' });
 }
 
 router.use([checkHost]);
@@ -24,7 +30,7 @@ router.use([checkHost]);
 const storage = multer.diskStorage({
 	destination: (req, file, cb) => {
 		// Store in user-specific folder
-		const userID = req.user._id;
+		const userID = req.user ? req.user._id.toString() : 'anonymous';
 		const folder = req.body.folder || '';
 
 		let uploadDir = path.join(process.cwd(), 'public', 'uploads', userID);
@@ -74,7 +80,7 @@ router.post('/upload', upload.single('image'), async (req, res) => {
 			});
 		}
 
-		const userID = req.user._id;
+		const userID = req.user ? req.user._id.toString() : 'anonymous';
 		const folder = req.body.folder || '';
 
 		// Create relative URL
@@ -82,7 +88,7 @@ router.post('/upload', upload.single('image'), async (req, res) => {
 
 		// Save to database
 		const image = new Image({
-			userID: userID,
+			userID: req.user ? req.user._id : null,
 			filename: req.file.filename,
 			originalName: req.file.originalname,
 			mimetype: req.file.mimetype,
@@ -169,7 +175,7 @@ router.get('/folders', async (req, res) => {
 router.post('/folders', async (req, res) => {
 	try {
 		const { name } = req.body;
-		const userID = req.user._id;
+		const userID = req.user ? req.user._id.toString() : 'anonymous';
 
 		if (!name) {
 			return res.status(400).json({

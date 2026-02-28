@@ -1,7 +1,8 @@
 import { BaseScene } from "src/BaseScene";
 import { BaseQuestionData } from "./QuestionTypes";
-import { DebugUtils } from 'src/scripts/DebugUtils';
-import { ImageLoader } from 'src/scripts/ImageLoader';
+import { DebugUtils } from 'src/utils/DebugUtils';
+import { ImageLoader } from 'src/utils/ImageLoader';
+import { gsap } from "gsap";
 
 import { YouTubePlayerUI } from '../YouTubePlayerUI';
 
@@ -32,11 +33,11 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
     declare public scene: BaseScene;
     protected questionData: BaseQuestionData;
     private answerCallback: Function;
-    private answerSubmitted: Boolean = false;
 
     // References to all question elements so they can be repositioned indepenendently
     protected questionText: Phaser.GameObjects.Text;
     protected questionImage: Phaser.GameObjects.Image;
+    protected questionVideo: Phaser.GameObjects.Video;
     protected questionYouTubePlayer: YouTubePlayerUI;
     protected questionAudioControls: Phaser.GameObjects.Container;
     protected answerContainer: Phaser.GameObjects.Container;
@@ -239,8 +240,16 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
                 this.add(this.questionAudioControls);
             }
             if (this.questionData.video) {
-                this.questionYouTubePlayer = this.createQuestionVideo(this.questionData.video);
-                // no need to add to the scene it is already added - just move into position in display function
+                if (this.isYouTubeUrl(this.questionData.video)) {
+                    this.questionYouTubePlayer = this.createQuestionVideo(this.questionData.video);
+                } else {
+                    try {
+                        this.questionVideo = await this.createNativeVideo(this.questionData.video);
+                        this.add(this.questionVideo);
+                    } catch (error) {
+                        console.error('BaseQuestion::initialize: Error loading native video:', error);
+                    }
+                }
             }
 
         }
@@ -281,10 +290,17 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
 
         // Position video player at center of video slot
         if (this.questionData.video && this.questionData.video.length > 0) {
-            this.questionYouTubePlayer.setSize(videoHeight);
             const videoSlotTop = textHeight + audioHeight;
             const videoSlotCenter = videoSlotTop + (videoHeight / 2);
-            this.questionYouTubePlayer.setPosition(960, this.scene.getY(videoSlotCenter));
+
+            if (this.questionYouTubePlayer) {
+                this.questionYouTubePlayer.setSize(videoHeight);
+                this.questionYouTubePlayer.setPosition(960, this.scene.getY(videoSlotCenter));
+            }
+            if (this.questionVideo) {
+                this.configureVideoSize(this.questionVideo, videoHeight);
+                this.questionVideo.setPosition(960, this.scene.getY(videoSlotCenter));
+            }
         }
 
         // Position image at center of image slot
@@ -425,6 +441,34 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
         console.log('BaseQuestion::configureImageSize:', image.width, image.height, scale);
     }
 
+    /**
+     * Apply proper sizing to native videos
+     */
+    protected configureVideoSize(video: Phaser.GameObjects.Video, height: number): void {
+        const maxWidth = 1920;
+        const scale = Math.min(maxWidth / video.width, this.scene.getY(height) / video.height);
+        video.setScale(scale);
+    }
+
+    private isYouTubeUrl(url: string): boolean {
+        return url.includes('youtube.com') || url.includes('youtu.be');
+    }
+
+    protected async createNativeVideo(url: string): Promise<Phaser.GameObjects.Video> {
+        const key = `video-${url}`;
+        if (!this.scene.load.cacheManager.video.exists(key)) {
+            this.scene.load.video(key, url);
+            await new Promise<void>((resolve) => {
+                this.scene.load.once('complete', resolve);
+                this.scene.load.start();
+            });
+        }
+        const video = this.scene.add.video(0, 0, key);
+        video.setOrigin(0.5);
+        video.play(true);
+        return video;
+    }
+
 
     /**
      * Add audio player to the question with Phaser native controls
@@ -470,14 +514,67 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
     protected abstract getAnswerUIWidth(): number;
 
     /**
+     * Shrinks and repositions core question elements to the top of the screen.
+     * This clears space for player results/avatars during the reveal phase.
+     */
+    protected minimizeQuestionContent(): gsap.core.Timeline {
+        const tl = gsap.timeline({ paused: true });
+        const duration = 0.8;
+        const ease = "power2.out";
+
+        // 1. Shrink and move question text
+        if (this.questionText) {
+            tl.to(this.questionText, {
+                y: this.scene.getY(80),
+                scale: 0.6,
+                duration, ease
+            }, 0);
+        }
+
+        // 2. Shrink and move media elements (Image, Video, Audio)
+        // Skip image for hotspot types as the image IS the result area
+        const skipImage = (this.questionData.type === 'hotspot' || this.questionData.type === 'point-it-out');
+        
+        if (this.questionImage && !skipImage) {
+            tl.to(this.questionImage, {
+                y: this.scene.getY(180),
+                scale: this.questionImage.scale * 0.4,
+                duration, ease
+            }, 0);
+        }
+
+        if (this.questionVideo) {
+            tl.to(this.questionVideo, {
+                y: this.scene.getY(180),
+                scale: this.questionVideo.scale * 0.4,
+                duration, ease
+            }, 0);
+        }
+
+        if (this.questionAudioControls) {
+            tl.to(this.questionAudioControls, {
+                y: this.scene.getY(180),
+                scale: 0.6,
+                duration, ease
+            }, 0);
+        }
+
+        // YouTube is special (DOM based) - just hide it for now
+        if (this.questionYouTubePlayer) {
+            this.questionYouTubePlayer.stopVideo();
+            this.questionYouTubePlayer.setPosition(0, -1000);
+        }
+
+        return tl;
+    }
+
+    /**
      * Default implementation for showing answer results
      * Function assumes question is already initialized and displayed - data is in questionData
      * Remaining task here is to stop audio/video from playing (we are showing the answer now)
      */
     showAnswer(): void {
-
-        // If we have implemented this correctly then just displaying the question again should be enough
-        // questionData.mode = 'answer' when answering the question and this can be used to determine if we need to show the answer
+ 
         // Let subclasses implement specific answer visualization
         this.revealAnswerUI();
     }
@@ -489,6 +586,11 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
         playerUI.stopVideo();
         // This is a bit of a hack - but moving off-screen is probably the easiest way to hide the player
         playerUI.setPosition(0, -4000);
+
+        if (this.questionVideo) {
+            this.questionVideo.stop();
+        }
+
         super.destroy(fromScene);
     }
 

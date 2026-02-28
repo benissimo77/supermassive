@@ -32,12 +32,15 @@ router.get('/play/:room', (req, res) => {
 	console.log('routes.get /play/:room:', req.params, req.session, req.query, req.originalUrl);
 
 	// Validation - we want to protect against attack by passing any room name (must have gone via the POST above)
-	if (req.params.room && req.params.room.length > 3 && req.session.name && req.session.avatar) {
+	// In development, allow query params to skip the session check
+	const isDevOverride = process.env.NODE_ENV === 'development' && req.query.name && req.query.avatar;
+
+	if (req.params.room && req.params.room.length > 3 && (isDevOverride || (req.session.name && req.session.avatar))) {
 		// If we have a room then go to phaserplay.html
 		res.sendFile('phaserplay.html', { root: './public' });
 	} else {
 		// If above validation fails there is no point in continuing... simply go back to play/index.html
-		res.redirect('/play');
+		res.redirect('/play?room=' + req.params.room);
 	}
 });
 

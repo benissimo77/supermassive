@@ -4,19 +4,16 @@ import fs from 'fs';
 import path from 'path';
 import Quiz from '../models/mongo.quiz.js';
 import { validateQuiz } from '../services/quizService.js';
+import { dbConnect } from '../db.js';
 
 // Load environment variables
 dotenv.config();
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-}).then(() => {
-    console.log('Connected to MongoDB');
+// Connect to MongoDB using the helper that supports local fallback
+dbConnect().then(() => {
     runMigration();
 }).catch(err => {
-    console.error('Failed to connect to MongoDB:', err);
+    console.error('Failed to initialize database connection:', err);
     process.exit(1);
 });
 
@@ -27,14 +24,20 @@ mongoose.connect(process.env.MONGODB_URI, {
  */
 function migrateQuiz(quiz) {
 
-    // Add schemaVersion
-    if (!quiz.schemaVersion) {
-        quiz.schemaVersion = '1.0';
+    // Add schemaVersion or increment it
+    if (!quiz.schemaVersion || quiz.schemaVersion === '1.0') {
+        quiz.schemaVersion = '1.1';
     }
 
     // Convert true-false questions from string to boolean
     if (quiz.rounds && Array.isArray(quiz.rounds)) {
         quiz.rounds.forEach(round => {
+            // Ensure every round has a scoreMethod
+            if (round.scoreMethod === undefined) {
+                round.scoreMethod = 'regular';
+                console.log(`Adding default scoreMethod to round: "${round.title}"`);
+            }
+
             if (round.questions && Array.isArray(round.questions)) {
                 round.questions.forEach(question => {
                     // Convert boolean true/false back to string

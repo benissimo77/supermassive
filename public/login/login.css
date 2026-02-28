@@ -35,12 +35,19 @@ body {
     padding: var(--space-sm) var(--space-lg);
     font-size: 0.9rem;
     border-radius: var(--radius-sm);
-    font-weight: 600;
 }
 
 .btn-primary { background-color: var(--clr-primary); color: white; }
 .btn-secondary { background-color: var(--clr-secondary); color: white; }
 .btn-accent { background-color: var(--clr-accent); color: white; }
+
+.btn:hover {
+    filter: brightness(1.1);
+}
+
+.btn:active {
+    filter: brightness(0.9);
+}
 
 /* Social Buttons */
 .google-btn {

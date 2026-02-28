@@ -155,8 +155,9 @@ export default class TextQuestion extends BaseQuestion {
     private handleKeyPress(event: KeyboardEvent): void {
         // Handle key presses to update the answer text
         console.log('TextQuestion::handleKeyPress:', event.key, this.scene);
-        if (this.keys.has(event.code)) {
-            const keyButton = this.keys.get(event.code);
+        const keys = this.keyboard.getKeys();
+        if (keys.has(event.code)) {
+            const keyButton = keys.get(event.code);
             if (keyButton) {
                 keyButton.emit('pointerover');
                 // Add a subtle scale effect for the "press" feeling

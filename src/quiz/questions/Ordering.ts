@@ -41,12 +41,12 @@ export default class OrderingQuestion extends BaseQuestion {
      */
     protected createAnswerUI(): void {
 
-        console.log('OrderingQuestion::createAnswerUI:', this.questionData.type, this.questionData.mode);
+        console.log('OrderingQuestion::createAnswerUI:', this.questionData);
 
         // Extract items and labels based on question type
         if (this.questionData.type === 'ordering') {
-            this.items = this.questionData.items;
-            this.labels = this.questionData.items.map(() => ''); // Empty labels for middle dropzones
+            this.items = this.questionData.itemsShuffled || [];
+            this.labels = (this.questionData.itemsShuffled || []).map(() => ''); // Empty labels for middle dropzones
 
             // For ordering questions, label first/last dropzones
             if (this.questionData.extra) {
@@ -55,8 +55,8 @@ export default class OrderingQuestion extends BaseQuestion {
             }
         } else {
             // Matching question
-            this.items = this.questionData.pairs.map((pair: any) => pair.left);
-            this.labels = this.questionData.pairs.map((pair: any) => pair.right);
+            this.items = (this.questionData.pairs || []).map((pair: any) => pair.left);
+            this.labels = (this.questionData.pairs || []).map((pair: any) => pair.right);
         }
 
         console.log('OrderingQuestion::createAnswerUI: Items:', this.items, 'Labels:', this.labels);

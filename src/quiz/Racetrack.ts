@@ -83,8 +83,8 @@ export class Racetrack extends Phaser.GameObjects.Container {
         playerConfigs.sort((a, b) => {
             const domA: PhaserPlayer = this.scene.getPlayerBySessionID(a.sessionID) as PhaserPlayer;
             const domB: PhaserPlayer = this.scene.getPlayerBySessionID(b.sessionID) as PhaserPlayer;
-            const scoreA = domA.getData('score') || 0;
-            const scoreB = domB.getData('score') || 0;
+            const scoreA = domA.getScore();
+            const scoreB = domB.getScore();
             return scoreB - scoreA; // Highest score first
         });
 
@@ -95,7 +95,7 @@ export class Racetrack extends Phaser.GameObjects.Container {
 
             const phaserPlayer = this.scene.getPlayerBySessionID(player.sessionID) as PhaserPlayer;
             console.log('Racetrack::initialize: player:', phaserPlayer.name, this.x, this.y);
-            const score = phaserPlayer.getData('score') || 0;
+            const score = phaserPlayer.getScore();
 
             tl.to(phaserPlayer, {
                 x: score * this.racetrackScale,
@@ -145,6 +145,48 @@ export class Racetrack extends Phaser.GameObjects.Container {
 
         console.log('Racetrack::updateScores:', scores);
 
+        const playerConfigs = this.scene.getPlayerConfigsAsArray();
+        const players = playerConfigs.map(c => this.scene.getPlayerBySessionID(c.sessionID) as PhaserPlayer);
+
+        // Update streaks BEFORE creating the racetrack timeline so it knows who is on a heater
+        // Calculate Old Ranks (before this score update)
+        const oldSorted = [...players].sort((a, b) => b.getScore() - a.getScore());
+        const oldRanks = new Map(oldSorted.map((p, idx) => [p.getSessionID(), idx]));
+
+        // Calculate New Ranks
+        const newSorted = [...players].sort((a, b) => (scores[b.getSessionID()] || 0) - (scores[a.getSessionID()] || 0));
+        const newRanks = new Map(newSorted.map((p, idx) => [p.getSessionID(), idx]));
+
+        // Calculate Average Gain and Max Gain for relative comparison and duration
+        let totalGain = 0;
+        let activeCount = 0;
+        let maxGain = 0;
+        players.forEach(p => {
+            const gain = Math.max(0, (scores[p.getSessionID()] || 0) - p.getScore());
+            if (gain > 0) {
+                totalGain += gain;
+                activeCount++;
+                if (gain > maxGain) maxGain = gain;
+            }
+        });
+        const avgGain = activeCount > 0 ? totalGain / activeCount : 0;
+
+        // Process each player's performance
+        players.forEach(p => {
+            const id = p.getSessionID();
+            const gain = (scores[id] || 0) - p.getScore();
+            const rankJump = (oldRanks.get(id) ?? 0) - (newRanks.get(id) ?? 0);
+
+            // LOGIC: A "Great Round" is 1.5x avg gain OR jumping 2+ places
+            const isGreatRound = (gain > avgGain * 1.5 && gain > 0) || rankJump >= 2;
+
+            p.stopFlames();
+            p.setData('streak', false);
+            if (isGreatRound) {
+                p.setData('streak', true);
+            }
+        });
+
         // Calculate a new scale based on the highest score
         const highestScore = Math.max(...Object.values(scores), 1);
         const newScale = Math.max(1, Math.min(320, Math.floor(1500 / highestScore)));
@@ -154,7 +196,10 @@ export class Racetrack extends Phaser.GameObjects.Container {
 
         // Create timeline
         const tl = gsap.timeline();
-        const duration = 2;
+        
+        // Calculate dynamic duration: 1.5s minimum, up to 8s for large moves
+        // If maxGain is 0, 1.5s. If maxGain is 100, ~8s.
+        const duration = Math.max(1.5, Math.min(8, 1.5 + (maxGain / 15)));
 
         // Position markers according to scale
         tl.to(scaleObject, {
@@ -170,11 +215,20 @@ export class Racetrack extends Phaser.GameObjects.Container {
         this.racetrackScale = newScale;
 
         // Update each player
-        const playerConfigs = this.scene.getPlayerConfigsAsArray();
         playerConfigs.forEach(playerConfig => {
 
             const player = this.scene.getPlayerBySessionID(playerConfig.sessionID) as PhaserPlayer;
-            const playerScore = parseInt(player.getData('score')) || 0;
+            const playerScore = player.getScore();
+
+            // First time logic: If this is the start of the game and we have no pulse, set it for current leaders
+            const isFirstRound = players.every(p => p.getScore() === 0);
+            if (!isFirstRound) {
+                const maxInitial = Math.max(...players.map(p => p.getScore()), 0);
+                if (playerScore === maxInitial && maxInitial > 0) {
+                    player.startLeaderPulse();
+                }
+            }
+
             const scoreObject = { score: playerScore };
             const playerNewScore = scores[playerConfig.sessionID];
             player.setData('newScore', playerNewScore);
@@ -182,9 +236,21 @@ export class Racetrack extends Phaser.GameObjects.Container {
             player.setData('oldScale', currentScale);
             player.setData('newScale', newScale);
 
+            // Trigger streak flames if they are on a heater!
+            if (player.getData('streak')) {
+                tl.call(() => player.startFlames(), [], 0);
+            }
+
+            // Flash the points gain!
+            const gain = playerNewScore - playerScore;
+            if (gain > 0) {
+                const color = player.getData('streak') ? '#FFD700' : '#ffffff';
+                tl.call(() => player.flashText(`+${gain}`, color), [], 0.3);
+            }
+
             tl.to(scoreObject, {
                 score: playerNewScore,
-                duration: 2,
+                duration: duration,
                 ease: 'none',
                 onUpdate: () => {
                     // Update visual score display
@@ -195,12 +261,13 @@ export class Racetrack extends Phaser.GameObjects.Container {
             // Animate player position
             tl.to(player, {
                 x: playerNewScore * this.racetrackScale,
-                duration: 2,
-                ease: 'none'
+                duration: duration,
+                ease: 'none',
+                onComplete: () => {
+                    // Finally update the stored score when animation completes
+                    player.setScore(playerNewScore);
+                }
             }, "<");
-
-            // Finally update the stored score when animation completes
-            player.setData('score', playerNewScore);
         });
 
 
@@ -214,6 +281,15 @@ export class Racetrack extends Phaser.GameObjects.Container {
             'top',
             false
         );
+
+        // Track order to detect who overtakes who
+        let currentOrder = Array.from(playerConfigs).sort((a, b) => {
+            const pa = this.scene.getPlayerBySessionID(a.sessionID) as PhaserPlayer;
+            const pb = this.scene.getPlayerBySessionID(b.sessionID) as PhaserPlayer;
+            const scoreA = pa.getData('oldScore') || 0;
+            const scoreB = pb.getData('oldScore') || 0;
+            return scoreB - scoreA;
+        });
 
         // this.animateOvertakes(overtakes, tl, duration);
         overtakes.forEach((overtake) => {
@@ -229,14 +305,47 @@ export class Racetrack extends Phaser.GameObjects.Container {
                 const pb: PhaserPlayer = this.scene.getPlayerBySessionID(b.sessionID) as PhaserPlayer;
                 if (pa.getData('tScore') == pb.getData('tScore')) return (pb.getData('newScore') - pa.getData('newScore')); else return pb.getData('tScore') - pa.getData('tScore');
             });
+            
+            // Check for position changes to trigger juice
+            sortedPlayers.forEach((playerConfig, newIndex) => {
+                const oldIndex = currentOrder.findIndex(p => p.sessionID === playerConfig.sessionID);
+                if (oldIndex !== -1 && newIndex !== oldIndex) {
+                    const player = this.scene.getPlayerBySessionID(playerConfig.sessionID) as PhaserPlayer;
+                    if (newIndex < oldIndex) {
+                        tl.call(() => {
+                            player.playOvertake();
+                            player.playImpactFlash();
+                            // If this player just took the #1 spot, start pulsing!
+                            if (newIndex === 0) {
+                                player.startLeaderPulse();
+                            }
+                        }, [], duration * overtake);
+                    } else {
+                        tl.call(() => {
+                            // If this player just LOST the #1 spot, stop pulsing!
+                            if (oldIndex === 0) {
+                                player.stopLeaderPulse();
+                            }
+                            player.playKnockback();
+                        }, [], duration * overtake);
+                    }
+                }
+            });
+            currentOrder = sortedPlayers;
+
             console.log('Overtake:', overtakes, sortedPlayers);
             for (let i = 0; i < sortedPlayers.length; i++) {
                 const player: PhaserPlayer = this.scene.getPlayerBySessionID(sortedPlayers[i].sessionID) as PhaserPlayer;
-                const playertl = gsap.timeline();
-                playertl.to(player, { y: playerStart + i * playerSpacing, duration: 0.2, ease: 'none', delay: duration * overtake, depth: i });
-                tl.add(playertl, "<");
+                tl.to(player, { y: playerStart + i * playerSpacing, duration: 0.2, ease: 'none', depth: i }, duration * overtake);
             }
-        })
+        });
+
+        // Stop all flames at the end of the race
+        tl.call(() => {
+            playerConfigs.forEach(p => {
+                (this.scene.getPlayerBySessionID(p.sessionID) as PhaserPlayer).stopFlames();
+            });
+        }, [], ">");
 
         return tl;
     }

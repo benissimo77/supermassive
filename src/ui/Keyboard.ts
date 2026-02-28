@@ -170,4 +170,8 @@ export class Keyboard extends Phaser.GameObjects.Container {
     public getAnswerPosition(): number {
         return this.answerText.getBounds().y + this.y;
     }
+
+    public getKeys(): Map<string, NineSliceButton> {
+        return this.keys;
+    }
 }

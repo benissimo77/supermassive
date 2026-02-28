@@ -8,37 +8,66 @@
 	<link rel="stylesheet" href="/css/dashboard.css">
 	<link rel="stylesheet" href="/css/quizbuilder.css">
 	<link rel="stylesheet" href="/css/imagelibrary.css">
-	<script type="module" src="/host/dashboard/dashboard.js" defer></script>
+	<script type="module" src="/modules/dashboard.min.js" defer></script>
 
 	<!-- External links  -->
 	<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 	<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
-
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 
 <body>
 	<nav id="sidebar"></nav>
-	<main data-role="host">
+	<main>
 		<div id="quiz-edit" class="quiz-container">
 			<div class="editor-header">
 				<div class="flex items-center gap-md">
-					<a href="/host/dashboard/quiz" class="btn btn-ghost">
-						<svg xmlns="http://www.w3.org/2000/svg" height="18" viewBox="0 -960 960 960" width="18" fill="currentColor">
-							<path d="M400-240 160-480l240-240 56 56-144 144h488v80H312l144 144-56 56Z" />
-						</svg>
+					<a href="/host/dashboard/quiz/list" class="btn btn-ghost">
+						<i class="fa-solid fa-arrow-left"></i>
 						Back
 					</a>
 					<h1>Quiz Editor</h1>
 				</div>
 				<div class="flex gap-md">
+					<button id="ai-generate-btn" class="btn btn-secondary" style="background-color: #8e44ad; color: white; border: none; position: relative;">
+						<i class="fa-solid fa-wand-magic-sparkles"></i>
+						AI Generate
+						<span data-role="guest" data-role-max="guest" style="position: absolute; top: -8px; right: -8px; background: #ff4757; color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">HOST ONLY</span>
+					</button>
 					<button id="host-quiz" class="btn btn-accent">
-						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+						<i class="fa-solid fa-play"></i>
 						Host Quiz
 					</button>
 					<button class="save-quiz-btn btn btn-primary">
-						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+						<i class="fa-solid fa-floppy-disk"></i>
 						Save Quiz
 					</button>
+				</div>
+			</div>
+
+			<!-- AI Generator Modal/Panel -->
+			<div id="ai-generator-panel" class="card mb-md" style="display: none; border: 2px solid #8e44ad;">
+				<div class="card-header" style="background-color: transparent;">
+					<h3 style="margin: 0; color: #8e44ad;">AI Quiz Generator</h3>
+				</div>
+				<div class="card-body">
+					<p class="mb-sm">Describe the quiz you want to create (e.g., "A 3-round quiz about 80s movies" or "Add a round about space").</p>
+					
+					<div class="flex gap-sm">
+						<input type="text" id="ai-prompt-input" placeholder="Enter your quiz idea..." style="flex-grow: 1;">
+						<button id="ai-submit-btn" class="btn btn-primary" style="background-color: #8e44ad;">
+							<i class="fa-solid fa-wand-magic-sparkles"></i>
+							Generate
+						</button>
+						<button id="ai-cancel-btn" class="btn btn-ghost">
+							<i class="fa-solid fa-xmark"></i>
+							Cancel
+						</button>
+					</div>
+					<div id="ai-status" class="mt-sm" style="display: none; font-style: italic; color: #8e44ad; align-items: center;">
+						<div class="spinner"></div>
+						<span>Generating your quiz... this may take 30-60 seconds.</span>
+					</div>
 				</div>
 			</div>
 
@@ -69,10 +98,13 @@
 					
 					<div class="flex justify-between mt-md">
 						<button id="add-round" class="btn">
-							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+							<i class="fa-solid fa-plus"></i>
 							Add Round
 						</button>
-						<button class="save-quiz-btn btn btn-primary">Save Quiz</button>
+						<button class="save-quiz-btn btn btn-primary">
+							<i class="fa-solid fa-floppy-disk"></i>
+							Save Quiz
+						</button>
 					</div>
 				</div>
 			</details>
@@ -99,8 +131,9 @@
 					</div>
 					<div class="flex items-center gap-sm">
 						<span class="error-indicator" style="display:none; color: var(--clr-error);">⚠</span>
+						<span class="warning-indicator" style="display:none; color: #ffcc00; cursor: help;">⚠</span>
 						<button class="delete-btn btn btn-xs btn-danger">
-							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+							<i class="fa-solid fa-trash"></i>
 							Delete
 						</button>
 					</div>
@@ -145,13 +178,20 @@
 								<option value="question">Every question</option>
 							</select>
 						</div>
+						<div class="form-group mt-md">
+							<label>Score Method:</label>
+							<select data-field="score-method">
+								<option value="regular" selected>Regular scoring</option>
+								<option value="snooze">You Snooze You Lose</option>
+							</select>
+						</div>
 					</div>
 				</div>
 				
 				<div class="questions-container mt-md"></div>
 				
 				<button class="question-btn btn btn-sm mt-md">
-					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+					<i class="fa-solid fa-plus"></i>
 					Add Question
 				</button>
 			</div>
@@ -169,8 +209,9 @@
 					</div>
 					<div class="flex items-center gap-sm">
 						<span class="error-indicator" style="display:none; color: var(--clr-error);">⚠</span>
+						<span class="warning-indicator" style="display:none; color: #ffcc00; cursor: help;">⚠</span>
 						<button class="delete-btn btn btn-xs btn-danger">
-							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+							<i class="fa-solid fa-trash"></i>
 							Delete
 						</button>
 					</div>
@@ -190,10 +231,21 @@
 						<div class="form-group mb-md">
 							<label>Media (Image/Audio)</label>
 							<div data-field="image-selection" class="flex flex-col gap-sm">
+								<!-- Image Search Helper (Always available) -->
+								<div class="ai-helper-info" style="background-color: transparent; padding: 10px; border-radius: 4px; border-left: 4px solid #8e44ad; margin-bottom: 10px;">
+									<div style="font-size: 0.8rem; color: #8e44ad; font-weight: bold; margin-bottom: 4px;">IMAGE SEARCH HELPER</div>
+									<div class="ai-search-query" style="font-size: 0.85rem; margin-bottom: 4px;"></div>
+									<div class="ai-reasoning" style="font-size: 0.8rem; font-style: italic; color: #666;"></div>
+									<div class="flex gap-xs mt-xs">
+										<button class="ai-search-btn btn btn-xs" style="background-color: #8e44ad; color: white;">Search Library</button>
+										<button class="ai-web-search-btn btn btn-xs btn-ghost">Search Web</button>
+									</div>
+								</div>
+
 								<div class="flex gap-sm">
 									<input type="text" data-field="question-image-url" class="w-full" placeholder="Image URL">
 									<button class="select-image-btn btn btn-sm btn-ghost">
-										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+										<i class="fa-solid fa-image"></i>
 										Library
 									</button>
 								</div>
@@ -202,6 +254,7 @@
 									<button class="clear-image-btn btn btn-xs btn-danger" style="position: absolute; top: 5px; right: 5px;">×</button>
 								</div>
 								<input type="text" data-field="question-audio" placeholder="Audio URL (YouTube/MP3)">
+								<input type="text" data-field="question-video" placeholder="Video URL (YouTube/MP4)">
 							</div>
 						</div>
 					</div>
@@ -232,7 +285,7 @@
 
 
 	<script type="module">
-		import { initDashboardQuizEdit } from '/modules/dashboard-quizedit.min.js';
+		import { initDashboardQuizEdit } from '/modules/dashboard-quizedit-v2.min.js';
 		initDashboardQuizEdit();
 	</script>
 </body>

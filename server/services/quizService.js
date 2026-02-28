@@ -195,7 +195,7 @@ export async function saveAsQuizV2(quizData, userID) {
 
         // Existing quiz - already loaded from DB at least once before so has _id, owner etc
         // Why do we need to load the original again???
-        if (schemaVersion == 1) {
+        if (Math.floor(schemaVersion) === 1) {
             thisQuiz = await Quiz.findById(quizData._id);
         } else {
             thisQuiz = await QuizV2.findById(quizData._id);
@@ -252,7 +252,7 @@ export async function saveAsQuizV2(quizData, userID) {
             });
 
             // Save as V1 (if original was V1) and as V2 as well new:true returns the new quiz document
-            if (schemaVersion === 1) {
+            if (Math.floor(schemaVersion) === 1) {
                 thisQuiz = await Quiz.findByIdAndUpdate(quizData._id, quizData, { new: true });
                 // Also convert to V2 and save - don't bother for now
                 // thisQuiz = await saveV1QuizToV2(quizData, userID);
@@ -301,15 +301,16 @@ export async function saveAsQuizV2(quizData, userID) {
 
         const userIDString = getUserIDString(userID);
 
-        // Since we are using this by the quiz builder which is allowing editing, remove the public check for now
+        // Return quizzes owned by the user OR public quizzes, excluding deleted ones
         const search = {
+            isDeleted: { $ne: true },
             $or: [
-                { ownerID: userIDString }
-                // { public: true }
+                { ownerID: userIDString },
+                { public: true }
             ]
         };
 
-        const quizzes = await Quiz.find(search);
+        const quizzes = await Quiz.find(search).lean();
 
         const v2quizzes = await QuizV2.find(search)
             .populate({
@@ -335,9 +336,17 @@ export async function saveAsQuizV2(quizData, userID) {
     export async function getQuizById(quizId, userID) {
         const userIDString = getUserIDString(userID);
         console.log('QuizService:: getQuizById:', quizId, userIDString);
-        const quiz = await Quiz.getQuizByID(quizId);
-        console.log('QuizService:: getQuizById: Found quiz:', quiz ? quiz.title : 'NOT FOUND');
-        if (!quiz) return null;
+        
+        let quiz = await Quiz.findById(quizId).lean();
+        if (!quiz) {
+            quiz = await QuizV2.findById(quizId).populate({
+                path: 'rounds.questions',
+                model: 'Question'
+            }).lean();
+        }
+
+        if (!quiz || quiz.isDeleted) return null;
+        
         return filterQuestions(quiz, userIDString);
     }
 
@@ -364,11 +373,11 @@ export async function saveAsQuizV2(quizData, userID) {
                 throw new PermissionError('You do not have permission to delete this quiz');
             }
 
-            // Proceed with deletion if authorized
+            // Soft delete: mark as deleted instead of removing from DB
             if (quiz instanceof Quiz) {
-                return Quiz.findByIdAndDelete(quizId);
+                return Quiz.findByIdAndUpdate(quizId, { isDeleted: true }, { new: true });
             } else if (quiz instanceof QuizV2) {
-                return QuizV2.findByIdAndDelete(quizId);
+                return QuizV2.findByIdAndUpdate(quizId, { isDeleted: true }, { new: true });
             }
 
         } catch (error) {

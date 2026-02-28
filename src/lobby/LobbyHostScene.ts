@@ -47,6 +47,7 @@ export class LobbyHostScene extends BaseScene {
 
 		console.log('Lobby.init: hello.');
 		super.init();
+		this.TYPE = 'host';
 		this.cameras.main.setRoundPixels(true);
 
 		// Testing add a progress indiciator
@@ -69,8 +70,6 @@ export class LobbyHostScene extends BaseScene {
 		// this.load.on('loaderror', (file: Phaser.Loader.File) => {
 		// 	console.log('Loader load error:', file);
 		// });
-
-		this.setupSocketListeners();
 
 	}
 
@@ -100,6 +99,7 @@ export class LobbyHostScene extends BaseScene {
 		// Define available games (add more as needed)
 		this.games = [
 			{ name: 'Quiz', key: 'quiz', description: 'Test your knowledge with fun questions!' },
+			{ name: 'Gauntlet', key: 'gauntlet', description: 'Speed counts! Answer fast for more points.' }
 			// { name: 'Drawing', key: 'drawing', description: 'Draw and guess with friends!' },
 			// Add more games here
 		];
@@ -130,6 +130,8 @@ export class LobbyHostScene extends BaseScene {
 			}
 		});
 
+		// Setup socket listeners
+		this.setupSocketListeners();
 	}
 
 	// Add these methods to the class:
@@ -551,6 +553,19 @@ export class LobbyHostScene extends BaseScene {
 
 		this.socket.on('server:ping', (message: string) => {
 			console.log('LobbyHostScene:: server:ping:', this.socket.connected, message);
+		});
+
+		this.socket.on('server:loadgame', (gameKey: string) => {
+			console.log('LobbyHostScene:: server:loadgame:', gameKey);
+			const hostSceneMap: Record<string, string> = {
+				'quiz': 'QuizHostScene',
+				'gauntlet': 'QuizHostScene',
+				'werewolf': 'WerewolfHostScene'
+			};
+			const sceneKey = hostSceneMap[gameKey] || gameKey;
+			if (this.scene.get(sceneKey)) {
+				this.scene.start(sceneKey);
+			}
 		});
 	}
 

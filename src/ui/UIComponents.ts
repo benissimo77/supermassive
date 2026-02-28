@@ -45,7 +45,7 @@ export class UIComponents {
     createButton(text: string, onClick: () => void): any {
         const theme = this.themeManager.getTheme();
         
-        return this.scene.rexUI.add.label({
+        const button = this.scene.rexUI.add.label({
             background: this.scene.rexUI.add.roundRectangle(0, 0, 0, 0, theme.roundness, theme.colors.primary),
             text: this.scene.add.text(0, 0, text, theme.fonts.body),
             space: {
@@ -54,12 +54,14 @@ export class UIComponents {
         })
         .setInteractive()
         .on('pointerdown', onClick)
-        .on('pointerover', function() {
-            this.getElement('background').setFillStyle(theme.colors.info);
+        .on('pointerover', () => {
+            button.getElement('background').setFillStyle(theme.colors.info);
         })
-        .on('pointerout', function() {
-            this.getElement('background').setFillStyle(theme.colors.primary);
+        .on('pointerout', () => {
+            button.getElement('background').setFillStyle(theme.colors.primary);
         });
+
+        return button;
     }
     
     // Add more reusable components here

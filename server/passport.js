@@ -44,21 +44,30 @@ passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
   callbackURL: process.env.GOOGLE_CALLBACK_URL,
-
-}, (token, tokenSecret, profile, done) => {
-  // Replace this with your own logic to find or create a user
-  console.log('passport.use.GoogleStrategy:', profile);
-  return done(null, profile);
+  proxy: true
+}, async (token, tokenSecret, profile, done) => {
+  try {
+    // We must find or create the user in the DB so we have a MongoDB _id for serialization
+    const user = await userService.addProfileData(profile);
+    return done(null, user);
+  } catch (error) {
+    return done(error);
+  }
 }));
 
 // Facebook Strategy
 passport.use(new FacebookStrategy({
   clientID: process.env.FACEBOOK_CLIENT_ID,
   clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
-  callbackURL: process.env.FACEBOOK_CALLBACK_URL
-}, (accessToken, refreshToken, profile, done) => {
-  console.log('passport.use.FacebookStrategy:', profile);
-  return done(null, profile);
+  callbackURL: process.env.FACEBOOK_CALLBACK_URL,
+  proxy: true
+}, async (accessToken, refreshToken, profile, done) => {
+  try {
+    const user = await userService.addProfileData(profile);
+    return done(null, user);
+  } catch (error) {
+    return done(error);
+  }
 }));
 
 export default passport;

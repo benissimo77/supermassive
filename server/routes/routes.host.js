@@ -78,12 +78,21 @@ router.get('/', (req, res) => {
 
 // Start a game (The Redirector)
 // Generates a room and redirects to the Stage
+// UPDATE: host might have already hosted a room so might have a room in session already (use this for consistency)
 router.get('/:game/start', (req, res) => {
-	const room = generateNewRoomName();
-	req.session.room = room;
+	console.log('routes.host:: /:game/start - starting game:', req.params.game, req.session);
+	if (!req.session || !req.session.room) {
+		req.session.room = generateNewRoomName();
+	}
+	const room = req.session.room;
 	const game = req.params.game;
 	const q = req.query.q ? `?q=${req.query.q}` : '';
 	res.redirect(`/host/${room}/${game}${q}`);
+});
+
+// Catch room-only URLs and default to the lobby
+router.get('/:room([A-Z]{4})', (req, res) => {
+	res.redirect(`/host/${req.params.room}/lobby`);
 });
 
 // Active Game (The Stage)

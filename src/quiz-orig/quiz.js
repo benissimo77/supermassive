@@ -4,11 +4,11 @@ import gsap from 'gsap';
 
 // At some point variants of the below functions should be loaded...
 import { dom } from './dom.quiz.js';
-import { ImageSelector } from '../ImageSelector.js';
-import { Overlay } from '../Overlay.js';
-import { AudioPlayer } from '../AudioPlayer.js';
+import { ImageSelector } from '../utils/ImageSelector.js';
+import { Overlay } from '../utils/Overlay.js';
+import { AudioPlayer } from '../utils/AudioPlayer.js';
 
-// import { AudioManager } from '../audiomanager.js';
+// import { AudioManager } from '../utils/audiomanager.js';
 // import { musicTracks, effectTracks, narratorTracks } from './audio.werewolves.js';
 
 console.log('Quiz.js loaded:', window.location);

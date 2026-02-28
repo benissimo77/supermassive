@@ -120,9 +120,12 @@ const handleSubmit = async (event) => {
             if (forgotPasswordMode) {
                 terminateForgotPasswordFlow();
             } else {
-                // If it's a successful login or registration, redirect to dashboard
-                // window.location.href = '/host/dashboard';
-                console.log('Redirecting to dashboard');
+                // If it's a successful login or registration, redirect
+                const urlParams = new URLSearchParams(window.location.search);
+                const redirect = urlParams.get('redirect') || '/host/dashboard';
+                
+                console.log('Success! Redirecting to:', redirect);
+                window.location.href = redirect;
             }
         } else {
             // Handle different types of errors based on status codes
@@ -258,9 +261,16 @@ document.addEventListener('DOMContentLoaded', () => {
         resetForm.addEventListener('submit', handleReset);
     }
 
+    // Check for signup or redirect in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const signup = urlParams.get('signup');
+    if (signup === 'true') {
+        isSignupMode = true;
+        layoutMode();
+    }
+
     // We might have a message to display immediately if we arrived here from a redirect
     const messageElement = document.getElementById('message');
-    const urlParams = new URLSearchParams(window.location.search);
     const error = urlParams.get('error');
     if (error) {
         switch (error) {

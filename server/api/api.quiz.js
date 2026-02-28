@@ -1,17 +1,24 @@
 import express from 'express';
 import * as QuizService from '../services/quizService.js';
+import { generateQuizFromAI } from '../services/aiQuizService.js';
 
 
 const router = express.Router();
 
 // Middleware to check if the user is a host
 function checkHost(req, res, next) {
-    // console.log('checkHost:', req.session, req.url, req.originalUrl, req.baseUrl, req.path, req.params, req.query);
-    if (req.session && req.session.host) {
-        next();
-    } else {
-        return res.status(404).json({ message: 'No user identified' });
+    if (req.isAuthenticated && req.isAuthenticated()) {
+        // Allow hosts, admins, and guests (who are allowed to use the editor)
+        const role = req.user.role;
+        if (['host', 'admin', 'guest'].includes(role)) {
+            return next();
+        }
+    } else if (process.env.NODE_ENV === 'development') {
+        // In development, allow access even if not logged in
+        return next();
     }
+    
+    return res.status(401).json({ message: 'No user identified' });
 }
 
 router.use([checkHost]);
@@ -89,6 +96,22 @@ router.post('/save', async (req, res) => {
             error.details   // Technical details for debugging
         ));
 
+    }
+});
+
+// Generate a quiz using AI
+router.post('/generate', async (req, res) => {
+    const { prompt } = req.body;
+    if (!prompt) {
+        return res.status(400).json(apiResponse(false, null, 'Prompt is required'));
+    }
+
+    try {
+        const quizData = await generateQuizFromAI(prompt);
+        return res.status(200).json(apiResponse(true, quizData, 'Quiz generated successfully'));
+    } catch (error) {
+        console.error('Error generating quiz:', error);
+        return res.status(500).json(apiResponse(false, null, 'Failed to generate quiz', error.message));
     }
 });
 

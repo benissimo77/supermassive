@@ -165,13 +165,11 @@ input::placeholder {
 
 .btn-enter:hover {
     background-color: var(--clr-accent-hover);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 0 #cc7000;
+    filter: brightness(1.1);
 }
 
 .btn-enter:active {
-    transform: translateY(2px);
-    box-shadow: 0 0px 0 #cc7000;
+    filter: brightness(0.9);
 }
 
 .btn-enter:disabled {

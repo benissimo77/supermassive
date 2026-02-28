@@ -18,13 +18,12 @@ export class Auth {
 
     static async checkRole(requiredRole) {
         const user = await this.getUser();
-        if (!user) return false;
+        const userRole = user ? user.role : 'anonymous';
         
-        const roles = ['new', 'host', 'admin'];
-        const userRoleIndex = roles.indexOf(user.role);
-        const requiredRoleIndex = roles.indexOf(requiredRole);
+        const userLevel = this.getRoleLevel(userRole);
+        const requiredLevel = this.getRoleLevel(requiredRole);
         
-        return userRoleIndex >= requiredRoleIndex;
+        return userLevel >= requiredLevel;
     }
 
     /**
@@ -33,7 +32,7 @@ export class Auth {
      */
     static async syncUI() {
         const user = await this.getUser();
-        const role = user ? user.role : 'guest';
+        const role = user ? user.role : 'anonymous';
         const roleLevel = this.getRoleLevel(role);
         
         document.querySelectorAll('[data-role], [data-role-max]').forEach(el => {
@@ -53,8 +52,21 @@ export class Auth {
     }
 
     static getRoleLevel(roleName) {
-        const roles = { 'guest': 0, 'new': 1, 'host': 2, 'admin': 3 };
+        const roles = { 'anonymous': 0, 'guest': 1, 'host': 2, 'admin': 3 };
         return roles[roleName] || 0;
+    }
+
+    static async claimResults() {
+        try {
+            const response = await fetch('/auth/claim-results', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Auth.claimResults error:', error);
+            return { success: false, error: 'Network error' };
+        }
     }
 
 }

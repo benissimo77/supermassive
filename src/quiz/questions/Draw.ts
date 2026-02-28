@@ -75,7 +75,7 @@ export default class DrawQuestion extends BaseQuestion {
             } else {
                 // In answer mode, host will display gallery of drawings, players are sent a canvas to grade
                 // TODO - allow host to also grade the answers
-                this.displayDrawingGallery();
+                this.displayDrawingGallery(0);
             }
         } else {
             // Player screen - add drawing canvas using the full screen
@@ -552,7 +552,7 @@ export default class DrawQuestion extends BaseQuestion {
     // 1. The ability to zoom/pan the entire canvas when viewing answers
     // 2. The canvas itself for drawing plus the submit button
     // Since we want to keep all question classes consistent, we ALWAYS make step 1 true, and this function applies step 2
-    private makeInteractive(): void {
+    protected makeInteractive(): void {
 
         // SUBMIT button
         this.submitButton.setInteractive({ useHandCursor: true });
@@ -608,7 +608,7 @@ export default class DrawQuestion extends BaseQuestion {
 
 
     }
-    private makeNonInteractive(): void {
+    protected makeNonInteractive(): void {
         this.clearButton.disableInteractive();
         this.submitButton.disableInteractive();
         this.colorButtons.forEach(button => button.disableInteractive());
@@ -617,6 +617,11 @@ export default class DrawQuestion extends BaseQuestion {
         // Remove all event listeners from the background rectangle
         this.background.removeAllListeners();
 
+    }
+
+    protected revealAnswerUI(): void {
+        // Draw questions don't have a single "correct" answer to reveal
+        // The gallery is shown instead
     }
 
     // renderStroke - renders an entire stroke

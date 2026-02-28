@@ -5,8 +5,12 @@ import express from 'express';
 import session from 'express-session';
 import MongoStore from 'connect-mongo';
 import passport from './passport.js';
-import { dbConnect } from './db.js';
+import { dbConnect, isDBConnected, mongoose } from './db.js';
 import { fileURLToPath } from 'url';
+
+// Wait for DB connection (with 3s timeout defined in db.js)
+// This allows us to decide which session store to use.
+await dbConnect();
 
 // ROUTES
 import indexRoutes from './routes/routes.public.js';
@@ -16,6 +20,9 @@ import loginRoutes from './routes/routes.auth.js';
 
 import apiQuiz from './api/api.quiz.js';
 import apiImage from './api/api.image.js';
+import apiLeague from './api/api.league.js';
+import apiLeaderboard from './api/api.leaderboard.js';
+import apiShows from './api/api.shows.js';
 
 console.log('######  app.js is running  ######');
 
@@ -36,18 +43,6 @@ const app = express();
 // Note: placed before session/passport to avoid overhead for public assets
 app.use(express.static('public'));
 
-// Serve shared utilities
-app.use('/utils', express.static('src/utils'));
-
-// Set up DB connection
-dbConnect()
-  .then((db) => {
-    console.log('MongoDB connection working'); // Note: don't console.log db; it is a huge object
-  })
-  .catch((error) => {
-    console.error('Failed to connect to MongoDB', error);
-  });
-
 // Set up Express Handlebars as the templating engine
 // const exphbs = create();
 // app.engine('handlebars', exphbs.engine);
@@ -66,7 +61,26 @@ if (isProduction) {
   console.log('Trust proxy enabled for production');
 }
 
-// Initialize session cookies with MongoDB store
+// Determine session store (Fallback to MemoryStore if MongoDB is offline)
+let sessionStore;
+if (isDBConnected()) {
+  // Use the established connection client
+  const client = mongoose.connection.getClient ? mongoose.connection.getClient() : mongoose.connection.client;
+
+  sessionStore = MongoStore.create({
+    client: client,
+    collectionName: 'sessions',
+    ttl: 7 * 24 * 60 * 60,
+    touchAfter: 24 * 60 * 60,
+    autoRemove: 'native'
+  });
+  console.log('Session store: Using MongoStore');
+} else {
+  console.log('Session store: Using MemoryStore (Local Development Fallback)');
+  sessionStore = new session.MemoryStore();
+}
+
+// Initialize session cookies
 const sessionMiddleware = session({
   secret: process.env.SESSION_SECRET,
   resave: false,
@@ -75,15 +89,7 @@ const sessionMiddleware = session({
     secure: isProduction,
     maxAge: 7 * 24 * 60 * 60 * 1000
   },
-  // Add MongoDB store
-  store: MongoStore.create({
-    // Use the same MongoDB connection as your app
-    mongoUrl: process.env.MONGODB_URI,
-    collectionName: 'sessions',
-    ttl: 7 * 24 * 60 * 60,
-    touchAfter: 24 * 60 * 60, // Only update if 24 hours passed
-    autoRemove: 'native' // Use MongoDB's TTL index for cleanup
-  })
+  store: sessionStore
 });
 app.use(sessionMiddleware);
 
@@ -267,5 +273,8 @@ app.use('/admin', adminRoutes);
 // API ROUTES
 app.use('/api/quiz', apiQuiz);
 app.use('/api/image', apiImage);
+app.use('/api/league', apiLeague);
+app.use('/api/leaderboard', apiLeaderboard);
+app.use('/api/shows', apiShows);
 
 export { app, sessionMiddleware };

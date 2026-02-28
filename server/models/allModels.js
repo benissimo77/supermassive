@@ -10,6 +10,8 @@ class Player {
 		this.name = obj.name;
 		this.avatar = obj.avatar;
 		this.userID = obj.userID;
+		this.isBot = obj.isBot || false;
+		this.connected = obj.connected !== undefined ? obj.connected : true;
 		// Game data
 		this.role = null;
 		this.alive = true;
@@ -17,6 +19,14 @@ class Player {
 		this.sheriff = false;
 		this.witchkill = false;
 		this.witchsave = false;
+	}
+
+	/**
+	 * Ensure sensitive data like isBot is not sent to the client during JSON serialization.
+	 */
+	toJSON() {
+		const { isBot, ...publicData } = this;
+		return publicData;
 	}
 }
 

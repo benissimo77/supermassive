@@ -3,6 +3,7 @@ import { BaseScene } from "src/BaseScene";
 import { BaseQuestion } from "./BaseQuestion";
 import { NineSliceButton } from "src/ui/NineSliceButton";
 import { MultipleChoiceQuestionData } from "./QuestionTypes";
+import { PhaserPlayer } from "../PhaserPlayer";
 
 export default class MultipleChoiceQuestion extends BaseQuestion {
 
@@ -27,7 +28,7 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
     protected createAnswerUI(): void {
 
         console.log('MultipleChoiceQuestion::createAnswerUI:', this.questionData);
-        this.questionData.options.forEach((option: string, index: number) => {
+        this.questionData.optionsShuffled.forEach((option: string, index: number) => {
             const newButton: NineSliceButton = new NineSliceButton(this.scene, option);
 
             this.buttons.set(option, newButton);
@@ -61,13 +62,13 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
 
         // This is still not that much simpler, but uses a better responsive layout
         // Especially for landscape/portrait on mobile
-        const numRows = isPortrait ? this.questionData.options.length : Math.ceil(this.questionData.options.length / 2);
+        const numRows = isPortrait ? this.questionData.optionsShuffled.length : Math.ceil(this.questionData.optionsShuffled.length / 2);
         const numColumns = isPortrait ? 1 : 2;
         const buttonSpace = availableHeight / numRows;
 
         console.log('MultipleChoiceQuestion::displayAnswerUI:', this.questionData.mode, this.scene.TYPE, availableHeight, buttonSpace);
 
-        this.questionData.options.forEach((option: string, index: number) => {
+        this.questionData.optionsShuffled.forEach((option: string, index: number) => {
 
             const rowCount: number = Math.floor(index / numColumns);
             const y = paddingHeight + rowCount * buttonSpace + buttonSpace / 2;
@@ -95,9 +96,111 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
 
     protected revealAnswerUI(): void {
 
-        if (this.questionData.answer) {
-            this.highlightAnswer(this.questionData.answer);
+        console.log('MultipleChoiceQuestion::revealAnswerUI:', this.questionData);
+        const tl = this.minimizeQuestionContent();
+        const playerOptions: { [key: string]: string[] } = {};
+
+        // If we have responses data then we can generate an animation to show who guessed what
+        if (this.questionData.responses) {
+
+            // Tween the buttons into a vertical stack on the left side of the screen
+            // Then tween the player avatars to the right of the buttons aligned with their chosen answer
+            // Players are in the playerContainer which is at (0,0) while answerContainer is at (960,0)
+
+            // For ease of tweening we will re-organize the player responses into a dictionary of answer -> [sessionID,...]
+            // This way we already know how many players chose each answer and can space them out accordingly
+            for (const [option, button] of this.buttons) {
+                const playersForThisOption: string[] = [];
+                for (const [sessionID, playerAnswer] of Object.entries(this.questionData.responses)) {
+                    if (playerAnswer.answer === option) {
+                        playersForThisOption.push(sessionID);
+                    }
+                }
+                console.log('MultipleChoiceQuestion::revealAnswerUI: option:', option, 'playersForThisOption:', playersForThisOption);
+                playerOptions[option] = playersForThisOption;
+            }
+
+            // Since answerContainer.y is in real pixels then we keep buttonHeight the same (no need to getY later) 
+            const buttonHeight = (this.scene.getY(1080) - this.answerContainer.y) / this.questionData.optionsShuffled.length;
+            const answerX = -480;
+            tl.addLabel("PositionButtons");
+            this.questionData.optionsShuffled.forEach((option: string, optionIndex: number) => {
+                const button = this.buttons.get(option);
+                if (button) {
+                    const targetY = optionIndex * buttonHeight + buttonHeight/2;
+                    tl.to(button, {
+                        x: answerX,
+                        y: targetY,
+                        duration: 0.5,
+                        ease: 'power2.out'
+                    }, "PositionButtons");
+                }
+            });
+
+            // Now repeat the above loop in order to position player avatars
+            const avatarX = 960;
+            const avatarY: number = this.answerContainer.y;
+            tl.addLabel("PositionPlayers", ">+0.5");
+            this.questionData.optionsShuffled.forEach((option: string, optionIndex: number) => {
+                const button = this.buttons.get(option);
+                if (button) {
+                    const targetY = optionIndex * buttonHeight + buttonHeight/2;
+                    // Now position any player avatars who chose this answer
+                    const numPlayersForOption = playerOptions[option].length;
+                    const avatarSpacing:number = Math.min(200, 960 / numPlayersForOption);
+                    playerOptions[option].forEach((sessionID, playerIndex) => {
+                        const player: Phaser.GameObjects.Container = this.scene.getPlayerBySessionID(String(sessionID));
+                        if (player) {
+                            tl.add(() => {
+                                player.parentContainer.bringToTop(player);
+                            }, "PositionPlayers");
+                            tl.to(player, {
+                                x: avatarX + playerIndex * avatarSpacing,
+                                y: avatarY + targetY,
+                                duration: 0.6,
+                                delay: 0.2 * playerIndex,
+                                ease: 'power2.out'
+                            }, "PositionPlayers");
+                        } else {
+                            console.log('MultipleChoiceQuestion::revealAnswerUI: WARNING - player avatar not found for sessionID:', sessionID);
+                        }
+                    });
+                }
+            });
         }
+        if (this.questionData.answer) {
+            tl.add(() => {
+                this.highlightAnswer(this.questionData.answer);
+            }, ">+0.5");
+
+            // Add flashText to players who provided a response
+            // Rely on the score field sent from server as this is our source of truth
+            tl.addLabel("ShowScores", ">+0.5");
+            for (const [sessionID, playerAnswer] of Object.entries(this.questionData.responses)) {
+                const player: PhaserPlayer = this.scene.getPlayerBySessionID(String(sessionID)) as PhaserPlayer;
+                if (player) {
+                    tl.add(() => {
+                        if (playerAnswer.snoozed) {
+                            tl.add(() => {
+                                player.flashText('Z', '#ff0000');
+                            }, "ShowScores");
+                            tl.add(() => {
+                                player.flashText('Z', '#ff0000');
+                            }, "ShowScores+=0.5");
+                            tl.add(() => {
+                                player.flashText('Z', '#ff0000');
+                            }, "ShowScores+=1.0");
+                            tl.add(() => {
+                                player.flashText('Z', '#ff0000');
+                            }, "ShowScores+=1.5");
+                        } else {
+                            player.flashText(playerAnswer.score, '#00ff00');
+                        }
+                    }, "ShowScores");
+                }
+            });
+        }
+        tl.play();
     }
 
     protected highlightAnswer(correctAnswer: string): void {

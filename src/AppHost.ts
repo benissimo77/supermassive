@@ -4,10 +4,10 @@ import WebFontLoaderPlugin from 'phaser3-rex-plugins/plugins/webfontloader-plugi
 
 // This is a bit of a weird way to import the plugin (downloaded from CDN then exported) but it works
 // When attempting to import from the node_modules directly, it didn't work
-import RexPlugins from './scripts/rexUI';
+import RexPlugins from 'src/utils/rexUI';
 
-import { LobbyHostScene } from './lobby/LobbyHostScene';
-import { QuizHostScene } from './quiz/QuizHostScene';
+import { LobbyHostScene } from 'src/lobby/LobbyHostScene';
+import { QuizHostScene } from 'src/quiz/QuizHostScene';
 
 // Parse URL parameters and path to determine initial scene
 const urlParams = new URLSearchParams(window.location.search);
@@ -25,7 +25,7 @@ const gameKey = pathSegments[2];
 
 // Determine scene order - first scene in array starts automatically
 const scenes = [];
-if (gameKey === 'quiz') {
+if (gameKey === 'quiz' || gameKey === 'gauntlet') {
     scenes.push(QuizHostScene, LobbyHostScene);
 } else {
     scenes.push(LobbyHostScene, QuizHostScene);
@@ -86,8 +86,8 @@ console.log('AppHost:: Game created:', game);
 const startInitialScene = () => {
     console.log('AppHost:: Ready. Path info:', { role, roomID, gameKey, quizID });
 
-    if (gameKey === 'quiz') {
-        console.log('AppHost:: Starting QuizHostScene');
+    if (gameKey === 'quiz' || gameKey === 'gauntlet') {
+        console.log(`AppHost:: Starting QuizHostScene for ${gameKey}`);
         game.scene.start(QuizHostScene.KEY, { quizID: quizID, roomID: roomID });
     } else if (gameKey === 'lobby' || !gameKey || gameKey === 'dashboard') {
         console.log('AppHost:: Starting LobbyHostScene');

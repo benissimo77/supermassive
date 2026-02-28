@@ -1,5 +1,6 @@
 import { BaseScene } from "src/BaseScene";
 import { BaseQuestion } from "./BaseQuestion";
+import { BaseQuestionData, MultipleChoiceQuestionData } from "./QuestionTypes";
 
 import MultipleChoiceQuestion from "./MultipleChoice";
 import TrueFalseQuestion from "./TrueFalse";
@@ -9,18 +10,16 @@ import NumberQuestion from "./Number";
 import HotspotQuestion from "./Hotspot";
 import DrawQuestion from "./Draw";
 
-import { BaseQuestionData } from "./QuestionTypes";
-
 export class QuestionFactory {
     private scene: BaseScene;
-    private questionTypes: Map<string, new (scene: BaseScene, data: BaseQuestionData) => BaseQuestion>;
+    private questionTypes: Map<string, new (scene: BaseScene, data: any) => BaseQuestion>;
 
     constructor(scene: BaseScene) {
         this.scene = scene;
 
         // Initialize the map
         // Define the type explicitly for the Map
-        this.questionTypes = new Map<string, new (scene: BaseScene, data: BaseQuestionData) => BaseQuestion>([
+        this.questionTypes = new Map<string, new (scene: BaseScene, data: any) => BaseQuestion>([
             ['multiple-choice', MultipleChoiceQuestion],
             ['true-false', TrueFalseQuestion],
             ['text', TextQuestion],
@@ -49,7 +48,8 @@ export class QuestionFactory {
         // Return a fallback question
         return new MultipleChoiceQuestion(this.scene, {
             ...data,
+            type: 'multiple-choice',
             options: ['Error: Unknown question type']
-        });
+        } as MultipleChoiceQuestionData);
     }
 }

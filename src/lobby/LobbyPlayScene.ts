@@ -12,7 +12,7 @@ import { BaseScene } from 'src/BaseScene';
 
 // I have a Player class which uses Phaser objects but DOMPlayer is slightly smoother with animations
 // Note: it needs its own setScale function to ensure correct scaling...
-import { PlayerConfig, DOMPlayer } from '../DOMPlayer';
+import { PlayerConfig, DOMPlayer } from 'src/play/DOMPlayer';
 
 export class LobbyPlayScene extends BaseScene {
 
@@ -27,6 +27,7 @@ export class LobbyPlayScene extends BaseScene {
 
 		console.log('Lobby.init: hello.');
 		super.init();
+		this.TYPE = 'play';
 		this.cameras.main.setRoundPixels(true);
 
 		// Testing add a progress indiciator
@@ -49,8 +50,6 @@ export class LobbyPlayScene extends BaseScene {
 		// this.load.on('loaderror', (file: Phaser.Loader.File) => {
 		// 	console.log('Loader load error:', file);
 		// });
-
-		this.setupSocketListeners();
 
 		// Since this is the player version of the game we are likely on mobile so set orientation and fullscreen
 		// this.scale.lockOrientation('landscape');
@@ -114,10 +113,13 @@ export class LobbyPlayScene extends BaseScene {
 
 		this.socket.on('connect', sendReady);
 		sendReady();
+
+		// Setup socket listeners
+		this.setupSocketListeners();
 	}
 
 	setupSocketListeners(): void {
-		console.log('Lobby.setupSocketListeners: hello.');
+		console.log('Lobby.setupSocketListeners: hello:', this.socket);
 
 		// Listen for player connection events
 		this.socket.on('playerconnect', (playerConfig: PlayerConfig) => {
@@ -140,12 +142,19 @@ export class LobbyPlayScene extends BaseScene {
 
 		this.socket.on('server:ping', (message: string) => {
 			console.log('LobbyPlayScene:: server:ping:', this.socket.connected, message);
+		});
 
-			// This is an event with an acknowledgement callback
-			this.socket.emit('host:ready', { sessionID: this.socket.id }, (response: string) => {
-				// This callback will be executed when server acknowledges the event
-				console.log('Server acknowledged host:ready:', response);
-			});
+		this.socket.on('server:loadgame', (gameKey: string) => {
+			console.log('LobbyPlayScene:: server:loadgame:', gameKey);
+			const playSceneMap: Record<string, string> = {
+				'quiz': 'QuizPlayScene',
+				'gauntlet': 'QuizPlayScene',
+				'werewolf': 'WerewolfPlayScene'
+			};
+			const sceneKey = playSceneMap[gameKey] || gameKey;
+			if (this.scene.get(sceneKey)) {
+				this.scene.start(sceneKey);
+			}
 		});
 	}
 

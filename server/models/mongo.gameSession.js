@@ -7,6 +7,14 @@ const gameSessionSchema = new mongoose.Schema({
     roomCode: { type: String, required: true },
     startTime: { type: Date, required: true },
     duration: { type: Number }, // Duration in seconds
+
+    // Competition tracking
+    isLive: { type: Boolean, default: false },
+    verificationLevel: { type: Number, default: 3 }, // 0: VideoSwipe, 1: Trusted, 2: Verified, 3: Everyone
+    
+    // Netflix Model Hierarchy
+    showID: { type: mongoose.Schema.Types.ObjectId, ref: 'Show', index: true },
+    seasonID: { type: mongoose.Schema.Types.ObjectId, ref: 'Season', index: true },
     
     // Flexible metadata for game-specific info (e.g. quiz title, total questions)
     metadata: { type: mongoose.Schema.Types.Mixed, default: {} }

@@ -96,8 +96,38 @@
   color: var(--clr-text) !important;
 }
 
+/* Question Content Labels */
+.card-body label {
+  display: inline-block;
+  margin-right: 8px;
+  color: var(--clr-text-label);
+  font-size: 0.9rem;
+}
+
 /* Add Round Button matching round header */
 #add-round {
+  background-color: rgba(59, 130, 246, 0.2) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  color: var(--clr-text) !important;
+}
+
+/* AI Generator Spinner */
+.spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 3px solid rgba(142, 68, 173, 0.3);
+  border-radius: 50%;
+  border-top-color: #8e44ad;
+  animation: spin 1s ease-in-out infinite;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
   background-color: rgba(59, 130, 246, 0.1) !important;
   border: 1px solid rgba(59, 130, 246, 0.2) !important;
   color: var(--clr-text) !important;
@@ -138,32 +168,6 @@ details.card:not([open]) .card-header {
   letter-spacing: 0.05em;
 }
 
-/* Button Styles */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-lg);
-  font-size: 0.9rem;
-  border-radius: var(--radius-sm);
-  text-decoration: none;
-  transition: filter 0.2s;
-}
-
-.btn-primary { background-color: var(--clr-primary); color: white; }
-.btn-secondary { background-color: var(--clr-secondary); color: white; }
-.btn-accent { background-color: var(--clr-accent); color: white; }
-.btn-danger { background-color: var(--clr-error); color: white; }
-.btn-ghost { background: rgba(255, 255, 255, 0.03); border: 1px solid var(--clr-line); color: var(--clr-text); }
-
-.btn svg {
-  flex-shrink: 0;
-}
-
-.btn-sm { padding: var(--space-xs) var(--space-sm); font-size: 0.8rem; }
-.btn-xs { padding: 2px 6px; font-size: 0.7rem; }
-
 /* Quiz List Table */
 .quiz-table {
   width: 100%;
@@ -173,7 +177,7 @@ details.card:not([open]) .card-header {
 
 .quiz-table th {
   text-align: left;
-  padding: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
   color: var(--clr-text-label);
   border-bottom: 2px solid var(--clr-line);
   font-size: 0.85rem;
@@ -185,7 +189,7 @@ details.card:not([open]) .card-header {
 }
 
 .quiz-table td {
-  padding: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
   border-bottom: 1px solid var(--clr-line);
 }
 

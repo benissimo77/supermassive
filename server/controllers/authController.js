@@ -1,5 +1,6 @@
 import authService from '../services/authService.js';
 import userService from '../services/userService.js';
+import passport from '../passport.js';
 import { success, error } from '../utils/responseHandler.js';
 
 
@@ -15,6 +16,7 @@ const extendUserSession = (req) => {
 class AuthController {
 
     async handleOAuthCallback(strategy, req, res, next) {
+        const guestSessionID = req.sessionID;
         passport.authenticate(strategy, async (err, user) => {
             if (err) {
                 console.error(`${strategy} authentication error:`, err);
@@ -31,8 +33,8 @@ class AuthController {
                 }
 
                 try {
-                    // Add profile data if needed
-                    await userService.addProfileData(user);
+                    // Automatically claim any guest results from the current session
+                    await userService.claimGuestResults(guestSessionID, user._id);
 
                     // Check for redirect in session
                     const redirectUrl = req.session.returnTo || '/host/dashboard';
@@ -58,53 +60,69 @@ class AuthController {
         return this.handleOAuthCallback('facebook', req, res, next);
     }
 
-    async login(req, res) {
-        console.log('authController: /login :', req.user);
-        console.log('Initial session:', JSON.stringify(req.session));
+    async login(req, res, next) {
+        const guestSessionID = req.sessionID;
+        console.log('authController: login attempt. Guest Session ID:', guestSessionID);
 
-        if (req.user) {
-            extendUserSession(req);
-            console.log('User logged in:', req.user.email || req.user.id);
-            // Explicitly save the session
-            req.session.save((err) => {
-                if (err) {
-                    console.error('Session save error:', err);
-                    return res.status(500).json(error('Session error'));
-                }
-                console.log('Session saved successfully:', JSON.stringify(req.session));
-                
-                // Map roles for the response
-                let effectiveRole = req.user.role || 'user';
-                if (effectiveRole === 'user' && !req.user.emailVerified) {
-                    effectiveRole = 'new';
-                } else if (effectiveRole === 'user' && req.user.emailVerified) {
-                    effectiveRole = 'host';
+        passport.authenticate('local', async (err, user, info) => {
+            if (err) {
+                console.error('Login error:', err);
+                return res.status(500).json(error('Internal server error'));
+            }
+            if (!user) {
+                console.log('Login failed:', info?.message);
+                return res.status(401).json(error(info?.message || 'Authentication failed'));
+            }
+
+            req.login(user, async (loginErr) => {
+                if (loginErr) {
+                    console.error('Login error:', loginErr);
+                    return res.status(500).json(error('Login failed'));
                 }
 
-                res.status(200).json(success('Logged in successfully', { 
-                    user: {
-                        id: req.user._id,
-                        email: req.user.email,
-                        displayname: req.user.displayname,
-                        avatar: req.user.avatar,
-                        role: effectiveRole
+                extendUserSession(req);
+                console.log('User logged in:', user.email || user.id, 'New Session ID:', req.sessionID);
+
+                // Automatically claim any guest results from the CAPTURED guestSessionID
+                try {
+                    await userService.claimGuestResults(guestSessionID, user._id);
+                } catch (claimErr) {
+                    console.error('Error claiming results during login:', claimErr);
+                }
+
+                // Explicitly save the session
+                req.session.save((saveErr) => {
+                    if (saveErr) {
+                        console.error('Session save error:', saveErr);
+                        return res.status(500).json(error('Session error'));
                     }
-                }));
-            });
 
-        } else {
-            console.log('User not logged in');
-            res.status(400).json(error());
-        }
+                    let role = user.role;
+                    if (!role || role === 'user') {
+                        role = user.emailVerified ? 'host' : 'guest';
+                    }
+
+                    res.status(200).json(success('Logged in successfully', {
+                        user: {
+                            id: user._id,
+                            email: user.email,
+                            displayname: user.displayname,
+                            avatar: user.avatar,
+                            role: role
+                        }
+                    }));
+                });
+            });
+        })(req, res, next);
     }
 
     async me(req, res) {
         if (req.isAuthenticated() && req.user) {
-            let effectiveRole = req.user.role || 'user';
-            if (effectiveRole === 'user' && !req.user.emailVerified) {
-                effectiveRole = 'new';
-            } else if (effectiveRole === 'user' && req.user.emailVerified) {
-                effectiveRole = 'host';
+            // Use the role directly from the DB. 
+            // Fallback to 'guest' if it's the legacy 'user' role or missing.
+            let role = req.user.role;
+            if (!role || role === 'user') {
+                role = req.user.emailVerified ? 'host' : 'guest';
             }
 
             res.status(200).json(success('User found', {
@@ -113,7 +131,7 @@ class AuthController {
                     email: req.user.email,
                     displayname: req.user.displayname,
                     avatar: req.user.avatar,
-                    role: effectiveRole
+                    role: role
                 }
             }));
         } else {
@@ -124,12 +142,20 @@ class AuthController {
     async signUp(req, res) {
         try {
             console.log('authController /signup :', req.body);
-            const result = await authService.initiateNewUserSignUp(req.body.email);
+            const guestSessionID = req.sessionID;
+            const { email, password } = req.body;
+            const result = await authService.initiateNewUserSignUp(email, password);
             if (result.success) {
-                req.login(result.user, (err) => {
+                req.login(result.user, async (err) => {
                     if (err) {
                         res.status(401).json(error());
                     } else {
+                        // Automatically claim any guest results from the current session
+                        try {
+                            await userService.claimGuestResults(guestSessionID, result.user._id);
+                        } catch (claimErr) {
+                            console.error('Error claiming results during signup:', claimErr);
+                        }
                         res.status(201).json(success());
                     }
                 });
@@ -160,6 +186,23 @@ class AuthController {
         } catch (err) {
             console.error('authController: verifyEmail catch:', err);
             res.redirect('/login?error=verification_failed');
+        }
+    }
+
+    async resendVerification(req, res) {
+        try {
+            if (!req.isAuthenticated() || !req.user) {
+                return res.status(401).json(error('Not authenticated'));
+            }
+            const result = await authService.sendVerificationEmail(req.user);
+            if (result.success) {
+                res.status(200).json(success('Verification email sent'));
+            } else {
+                res.status(400).json(error(result.message || 'Failed to resend verification email'));
+            }
+        } catch (err) {
+            console.error('authController: resendVerification catch:', err);
+            res.status(500).json(error('Internal server error'));
         }
     }
 
@@ -197,6 +240,25 @@ class AuthController {
             }
             res.json(success('Logged out successfully'));
         });
+    }
+
+    async claimResults(req, res) {
+        try {
+            if (!req.isAuthenticated() || !req.user) {
+                return res.status(401).json(error('Unauthorized'));
+            }
+
+            const sessionID = req.sessionID || req.session.id;
+            const userID = req.user._id;
+
+            console.log(`authController: claimResults for session ${sessionID}, user ${userID}`);
+            const result = await userService.claimGuestResults(sessionID, userID);
+            
+            res.status(200).json(success('Results claimed successfully', result));
+        } catch (err) {
+            console.error('authController: claimResults catch:', err);
+            res.status(500).json(error('Failed to claim results'));
+        }
     }
 
 

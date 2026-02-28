@@ -67,6 +67,14 @@
 					],
 					"description": "When to update scores - after each question or at the end of the round"
 				},
+				"scoreMethod": {
+					"type": "string",
+					"enum": [
+						"regular",
+						"snooze"
+					],
+					"description": "Scoring logic for the round"
+				},
 				"questions": {
 					"type": "array",
 					"description": "The questions in the round",
@@ -118,6 +126,14 @@
 						"null"
 					],
 					"description": "Optional URL for audio file to allow questions to include audio. Only include URLs from YouTube available to play in the YouTube IFrame Player API"
+				},
+				"warning": {
+					"type": "string",
+					"description": "Optional warning message for the quiz creator (e.g. from AI validation)"
+				},
+				"reasoning": {
+					"type": "string",
+					"description": "Optional reasoning or source for the answer (e.g. from AI generation)"
 				}
 			},
 			"allOf": [

@@ -1,7 +1,7 @@
 import { gsap } from 'gsap';
 import { TextPlugin } from "gsap/TextPlugin";
 
-import { Overlay } from '../Overlay.js';
+import { Overlay } from '../utils/Overlay.js';
 import viewModel from '../werewolves/vm.js';
 
 // Not sure if a viewModel will be needed here - seems a bit overkill, but since its here I'll include for now

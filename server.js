@@ -7,6 +7,7 @@ const server = http.createServer(app);
 
 // Load the socket server (note the syntax of socketserver.js - permits passing in the server)
 const io = createSocketServer(server);
+app.set('io', io);
 
 // Use the session middleware with Socket.IO
 io.engine.use(sessionMiddleware);

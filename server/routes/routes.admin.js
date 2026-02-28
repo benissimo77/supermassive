@@ -46,4 +46,16 @@ router.get('/', (req, res) => {
 	res.sendFile('index.html', { root: './public/admin' });
 });
 
+// Server Status API
+router.get('/server-status', (req, res) => {
+	const io = req.app.get('io');
+	const stats = io ? io.getRoomStats() : {};
+	res.json({
+		success: true,
+		rooms: stats,
+		roomCount: Object.keys(stats).length,
+		timestamp: new Date()
+	});
+});
+
 export default router;

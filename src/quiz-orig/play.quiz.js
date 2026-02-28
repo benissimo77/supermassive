@@ -8,8 +8,8 @@ import gsap from 'gsap';
 import { TextPlugin } from 'gsap/TextPlugin';
 import { Draggable } from 'gsap/Draggable';
 
-import { Overlay } from '../Overlay.js';
-import { CanvasDraw } from '../CanvasDraw.js';
+import { Overlay } from '../utils/Overlay.js';
+import { CanvasDraw } from '../utils/CanvasDraw.js';
 
 export class Game {
     constructor(socket) {

@@ -1,5 +1,6 @@
 // services/userService.js
 import UserModel from '../models/mongo.user.js';
+import PlayerResult from '../models/mongo.playerResult.js';
 
 class UserService {
   constructor() {
@@ -26,6 +27,18 @@ class UserService {
     return user;
   }
 
+  async claimGuestResults(sessionID, userID) {
+    if (!sessionID || !userID) return { updatedCount: 0 };
+    
+    const result = await PlayerResult.updateMany(
+        { sessionID: sessionID, userID: { $eq: null } },
+        { $set: { userID: userID } }
+    );
+    
+    console.log(`Claimed ${result.modifiedCount} results for session ${sessionID} to user ${userID}`);
+    return { updatedCount: result.modifiedCount };
+  }
+
   async findUserByToken(token) {
     console.log('userService: findUserByPasswordResetToken :', token);
     const user = await this.userModel.findOne({ token: token });
@@ -36,10 +49,26 @@ class UserService {
   }
 
 
-  async signUpNewUser(email, verificationToken) {
+  async signUpNewUser(email, password = null, verificationToken = null) {
     console.log('userService: signUpUser :', email);
     try {
-      const user = await this.userModel.create({ email, token: verificationToken, tokenExpiry: new Date(Date.now() + 24 * 360 * 1000) });
+      const userData = { 
+        email, 
+        role: 'guest'
+      };
+
+      if (password) {
+        // We need an instance of the model to use the generateHashedPassword method
+        const userInstance = new this.userModel();
+        userData.password = userInstance.generateHashedPassword(password);
+      }
+
+      if (verificationToken) {
+        userData.token = verificationToken;
+        userData.tokenExpiry = new Date(Date.now() + 24 * 360 * 1000);
+      }
+
+      const user = await this.userModel.create(userData);
       return { success: true, user: user };
     } catch (error) {
       console.error('Error signing up new user:', error);
@@ -77,17 +106,29 @@ class UserService {
         const fieldsToUpdate = {
           displayname: profileData.displayName,
           avatar: avatar,
+          emailVerified: true
         }
-        fieldsToUpdate[user.provider + 'profile'] = profileData;
-        return this.userModel.findByIdAndUpdate(user.id, fieldsToUpdate);
+        
+        // Upgrade to host if they are currently a guest or legacy user
+        if (!user.role || user.role === 'guest' || user.role === 'user') {
+          fieldsToUpdate.role = 'host';
+        }
+
+        // Use the provider from the incoming profile data (google/facebook)
+        const provider = profileData.provider || 'unknown';
+        fieldsToUpdate[provider + 'profile'] = profileData;
+        return this.userModel.findByIdAndUpdate(user.id, fieldsToUpdate, { new: true });
       }
       // User does not exist, create a new user
       const newUser = {
         email: email,
         displayname: displayName,
-        avatar: avatar
+        avatar: avatar,
+        role: 'host',
+        emailVerified: true
       }
-      newUser[user.provider + 'profile'] = profileData;
+      const provider = profileData.provider || 'unknown';
+      newUser[provider + 'profile'] = profileData;
       return this.userModel.create({ ...newUser });
     }
   }
@@ -111,7 +152,14 @@ class UserService {
   async verifyUserEmail(verificationToken) {
     const user = await this.findUserByToken(verificationToken);
     if (user) {
-      return this.userModel.findByIdAndUpdate(user.id, { emailVerified: true });
+      const updateData = { emailVerified: true };
+      
+      // Only upgrade to host if they are currently a guest or legacy user
+      if (!user.role || user.role === 'guest' || user.role === 'user') {
+        updateData.role = 'host';
+      }
+
+      return this.userModel.findByIdAndUpdate(user.id, updateData, { new: true });
     }
     return false;
   }
@@ -128,7 +176,7 @@ class UserService {
     }
     try {
       // Compare the supplied password with the stored hash
-      return await user.validatePassword(suppliedPassword);
+      return await user.verifyPassword(suppliedPassword);
     } catch (error) {
       console.error('Error verifying password:', error);
       return false;

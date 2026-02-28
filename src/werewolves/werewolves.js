@@ -10,7 +10,7 @@
 // Maybe expand this to explicitly use a model, treat dom as the view and this as the controller
 import gsap from 'gsap';
 import { dom } from './dom.werewolves.js';
-import { AudioManager } from '../audiomanager.js';
+import { AudioManager } from 'src/utils/audiomanager.js';
 import { musicTracks, effectTracks, narratorTracks } from './audio.werewolves.js';
 
 console.log('Werewolves.js loaded:', window.location);

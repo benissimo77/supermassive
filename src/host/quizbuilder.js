@@ -1,4 +1,4 @@
-import { ImageSelector } from '../ImageSelector';
+import { ImageSelector } from 'src/utils/ImageSelector';
 import { FileDropzone } from './FileDropzone.js';
 import { ImageLibrary } from './ImageLibrary.js';
 

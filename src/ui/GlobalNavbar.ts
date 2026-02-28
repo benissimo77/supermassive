@@ -1,4 +1,4 @@
-import { BaseScene } from '../BaseScene';
+import { BaseScene } from 'src/BaseScene';
 
 export class GlobalNavbar extends Phaser.GameObjects.Container {
 
@@ -36,7 +36,15 @@ export class GlobalNavbar extends Phaser.GameObjects.Container {
         this.container.add([bg, returnText, this.iconsContainer]);
 
         // handle pointer movement on the scene (debounced show)
-        this.scene.input.on('pointermove', this.onPointerMove, this);
+        // this.scene.input.on('pointermove', this.onPointerMove, this);
+    }
+
+    public toggle() {
+        if (this.isShown) {
+            this.hide();
+        } else {
+            this.show();
+        }
     }
 
     private onPointerMove() {
@@ -117,7 +125,6 @@ export class GlobalNavbar extends Phaser.GameObjects.Container {
     }
 
     destroy() {
-        this.scene.input.off('pointermove', this.onPointerMove, this);
         this.container.destroy(true);
     }
 }

@@ -7,56 +7,29 @@ import typescript from '@rollup/plugin-typescript';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
+const terserOptions = {
+    compress: {
+        drop_console: isProduction
+    }
+};
+
 export default [
 
-    // Host modules
+    // Werewolves game
     // {
-    //     input: "src/quiz/quiz.js", // replace with path to your main JS file
+    //     input: "src/werewolves/werewolves.js",
     //     output: [
     //         {
-    //             file: "host/quiz/quiz.min.js", // replace with desired output file path
+    //             file: "public/modules/werewolves.min.js",
     //             format: "iife",
     //             sourcemap: true,
     //             globals: {
-    //                 io: 'io'
+    //                 io: 'io',
+    //                 gsap: 'gsap'
     //             }
     //         }
     //     ],
-    //     plugins: [
-    //         replace({
-    //             'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
-    //             preventAssignment: true,
-    //         }),
-    //         resolve(),
-    //         isProduction && terser()
-    //     ]
-    // },
-    // {
-    //     input: "src/werewolves/werewolves.js", // replace with path to your main JS file
-    //     output: [
-    //         {
-    //             file: "host/werewolves/werewolves.min.js", // replace with desired output file path
-    //             format: "iife",
-    //             sourcemap: true,
-    //             globals: {
-    //                 io: 'io'
-    //             }
-    //         }
-    //     ],
-    //     plugins: [terser(), resolve()]
-    // },
-    // {
-    //     input: "src/lobby/gsap.lobby.js", // replace with path to your main JS file
-    //     output: [
-    //         {
-    //             file: "host/lobby/gsap.lobby.min.js", // replace with desired output file path
-    //             format: "iife",
-    //             sourcemap: true,
-    //             globals: {
-    //                 io: 'io'
-    //             }
-    //         }
-    //     ],
+    //     external: ['io', 'gsap'],
     //     plugins: [terser(), resolve()]
     // },
 
@@ -72,7 +45,10 @@ export default [
                 }
             }
         ],
-        plugins: [terser(), resolve()]
+        plugins: [
+            terser(terserOptions), 
+            resolve()
+        ]
     },
 
     {
@@ -87,12 +63,48 @@ export default [
                 }
             }
         ],
-        plugins: [terser(), resolve()]
+        plugins: [
+            terser(terserOptions), 
+            resolve()
+        ]
+    },
+
+    {
+        input: "src/host/dashboard-quizedit-v2.js",
+        output: [
+            {
+                file: "public/modules/dashboard-quizedit-v2.min.js",
+                format: "esm",
+                sourcemap: true,
+                globals: {
+                    io: 'io'
+                }
+            }
+        ],
+        plugins: [
+            terser(terserOptions), 
+            resolve()
+        ]
+    },
+
+    {
+        input: "src/host/dashboard.js",
+        output: [
+            {
+                file: "public/modules/dashboard.min.js",
+                format: "esm",
+                sourcemap: true
+            }
+        ],
+        plugins: [
+            terser(terserOptions), 
+            resolve()
+        ]
     },
 
     // LOGIN screen
     {
-        input: "src/scripts/login.js", // replace with path to your main JS file
+        input: "src/login/login.js", // replace with path to your main JS file
         output: [
             {
                 file: "public/modules/login.min.js", // replace with desired output file path
@@ -100,12 +112,15 @@ export default [
                 sourcemap: true,
             }
         ],
-        plugins: [terser(), resolve()]
+        plugins: [
+            terser(terserOptions), 
+            resolve()
+        ]
     },
 
     // Home page LANDING screen
     {
-        input: "src/scripts/landing.js", // replace with path to your main JS file
+        input: "src/landing/landing.js", // replace with path to your main JS file
         output: [
             {
                 file: "public/modules/landing.min.js", // replace with desired output file path
@@ -113,11 +128,15 @@ export default [
                 sourcemap: true,
             }
         ],
-        plugins: [terser(), resolve()]    },
+        plugins: [
+            terser(terserOptions), 
+            resolve()
+        ]
+    },
 
     // PLAY entry screen
     {
-        input: "src/scripts/play-entry.js",
+        input: "src/play/play-entry.js",
         output: [
             {
                 file: "public/modules/play-entry.min.js",
@@ -125,5 +144,69 @@ export default [
                 sourcemap: true,
             }
         ],
-        plugins: [terser(), resolve()]    },
+        plugins: [
+            terser(), 
+            resolve()
+        ]
+    },
+
+    // // DOM Host (Legacy/Shared)
+    // {
+    //     input: "src/domhost.js",
+    //     output: [
+    //         {
+    //             file: "public/modules/domhost.min.js",
+    //             format: "esm",
+    //             sourcemap: true,
+    //         }
+    //     ],
+    //     plugins: [terser(), resolve()]
+    // },
+
+    // // DOM Play (Legacy/Shared)
+    // {
+    //     input: "src/play/domplay.ts",
+    //     output: [
+    //         {
+    //             file: "public/modules/domplay.min.js",
+    //             format: "esm",
+    //             sourcemap: true,
+    //         }
+    //     ],
+    //     plugins: [
+    //         typescript({
+    //             tsconfig: './tsconfig.json',
+    //             declaration: false,
+    //             sourceMap: true
+    //         }),
+    //         terser(), 
+    //         resolve()
+    //     ]
+    // },
+
+    // // GSAP Scratch/Experiments
+    // {
+    //     input: "src/gsap.js",
+    //     output: [
+    //         {
+    //             file: "public/modules/gsap.min.js",
+    //             format: "esm",
+    //             sourcemap: true,
+    //         }
+    //     ],
+    //     plugins: [terser(), resolve()]
+    // },
+
+    // // Timelines Experiments
+    // {
+    //     input: "src/utils/timelines.js",
+    //     output: [
+    //         {
+    //             file: "public/modules/timelines.min.js",
+    //             format: "esm",
+    //             sourcemap: true,
+    //         }
+    //     ],
+    //     plugins: [terser(), resolve()]
+    // },
 ];

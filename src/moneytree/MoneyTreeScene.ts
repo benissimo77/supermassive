@@ -1,10 +1,10 @@
 
-import { BaseScene } from './BaseScene';
+import { BaseScene } from 'src/BaseScene';
 import FSM from './fsm';
 import MoneyTreeState from "./MoneyTreeState";
 import { StateDebuggerPanel } from "./StateDebugger";
 import MoneyTreeComponent from './moneytreecomponent';
-import SocketManagerPlugin from './socketManager';
+import SocketManagerPlugin from 'src/socketManager';
 import WebFontLoaderPlugin from 'phaser3-rex-plugins/plugins/webfontloader-plugin.js';
 
 

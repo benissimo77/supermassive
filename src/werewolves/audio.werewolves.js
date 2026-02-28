@@ -1,4 +1,4 @@
-import { AudioTrack, AudioTypes } from '../audiomanager.js'
+import { AudioTrack, AudioTypes } from '../utils/audiomanager.js'
 
 export const musicTracks = {
     NIGHT: new AudioTrack('NIGHT', AudioTypes.MUSIC, './audio/werewolves/spookynight-1.mp3'),

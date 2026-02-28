@@ -242,10 +242,6 @@ export default class HotspotQuestion extends BaseQuestion {
 		this.answerImage.disableInteractive();
 		this.answerImage.removeAllListeners();
 
-		// Remove drag handlers
-		this.scene.input.off('pointermove', this.handleDragMove, this);
-		this.scene.input.off('pointerup', this.handleDragEnd, this);
-
 		// Remove submit button handlers
 		this.submitButton.disableInteractive();
 		this.submitButton.removeAllListeners();

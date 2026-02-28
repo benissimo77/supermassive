@@ -1,10 +1,10 @@
 import SocketManagerPlugin from './socketManager';
 import { Socket } from 'socket.io-client';
-import { PlayerConfig } from './DOMPlayer';
+import { PlayerConfig } from 'src/play/DOMPlayer';
 import { SoundManager } from 'src/audio/SoundManager';
 
 export abstract class BaseScene extends Phaser.Scene {
-    private static currentHeight = 1080;
+    protected currentHeight = 1080;
     private static wakeLock: any = null;
     private overlay: Phaser.GameObjects.Rectangle | null = null;
     private resizeCount: number = 0;
@@ -18,32 +18,16 @@ export abstract class BaseScene extends Phaser.Scene {
     protected mainContainer: Phaser.GameObjects.Container;
     protected UIContainer: Phaser.GameObjects.Container;
     public topContainer: Phaser.GameObjects.Container;
+    protected overlayContainer: Phaser.GameObjects.Container;
     protected debugContainer: Phaser.GameObjects.Container;
 
     public soundManager: SoundManager;
     public rexUI!: any;
     public rexToggleSwitch!: any;
-    protected socket: Socket;
+    public socket: Socket;
     protected roomID: string = '';
 
     protected playerConfigs: Map<string, PlayerConfig> = new Map<string, PlayerConfig>();
-
-    // Mapping of game keys to Phaser scene keys
-    protected hostSceneMap: Record<string, string> = {
-        'lobby': 'LobbyHostScene',
-        'quiz': 'QuizHostScene',
-        'werewolf': 'WerewolfHostScene'
-    };
-
-    protected playSceneMap: Record<string, string> = {
-        'lobby': 'LobbyPlayScene',
-        'quiz': 'QuizPlayScene',
-        'werewolf': 'WerewolfPlayScene'
-    };
-
-    protected adminSceneMap: Record<string, string> = {
-        'quiz': 'QuizAdminScene'
-    };
 
     // TYPE is the type of screen we are showing, currently 'play' or 'host' (maybe 'admin', 'viewer' later)
     public TYPE: string;
@@ -108,6 +92,12 @@ export abstract class BaseScene extends Phaser.Scene {
         // Initialize the SoundManager
         this.soundManager = SoundManager.getInstance(this);
 
+        // Ensure audio continues playing even when the tab is not active
+        // This is critical for streaming via OBS when the admin is switching tabs
+        if (this.sound) {
+            this.sound.pauseOnBlur = false;
+        }
+
         // This is useful for debugging but quite noisy
         // this.socket.onAny((event, ...args) => {
         //     console.log('BaseScene:: Socket event:', event, args);
@@ -126,33 +116,6 @@ export abstract class BaseScene extends Phaser.Scene {
             // Clear the existing player configs
             this.playerConfigs.clear();
             players.forEach((player: PlayerConfig) => this.handlePlayerConnect(player))
-        });
-
-        // Listen for game load commands from the server
-        // This ensures all hosts/admins switch scenes simultaneously
-        this.socket.on('server:loadgame', (gameKey: string) => {
-            console.log(`${this.scene.key}:: Socket:: server:loadgame:`, gameKey);
-
-            let map = this.hostSceneMap;
-            if (this.TYPE === 'play') {
-                map = this.playSceneMap;
-            } else if (this.TYPE === 'admin') {
-                map = this.adminSceneMap;
-            }
-            
-            const sceneKey = map[gameKey] || gameKey;
-
-            if (this.scene.key === sceneKey) {
-                console.log(`${this.scene.key}:: Already in scene ${sceneKey}, ignoring load command.`);
-                return;
-            }
-
-            if (this.scene.get(sceneKey)) {
-                console.log(`${this.scene.key}:: Switching to scene: ${sceneKey}`);
-                this.scene.start(sceneKey);
-            } else {
-                console.warn(`${this.scene.key}:: Scene ${sceneKey} not found in game config.`);
-            }
         });
 
         // Initialize the ping test handler
@@ -203,6 +166,10 @@ export abstract class BaseScene extends Phaser.Scene {
         if (!this.topContainer) {
             this.topContainer = this.add.container(0, 0);
             this.add.existing(this.topContainer);
+        }
+        if (!this.overlayContainer) {
+            this.overlayContainer = this.add.container(0, 0);
+            this.add.existing(this.overlayContainer);
         }
 
         // Especially on Apple devices we need to request wakelock only on user interaction
@@ -461,7 +428,7 @@ export abstract class BaseScene extends Phaser.Scene {
 
     updateHeight(newHeight: number): void {
         console.log('BaseScene:: updateHeight:', newHeight);
-        BaseScene.currentHeight = newHeight;
+        this.currentHeight = newHeight;
     }
 
     getY(logicalY: number): number {
@@ -471,8 +438,29 @@ export abstract class BaseScene extends Phaser.Scene {
 
     // getScaleFactor - this hardcodes 1080 as the logical height
     getScaleFactor(): number {
-        return BaseScene.currentHeight / 1080;
+        return this.currentHeight / 1080;
     }
+
+    /**
+     * Reparents a game object into a new container while maintaining its world position.
+     * This handles any scaling, rotation, or nesting offsets automatically.
+     */
+    public reparentObject(child: any, newParent: Phaser.GameObjects.Container): void {
+        if (!child || !newParent) return;
+
+        // 1. Get the current world position of the child
+        const matrix = child.getWorldTransformMatrix();
+        const worldX = matrix.tx;
+        const worldY = matrix.ty;
+
+        // 2. Add to new container (this resets x/y relative to new parent)
+        newParent.add(child);
+
+        // 3. Convert that world position back into the new parent's local space
+        const localPoint = newParent.getLocalPoint(worldX, worldY);
+        child.setPosition(localPoint.x, localPoint.y);
+    }
+
     isPortrait(): boolean {
         // Check both window dimensions and orientation API
         const windowPortrait = window.innerHeight > window.innerWidth;
@@ -601,6 +589,12 @@ export abstract class BaseScene extends Phaser.Scene {
 
     shutdown(): void {
         console.log(`BaseScene:: shutdown`);
+
+        // Clear any pending resize timer
+        if (this.resizeDebounceTimer) {
+            clearTimeout(this.resizeDebounceTimer);
+            this.resizeDebounceTimer = null;
+        }
 
         // Remove the resize listener
         this.scale.off('resize', this.resizeHandler);

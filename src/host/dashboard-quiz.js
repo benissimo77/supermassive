@@ -1,9 +1,18 @@
 import { FileDropzone } from './FileDropzone.js';
+import { Auth } from '../utils/auth.js';
 
 export function initDashboardQuiz() {
 
 	const createQuizButton = document.getElementById('create-quiz');
 	createQuizButton.addEventListener('click', createQuiz);
+
+	// Add collapse/expand functionality to card headers
+	document.querySelectorAll('.card-header').forEach(header => {
+		header.addEventListener('click', () => {
+			const card = header.closest('.card');
+			card.classList.toggle('collapsed');
+		});
+	});
 
 	// Initialize import quiz dropzone
 	const importQuizDropzone = new FileDropzone({
@@ -23,56 +32,104 @@ export function initDashboardQuiz() {
 
 	async function fetchQuizzes() {
 		try {
-			const response = await fetch('/api/quiz', {
-				method: 'GET',
-				headers: { 'Content-Type': 'application/json' }
-			});
-			const result = await response.json();
+			const [quizResponse, user] = await Promise.all([
+				fetch('/api/quiz', {
+					method: 'GET',
+					headers: { 'Content-Type': 'application/json' }
+				}),
+				Auth.getUser()
+			]);
+
+			const result = await quizResponse.json();
 			if (!result.success) throw new Error(result.message || 'Failed to fetch quizzes');
 			
-			createQuizList(result.data);
+			createQuizList(result.data, user);
 		} catch (error) {
 			console.error('Error fetching quizzes:', error);
 		}
 	}
 
-	function createQuizList(quizzes) {
+	function createQuizList(quizzes, user) {
 		const quizItemTemplate = document.getElementById('quiz-item-template');
-		const quizList = document.getElementById('quiz-items');
-		quizList.innerHTML = '';
+		const personalList = document.getElementById('personal-quiz-items');
+		const publicList = document.getElementById('public-quiz-items');
 		
-		if (quizzes.length === 0) {
-			quizList.innerHTML = '<tr><td colspan="2" class="no-quizzes">No quizzes found. Create one to get started!</td></tr>';
-			return;
+		personalList.innerHTML = '';
+		publicList.innerHTML = '';
+		
+		const currentUserId = (user && user.id) ? String(user.id) : null;
+
+		const personalQuizzes = quizzes.filter(q => {
+			const ownerId = q.ownerID || q.owner;
+			return ownerId && String(ownerId) === currentUserId;
+		});
+		
+		const publicQuizzes = quizzes.filter(q => {
+			const ownerId = q.ownerID || q.owner;
+			return q.public === true && (!ownerId || String(ownerId) !== currentUserId);
+		});
+
+		if (personalQuizzes.length === 0) {
+			personalList.innerHTML = '<tr><td colspan="3" class="no-quizzes">No quizzes found. Create one to get started!</td></tr>';
+		} else {
+			renderQuizTable(personalQuizzes, personalList, true);
 		}
 
-		quizzes.forEach(quiz => {
-			const quizItemElement = quizItemTemplate.content.cloneNode(true);
-			const row = quizItemElement.querySelector('tr');
-			
-			quizItemElement.querySelector('.quiz-item-title').textContent = quiz.title;
-			
-			quizItemElement.querySelector('.delete-quiz-item').addEventListener('click', (e) => {
-				e.stopPropagation();
-				if (confirm(`Are you sure you want to delete "${quiz.title}"?`)) {
-					deleteQuiz(quiz._id);
-				}
-			});
-			
-			// Make the entire row clickable to edit
-			row.style.cursor = 'pointer';
-			row.addEventListener('click', () => gotoQuizEdit(quiz));
+		if (publicQuizzes.length === 0) {
+			publicList.innerHTML = '<tr><td colspan="3" class="no-quizzes">No public quizzes available.</td></tr>';
+		} else {
+			renderQuizTable(publicQuizzes, publicList, false);
+		}
 
-			const errorIndicator = quizItemElement.querySelector('.error-indicator');
-			if (quiz.validation && quiz.validation.length > 0) {
-				errorIndicator.style.display = 'inline-flex';
-				errorIndicator.title = `${quiz.validation.length} validation issues found`;
-			} else {
-				errorIndicator.style.display = 'none';
-			}
-			
-			quizList.appendChild(quizItemElement);
-		});
+		function renderQuizTable(quizArray, targetElement, isPersonal) {
+			quizArray.forEach(quiz => {
+				const quizItemElement = quizItemTemplate.content.cloneNode(true);
+				const row = quizItemElement.querySelector('tr');
+				
+				// Render Stars
+				const starsContainer = quizItemElement.querySelector('.rating-stars');
+				const rating = quiz.rating || 0;
+				for (let i = 1; i <= 5; i++) {
+					const star = document.createElement('span');
+					star.innerHTML = '★';
+					star.style.fontSize = '1.6rem';
+					star.style.marginRight = '-3px'; // Squashed together
+					star.style.color = i <= rating ? '#FFD700' : 'rgba(120, 120, 120, 0.2)'; // Gold or Gray
+					if (i <= rating) {
+						star.style.textShadow = '0 0 3px rgba(255, 215, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.5)'; // Subtle highlight
+					}
+					starsContainer.appendChild(star);
+				}
+
+				quizItemElement.querySelector('.quiz-item-title').textContent = quiz.title;
+				
+				const deleteBtn = quizItemElement.querySelector('.delete-quiz-item');
+				if (isPersonal) {
+					deleteBtn.addEventListener('click', (e) => {
+						e.stopPropagation();
+						if (confirm(`Are you sure you want to delete "${quiz.title}"?`)) {
+							deleteQuiz(quiz._id);
+						}
+					});
+				} else {
+					deleteBtn.style.display = 'none';
+				}
+				
+				// Make the entire row clickable to edit (or view if public)
+				row.style.cursor = 'pointer';
+				row.addEventListener('click', () => gotoQuizEdit(quiz));
+
+				const errorIndicator = quizItemElement.querySelector('.error-indicator');
+				if (quiz.validation && quiz.validation.length > 0) {
+					errorIndicator.style.display = 'inline-flex';
+					errorIndicator.title = `${quiz.validation.length} validation issues found`;
+				} else {
+					errorIndicator.style.display = 'none';
+				}
+				
+				targetElement.appendChild(quizItemElement);
+			});
+		}
 	}
 
 	function createQuiz() {

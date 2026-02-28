@@ -112,13 +112,6 @@ export default class TrueFalseQuestion extends BaseQuestion {
         });
     }
 
-    protected revealAnswerUI(): void {
-
-        if (this.questionData.answer) {
-            this.highlightAnswer(this.questionData.answer);
-        }
-    }
-
     protected highlightAnswer(correctAnswer: string): void {
 
         for (const [option, button] of this.buttons) {
@@ -126,6 +119,57 @@ export default class TrueFalseQuestion extends BaseQuestion {
             if (option === correctAnswer) {
                 button.setHighlight();
             }
+        }
+    }
+
+    protected revealAnswerUI(): void {
+        console.log('TrueFalseQuestion::revealAnswerUI:', this.questionData);
+
+        if (this.questionData.answer) {
+            this.highlightAnswer(this.questionData.answer);
+        }
+
+        if (this.questionData.responses) {
+
+            const tl = this.minimizeQuestionContent();
+
+            // these calculations copied from multiple-choice since they are almost identical
+            let currentY = 320;
+            const buttonHeight = (1080 - currentY) / 2;
+            const answerX = -480;
+            const avatarX = 960;
+
+            // Use fixed order for True/False
+            ['true', 'false'].forEach((option: string) => {
+                const button = this.buttons.get(option);
+                if (button) {
+                    tl.to(button, {
+                        x: answerX,
+                        y: this.scene.getY(currentY + buttonHeight/2),
+                        duration: 0.5,
+                        ease: 'power2.out'
+                    }, "<");
+
+                    let avatarOffsetX = 160;
+                    for (const [sessionID, playerAnswer] of Object.entries(this.questionData.responses)) {
+                        if (playerAnswer.answer === option) {
+                            const player: Phaser.GameObjects.Container = this.scene.getPlayerBySessionID(String(sessionID));
+                            if (player) {
+                                tl.to(player, {
+                                    x: avatarX + avatarOffsetX,
+                                    y: this.scene.getY(currentY + buttonHeight/2),
+                                    duration: 0.6,
+                                    ease: 'power2.out'
+                                }, "<");
+                                avatarOffsetX += 160;
+                            }
+                        }
+                    }
+                    currentY += buttonHeight;
+                }
+            });
+
+            tl.play();
         }
     }
 

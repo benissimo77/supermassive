@@ -4,6 +4,7 @@ import WebFontLoaderPlugin from 'phaser3-rex-plugins/plugins/webfontloader-plugi
 
 import { LobbyPlayScene } from 'src/lobby/LobbyPlayScene';
 import { QuizPlayScene } from 'src/quiz/QuizPlayScene';
+import { ThreePlayScene } from 'src/three/ThreePlayScene';
 
 
 const config: Phaser.Types.Core.GameConfig = {
@@ -30,7 +31,7 @@ const config: Phaser.Types.Core.GameConfig = {
                 start: true
             }]
     },
-    scene: [LobbyPlayScene, QuizPlayScene],
+    scene: [LobbyPlayScene, QuizPlayScene, ThreePlayScene],
     parent: 'container'
 };
 

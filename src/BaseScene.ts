@@ -18,7 +18,6 @@ export abstract class BaseScene extends Phaser.Scene {
     protected mainContainer: Phaser.GameObjects.Container;
     protected UIContainer: Phaser.GameObjects.Container;
     public topContainer: Phaser.GameObjects.Container;
-    protected overlayContainer: Phaser.GameObjects.Container;
     protected debugContainer: Phaser.GameObjects.Container;
 
     public soundManager: SoundManager;
@@ -28,6 +27,7 @@ export abstract class BaseScene extends Phaser.Scene {
     protected roomID: string = '';
 
     protected playerConfigs: Map<string, PlayerConfig> = new Map<string, PlayerConfig>();
+    public mySessionID: string | null = null;
 
     // TYPE is the type of screen we are showing, currently 'play' or 'host' (maybe 'admin', 'viewer' later)
     public TYPE: string;
@@ -66,9 +66,6 @@ export abstract class BaseScene extends Phaser.Scene {
         this.resizeHandler = (gameSize: Phaser.Structs.Size) => {
             this.handleResizeDebouncer(gameSize);
         };
-        // Call handleResize immediately to set up the initial camera zoom and screen height
-        this.handleResize(this.scale.gameSize);
-
         // Add a resize listener
         this.scale.on('resize', this.resizeHandler);
 
@@ -167,10 +164,6 @@ export abstract class BaseScene extends Phaser.Scene {
             this.topContainer = this.add.container(0, 0);
             this.add.existing(this.topContainer);
         }
-        if (!this.overlayContainer) {
-            this.overlayContainer = this.add.container(0, 0);
-            this.add.existing(this.overlayContainer);
-        }
 
         // Especially on Apple devices we need to request wakelock only on user interaction
         this.input.once('pointerdown', () => {
@@ -183,6 +176,12 @@ export abstract class BaseScene extends Phaser.Scene {
         if (__DEV__ && 0) {
             this.enableInputDebug();
         }
+
+        // UPDATE: Experimenting with the correct place to put this call - must be after eg socket is set up
+        // Call handleResize immediately to set up the initial camera zoom and screen height
+        this.handleResize(this.scale.gameSize);
+
+
     }
 
     private initPingTest(): void {
@@ -282,10 +281,6 @@ export abstract class BaseScene extends Phaser.Scene {
         // Set a new timer to process resize after 300ms of no events
         // Use window.setTimeout instead of this.time.delayedCall because this.time might not be ready in init()
         this.resizeDebounceTimer = window.setTimeout(() => {
-            console.log('Resize events settled, processing...');
-            if (this.socket) {
-                this.socket.emit('consolelog', 'Resize events settled, processing...');
-            }
             this.handleResize(gameSize);
             this.resizeDebounceTimer = null;
         }, 300);
@@ -329,8 +324,8 @@ export abstract class BaseScene extends Phaser.Scene {
             this.addDebugGraphics();
         }
 
-        // Call the child scene display function to update any layout
-        this.sceneDisplay();
+        // Call the child scene render function to update any layout
+        this.render();
 
     }
 
@@ -465,15 +460,23 @@ export abstract class BaseScene extends Phaser.Scene {
         // Check both window dimensions and orientation API
         const windowPortrait = window.innerHeight > window.innerWidth;
 
+        if (__DEV__) {
+            console.log('BaseScene:: isPortrait check: window dimensions:', window.innerWidth, window.innerHeight, 'windowPortrait:', windowPortrait);
+            return windowPortrait;
+        }
+
         // Use orientation API if available (more reliable)
         if (screen.orientation) {
             const orientationType = screen.orientation.type;
+            console.log('BaseScene:: isPortrait returning (orientationType):', orientationType.includes('portrait'));
             return orientationType.includes('portrait');
         }
 
+        console.log('BaseScene:: isPortrait returning (window dimensions):', windowPortrait);
         // Fallback to window dimensions
         return windowPortrait;
     }
+
     // Function returns a useful number that can be used to scale UI elements especially for mobile browsers which can be very thin/tall and need heavy adjustment
     getUIScaleFactor(): number {
         const aspectRatio = this.scale.width / this.scale.height;
@@ -483,6 +486,23 @@ export abstract class BaseScene extends Phaser.Scene {
         // Idea is it provides a good scale between landscape/portrait extremes
         // Landscape returns ~1.0, Portrait returns ~2.5 so 800width becomes ~1800px  
         return Math.min(2.5, Math.max(1.0, 3.2 - 2 * aspectRatio));
+    }     
+
+    /**
+     * getPhysicalScale
+     * Returns a scale factor designed to keep interactive elements at a consistent 
+     * physical size regardless of the screen's logical-to-physical mapping.
+     * 
+     * Formula: (1 / cameraZoom) * (1 / dpr) * constant
+     */
+    getPhysicalScale(): number {
+        const cameraZoom = this.cameras.main.zoom || 1;
+        const dpr = window.devicePixelRatio || 1;
+
+        console.log('BaseScene:: getPhysicalScale: cameraZoom:', cameraZoom, 'devicePixelRatio:', dpr, 'returns:', (1 / cameraZoom) * (1 / dpr));
+        // A pure ratio that keeps an object at its standard physical size 
+        // across different camera zooms and pixel densities.
+        return (1 / cameraZoom) * (1 / dpr);
     }
 
 
@@ -616,7 +636,7 @@ export abstract class BaseScene extends Phaser.Scene {
 
     // Abstract methods for child scenes to implement
     protected abstract sceneShutdown(): void;
-    protected abstract sceneDisplay(): void;
+    protected abstract render(): void;
 
 }
 

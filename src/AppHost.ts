@@ -6,8 +6,10 @@ import WebFontLoaderPlugin from 'phaser3-rex-plugins/plugins/webfontloader-plugi
 // When attempting to import from the node_modules directly, it didn't work
 import RexPlugins from 'src/utils/rexUI';
 
+import { LobbyHUDScene } from 'src/lobby/LobbyHUDScene';
 import { LobbyHostScene } from 'src/lobby/LobbyHostScene';
 import { QuizHostScene } from 'src/quiz/QuizHostScene';
+import { ThreeHostScene } from 'src/three/ThreeHostScene';
 
 // Parse URL parameters and path to determine initial scene
 const urlParams = new URLSearchParams(window.location.search);
@@ -27,6 +29,8 @@ const gameKey = pathSegments[2];
 const scenes = [];
 if (gameKey === 'quiz' || gameKey === 'gauntlet') {
     scenes.push(QuizHostScene, LobbyHostScene);
+} else if (gameKey === 'three') {
+    scenes.push(ThreeHostScene, LobbyHostScene);
 } else {
     scenes.push(LobbyHostScene, QuizHostScene);
 }
@@ -89,6 +93,9 @@ const startInitialScene = () => {
     if (gameKey === 'quiz' || gameKey === 'gauntlet') {
         console.log(`AppHost:: Starting QuizHostScene for ${gameKey}`);
         game.scene.start(QuizHostScene.KEY, { quizID: quizID, roomID: roomID });
+    } else if (gameKey === 'three') {
+        console.log('AppHost:: Starting ThreeHostScene');
+        game.scene.start('ThreeHostScene', { roomID: roomID });
     } else if (gameKey === 'lobby' || !gameKey || gameKey === 'dashboard') {
         console.log('AppHost:: Starting LobbyHostScene');
         game.scene.start(LobbyHostScene.KEY, { roomID: roomID });
@@ -98,12 +105,13 @@ const startInitialScene = () => {
     }
 };
 
-if (game.isBooted) {
-    // Small delay to ensure DOM is stable for resize calculations
-    setTimeout(startInitialScene, 100);
-} else {
-    game.events.once('ready', () => {
-        setTimeout(startInitialScene, 100);
-    });
-}
+// This code might be from an earlier version of the system - scene is established above and ensures the correct scene is already started so there is no need to do it again...
+// if (game.isBooted) {
+//     // Small delay to ensure DOM is stable for resize calculations
+//     setTimeout(startInitialScene, 100);
+// } else {
+//     game.events.once('ready', () => {
+//         setTimeout(startInitialScene, 100);
+//     });
+// }
 

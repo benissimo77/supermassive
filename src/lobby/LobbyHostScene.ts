@@ -560,6 +560,7 @@ export class LobbyHostScene extends BaseScene {
 			const hostSceneMap: Record<string, string> = {
 				'quiz': 'QuizHostScene',
 				'gauntlet': 'QuizHostScene',
+				'three': 'ThreeHostScene',
 				'werewolf': 'WerewolfHostScene'
 			};
 			const sceneKey = hostSceneMap[gameKey] || gameKey;
@@ -688,9 +689,9 @@ export class LobbyHostScene extends BaseScene {
 		console.log("Camera zoom:", this.cameras.main.zoom);
 	}
 
-	sceneDisplay(): void {
+	render(): void {
 		// Called from BaseScene when the screen is resized
-		console.log('LobbyHostScene:: sceneDisplay: updating layout for new size');
+		console.log('LobbyHostScene:: render: updating layout for new size');
 	}
 
 	sceneShutdown(): void {

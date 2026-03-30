@@ -108,6 +108,7 @@ export class LobbyPlayScene extends BaseScene {
 		button.w = 540; // override the w property (unused by Phaser) to store the logical y position
 
 		const sendReady = () => {
+			console.log('LobbyPlayScene:: sending player:ready');
 			this.socket.emit('player:ready', { socketID: this.socket.id });
 		};
 
@@ -149,6 +150,7 @@ export class LobbyPlayScene extends BaseScene {
 			const playSceneMap: Record<string, string> = {
 				'quiz': 'QuizPlayScene',
 				'gauntlet': 'QuizPlayScene',
+				'three': 'ThreePlayScene',
 				'werewolf': 'WerewolfPlayScene'
 			};
 			const sceneKey = playSceneMap[gameKey] || gameKey;
@@ -277,8 +279,8 @@ export class LobbyPlayScene extends BaseScene {
 	}
 
 	// Called from BaseScene when the screen is resized
-	sceneDisplay(): void {
-		console.log('LobbyPlayScene:: sceneDisplay: updating layout for new size');
+	render(): void {
+		console.log('LobbyPlayScene:: render: updating layout for new size');
 	}
 	sceneShutdown(): void {
 		console.log('Lobby:: sceneShutdown...');

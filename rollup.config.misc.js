@@ -34,7 +34,7 @@ export default [
     // },
 
     {
-        input: "src/host/dashboard-quiz.js", // replace with path to your main JS file
+        input: "websrc/host/dashboard-quiz.js", // replace with path to your main JS file
         output: [
             {
                 file: "public/modules/dashboard-quiz.min.js", // replace with desired output file path
@@ -52,7 +52,7 @@ export default [
     },
 
     {
-        input: "src/host/dashboard-quizedit.js", // replace with path to your main JS file
+        input: "websrc/host/dashboard-quizedit.js", // replace with path to your main JS file
         output: [
             {
                 file: "public/modules/dashboard-quizedit.min.js", // replace with desired output file path
@@ -70,7 +70,7 @@ export default [
     },
 
     {
-        input: "src/host/dashboard-quizedit-v2.js",
+        input: "websrc/host/dashboard-quizedit-v2.js",
         output: [
             {
                 file: "public/modules/dashboard-quizedit-v2.min.js",
@@ -88,7 +88,7 @@ export default [
     },
 
     {
-        input: "src/host/dashboard.js",
+        input: "websrc/host/dashboard.js",
         output: [
             {
                 file: "public/modules/dashboard.min.js",
@@ -104,7 +104,7 @@ export default [
 
     // LOGIN screen
     {
-        input: "src/login/login.js", // replace with path to your main JS file
+        input: "websrc/login/login.js", // replace with path to your main JS file
         output: [
             {
                 file: "public/modules/login.min.js", // replace with desired output file path
@@ -120,7 +120,7 @@ export default [
 
     // Home page LANDING screen
     {
-        input: "src/landing/landing.js", // replace with path to your main JS file
+        input: "websrc/landing/landing.js", // replace with path to your main JS file
         output: [
             {
                 file: "public/modules/landing.min.js", // replace with desired output file path
@@ -136,7 +136,7 @@ export default [
 
     // PLAY entry screen
     {
-        input: "src/play/play-entry.js",
+        input: "websrc/play-entry.js",
         output: [
             {
                 file: "public/modules/play-entry.min.js",

@@ -106,17 +106,24 @@ To prevent regressions in fundamental systems, categorize files by their impact:
 - **Pause and Assess:** Before starting any large-scale refactor, structural reorganization, or language conversion (like JS to TS), I will pause to assess the complexity and risk. I will explicitly state the plan and wait for confirmation if the change is likely to destabilize the build or requires "blind" editing of large files.
 - **Respect Stability Levels:** I will identify the "Stability Level" of a file before editing. For Level 1 and 2 files, I will be extra cautious, explain the potential side effects, and verify fundamental assumptions (like property names) before applying changes.
 - Always favor running a database migration on existing data instead of extending the code to handle multiple versions of database schemas.
+- **Never use terminal scripts for file edits:** I will never run terminal commands (like PowerShell scripts, sed, awk, or node file-system scripts) to manipulate, refactor, or edit files directly. I will ALWAYS use the built-in standard tools (like `replace_string_in_file`, `edit_file`, etc.) to edit codebase files.
 - When performing database migrations, prioritize safety:
   - Log the number of documents affected.
   - Use "dry run" logging to verify changes before applying them.
   - Ensure scripts are idempotent (safe to run multiple times).
   - Verify data integrity immediately after the migration.
+- **Never go down string replacement rabbit holes:** If `replace_string_in_file` or a typical string exact-matching edit fails due to whitespace formatting, DO NOT repeatedly try guessing the string, compiling tests, or hacking terminal commands. STOP. Re-read the file context properly with `read_file` or ask the human for clarification. Do not get stuck in an editing loop.
 
 ---
 
 # The Architect's Guardrails (Anti-Overengineering)
 
 To avoid "The Architect's Trap" (over-abstraction, framework-building, and analysis paralysis), follow these rules for every code change:
+
+### 0. The Sanity Check (Before You Type)
+*   **Action:** Stop and perform a 30-second "Sanity Check" before every refactor. 
+*   **Question:** Does this change reduce complexity, or just redistribute it? Is there a simpler path that achieves 90% of the goal with 10% of the code?
+*   **Rule:** Complexity is the primary negative metric. Prefer flat, readable code over deeply nested or "elegant" abstractions.
 
 ### 1. The Rule of Three (Copy-Paste is OK)
 *   **Action:** Do not abstract a piece of logic until you have at least 3 distinct use cases (e.g., 3 different games needing the same scoring logic).

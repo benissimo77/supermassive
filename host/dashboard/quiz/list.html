@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Quiz Dashboard</title>
+	<link rel="stylesheet" href="/css/dashboard.css">
+	<link rel="stylesheet" href="/css/quizbuilder.css">
+	<link rel="stylesheet" href="/css/imagelibrary.css">
+	<script type="module" src="/modules/dashboard.min.js" defer></script>
+	<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+	<nav id="sidebar"></nav>
+
+	<main>
+		<div class="editor-header">
+			<h1>Quiz Dashboard</h1>
+			<div class="flex gap-md items-center">
+				<button id="create-quiz" class="btn btn-primary">
+					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+					New Quiz
+				</button>
+				<div class="dropzone" id="import-quiz-dropzone">
+					<p>Drop quiz file here or click to select</p>
+					<input type="file" accept=".json" style="display: none;">
+				</div>
+			</div>
+		</div>
+
+		<div class="card">
+			<div class="card-header">
+				<svg class="collapse-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+				<h2>Your Quizzes</h2>
+			</div>
+			<div class="card-body">
+				<table class="quiz-table">
+					<thead>
+						<tr>
+							<th style="width: 120px;">Rating</th>
+							<th>Quiz Title</th>
+							<th style="text-align: right;">Actions</th>
+						</tr>
+					</thead>
+					<tbody id="personal-quiz-items">
+						<!-- Personal quizzes will be loaded here -->
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<div class="card">
+			<div class="card-header">
+				<svg class="collapse-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+				<h2>Public Quizzes</h2>
+			</div>
+			<div class="card-body">
+				<table class="quiz-table">
+					<thead>
+						<tr>
+							<th style="width: 120px;">Rating</th>
+							<th>Quiz Title</th>
+							<th style="text-align: right;">Actions</th>
+						</tr>
+					</thead>
+					<tbody id="public-quiz-items">
+						<!-- Public quizzes will be loaded here -->
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<!-- Template for quiz list items -->
+		<template id="quiz-item-template">
+			<tr>
+				<td>
+					<div class="rating-stars" style="display: flex; gap: 0;">
+						<!-- Stars will be injected here -->
+					</div>
+				</td>
+				<td>
+					<div class="flex items-center gap-sm">
+						<a href="#" class="quiz-title-link quiz-item-title"></a>
+						<span class="error-indicator" style="display:none; color: var(--clr-error);" title="This quiz has validation errors">⚠</span>
+					</div>
+				</td>
+				<td style="text-align: right;">
+					<div class="flex justify-end gap-sm">
+						<button class="delete-quiz-item btn btn-sm btn-danger">
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+							Delete
+						</button>
+					</div>
+				</td>
+			</tr>
+		</template>
+		
+	</main>
+	<script type="module">
+		import { initDashboardQuiz } from '/modules/dashboard-quiz.min.js';
+		initDashboardQuiz();
+	</script>
+</body>
+
+</html>

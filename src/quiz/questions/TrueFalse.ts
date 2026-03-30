@@ -50,7 +50,7 @@ export default class TrueFalseQuestion extends BaseQuestion {
         });
     }
 
-    protected displayAnswerUI(answerHeight: number): void {
+    protected showAnswerContent(answerHeight: number): void {
 
         // This code copied directly from MultipleChoiceQuestion - should work for now
         const isPortrait = this.scene.isPortrait();
@@ -65,7 +65,7 @@ export default class TrueFalseQuestion extends BaseQuestion {
         const numColumns = isPortrait ? 1 : 2;
         const buttonSpace = availableHeight / numRows;
 
-        console.log('TrueFalseQuestion::displayAnswerUI:', this.scene.TYPE, availableHeight, buttonSpace);
+        console.log('TrueFalseQuestion::showAnswerContent:', this.scene.TYPE, availableHeight, buttonSpace);
 
         // Create answer options
         ['true', 'false'].forEach((option: string, index: number) => {
@@ -122,55 +122,101 @@ export default class TrueFalseQuestion extends BaseQuestion {
         }
     }
 
-    protected revealAnswerUI(): void {
-        console.log('TrueFalseQuestion::revealAnswerUI:', this.questionData);
+    public createRevealAnswerTimeline(): gsap.core.Timeline {
+        console.log('TrueFalseQuestion::createRevealAnswerTimeline:', this.questionData, this.answerContainer.y);
 
-        if (this.questionData.answer) {
-            this.highlightAnswer(this.questionData.answer);
-        }
+        const tl = this.minimizeQuestionContent();
+        this.tl = tl;
+
+        const playerOptions: { [key: string]: string[] } = {};
 
         if (this.questionData.responses) {
 
-            const tl = this.minimizeQuestionContent();
+            // For ease of tweening we will re-organize the player responses into a dictionary of answer -> [sessionID,...]
+            // This way we already know how many players chose each answer and can space them out accordingly
+            for (const [option, button] of this.buttons) {
+                const playersForThisOption: string[] = [];
+                for (const [sessionID, playerAnswer] of Object.entries(this.questionData.responses)) {
+                    if (playerAnswer.answer === option) {
+                        playersForThisOption.push(sessionID);
+                    }
+                }
+                console.log('MultipleChoiceQuestion::createRevealAnswerTimeline: option:', option, 'playersForThisOption:', playersForThisOption);
+                playerOptions[option] = playersForThisOption;
+            }
 
             // these calculations copied from multiple-choice since they are almost identical
             let currentY = 320;
-            const buttonHeight = (1080 - currentY) / 2;
+            const buttonHeight = (this.scene.getY(1080) - this.answerContainer.y) / 2;
             const answerX = -480;
             const avatarX = 960;
 
             // Use fixed order for True/False
-            ['true', 'false'].forEach((option: string) => {
+            tl.addLabel('PositionButtons');
+            ['true', 'false'].forEach((option: string, optionIndex: number) => {
                 const button = this.buttons.get(option);
                 if (button) {
+                    const targetY = optionIndex * buttonHeight + buttonHeight/2;
                     tl.to(button, {
                         x: answerX,
-                        y: this.scene.getY(currentY + buttonHeight/2),
+                        y: targetY,
                         duration: 0.5,
                         ease: 'power2.out'
-                    }, "<");
-
-                    let avatarOffsetX = 160;
-                    for (const [sessionID, playerAnswer] of Object.entries(this.questionData.responses)) {
-                        if (playerAnswer.answer === option) {
-                            const player: Phaser.GameObjects.Container = this.scene.getPlayerBySessionID(String(sessionID));
-                            if (player) {
-                                tl.to(player, {
-                                    x: avatarX + avatarOffsetX,
-                                    y: this.scene.getY(currentY + buttonHeight/2),
-                                    duration: 0.6,
-                                    ease: 'power2.out'
-                                }, "<");
-                                avatarOffsetX += 160;
-                            }
-                        }
-                    }
-                    currentY += buttonHeight;
+                    }, 'PositionButtons');
                 }
             });
 
-            tl.play();
+            let avatarOffsetX = 160;
+            tl.addLabel('PositionPlayers', '>+0.5');
+            ['true', 'false'].forEach((option: string, optionIndex: number) => {
+                const button = this.buttons.get(option);
+                if (button) {
+                    const targetY = optionIndex * buttonHeight + buttonHeight/2;
+                    const numPlayersForOption = playerOptions[option].length;
+                    const avatarSpacing:number = Math.min(200, 960 / numPlayersForOption);
+                    playerOptions[option].forEach((sessionID, playerIndex) => {
+                        const player: Phaser.GameObjects.Container = this.scene.getPlayerBySessionID(String(sessionID));
+                        if (player) {
+                            tl.to(player, {
+                                x: avatarX + playerIndex * avatarSpacing,
+                                y: this.answerContainer.y + targetY,
+                                duration: 0.6,
+                                delay: 0.2 * playerIndex,
+                                ease: 'power2.out'
+                            }, 'PositionPlayers');
+                        }
+                    });
+                }
+            });
         }
+
+        if (this.questionData.answer) {
+            tl.add(() => {
+                this.highlightAnswer(this.questionData.answer);
+            }, '>');
+        }
+
+        // Add flashText to players who provided a response
+        // Rely on the score field sent from server as this is our source of truth
+        tl.addLabel('ShowScores', '>+0.5');
+        for (const [sessionID, playerAnswer] of Object.entries(this.questionData.responses)) {
+            const player: PhaserPlayer = this.scene.getPlayerBySessionID(String(sessionID)) as PhaserPlayer;
+            if (player) {
+                if (playerAnswer.snoozed) {
+                    tl.add(() => { player.flashText('Z', '#ff0000'); }, 'ShowScores');
+                    tl.add(() => { player.flashText('Z', '#ff0000'); }, 'ShowScores+=0.5');
+                    tl.add(() => { player.flashText('Z', '#ff0000'); }, 'ShowScores+=1.0');
+                    tl.add(() => { player.flashText('Z', '#ff0000'); }, 'ShowScores+=1.5');
+                } else {
+                    tl.add(() => {
+                        player.flashText(playerAnswer.score, '#00ff00');
+                    }, 'ShowScores');
+                }
+            }
+        }
+
+        tl.pause();
+        return tl;
     }
 
 }

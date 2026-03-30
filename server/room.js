@@ -22,6 +22,8 @@ class Room {
 
 		// Generate QR code for room
 		// Note: this is async but we don't need to await it here since we're leaving...
+		// IMPORTANT: This is commented out when travelling as not always available...
+		// TODO: UNCOMMENT THIS LINE WHEN GOING TO PRODUCTION!!!
 		this.generateQRCode(this.id);
 	}
 
@@ -156,6 +158,7 @@ class Room {
 			if (callback && typeof callback === 'function') {
 				callback({ received: true, roomID: this.id });
 			}
+			console.log('host:ready:: sending connected players:', this.getConnectedPlayers());
 			socket.emit('server:players', this.getConnectedPlayers());
 		});
 
@@ -173,6 +176,8 @@ class Room {
 			const isEnded = this.game && typeof this.game.isEnded === 'function' ? this.game.isEnded() : false;
 			const isSame = this.game && typeof this.game.isSameGame === 'function' ? this.game.isSameGame(config) : true;
 
+			console.log('Current game:', this.game ? this.game.name : 'no game', 'isEnded:', isEnded, 'isSame:', isSame);
+			
 			if (this.game && this.game.name == game && !isEnded && isSame) {
 				console.log('Already running this game - ignore:', this.game.name);
 
@@ -332,9 +337,11 @@ class Room {
 		this.hostResponseHandler = null;
 	}
 	registerHostKeypressHandler(handler) {
+		console.log('room:: registerHostKeypressHandler:', handler);
 		this.hostKeypressHandler = handler;
 	}
 	deregisterHostKeypressHandler() {
+		console.log('room:: deregisterHostKeypressHandler:');
 		this.hostKeypressHandler = null;
 	}
 
@@ -405,7 +412,18 @@ class Room {
 			if (playerSocket) {
 				playerSocket.emit(event, data, wrappedCallback);
 			} else {
-				console.error(`Cannot emit to player - socket ${players[i]} not found`);
+				console.error(`Cannot emit to player - socket ${players[i]} not found - trying sessionID`);
+				const player = this.players.find(p => p.socketID === players[i] || p.sessionID === players[i]);
+				if (player) {
+					const playerSocketBySession = this.getSocket(player.socketID);
+					if (playerSocketBySession) {
+						playerSocketBySession.emit(event, data, wrappedCallback);
+					} else {
+						console.error(`Cannot emit to player ${player.name} - socket ${player.socketID} not found`);
+					}
+				} else {
+					console.error(`Cannot find player with socketID or sessionID: ${players[i]}`);
+				}
 			}
 		}
 	}

@@ -210,7 +210,7 @@ function identifyUser(socket) {
 			}
 
 			// 3. Query Parameter Overrides (ONLY for dev testing)
-			if (process.env.NODE_ENV === 'development') {
+			if (process.env.NODE_ENV !== 'production') {
 				const urlParams = new URLSearchParams(url.search);
 
 				// Support ?sessionID=XYZ ?name=Bob ?avatar=123 ?room=TEST

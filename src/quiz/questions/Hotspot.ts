@@ -132,8 +132,8 @@ export default class HotspotQuestion extends BaseQuestion {
 	 * Position answer UI elements based on available height
 	 * Can be called multiple times (e.g., on resize)
 	 */
-	protected displayAnswerUI(answerHeight: number): void {
-		console.log('HotspotQuestion::displayAnswerUI:', answerHeight, this.scene.TYPE);
+	protected showAnswerContent(answerHeight: number): void {
+		console.log('HotspotQuestion::showAnswerContent:', answerHeight, this.scene.TYPE);
 
 		// Position and scale submit button (EXACT copy from Number.ts)
 		const scaleFactor = this.scene.getUIScaleFactor();
@@ -159,9 +159,10 @@ export default class HotspotQuestion extends BaseQuestion {
 		if (this.crosshairPos) {
 			this.crosshair.destroy();
 			this.crosshair = this.addCrosshairAtNormalizedPosition(this.answerImage, this.crosshairPos?.x, this.crosshairPos?.y);
+			this.crosshair.setTint(0xFF0000);
 		}
 
-		console.log('HotspotQuestion::displayAnswerUI: Positioned image, crosshair, submit button');
+		console.log('HotspotQuestion::showAnswerContent: Positioned image, crosshair, submit button');
 	}
 
 
@@ -332,6 +333,7 @@ export default class HotspotQuestion extends BaseQuestion {
 			this.crosshairPos = this.screenToNormalized(pointer.x, pointer.y);
 			this.crosshair = this.addCrosshairAtNormalizedPosition(this.answerImage, this.crosshairPos.x, this.crosshairPos.y);
 			this.crosshair.visible = true;
+			this.crosshair.setTint(0xFF0000);
 			this.animateCrosshairScale(this.crosshair.scale);
 		}
 	}
@@ -445,49 +447,66 @@ export default class HotspotQuestion extends BaseQuestion {
 		});
 	}
 
-	protected revealAnswerUI(): void {
+	public createRevealAnswerTimeline(): gsap.core.Timeline {
+		const tl = this.minimizeQuestionContent();
+		this.tl = tl;
+
 		const allocated = this.calculateLayout();
 		const answerHeight = allocated['answers'] || 0;
-		this.showResults(answerHeight);
-	}
-
-	protected showResults(answerHeight: number): void {
 
 		// HOTSPOT: display the crosshair at the answer position
 		// POINT-IT-OUT: display a rectangle at the answer position
 		if (this.questionData.type === 'hotspot') {
 			this.crosshairPos = { x: this.questionData.answer.x, y: this.questionData.answer.y };
-			this.crosshair = this.addCrosshairAtNormalizedPosition(this.answerImage, this.crosshairPos.x, this.crosshairPos.y);
-			this.animateCrosshairScale(2);
+			const correctCrosshair = this.addCrosshairAtNormalizedPosition(this.answerImage, this.crosshairPos.x, this.crosshairPos.y);
+			correctCrosshair.setTint(0x00FF00);
+			
+			// Animate crosshair scale (pulse effect) using the timeline
+			tl.set(correctCrosshair, { scale: correctCrosshair.scale * 3 }, '>');
+			tl.to(correctCrosshair, {
+				scale: correctCrosshair.scale,
+				duration: 0.8,
+				ease: 'elastic.out(1, 0.5)'
+			}, '>');
+
 		} else {
 			console.log('Point-It-Out showResults:', this.questionData.answer);
 			this.crosshairPos = {
 				x: (this.questionData.answer.start.x + this.questionData.answer.end.x) / 2,
 				y: (this.questionData.answer.start.y + this.questionData.answer.end.y) / 2
 			};
-			this.addRectangleAtNormalizedPosition(this.answerImage, this.questionData.answer);
+			const rect = this.addRectangleAtNormalizedPosition(this.answerImage, this.questionData.answer);
+			tl.from(rect, { alpha: 0, duration: 0.5 }, '>');
 		}
 
 		// Mark all the guesses made by the players
-		if (this.questionData.results) {
-			Object.entries(this.questionData.results).forEach(([sessionID, result]) => {
-				if (result && result.x !== undefined && result.y !== undefined) {
-					const guessCrosshair = this.addCrosshairAtNormalizedPosition(this.answerImage, result.x, result.y);
-					guessCrosshair.setScale(0.8);
-					// Move player avatar to guess position (if we have one)
-					const playerAvatar = this.scene.getPlayerBySessionID(sessionID);
-				}
-			});
-		}
+        if ((this.questionData as any).responses) {
+            Object.entries((this.questionData as any).responses as Record<string, any>).forEach(([sessionID, result]) => {
+                const answer = result.answer;
+                if (answer && answer.x !== undefined && answer.y !== undefined) {
+                    const guessCrosshair = this.addCrosshairAtNormalizedPosition(this.answerImage, answer.x, answer.y);
+					guessCrosshair.setTint(0xFF0000);
+                    tl.from(guessCrosshair, { alpha: 0, scale: 0, duration: 0.3 }, '<');
+                    const originalScale = guessCrosshair.scale;
+                    guessCrosshair.setScale(originalScale * 0.8);
 
-		// Experimenting with a centroid of all guesses - but not sure if this is going anywhere useful...
-		const crosshairs = this.questionData.results ? Object.values(this.questionData.results) : [];
-		const centroid = {
-			x: crosshairs.reduce((sum, c) => sum + c.x, 0) / crosshairs.length,
-			y: crosshairs.reduce((sum, c) => sum + c.y, 0) / crosshairs.length
-		};
+					// See if its relatively easy to tween the player to align wiht the crosshair but at the bottom of the screen
+					const player: Phaser.GameObjects.Container = this.scene.getPlayerBySessionID(String(sessionID));
+					if (player) {
+						const worldX = guessCrosshair.getWorldTransformMatrix().getX(0, 0);
+						tl.to(player, {
+							x: worldX,
+							y: this.scene.getY(1080) - 60,
+							duration: 0.6,
+							ease: 'power2.out'
+						});
+					}
+                }
+            });
+        }
 
-
+		tl.pause();
+		return tl;
 	}
 
 	private addRectangleAtNormalizedPosition(image: Phaser.GameObjects.Image, answer: any): Phaser.GameObjects.Graphics {

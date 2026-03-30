@@ -39,6 +39,8 @@ const quizSchema = new mongoose.Schema({
     title: { type: String },
     description: { type: String },
     ownerID: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    parentID: { type: mongoose.Schema.Types.ObjectId, ref: 'Quiz', default: null }, // the direct parent it was forked from
+    originID: { type: mongoose.Schema.Types.ObjectId, ref: 'Quiz', default: null }, // the ultimate original creation
     public: { type: mongoose.Schema.Types.Boolean, required: true, default: true },
     rating: { type: Number, default: 0 },
     isDeleted: { type: Boolean, default: false },

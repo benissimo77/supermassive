@@ -14,7 +14,8 @@ export enum PhaserPlayerState {
 	ANSWERING,
 	ANSWERED,
 	REVEALING,
-	RACING
+	RACING,
+	HIDDEN
 }
 
 export class PhaserPlayer extends Phaser.GameObjects.Container {
@@ -22,9 +23,9 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 	private socketID: string;
 	private sessionID: string;
 	private userID: string | null;
-	private playerTexture: Phaser.GameObjects.RenderTexture;
+	protected playerTexture: Phaser.GameObjects.RenderTexture;
 	private playerScore: number;
-	private playerScoreText: Phaser.GameObjects.Text;
+	protected playerScoreText: Phaser.GameObjects.Text;
 	private playerState: PhaserPlayerState = PhaserPlayerState.FLOATING;
 	private flameEmitter: Phaser.GameObjects.Particles.ParticleEmitter | null = null;
 	private leaderPulseTween: gsap.core.Tween | null = null;
@@ -50,7 +51,7 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 			this.add(tempContainer);
 
 			// Add panel and name to the container
-			const panel = scene.add.image(0, 0, 'playernamepanel').setOrigin(0, 0.5);
+			const playerNamePanel = scene.add.image(0, 0, 'playernamepanel').setOrigin(0, 0.5);
 			const playerName = scene.add.text(120, 0, playerConfig.name.slice(0, 12), {})
 				.setOrigin(0, 0.5)
 				.setFontFamily('"Titan One", Georgia')
@@ -60,10 +61,11 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 			// Adjust the size of the name panel based on name length
 			// Name begins at x=120 so add a 20px padding on right side
 			const nameTextWidth = playerName.width;
-			panel.setDisplaySize(nameTextWidth + 140, panel.height);
-			
+			const namePanelWidth = Math.min(nameTextWidth + 140, 480);
+			playerNamePanel.setDisplaySize(namePanelWidth, playerNamePanel.height);
+
 			// While we are here add a text obejct for the score
-			this.playerScoreText = scene.add.text(nameTextWidth + 140, -24, '', {})
+			this.playerScoreText = scene.add.text(namePanelWidth, -24, '', {})
 				.setOrigin(1, 1)
 				.setFontFamily('"Titan One", Georgia')
 				.setFontSize(40)
@@ -101,8 +103,8 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 
 			// Constrain shadow to the panel's vertical area
 			const shadowTop = avatarShadow.y - avatarHeight;
-			const cropTop = Math.max(0, (-panel.displayHeight / 2) - shadowTop);
-			const cropBottom = Math.min(avatarHeight, (panel.displayHeight / 2) - shadowTop);
+			const cropTop = Math.max(0, (-playerNamePanel.displayHeight / 2) - shadowTop);
+			const cropBottom = Math.min(avatarHeight, (playerNamePanel.displayHeight / 2) - shadowTop);
 
 			if (cropBottom > cropTop) {
 				avatarShadow.setCrop(0, cropTop, avatarWidth, cropBottom - cropTop);
@@ -111,7 +113,7 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 			}
 
 			// Add shadow first, then the actual avatar
-			tempContainer.add([panel, playerName, avatarShadow, avatarImage]);
+			tempContainer.add([playerNamePanel, playerName, avatarShadow, avatarImage]);
 
 			// Calculate bounds for the texture (+8 for the shadow below the avatar)
 			const textureHeight: integer = avatarImage.height + shadowDistance;
@@ -140,6 +142,9 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 
 			// Add the texture to our container
 			this.add(this.playerTexture);
+
+			// Notify subclasses/listeners that playerScoreText and other elements are ready
+			this.emit('player-setup-complete');
 
 		}, scene);
 

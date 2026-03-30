@@ -95,10 +95,10 @@ export default class DrawQuestion extends BaseQuestion {
         }
     }
 
-    protected displayAnswerUI(answerHeight: number): void {
+    protected showAnswerContent(answerHeight: number): void {
 
-        console.log('DrawQuestion::displayAnswerUI:', answerHeight, this.scene.getY(answerHeight), this.scene.isPortrait(), this.scene.cameras.main.zoom, window.devicePixelRatio, this.scene.scale.displayScale);
-        this.scene.socket?.emit('consolelog', `DrawQuestion::displayAnswerUI: answerHeight=${answerHeight}, isPortrait=${this.scene.isPortrait()} UIScaleFactor:${this.scene.getUIScaleFactor()} camera zoom: ${this.scene.cameras.main.zoom} devicePixelRatio: ${window.devicePixelRatio} displayScale: ${JSON.stringify(this.scene.scale.displayScale)}`);
+        console.log('DrawQuestion::showAnswerContent:', answerHeight, this.scene.getY(answerHeight), this.scene.isPortrait(), this.scene.cameras.main.zoom, window.devicePixelRatio, this.scene.scale.displayScale);
+        this.scene.socket?.emit('consolelog', `DrawQuestion::showAnswerContent: answerHeight=${answerHeight}, isPortrait=${this.scene.isPortrait()} UIScaleFactor:${this.scene.getUIScaleFactor()} camera zoom: ${this.scene.cameras.main.zoom} devicePixelRatio: ${window.devicePixelRatio} displayScale: ${JSON.stringify(this.scene.scale.displayScale)}`);
         
         // Position and scale submit button (EXACT copy from Number.ts)
 		const scaleFactor = this.scene.getUIScaleFactor();
@@ -117,9 +117,9 @@ export default class DrawQuestion extends BaseQuestion {
             this.colorPickerContainer.setRotation(-Math.PI / 2);
             this.lineWidthContainer.setRotation(-Math.PI / 2);
 
-            console.log('DrawQuestion::displayAnswerUI: portrait positioning color picker at', this.colorPickerContainer.x, this.colorPickerContainer.y, this.colorPickerContainer.getBounds());
-            console.log('DrawQuestion::displayAnswerUI: portrait positioning line width at', this.lineWidthContainer.x, this.lineWidthContainer.y, this.lineWidthContainer.getBounds());
-            this.scene.socket?.emit('consolelog', `DrawQuestion::displayAnswerUI: portrait mode - color picker bounds ${JSON.stringify(this.colorPickerContainer.getBounds())}, line width bounds ${JSON.stringify(this.lineWidthContainer.getBounds())}`);
+            console.log('DrawQuestion::showAnswerContent: portrait positioning color picker at', this.colorPickerContainer.x, this.colorPickerContainer.y, this.colorPickerContainer.getBounds());
+            console.log('DrawQuestion::showAnswerContent: portrait positioning line width at', this.lineWidthContainer.x, this.lineWidthContainer.y, this.lineWidthContainer.getBounds());
+            this.scene.socket?.emit('consolelog', `DrawQuestion::showAnswerContent: portrait mode - color picker bounds ${JSON.stringify(this.colorPickerContainer.getBounds())}, line width bounds ${JSON.stringify(this.lineWidthContainer.getBounds())}`);
 
             // Calculate a reasonable scale factor based on the color picker panel - scale up to full width or to a max of 3x normal size
             const scale:number = Math.min( 1920 / (this.colorPickerContainer.getBounds().width), 4);
@@ -144,8 +144,8 @@ export default class DrawQuestion extends BaseQuestion {
 
             // Landscape mode - position controls down left side
             // this.colorPickerContainer.setPosition(0, 0);
-            console.log('DrawQuestion::displayAnswerUI: positioning color picker at', this.colorPickerContainer.x, this.colorPickerContainer.y, this.colorPickerContainer.getBounds());
-            console.log('DrawQuestion::displayAnswerUI: positioning line width at', this.lineWidthContainer.x, this.lineWidthContainer.y, this.lineWidthContainer.getBounds());
+            console.log('DrawQuestion::showAnswerContent: positioning color picker at', this.colorPickerContainer.x, this.colorPickerContainer.y, this.colorPickerContainer.getBounds());
+            console.log('DrawQuestion::showAnswerContent: positioning line width at', this.lineWidthContainer.x, this.lineWidthContainer.y, this.lineWidthContainer.getBounds());
 
             // Can we fit pickers within answerHeight?
             if (this.colorPickerContainer.getBounds().height + this.lineWidthContainer.getBounds().height < this.scene.getY(answerHeight)) {
@@ -619,9 +619,18 @@ export default class DrawQuestion extends BaseQuestion {
 
     }
 
-    protected revealAnswerUI(): void {
+    public createRevealAnswerTimeline(): gsap.core.Timeline {
+        const tl = this.minimizeQuestionContent();
+        this.tl = tl;
+        
         // Draw questions don't have a single "correct" answer to reveal
-        // The gallery is shown instead
+        // We just return a timeline that could be extended
+        tl.pause();
+        return tl;
+    }
+
+    protected revealAnswerUI(): void {
+        // This is now handled by createRevealAnswerTimeline or external logic
     }
 
     // renderStroke - renders an entire stroke

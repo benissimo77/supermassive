@@ -17,6 +17,8 @@ export interface BaseQuestionData {
     items?: string[];
     extra?: { startLabel: string; endLabel: string };
     pairs?: { left: string; right: string }[];
+    playerHands?: Record<string, number[]>;
+    grid?: (string | null)[];
 }
 
 // MULTIPLE CHOICE

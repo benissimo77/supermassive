@@ -215,7 +215,7 @@ export class QuizHostScene extends BaseScene {
         });
 
         // Ensure initial layout is correct before starting bootstrap
-        this.sceneDisplay();
+        this.render();
 
         // Create a simple white pixel for particles/confetti
         // Using a 2x2 white texture to ensure it's visible and tintable
@@ -429,8 +429,13 @@ export class QuizHostScene extends BaseScene {
                     console.log('GSAP animation complete!');
                     this.socket.emit('host:response');
                     if (question.mode === 'ask') {
-                        this.soundManager.playMusic('quiz-countdown', { volume: 0.3, fadeIn: 6000 });
-                    } 
+                        if (!question.video && !question.audio) {
+                            this.soundManager.playMusic('quiz-countdown', { volume: 0.3, fadeIn: 6000 });
+                        } else {
+                            // If playing a video/audio question, stop background music to avoid clashing
+                            this.soundManager.stopCategory('music', 2000);
+                        }
+                    }
                     // Update receivedTime just to make answerTime slightly more accurate
                     receivedTime = Date.now();
                 }
@@ -1210,7 +1215,7 @@ export class QuizHostScene extends BaseScene {
             // Call the async function to initialize and display the question
             // async because loading an image/video may be required this could take a while
             await this.currentQuestion.initialize();
-            this.currentQuestion.displayHost();
+            this.currentQuestion.renderHost();
 
             // Debug container position and visibility
             console.log('Question container:', {
@@ -1239,7 +1244,7 @@ export class QuizHostScene extends BaseScene {
             this.tweens.killTweensOf(player);
             this.reparentObject(player, this.playerContainer);
         }
-        this.currentQuestion.showAnswer();
+        this.currentQuestion.prepareAnswerResults().play();
 
     }
 
@@ -1655,7 +1660,7 @@ export class QuizHostScene extends BaseScene {
             '  PLATFORM: SUPERMASSIVE',
             '',
             'FEATURING',
-            ...Array.from(this.phaserPlayers.values()).map(p => {
+            ...this.getPlayerConfigsAsArray().map(p => {
                 return '  ' + (p.name);
             }),
             '',
@@ -1914,9 +1919,9 @@ export class QuizHostScene extends BaseScene {
 
     }
 
-    sceneDisplay(): void {
+    render(): void {
         // Called from BaseScene when the screen is resized
-        console.log('QuizHostScene:: sceneDisplay: updating layout for new size');
+        console.log('QuizHostScene:: render: updating layout for new size');
 
         if (this.background) {
             this.background.setDisplaySize(1920, this.getY(1080));
@@ -1932,7 +1937,7 @@ export class QuizHostScene extends BaseScene {
         // }
 
         if (this.currentQuestion) {
-            this.currentQuestion.displayHost();
+            this.currentQuestion.renderHost();
         }
     }
 

@@ -205,65 +205,73 @@ export async function saveAsQuizV2(quizData, userID) {
             throw new NotFoundError(`Quiz with ID ${quizData._id} not found`);
         }
 
-        // Logic for different ownership scenarios
+        // Logic for different ownership scenarios (FORK vs OVERWRITE)
         if (userIDString && (thisQuiz.ownerID.toString() != userIDString)) {
 
-            console.log('User is NOT owner:', thisQuiz.ownerID.toString(), userIDString);
+            console.log('User is NOT owner - saving as FORK');
 
-            // User not owner of quiz - check if they are allowed to collaborate
-            const isCollaborator = thisQuiz.collaborators && thisQuiz.collaborators.some(collabId => collabId.toString() === userIDString);
-            if (isCollaborator) {
+            // Track lineage before destroying the old ID
+            const originalId = quizData._id;
 
-                console.log('User is COLLABORATOR: ', thisQuiz.collaborators, userIDString);
+            // Clean up the IDs so they don't conflict, effectively creating a new Quiz
+            quizData.ownerID = userIDString;
+            quizData.collaborators = []; // wipe old collaborators just in case
+            delete quizData._id;
 
-                quizData.rounds.forEach(async (newRound) => {
-                    const index = thisQuiz.rounds.findIndex((thisRound) => {
-                        return thisRound._id.toString() == newRound._id;
-                    });
+            // Set the lineage tracking
+            quizData.parentID = originalId;
+            if (thisQuiz.originID) {
+                // carry forward the true origin
+                quizData.originID = thisQuiz.originID;
+            } else {
+                // If it doesn't have an originID yet, the originalId was the true origin
+                quizData.originID = originalId;
+            }
 
-                    if (index >= 0 && thisQuiz.rounds[index].ownerID &&
-                        thisQuiz.rounds[index].ownerID.toString() == userIDString) {
-                        thisQuiz.rounds[index] = newRound;
-                        thisQuiz.rounds[index].ownerID = userIDString;
-                    } else if (index < 0) {
-                        newRound.ownerID = userIDString;
-                        thisQuiz.rounds.push(newRound);
+            // ensure all rounds also get stripped of _id and assigned to this new user
+            if (quizData.rounds) {
+                quizData.rounds.forEach(round => {
+                    delete round._id;
+                    round.ownerID = userIDString;
+                    // Wipe question ids so it treats them as embedded subdocs cleanly
+                    if (round.questions) {
+                        round.questions.forEach(q => delete q._id);
                     }
                 });
-
-            } else {
-
-                console.log('User is NOT collaborator - saving as FORK');
-                // thisQuiz = await saveAsQuizV2(quizData, userIDString);
-                quizData.ownerID = userIDString;
-                delete quizData._id;
-                thisQuiz = await Quiz.create(quizData);
-
             }
+
+            // Force fork to be a V1 monolithic quiz document to simplify architecture
+            quizData.schemaVersion = 1;
+
+            thisQuiz = await Quiz.create(quizData);
 
         } else {
 
             console.log('User IS owner - full update');
 
             // Owner updating - full overwrite
-            quizData.rounds.forEach(round => {
-                if (!round.ownerID) round.ownerID = userIDString
-                if (round._id) delete round._id;
-            });
+            if (quizData.rounds) {
+                quizData.rounds.forEach(round => {
+                    if (!round.ownerID) round.ownerID = userIDString;
+                    // remove round id so mongoose replaces them entirely instead of trying to merge
+                    if (round._id) delete round._id;
+                });
+            }
 
-            // Save as V1 (if original was V1) and as V2 as well new:true returns the new quiz document
+            // Save as V1 monolithic document, migrating if it was formerly V2
             if (Math.floor(schemaVersion) === 1) {
                 thisQuiz = await Quiz.findByIdAndUpdate(quizData._id, quizData, { new: true });
                 // Also convert to V2 and save - don't bother for now
                 // thisQuiz = await saveV1QuizToV2(quizData, userID);
                 // console.log('Converted to V2 quiz:', thisQuiz._id);
             } else {
-                await saveAsQuizV2(quizData, userID);
-                thisQuiz = await QuizV2.findById(quizData._id)
-                    .populate({
-                        path: 'rounds.questions',
-                        model: 'Question'
-                    });
+                console.log('Migrating V2 quiz to V1 format for owner');
+                quizData.schemaVersion = 1;
+                // create new v1 version, delete old v2 version to keep things simple
+                const legacyV2Id = quizData._id;
+                delete quizData._id;
+                thisQuiz = await Quiz.create(quizData);
+                // await QuizV2.findByIdAndDelete(legacyV2Id); // Delete the old deprecated format
             }
         }
         // } catch (dbError) {
@@ -431,14 +439,10 @@ export async function saveAsQuizV2(quizData, userID) {
 
     // Helper function
     function filterQuestions(quiz, userID) {
-        const userIDString = getUserIDString(userID);
-        const filteredQuiz = JSON.parse(JSON.stringify(quiz));
-        filteredQuiz.rounds.forEach((round) => {
-            if (round.ownerID && round.ownerID.toString() != userIDString) {
-                round.questions = [];
-            }
-        });
-
-        console.log('Filtered quiz for user:', userIDString, filteredQuiz);
-        return filteredQuiz;
+        // We no longer strip questions based on ownerID since 
+        // the separate question library system (V2) is deprecated.
+        // Stripping questions here was causing the dashboard to load 
+        // empty rounds, which would then permanently save as empty.
+        
+        return quiz;
     }

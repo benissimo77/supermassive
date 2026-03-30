@@ -1094,9 +1094,10 @@ export default class Quiz extends Game {
 				this.doQuestion();
 			}
 			return;
+		} else {
+			this.started = true;
+			this.startTime = new Date();
 		}
-		this.started = true;
-		this.startTime = new Date();
 
 		// Initialize player scores to 0
 		this.players.forEach(player => {
@@ -2060,7 +2061,7 @@ export default class Quiz extends Game {
 						console.log(`Notifying player ${player.name} of final rank ${result.rank}`);
 						this.room.emitToPlayers([player.socketID], 'server:endquiz', {
 							rank: result.rank,
-							score: result.score,
+							score: result.totalScore,
 							totalPlayers: playerResults.length
 						});
 					}

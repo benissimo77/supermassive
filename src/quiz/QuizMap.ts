@@ -442,5 +442,3 @@ export class QuizMap extends Phaser.GameObjects.Container {
         // We'll leave positioning to the parent scene
     }
 }
-    }
-}

@@ -46,7 +46,7 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
         //this.answerContainer.add(debugRect);
     }
 
-    protected displayAnswerUI(answerHeight: number): void {
+    protected showAnswerContent(answerHeight: number): void {
 
         const isPortrait = this.scene.isPortrait();
         const scaleFactor = this.scene.getUIScaleFactor();
@@ -66,7 +66,7 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
         const numColumns = isPortrait ? 1 : 2;
         const buttonSpace = availableHeight / numRows;
 
-        console.log('MultipleChoiceQuestion::displayAnswerUI:', this.questionData.mode, this.scene.TYPE, availableHeight, buttonSpace);
+        console.log('MultipleChoiceQuestion::showAnswerContent:', this.questionData.mode, this.scene.TYPE, availableHeight, buttonSpace);
 
         this.questionData.optionsShuffled.forEach((option: string, index: number) => {
 
@@ -74,7 +74,7 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
             const y = paddingHeight + rowCount * buttonSpace + buttonSpace / 2;
             const x = isPortrait ? 0 : -480 + 960 * (index % numColumns);
 
-            console.log('MultipleChoiceQuestion::displayAnswerUI:', option, x, y);
+            console.log('MultipleChoiceQuestion::showAnswerContent:', option, x, y);
 
             const newButton: NineSliceButton | undefined = this.buttons.get(option);
             if (newButton) {
@@ -94,10 +94,11 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
 
     }
 
-    protected revealAnswerUI(): void {
+    public createRevealAnswerTimeline(): gsap.core.Timeline {
 
-        console.log('MultipleChoiceQuestion::revealAnswerUI:', this.questionData);
+        console.log('MultipleChoiceQuestion::createRevealAnswerTimeline:', this.questionData);
         const tl = this.minimizeQuestionContent();
+        this.tl = tl;
         const playerOptions: { [key: string]: string[] } = {};
 
         // If we have responses data then we can generate an animation to show who guessed what
@@ -116,14 +117,14 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
                         playersForThisOption.push(sessionID);
                     }
                 }
-                console.log('MultipleChoiceQuestion::revealAnswerUI: option:', option, 'playersForThisOption:', playersForThisOption);
+                console.log('MultipleChoiceQuestion::createRevealAnswerTimeline: option:', option, 'playersForThisOption:', playersForThisOption);
                 playerOptions[option] = playersForThisOption;
             }
 
             // Since answerContainer.y is in real pixels then we keep buttonHeight the same (no need to getY later) 
             const buttonHeight = (this.scene.getY(1080) - this.answerContainer.y) / this.questionData.optionsShuffled.length;
             const answerX = -480;
-            tl.addLabel("PositionButtons");
+            tl.addLabel('PositionButtons');
             this.questionData.optionsShuffled.forEach((option: string, optionIndex: number) => {
                 const button = this.buttons.get(option);
                 if (button) {
@@ -133,14 +134,14 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
                         y: targetY,
                         duration: 0.5,
                         ease: 'power2.out'
-                    }, "PositionButtons");
+                    }, 'PositionButtons');
                 }
             });
 
             // Now repeat the above loop in order to position player avatars
             const avatarX = 960;
             const avatarY: number = this.answerContainer.y;
-            tl.addLabel("PositionPlayers", ">+0.5");
+            tl.addLabel('PositionPlayers', '>+0.5');
             this.questionData.optionsShuffled.forEach((option: string, optionIndex: number) => {
                 const button = this.buttons.get(option);
                 if (button) {
@@ -153,16 +154,16 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
                         if (player) {
                             tl.add(() => {
                                 player.parentContainer.bringToTop(player);
-                            }, "PositionPlayers");
+                            }, 'PositionPlayers');
                             tl.to(player, {
                                 x: avatarX + playerIndex * avatarSpacing,
                                 y: avatarY + targetY,
                                 duration: 0.6,
                                 delay: 0.2 * playerIndex,
                                 ease: 'power2.out'
-                            }, "PositionPlayers");
+                            }, 'PositionPlayers');
                         } else {
-                            console.log('MultipleChoiceQuestion::revealAnswerUI: WARNING - player avatar not found for sessionID:', sessionID);
+                            console.log('MultipleChoiceQuestion::createRevealAnswerTimeline: WARNING - player avatar not found for sessionID:', sessionID);
                         }
                     });
                 }
@@ -171,36 +172,29 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
         if (this.questionData.answer) {
             tl.add(() => {
                 this.highlightAnswer(this.questionData.answer);
-            }, ">+0.5");
+            }, '>+0.5');
 
             // Add flashText to players who provided a response
             // Rely on the score field sent from server as this is our source of truth
-            tl.addLabel("ShowScores", ">+0.5");
+            tl.addLabel('ShowScores', '>+0.5');
             for (const [sessionID, playerAnswer] of Object.entries(this.questionData.responses)) {
                 const player: PhaserPlayer = this.scene.getPlayerBySessionID(String(sessionID)) as PhaserPlayer;
                 if (player) {
-                    tl.add(() => {
-                        if (playerAnswer.snoozed) {
-                            tl.add(() => {
-                                player.flashText('Z', '#ff0000');
-                            }, "ShowScores");
-                            tl.add(() => {
-                                player.flashText('Z', '#ff0000');
-                            }, "ShowScores+=0.5");
-                            tl.add(() => {
-                                player.flashText('Z', '#ff0000');
-                            }, "ShowScores+=1.0");
-                            tl.add(() => {
-                                player.flashText('Z', '#ff0000');
-                            }, "ShowScores+=1.5");
-                        } else {
+                    if (playerAnswer.snoozed) {
+                        tl.add(() => { player.flashText('Z', '#ff0000'); }, 'ShowScores');
+                        tl.add(() => { player.flashText('Z', '#ff0000'); }, 'ShowScores+=0.5');
+                        tl.add(() => { player.flashText('Z', '#ff0000'); }, 'ShowScores+=1.0');
+                        tl.add(() => { player.flashText('Z', '#ff0000'); }, 'ShowScores+=1.5');
+                    } else {
+                        tl.add(() => {
                             player.flashText(playerAnswer.score, '#00ff00');
-                        }
-                    }, "ShowScores");
+                        }, 'ShowScores');
+                    }
                 }
-            });
+            }
         }
-        tl.play();
+        tl.pause();
+        return tl;
     }
 
     protected highlightAnswer(correctAnswer: string): void {

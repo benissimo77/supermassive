@@ -37,7 +37,7 @@ export default class OrderingQuestion extends BaseQuestion {
     /**
      * Create the specific content for ordering/matching questions
      * Creates all objects (buttons, dropzones, labels) but does NOT position them
-     * Positioning happens in displayAnswerUI()
+     * Positioning happens in showAnswerContent()
      */
     protected createAnswerUI(): void {
 
@@ -55,8 +55,9 @@ export default class OrderingQuestion extends BaseQuestion {
             }
         } else {
             // Matching question
-            this.items = (this.questionData.pairs || []).map((pair: any) => pair.left);
-            this.labels = (this.questionData.pairs || []).map((pair: any) => pair.right);
+            const pairs = this.questionData.pairsShuffled || this.questionData.pairs || [];
+            this.items = pairs.map((pair: any) => pair.left);
+            this.labels = pairs.map((pair: any) => pair.right);
         }
 
         console.log('OrderingQuestion::createAnswerUI: Items:', this.items, 'Labels:', this.labels);
@@ -74,7 +75,7 @@ export default class OrderingQuestion extends BaseQuestion {
         // Create dropzones (NO positioning yet)
         this.labels.forEach((label: string, index: number) => {
             const dropzone = this.scene.add.nineslice(
-                0, 0, // Position in displayAnswerUI()
+                0, 0, // Position in showAnswerContent()
                 'dropzone',
                 undefined,
                 800, 120, // Logical size (fixed)
@@ -114,7 +115,7 @@ export default class OrderingQuestion extends BaseQuestion {
      * Can be called multiple times (e.g., on resize)
      */
 
-    protected displayAnswerUI(answerHeight: number): void {
+    protected showAnswerContent(answerHeight: number): void {
 
         const isPortrait = this.scene.isPortrait();
         const scaleFactor: number = this.scene.getUIScaleFactor();
@@ -140,14 +141,14 @@ export default class OrderingQuestion extends BaseQuestion {
 
         const buttonHeight = 120 * scaleFactor;
 
-        console.log('OrderingQuestion::displayAnswerUI:', {
+        console.log('OrderingQuestion::showAnswerContent:', {
             isPortrait,
             scaleFactor,
             answerHeight,
             buttonSpace,
             buttonHeight
         });
-        this.scene.socket?.emit('consolelog', `OrderingQuestion::displayAnswerUI: ${JSON.stringify({
+        this.scene.socket?.emit('consolelog', `OrderingQuestion::showAnswerContent: ${JSON.stringify({
             isPortrait,
             scaleFactor,
             answerHeight,
@@ -277,7 +278,11 @@ export default class OrderingQuestion extends BaseQuestion {
     /**
      * Animate buttons to correct dropzones (answer mode)
      */
-    protected revealAnswerUI(): void {
+    public createRevealAnswerTimeline(): gsap.core.Timeline {
+
+        console.log("OrderingQuestion::createRevealAnswerTimeline:", this.questionData);
+        const tl = gsap.timeline();
+        this.tl = tl;
 
         this.buttons.forEach((button, item) => {
             this.answerContainer.bringToTop(button);
@@ -293,17 +298,20 @@ export default class OrderingQuestion extends BaseQuestion {
                     if (this.questionData.type === 'matching') {
                         dropX = button.x + 120;
                     }
-                    this.scene.tweens.add({
-                        targets: button,
+
+                    tl.to(button, {
                         x: dropX,
                         y: dropzone.y,
-                        duration: 300,
-                        delay: dropzoneIndex * 200,
-                        ease: 'Power2',
-                    });
+                        duration: 0.3,
+                        delay: dropzoneIndex * 0.2,
+                        ease: 'power2.out',
+                    }, 0);
                 }
             }
         });
+
+        tl.pause();
+        return tl;
     }
 
     /**

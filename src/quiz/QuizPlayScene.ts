@@ -95,6 +95,7 @@ export class QuizPlayScene extends BaseScene {
             console.log('QuizPlayScene:: sending player:ready');
             this.socket.emit('player:ready', {}, (playerConfig: PlayerConfig) => {
                 console.log('QuizPlayScene:: player:ready callback:', playerConfig);
+                this.mySessionID = playerConfig.sessionID;
                 if (!this.phaserPlayer) {
                     this.phaserPlayer = new PhaserPlayer(this, playerConfig);
                     this.phaserPlayer.setScale(this.getUIScaleFactor());
@@ -226,7 +227,7 @@ export class QuizPlayScene extends BaseScene {
                 // Send the answer to the server
                 this.socket.emit('client:response', { answer: answer, answerTime: Date.now() - receivedTime - displayTime });
 
-                // This flag prevents the question from being re-displayed if sceneDisplay fires eg on resize
+                // This flag prevents the question from being re-displayed if render fires eg on resize
                 this.waitingState = true;
 
                 // Show waiting panel and animate player after a short delay to allow submitted answer to disappear
@@ -245,7 +246,7 @@ export class QuizPlayScene extends BaseScene {
 
         // Question over - clear the screen
         // Note: we DON'T destroy the question since it might still be animating etc - just hide it
-        this.socket.on('server:endquestion', (data) => {
+        this.socket.on('server:action:endquestion', (data) => {
             console.log('QuizPlayScene:: server:endquestion - UI invisible:', data);
             this.UIContainer.setVisible(false);
             if (this.currentQuestion) {
@@ -425,7 +426,7 @@ export class QuizPlayScene extends BaseScene {
         // Let the specialized renderer handle the display - this is when question gets added to the scene
         if (this.currentQuestion) {
             await this.currentQuestion.initialize();
-            this.currentQuestion.displayPlayer();
+            this.currentQuestion.renderPlayer();
 
             // Debug container position and visibility
             console.log('Question container:', {
@@ -861,13 +862,13 @@ export class QuizPlayScene extends BaseScene {
     }
 
 
-    protected sceneDisplay(): void {
+    protected render(): void {
         // Called from BaseScene when the screen is resized
-        console.log('QuizPlayScene:: sceneDisplay: updating layout for new size');
+        console.log('QuizPlayScene:: render: updating layout for new size');
         if (this.waitingState) {
             // nothing needs to be done here - display should resize itself good enough for now...
         } else if (this.currentQuestion) {
-            this.currentQuestion.displayPlayer();
+            this.currentQuestion.renderPlayer();
         }
 
         // Re-position waiting panel

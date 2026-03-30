@@ -64,7 +64,7 @@ export class QuizAdminScene extends BaseScene {
                         camera.setScroll(0, 0);
                     }
                     // Ensure child scene updates its layout
-                    (hostScene as any).sceneDisplay();
+                    (hostScene as any).render();
                 };
 
                 // Force the preview to 1080p proportions on startup
@@ -460,8 +460,8 @@ export class QuizAdminScene extends BaseScene {
         console.log('QuizAdminScene:: sceneShutdown');
     }
 
-    protected sceneDisplay(): void {
-        console.log('QuizAdminScene:: sceneDisplay');
+    protected render(): void {
+        console.log('QuizAdminScene:: render');
         this.updateHostPreviewUI();
     }
 

@@ -71,7 +71,7 @@ export default class NumberQuestion extends BaseQuestion {
         this.answerContainer.add(debugRect);
     }
 
-    protected displayAnswerUI(answerHeight: number): void {
+    protected showAnswerContent(answerHeight: number): void {
 
         let scale: number = 1;
 
@@ -102,7 +102,7 @@ export default class NumberQuestion extends BaseQuestion {
             // We want to move keypad to the bottom of the screen, so use its own height to identify how much further to move it
             this.keypad.setScale(1);
             const keypadHeight: number = this.keypad.getBounds().height;
-            // this.scene.socket?.emit('consolelog', `NumberQuestion::displayAnswerUI: scaleFactor=${scaleFactor} answerHeight=${answerHeight - 40} (${this.scene.getY(answerHeight - 40)}) keypadHeight=${keypadHeight} keypadWidth=${this.keypad.getBounds().width}`);
+            // this.scene.socket?.emit('consolelog', `NumberQuestion::showAnswerContent: scaleFactor=${scaleFactor} answerHeight=${answerHeight - 40} (${this.scene.getY(answerHeight - 40)}) keypadHeight=${keypadHeight} keypadWidth=${this.keypad.getBounds().width}`);
 
             // if not enough space then scale keypad down
             if (keypadHeight > this.scene.getY(answerHeight) - 40) {
@@ -117,7 +117,7 @@ export default class NumberQuestion extends BaseQuestion {
 
             this.keypad.setScale(scale);
             this.keypad.setPosition(0, this.scene.getY(answerHeight) - 40 - this.keypad.getBounds().height);
-            this.scene.socket?.emit('consolelog', `NumberQuestion::displayAnswerUI: scaleUP: scale=${scale} answerHeight=${answerHeight} (${this.scene.getY(answerHeight)}) OrigkeypadHeight=${keypadHeight} newScaledHeight: ${this.keypad.getBounds().height} scaledWidth=${this.keypad.getBounds().width}`);
+            this.scene.socket?.emit('consolelog', `NumberQuestion::showAnswerContent: scaleUP: scale=${scale} answerHeight=${answerHeight} (${this.scene.getY(answerHeight)}) OrigkeypadHeight=${keypadHeight} newScaledHeight: ${this.keypad.getBounds().height} scaledWidth=${this.keypad.getBounds().width}`);
 
             // Also scale the answerText since this should align with the keyboard answerText
             // I'm wondering if I should bite the bullet and split out the keyboard from the keyboard TEXT... pfff!
@@ -161,7 +161,8 @@ export default class NumberQuestion extends BaseQuestion {
         this.keypad.setAnswerText('');
 
         // Juice - animate the keypad out
-        const tl = gsap.timeline();
+        this.tl = gsap.timeline();
+        const tl = this.tl;
         tl.to(this.submitButton, {
             y: this.scene.getY(2160),
             duration: 0.5,
@@ -200,10 +201,12 @@ export default class NumberQuestion extends BaseQuestion {
     // Player is added in the dead centre of the line (so currentMin+currentMax/2)
     // Then current player guess is added - currentMin/currentMax adjusted if this player exceed the existing bounds
     // Then all player avatars, including currentPlayer, are re-positioned based on the new currentMin/Max
-    protected revealAnswerUI(): void {
+
+    public createRevealAnswerTimeline(): gsap.core.Timeline {
 
         const tl = this.minimizeQuestionContent();
-
+        this.tl = tl;
+        
         // For this quesiton type we will set answerContainer to 960,549 (logical) as base everything off that
         tl.to(this.answerContainer, {
             y: this.scene.getY(540),
@@ -226,7 +229,7 @@ export default class NumberQuestion extends BaseQuestion {
             width: 1920,
             duration: 0.5,
             ease: 'power2.out'
-        }, "<");
+        }, '<');
 
         // Set up all the variables we need to manage player positioning
         // These are defined at the top since we also need these further down after players have been added
@@ -239,7 +242,7 @@ export default class NumberQuestion extends BaseQuestion {
         let currentSpacing: number = 0;
 
         const tweenAllPlayersToPositions = (subTl: gsap.core.Timeline) => {
-            subTl.add("Label");
+            subTl.add('Label');
             for (const thisSessionID of playersAdded) {
                 const thisPlayer: PhaserPlayer = this.scene.getPlayerBySessionID(thisSessionID) as PhaserPlayer;
                 const thisPlayerResponse = this.questionData.responses ? this.questionData.responses[thisSessionID] : null;
@@ -257,14 +260,14 @@ export default class NumberQuestion extends BaseQuestion {
                     subTl.to(thisPlayer, {
                         x: targetX,
                         duration: 0.5
-                    }, "Label");
+                    }, 'Label');
                     // Also update this playerGuess label (must subtract 960 since answerContainer is centred)
                     const thisPlayerGuessContainer = playerGuesses.get(thisSessionID);
                     if (thisPlayerGuessContainer) {
                         subTl.to(thisPlayerGuessContainer, {
                             x: targetX - 960,
                             duration: 0.5
-                        }, "Label");
+                        }, 'Label');
                     } else {
                         console.log('WARNING - playerGuessContainer not found for sessionID:', thisSessionID);
                     }
@@ -314,17 +317,17 @@ export default class NumberQuestion extends BaseQuestion {
                 subTl.to(player, {
                     y: this.scene.getY(540 - 40),
                     duration: 0.5
-                }, ">");
+                }, '>');
                 // ...and now that player is in position make the guess text visible
                 subTl.add(() => {
                     playerGuess.visible = true;
-                }, ">");
+                }, '>');
                 subTl.to(playerGuessText, {
                     scale: 2,
                     duration: 0.5,
                     repeat: 1,
                     yoyo: true
-                }, ">");
+                }, '>');
             }
             return subTl;
         };
@@ -364,14 +367,14 @@ export default class NumberQuestion extends BaseQuestion {
                 currentSpacing = (xMax - xMin) / (playersAdded.length + 2);
             }
             let finalAnswerX = -960 + gsap.utils.mapRange(currentMin, currentMax, xMin + currentSpacing, xMax - currentSpacing, this.questionData.answer);
-            console.log('NumberQuestion::revealAnswerUI: ', {currentMin, currentMax, xMin, xMax, currentSpacing, finalAnswerX});
+            console.log('NumberQuestion::createRevealAnswerTimeline: ', {currentMin, currentMax, xMin, xMax, currentSpacing, finalAnswerX});
             tl.add('PositionAnswerTick');
             tweenAllPlayersToPositions(tl);
             tl.to(answerTick, {
                 x: finalAnswerX,
                 duration: 0.5,
                 ease: 'power2.inOut'
-            }, "PositionAnswerTick");
+            }, 'PositionAnswerTick');
             tl.add(() => {
                 this.answerText.setText(this.questionData.answer!.toString());
                 // Adjust answer text position to avoid going off screen
@@ -387,7 +390,7 @@ export default class NumberQuestion extends BaseQuestion {
             // We start by animating the players who DIDN'T score any points (if any) to get them out of the way
             const nonScoringPlayers = Object.entries(this.questionData.responses)
                 .filter(([sessionID, response]) => !response.score || response.score === 0);
-            tl.add("RemoveNonScorers");
+            tl.add('RemoveNonScorers');
             nonScoringPlayers.forEach( ([sessionID, response], index) => {
                 const guess: Phaser.GameObjects.Container | undefined = playerGuesses.get(sessionID);
                 if (guess) {
@@ -398,7 +401,7 @@ export default class NumberQuestion extends BaseQuestion {
                         onComplete: () => {
                             guess.destroy();
                         }
-                    }, "RemoveNonScorers");                    
+                    }, 'RemoveNonScorers');                    
                 }
                 const player: PhaserPlayer = this.scene.getPlayerBySessionID(sessionID) as PhaserPlayer;
                 if (player) {
@@ -406,7 +409,7 @@ export default class NumberQuestion extends BaseQuestion {
                         y: this.scene.getY(1080-20),
                         duration: 1.5,
                         ease: 'power2.out'
-                    }, ">");
+                    }, '>');
                 }
             });
 
@@ -420,23 +423,25 @@ export default class NumberQuestion extends BaseQuestion {
                 if (player) {
                     tl.add(() => {
                         player.parentContainer.bringToTop(player);
-                    }, ">");
+                    }, '>');
                     tl.to(player, {
                         scale: 1.5,
                         duration: 1,
                         ease: 'power2.out',
                         repeat: 1,
                         yoyo: true
-                    }, ">");
+                    }, '>');
                     tl.add(() => {
                         player.flashText(`+${response.score}`, '#00ff00');
-                    }, ">");
+                    }, '>');
                 }
             }); 
         }
 
-        tl.play();
+        tl.pause();
+        return tl;
     }
+
 
     // Display visualization for average number question
     // this.questionData.responses is a dictionary with player sessionID as key and their choice as value

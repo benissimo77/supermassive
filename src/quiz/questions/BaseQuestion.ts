@@ -41,6 +41,7 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
     protected questionYouTubePlayer: YouTubePlayerUI;
     protected questionAudioControls: Phaser.GameObjects.Container;
     protected answerContainer: Phaser.GameObjects.Container;
+    protected tl: gsap.core.Timeline;
     private debugContainer: Phaser.GameObjects.Container;
 
     constructor(scene: BaseScene, questionData: BaseQuestionData) {
@@ -204,7 +205,7 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
         }
     }
 
-    // Only 3 PUBLIC functions: initialize, displayHost, displayPlayer
+    // Only 3 PUBLIC functions: initialize, renderHost, renderPlayer
     // PLUS onAnswer to set the callback for answer submission
 
     // Initialize - load/create assets as needed
@@ -259,12 +260,12 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
 
     }
 
-    // displayHost
-    // all question elements have been created - display positions them based on available space
-    public displayHost(): void {
+    // renderHost
+    // all question elements have been created - positions them based on available space
+    public renderHost(): void {
 
         const allocated: { [key: string]: number } = this.calculateLayout();
-        console.log('BaseQuestion::display: calculated layout:', allocated);
+        console.log('BaseQuestion::renderHost: calculated layout:', allocated);
 
         // Since we now have everything allocated it *should* be as simple as positioning the containers...
         const textHeight = allocated['text'] || 0;
@@ -273,7 +274,7 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
         const imageHeight = allocated['image'] || 0;
         const answerHeight = allocated['answers'] || 0;
 
-        console.log('BaseQuestion::displayHost:', this.questionData.mode, this.scene.TYPE, {
+        console.log('BaseQuestion::renderHost:', this.questionData.mode, this.scene.TYPE, {
             answerHeight, textHeight, audioHeight, videoHeight, imageHeight
         });
 
@@ -321,20 +322,20 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
         this.answerContainer.x = 960;
         this.answerContainer.y = this.scene.getY(answerSlotTop);
 
-        // Create answer UI (implemented by subclasses)
-        this.displayAnswerUI(answerHeight);
+        // Position answer content (implemented by subclasses)
+        this.showAnswerContent(answerHeight);
 
-        const graphics:Phaser.GameObjects.Rectangle = this.scene.add.rectangle(0, 0, 25, 25, 0xffff00, 1).setOrigin(0.5);
+        const graphics: Phaser.GameObjects.Rectangle = this.scene.add.rectangle(0, 0, 25, 25, 0xffff00, 1).setOrigin(0.5);
         this.debugContainer.removeAll();
         this.debugContainer.add(graphics);
 
         console.log('Question created:', this.questionData);
     }
 
-    public displayPlayer(): void {
+    public renderPlayer(): void {
         this.answerContainer.x = 960;
         this.answerContainer.y = 0;
-        this.displayAnswerUI(1080);
+        this.showAnswerContent(1080);
     }
 
     /**
@@ -534,7 +535,7 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
         // 2. Shrink and move media elements (Image, Video, Audio)
         // Skip image for hotspot types as the image IS the result area
         const skipImage = (this.questionData.type === 'hotspot' || this.questionData.type === 'point-it-out');
-        
+
         if (this.questionImage && !skipImage) {
             tl.to(this.questionImage, {
                 y: this.scene.getY(180),
@@ -569,18 +570,27 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
     }
 
     /**
-     * Default implementation for showing answer results
-     * Function assumes question is already initialized and displayed - data is in questionData
-     * Remaining task here is to stop audio/video from playing (we are showing the answer now)
+     * prepareAnswerResults
+     * Function called by the scene to trigger the reveal of the answer.
+     * Note: This is now a factory method that returns a timeline instead of playing it.
      */
-    showAnswer(): void {
- 
+    public prepareAnswerResults(): gsap.core.Timeline {
+
         // Let subclasses implement specific answer visualization
-        this.revealAnswerUI();
+        const tl = this.createRevealAnswerTimeline();
+        return tl;
     }
 
-    // Called by QuizHost when question finished with
-    destroy(fromScene?: boolean): void {
+/**
+    * Abstract method - each question type implements its specific content 
+    */
+    protected abstract createAnswerUI(): void;
+    protected abstract showAnswerContent(height: number): void;
+    public abstract createRevealAnswerTimeline(): gsap.core.Timeline;
+    protected abstract makeInteractive(): void;
+    protected abstract makeNonInteractive(): void;
+
+    public destroy(fromScene?: boolean): void {
         console.log('BaseQuestion:: destroy:', this.questionData.id);
         const playerUI = YouTubePlayerUI.getInstance(this.scene);
         playerUI.stopVideo();
@@ -591,17 +601,11 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
             this.questionVideo.stop();
         }
 
+        if (this.tl) {
+            this.tl.kill();
+        }
         super.destroy(fromScene);
     }
-
-     /**
-     * Abstract method - each question type implements its specific content
-     */
-    protected abstract createAnswerUI(): void;
-    protected abstract displayAnswerUI(height: number): void;
-    protected abstract revealAnswerUI(): void;
-    protected abstract makeInteractive(): void;
-    protected abstract makeNonInteractive(): void;
 
     // I think this can be removed...
     protected createTextureFromBase64XXX(key: string, base64: string): void {

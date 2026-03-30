@@ -76,9 +76,9 @@ export default class TextQuestion extends BaseQuestion {
     }
 
 
-    protected displayAnswerUI(answerHeight: number): void {
+    protected showAnswerContent(answerHeight: number): void {
 
-        console.log('TextQuestion::displayAnswerUI:', this.questionData.mode, this.scene.TYPE, answerHeight, this.scene.getScaleFactor(), answerHeight * this.scene.getScaleFactor());
+        console.log('TextQuestion::showAnswerContent:', this.questionData.mode, this.scene.TYPE, answerHeight, this.scene.getScaleFactor(), answerHeight * this.scene.getScaleFactor());
 
         // Create answer options - answerHeight is total amount of space available but we must allow some padding top and bottom
         // ASK MODE:
@@ -128,7 +128,7 @@ export default class TextQuestion extends BaseQuestion {
             // We want to move keyboard to the bottom of the screen, so use its own height to identify how much further to move it
             this.keyboard.setScale(1);
             const keyboardHeight: number = this.keyboard.getBounds().height;
-            this.scene.socket?.emit('consolelog', `NumberQuestion::displayAnswerUI: scaleFactor=${scaleFactor} answerHeight=${answerHeight - 40} (${this.scene.getY(answerHeight - 40)}) keyboardHeight=${keyboardHeight} keyboardWidth=${this.keyboard.getBounds().width}`);
+            this.scene.socket?.emit('consolelog', `TextQuestion::showAnswerContent: scaleFactor=${scaleFactor} answerHeight=${answerHeight - 40} (${this.scene.getY(answerHeight - 40)}) keyboardHeight=${keyboardHeight} keyboardWidth=${this.keyboard.getBounds().width}`);
 
             // if not enough space then scale keyboard down
             if (keyboardHeight > this.scene.getY(answerHeight) - 40) {
@@ -235,11 +235,17 @@ export default class TextQuestion extends BaseQuestion {
         tl.play();
     }
 
-    protected revealAnswerUI(): void {
+    public createRevealAnswerTimeline(): gsap.core.Timeline {
+        const tl = gsap.timeline();
+        this.tl = tl;
         if (this.questionData.answer) {
-            const answerText = this.questionData.answer.toString();
-            this.answerText.setText(answerText);
+            tl.add(() => {
+                const answerText = this.questionData.answer!.toString();
+                this.answerText.setText(answerText);
+            });
         }
+        tl.pause();
+        return tl;
     }
 
     // Note that destroy can be called from HOST or PLAYER screen so must consider both paths

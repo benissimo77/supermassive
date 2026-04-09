@@ -3,6 +3,7 @@ import { BaseScene } from "src/BaseScene";
 import { BaseQuestion } from "./BaseQuestion";
 import { NineSliceButton } from "src/ui/NineSliceButton";
 import { HotspotQuestionData } from "./QuestionTypes";
+import { PhaserPlayer } from "../PhaserPlayer";
 
 type Coordinate = {
 	x: number;
@@ -62,6 +63,7 @@ export default class HotspotQuestion extends BaseQuestion {
 	private crosshair: Phaser.GameObjects.Image;
 	private crosshairPos: Coordinate | null = null;
 	private submitButton: NineSliceButton;
+	private hitZone:Phaser.GameObjects.Zone;
 
 	// Zoom/Pan state
 	private minScale: number = 0.75;
@@ -93,6 +95,8 @@ export default class HotspotQuestion extends BaseQuestion {
 		//     console.log('HotspotQuestion::createAnswerUI: Host mode - no answer UI needed');
 		//     return;
 		// }
+
+		this.hitZone = this.scene.add.zone(960, this.scene.getY(540), 1920, this.scene.getY(1080));
 
 		if (!this.questionData.image) {
 			console.warn('HotspotQuestion::createAnswerUI: No image provided in question data');
@@ -206,17 +210,20 @@ export default class HotspotQuestion extends BaseQuestion {
 		console.log('HotspotQuestion::makeInteractive:',);
 
 		// Make image interactive for tap-to-place-crosshair
-		this.answerImage.setInteractive({ draggable: false });
-		this.answerImage.on('pointerup', this.handlePointerUp, this);
-		this.answerImage.on('pointerdown', this.handlePointerDown, this);
-		this.answerImage.on('pointermove', this.handlePointerMove, this);
+		this.hitZone.setInteractive({ draggable: false });
+		this.hitZone.on('pointerup', this.handlePointerUp, this);
+		this.hitZone.on('pointerdown', this.handlePointerDown, this);
+		this.hitZone.on('pointermove', this.handlePointerMove, this);
+
+		this.hitZone.on('pointerupoutside', this.handlePointerUp, this); // Finger released outside the image
+		this.hitZone.on('pointercancel', this.handlePointerUp, this);    // OS intercepted the touch
 
 		// Add drag handlers for panning image - these are global to the scene
 		// this.answerImage.on('drag', this.handleDragMove, this);
 		// this.answerImage.on('dragend', this.handleDragEnd, this);
 
 		// Add mouse wheel zoom (pinch-to-zoom TODO later)
-		this.answerImage.on('wheel', this.handleMouseWheel, this);
+		this.hitZone.on('wheel', this.handleMouseWheel, this);
 
 		// Add scene level pointer event for multi-touch zoom (pinch)
 		// this.answerImage.on('pointerdown', this.handleZoomStart, this);
@@ -240,8 +247,8 @@ export default class HotspotQuestion extends BaseQuestion {
 		}
 
 		// Remove image handlers
-		this.answerImage.disableInteractive();
-		this.answerImage.removeAllListeners();
+		this.hitZone.disableInteractive();
+		this.hitZone.removeAllListeners();
 
 		// Remove submit button handlers
 		this.submitButton.disableInteractive();
@@ -258,15 +265,15 @@ export default class HotspotQuestion extends BaseQuestion {
 	}
 
 	private handlePointerDown(pointer: Phaser.Input.Pointer): void {
-		this.scene.socket?.emit('consolelog', 'HotspotQuestion::handlePointerDown: Pointer down: ' + pointer.id + ' : ' + pointer.x + ',' + pointer.y);
+		this.scene.socket?.emit('consolelog', 'HotspotQuestion::handlePointerDown: Pointer down: ' + pointer.id + ' : ' + pointer.x + ',' + pointer.y+ ' Coords: ' + this.pointerCoords[1] + ',' + this.pointerCoords[2]);
 		this.pointerCoords[pointer.id] = this.getPointerData(pointer);
 		this.resetDrag();
 	}
 
 	private handlePointerMove(pointer: Phaser.Input.Pointer): void {
 
-		// this.scene.socket?.emit('consolelog', 'HotspotQuestion::handlePointerMove: Pointer move at ' + pointer.id + ' : ' + this.pointerCoords[1] + ',' + this.pointerCoords[2]);
-		
+		this.scene.socket?.emit('consolelog', 'HotspotQuestion::handlePointerMove: Pointer move at ' + pointer.id + ' : ' + this.pointerCoords[1] + ',' + this.pointerCoords[2]);
+
 		// For cases when player is on laptop we must have a mouse down
 		// isDown always true for touch so works for laptops and mobile devices
 		if (!pointer.isDown) {
@@ -276,37 +283,95 @@ export default class HotspotQuestion extends BaseQuestion {
 		// Update the current pointer to get latest position
 		this.pointerCoords[pointer.id].x = pointer.x;
 		this.pointerCoords[pointer.id].y = pointer.y;
-		
-		// Check if we might be zooming (both pointers down)
-		if (this.pointerCoords[1] && this.pointerCoords[2]) {
 
-			const originalDistance: number = Phaser.Math.Distance.Between(
-				this.pointerCoords[1].downX,
-				this.pointerCoords[1].downY,
-				this.pointerCoords[2].downX,
-				this.pointerCoords[2].downY
-			);
-			const currentDistance: number = Phaser.Math.Distance.Between(
-				this.pointerCoords[1].x,
-				this.pointerCoords[1].y,
-				this.pointerCoords[2].x,
-				this.pointerCoords[2].y
-			);
-			const zoomFactor = (currentDistance - originalDistance) / originalDistance + 1;
-			this.currentScale = Phaser.Math.Clamp(this.currentTransform.scale * zoomFactor, this.minScale, this.maxScale);
-			this.hotspotContainer.setScale(this.currentScale);
+		const activePointers = Object.values(this.pointerCoords);
+		const cameraZoom = this.scene.cameras.main.zoom; // The missing link!
+
+		if (activePointers.length === 1) {
+			// 1. PAN ONLY
+			const p1 = activePointers[0];
+
+			// Divide the screen movement by the camera zoom to get the true world movement
+			this.hotspotContainer.x = this.currentTransform.x + ((p1.x - p1.downX) / cameraZoom);
+			this.hotspotContainer.y = this.currentTransform.y + ((p1.y - p1.downY) / cameraZoom);
+
+		} else if (activePointers.length >= 2) {
+			// 2. PAN + ZOOM (Two Fingers)
+			const p1 = activePointers[0];
+			const p2 = activePointers[1];
+
+			const startMidX = (p1.downX + p2.downX) / 2;
+			const startMidY = (p1.downY + p2.downY) / 2;
+			const currentMidX = (p1.x + p2.x) / 2;
+			const currentMidY = (p1.y + p2.y) / 2;
+
+			// Calculate new scale
+			const startDist = Phaser.Math.Distance.Between(p1.downX, p1.downY, p2.downX, p2.downY);
+			const currentDist = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
+
+			let newScale = this.currentTransform.scale;
+			if (startDist > 10) {
+				newScale *= (currentDist / startDist);
+				newScale = Phaser.Math.Clamp(newScale, this.minScale, this.maxScale);
+			}
+			this.hotspotContainer.setScale(newScale);
+
+			// -- THE WORLD VECTOR MATH --
+
+			// A. Get exact absolute world coordinates for our fingers
+			const worldStartMid = this.scene.cameras.main.getWorldPoint(startMidX, startMidY);
+			const worldCurrentMid = this.scene.cameras.main.getWorldPoint(currentMidX, currentMidY);
+
+			// B. Calculate vector from the container's center to the pinch point
+			// Because both are World Coordinates, we never mix up spaces!
+			const vecX = worldStartMid.x - (this.currentTransform as any).worldOriginX;
+			const vecY = worldStartMid.y - (this.currentTransform as any).worldOriginY;
+
+			// C. How much did the scale change?
+			const scaleRatio = newScale / this.currentTransform.scale;
+
+			// D. When scale increases, the image visually slides outward by this amount
+			const slideX = vecX * (scaleRatio - 1);
+			const slideY = vecY * (scaleRatio - 1);
+
+			// E. How far did the physical fingers drag across the screen?
+			const panX = worldCurrentMid.x - worldStartMid.x;
+			const panY = worldCurrentMid.y - worldStartMid.y;
+
+			// F. Final Position = Start State + Finger Drag - Visual Scale Slide
+			this.hotspotContainer.x = this.currentTransform.x + panX - slideX;
+			this.hotspotContainer.y = this.currentTransform.y + panY - slideY;
+		}
+		// Check if we might be zooming (both pointers down)
+		// if (this.pointerCoords[1] && this.pointerCoords[2]) {
+
+		// 	const originalDistance: number = Phaser.Math.Distance.Between(
+		// 		this.pointerCoords[1].downX,
+		// 		this.pointerCoords[1].downY,
+		// 		this.pointerCoords[2].downX,
+		// 		this.pointerCoords[2].downY
+		// 	);
+		// 	const currentDistance: number = Phaser.Math.Distance.Between(
+		// 		this.pointerCoords[1].x,
+		// 		this.pointerCoords[1].y,
+		// 		this.pointerCoords[2].x,
+		// 		this.pointerCoords[2].y
+		// 	);
+		// 	const zoomFactor = (currentDistance - originalDistance) / originalDistance + 1;
+		// 	this.currentScale = Phaser.Math.Clamp(this.currentTransform.scale * zoomFactor, this.minScale, this.maxScale);
+		// 	this.hotspotContainer.setScale(this.currentScale);
 
 			// Adjust the position of hotspotContainer to ensure that the midpoint between the two pointers remains consistent
-			this.hotspotContainer.x = this.currentTransform.x + this.hotspotContainer.scale * ((this.pointerCoords[1].x + this.pointerCoords[2].x) / 2 - (this.pointerCoords[1].downX + this.pointerCoords[2].downX) / 2);
-			this.hotspotContainer.y = this.currentTransform.y + this.hotspotContainer.scale * ((this.pointerCoords[1].y + this.pointerCoords[2].y) / 2 - (this.pointerCoords[1].downY + this.pointerCoords[2].downY) / 2);
+			// this.hotspotContainer.x = this.currentTransform.x + this.hotspotContainer.scale * ((this.pointerCoords[1].x + this.pointerCoords[2].x) / 2 - (this.pointerCoords[1].downX + this.pointerCoords[2].downX) / 2);
+			// this.hotspotContainer.y = this.currentTransform.y + this.hotspotContainer.scale * ((this.pointerCoords[1].y + this.pointerCoords[2].y) / 2 - (this.pointerCoords[1].downY + this.pointerCoords[2].downY) / 2);
 
-		} else {
+		// } else {
 
-			// See if a basic drag will work with simply a move by the pointer difference
-			const thisPointer = this.pointerCoords[pointer.id];
-			this.hotspotContainer.x = this.currentTransform.x + this.hotspotContainer.scale * (thisPointer.x - thisPointer.downX);
-			this.hotspotContainer.y = this.currentTransform.y + this.hotspotContainer.scale * (thisPointer.y - thisPointer.downY);
-		}
+		// 	// See if a basic drag will work with simply a move by the pointer difference
+		// 	const thisPointer = this.pointerCoords[pointer.id];
+		// 	this.hotspotContainer.x = this.currentTransform.x + this.currentTransform.scale * (thisPointer.x - thisPointer.downX);
+		// 	this.hotspotContainer.y = this.currentTransform.y + this.currentTransform.scale * (thisPointer.y - thisPointer.downY);
+		// }
 			
 	}
 
@@ -338,22 +403,22 @@ export default class HotspotQuestion extends BaseQuestion {
 		}
 	}
 
-	private resetDrag(): void {
-		this.currentTransform = {
-			x: this.hotspotContainer.x,
-			y: this.hotspotContainer.y,
-			scale: this.hotspotContainer.scale
-		};
-		if (this.pointerCoords[1]) {
-			this.pointerCoords[1].downX = this.pointerCoords[1].x;
-			this.pointerCoords[1].downY = this.pointerCoords[1].y;
-		}
-		if (this.pointerCoords[2]) {
-			this.pointerCoords[2].downX = this.pointerCoords[2].x;
-			this.pointerCoords[2].downY = this.pointerCoords[2].y;
-		}
-	}
+private resetDrag(): void {
+    const matrix = this.hotspotContainer.getWorldTransformMatrix();
+    this.currentTransform = {
+        x: this.hotspotContainer.x,
+        y: this.hotspotContainer.y,
+        scale: this.hotspotContainer.scale,
+        worldOriginX: matrix.tx, // Snapshot the absolute world center
+        worldOriginY: matrix.ty
+    } as any; // Cast as any just in case you don't want to update your Transform type definition at the top
 
+    // Update the origin for ALL currently active pointers
+    Object.values(this.pointerCoords).forEach(ptr => {
+        ptr.downX = ptr.x;
+        ptr.downY = ptr.y;
+    });
+}
 
 
 	/**
@@ -448,11 +513,91 @@ export default class HotspotQuestion extends BaseQuestion {
 	}
 
 	public createRevealAnswerTimeline(): gsap.core.Timeline {
+
+		// Slight tweak to regular pattern - we create a blank timeline and add the minimise content a bit later in the sequence
 		const tl = this.minimizeQuestionContent();
 		this.tl = tl;
 
-		const allocated = this.calculateLayout();
-		const answerHeight = allocated['answers'] || 0;
+		// Mark all the guesses made by the players ONE BY ONE first
+        if (this.questionData.responses) {
+            const playerEntries = Object.entries(this.questionData.responses);
+
+			// 1. Move ALL players to the top of the screen (y = 120), retaining their X positions
+			tl.addLabel('MoveAllUp', 0);
+			for (const [sessionID] of playerEntries) {
+				const player: PhaserPlayer = this.scene.getPlayerBySessionID(String(sessionID));
+				if (player) {
+					// tl.to(player, {
+					// 	y: this.scene.getY(120),
+					// 	duration: 0.1, // Super fast pre-animation
+					// 	ease: 'bounce.out'
+					// }, 'MoveAllUp');
+					player.setY(this.scene.getY(120));
+				}
+			}
+
+			tl.addLabel('AnimatePlayers', '>+0.3'); // Start animating players after a brief pause
+			for (const [sessionID, playerAnswer] of playerEntries) {
+                const answer = playerAnswer.answer;
+				const player: PhaserPlayer = this.scene.getPlayerBySessionID(String(sessionID));
+
+                if (answer && answer.x !== undefined && answer.y !== undefined && player) {
+					
+					// 2. Swoop the active player to the centre of the screen smoothly
+					tl.to(player, {
+						x: 960,
+						y: this.scene.getY(540),
+						scale: 1.2,
+						duration: 0.6,
+						ease: 'power2.inOut'
+					}, '>');
+
+					// 3. Very brief hang time, then smoothly accelerate directly downwards
+					tl.to(player, {
+						y: this.scene.getY(1080) - 60,
+						duration: 0.6,
+						ease: 'power2.inOut'
+					}, '>');
+
+					// Pre-calculate crosshair position so we can use its worldX
+                    const guessCrosshair = this.addCrosshairAtNormalizedPosition(this.answerImage, answer.x, answer.y);
+					guessCrosshair.setTint(0xFF0000);
+                    const finalScale = guessCrosshair.scale * 0.8;
+					
+					// Make it invisible to start with
+					guessCrosshair.setAlpha(0);
+					guessCrosshair.setScale(finalScale * 12); // Start huge
+
+					// 4. Slide avatar left/right to align with crosshair X position
+					// By overlapping this with the downward movement (-0.2s), the player curves gracefully into the corner rather than moving in rigid L-shapes
+					const worldX = guessCrosshair.getWorldTransformMatrix().getX(0, 0);
+					tl.to(player, {
+						x: worldX,
+						scale: 1,
+						duration: 0.6,
+						ease: 'power2.inOut'
+					}, '>-0.2');
+
+					// 5. Crosshair appears. "Falling" effect that shrinks slowly, speeds up, and bounces at the end
+					// For PointItOut make this animation quicker its less relevant they either got it or they didn't...
+					let duration = 1.6;
+					if (this.questionData.type === 'point-it-out') {
+						duration = 0.4;
+					}
+                    tl.to(guessCrosshair, { 
+						alpha: 1, 
+						scale: finalScale, 
+						duration: duration, 
+						ease: 'bounce.out' 
+					}, '>');
+					// Short pause before next player
+					tl.set({}, {}, '>+0.2');
+                }
+            }
+        }
+
+		// FINALLY, REVEAL CORRECT ANSWER AFTER ALL PLAYERS
+		tl.addLabel('ShowCorrectAnswer', '>+0.3');
 
 		// HOTSPOT: display the crosshair at the answer position
 		// POINT-IT-OUT: display a rectangle at the answer position
@@ -461,13 +606,17 @@ export default class HotspotQuestion extends BaseQuestion {
 			const correctCrosshair = this.addCrosshairAtNormalizedPosition(this.answerImage, this.crosshairPos.x, this.crosshairPos.y);
 			correctCrosshair.setTint(0x00FF00);
 			
-			// Animate crosshair scale (pulse effect) using the timeline
-			tl.set(correctCrosshair, { scale: correctCrosshair.scale * 3 }, '>');
+			// Animate crosshair scale (simulate falling using bounce)
+			correctCrosshair.setAlpha(0);
+			const targetScale = correctCrosshair.scale;
+			correctCrosshair.setScale(targetScale * 12); // Start huge
+
 			tl.to(correctCrosshair, {
-				scale: correctCrosshair.scale,
-				duration: 0.8,
-				ease: 'elastic.out(1, 0.5)'
-			}, '>');
+				alpha: 1,
+				scale: targetScale,
+				duration: 1.5,
+				ease: 'bounce.out'
+			}, 'ShowCorrectAnswer');
 
 		} else {
 			console.log('Point-It-Out showResults:', this.questionData.answer);
@@ -476,33 +625,34 @@ export default class HotspotQuestion extends BaseQuestion {
 				y: (this.questionData.answer.start.y + this.questionData.answer.end.y) / 2
 			};
 			const rect = this.addRectangleAtNormalizedPosition(this.answerImage, this.questionData.answer);
-			tl.from(rect, { alpha: 0, duration: 0.5 }, '>');
+			tl.from(rect, { 
+                alpha: 0, 
+                duration: 0.5, 
+                ease: 'none' 
+            }, 'ShowCorrectAnswer');
 		}
 
-		// Mark all the guesses made by the players
-        if ((this.questionData as any).responses) {
-            Object.entries((this.questionData as any).responses as Record<string, any>).forEach(([sessionID, result]) => {
-                const answer = result.answer;
-                if (answer && answer.x !== undefined && answer.y !== undefined) {
-                    const guessCrosshair = this.addCrosshairAtNormalizedPosition(this.answerImage, answer.x, answer.y);
-					guessCrosshair.setTint(0xFF0000);
-                    tl.from(guessCrosshair, { alpha: 0, scale: 0, duration: 0.3 }, '<');
-                    const originalScale = guessCrosshair.scale;
-                    guessCrosshair.setScale(originalScale * 0.8);
-
-					// See if its relatively easy to tween the player to align wiht the crosshair but at the bottom of the screen
-					const player: Phaser.GameObjects.Container = this.scene.getPlayerBySessionID(String(sessionID));
-					if (player) {
-						const worldX = guessCrosshair.getWorldTransformMatrix().getX(0, 0);
-						tl.to(player, {
-							x: worldX,
-							y: this.scene.getY(1080) - 60,
-							duration: 0.6,
-							ease: 'power2.out'
-						});
-					}
+        if (this.questionData.responses) {
+            // Add flashText to players who provided a response
+            // Rely on the score field sent from server as this is our source of truth
+            tl.addLabel('ShowScores', '>+0.5');
+			for (const [sessionID, playerAnswer] of Object.entries(this.questionData.responses)) {
+				const player: PhaserPlayer = this.scene.getPlayerBySessionID(String(sessionID));
+				if (player) {
+                    if (playerAnswer.snoozed) {
+                        tl.add(() => { player.flashText('Z', '#ff0000'); }, 'ShowScores');
+                        tl.add(() => { player.flashText('Z', '#ff0000'); }, 'ShowScores+=0.5');
+                        tl.add(() => { player.flashText('Z', '#ff0000'); }, 'ShowScores+=1.0');
+                        tl.add(() => { player.flashText('Z', '#ff0000'); }, 'ShowScores+=1.5');
+                    } else {
+                        tl.add(() => {
+                            player.flashText(playerAnswer.score, '#00ff00');
+                        }, 'ShowScores');
+                    }
                 }
-            });
+            }
+
+			
         }
 
 		tl.pause();
@@ -557,6 +707,9 @@ export default class HotspotQuestion extends BaseQuestion {
 		console.log('HotspotQuestion::destroy');
 		if (this.scene) {
 			this.makeNonInteractive();
+		}
+		if (this.hitZone) {
+			this.hitZone.destroy();
 		}
 		super.destroy();
 	}

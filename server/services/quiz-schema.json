@@ -370,6 +370,13 @@
 									"type": "string"
 								}
 							},
+							"itemImages": {
+								"type": "array",
+								"items": {
+									"type": "string"
+								},
+								"description": "Optional array of image URLs mapped 1-to-1 with the items array"
+							},
 							"extra": {
 								"type": "object",
 								"required": [

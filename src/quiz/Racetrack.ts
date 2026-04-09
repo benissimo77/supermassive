@@ -350,8 +350,20 @@ export class Racetrack extends Phaser.GameObjects.Container {
         return tl;
     }
 
-
+    // calculatePlayerPositions
+    // The basics of this function are simple: divide the total available space by the number of players
+    // This gives a set of 'lanes' that players run in - they are then centred in their own lane
+    // One extra adjustment: allow 30 pixels at the top for the track marker ticks
     private calculatePlayerPositions(playerCount: number, totalSpace: number, align: string = 'top', distribute: boolean = false): [number, number] {
+
+        const startY:number = 30;
+        const laneHeight = (totalSpace - startY) / Math.max(playerCount, 1);
+
+        return [startY + laneHeight/2, laneHeight];
+    }
+
+    // And this the original for reference...
+    private calculatePlayerPositionsORIG(playerCount: number, totalSpace: number, align: string = 'top', distribute: boolean = false): [number, number] {
         const centreLine = totalSpace / 2;
         let elementSpacing = totalSpace / Math.max(playerCount, 1);
 
@@ -361,7 +373,7 @@ export class Racetrack extends Phaser.GameObjects.Container {
 
         let elementStart = centreLine - elementSpacing * (playerCount - 1) / 2;
         if (align === 'top') {
-            elementStart = 0;
+            elementStart = 60;
         } else if (align === 'bottom') {
             elementStart = totalSpace - elementSpacing * (playerCount - 1);
         }

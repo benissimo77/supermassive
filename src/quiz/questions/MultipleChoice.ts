@@ -121,8 +121,11 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
                 playerOptions[option] = playersForThisOption;
             }
 
-            // Since answerContainer.y is in real pixels then we keep buttonHeight the same (no need to getY later) 
-            const buttonHeight = (this.scene.getY(1080) - this.answerContainer.y) / this.questionData.optionsShuffled.length;
+            // Fetch the guaranteed future Y position from BaseQuestion instead of current un-tweened Y
+            const futureAnswerY = this.getTargetAnswerContainerY();
+
+            // Since futureAnswerY is in real pixels then we keep buttonHeight the same (no need to getY later) 
+            const buttonHeight = (this.scene.getY(1080) - futureAnswerY) / this.questionData.optionsShuffled.length;
             const answerX = -480;
             tl.addLabel('PositionButtons');
             this.questionData.optionsShuffled.forEach((option: string, optionIndex: number) => {
@@ -140,7 +143,7 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
 
             // Now repeat the above loop in order to position player avatars
             const avatarX = 960;
-            const avatarY: number = this.answerContainer.y;
+            const avatarY: number = futureAnswerY;
             tl.addLabel('PositionPlayers', '>+0.5');
             this.questionData.optionsShuffled.forEach((option: string, optionIndex: number) => {
                 const button = this.buttons.get(option);
@@ -150,7 +153,7 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
                     const numPlayersForOption = playerOptions[option].length;
                     const avatarSpacing:number = Math.min(200, 960 / numPlayersForOption);
                     playerOptions[option].forEach((sessionID, playerIndex) => {
-                        const player: Phaser.GameObjects.Container = this.scene.getPlayerBySessionID(String(sessionID));
+                        const player: PhaserPlayer = this.scene.getPlayerBySessionID(String(sessionID)) as PhaserPlayer;
                         if (player) {
                             tl.add(() => {
                                 player.parentContainer.bringToTop(player);

@@ -3,10 +3,10 @@ import { BaseScene } from 'src/BaseScene';
 
 export class NineSliceButton extends Phaser.GameObjects.Container {
     declare public scene: BaseScene;
-    private normalSlice: Phaser.GameObjects.NineSlice;
-    private hoverSlice: Phaser.GameObjects.NineSlice;
-    private text: Phaser.GameObjects.Text;
-    private buttonScale: number = 1;
+    protected normalSlice: Phaser.GameObjects.NineSlice;
+    protected hoverSlice: Phaser.GameObjects.NineSlice;
+    protected text: Phaser.GameObjects.Text;
+    protected buttonScale: number = 1;
 
     constructor(scene: BaseScene, text: string, styleOverride: any = {}) {
 
@@ -166,7 +166,7 @@ export class NineSliceButton extends Phaser.GameObjects.Container {
         }
 
     }
-    private adjustTextSize(targetHeight: number): void {
+    protected adjustTextSize(targetHeight: number): void {
         // Avoid infinite loop - always end if we go below a certain size
         if (targetHeight < 8) {
             console.warn('NineSliceButton::adjustTextSize: minimum text size reached');

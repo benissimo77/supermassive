@@ -281,6 +281,7 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
         // Position question text at center of text slot
         if (this.questionText) {
             this.questionText.setPosition(960, this.scene.getY(textHeight / 2));
+            
         }
 
         // Position audio controls at center of audio slot
@@ -515,51 +516,72 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
     protected abstract getAnswerUIWidth(): number;
 
     /**
+     * Computes the predictable target Y position that the answerContainer will occupy 
+     * after minimizeQuestionContent finishes. Subclasses should use this in their 
+     * createRevealAnswerTimeline implementations instead of inspecting this.answerContainer.y 
+     * since the timelines are built before the shrink tween actually modifies the objects.
+     */
+    protected getTargetAnswerContainerY(): number {
+        const currentY = this.answerContainer.y;
+        if (currentY === 0) return 0; // Player view or already at top
+
+        const targetHeaderHeight = 240; 
+        const targetY = this.scene.getY(targetHeaderHeight);
+        const scaleRatio = Math.min(1, targetY / currentY);
+
+        return currentY * scaleRatio;
+    }
+
+    /**
      * Shrinks and repositions core question elements to the top of the screen.
-     * This clears space for player results/avatars during the reveal phase.
+     * This cleanly scales the entire question cluster to guarantee space for player results during the reveal phase.
      */
     protected minimizeQuestionContent(): gsap.core.Timeline {
-        const tl = gsap.timeline({ paused: true });
+        const tl = gsap.timeline();
         const duration = 0.8;
         const ease = "power2.out";
 
-        // 1. Shrink and move question text
-        if (this.questionText) {
-            tl.to(this.questionText, {
-                y: this.scene.getY(80),
-                scale: 0.6,
-                duration, ease
+        // Determine how much space we want to reserve for the "header" (the shrunk question elements)
+        const targetHeaderHeight = 240; 
+        const targetY = this.scene.getY(targetHeaderHeight);
+        
+        // the original total allocated space for the question before answers start
+        const currentY = this.answerContainer.y;
+        
+        if (currentY === 0) return tl; // Player view or already top
+
+        // Calculate scaling ratio - shrink the question strictly proportionally, but do not bloat it if it matches/is smaller
+        const scaleRatio = Math.min(1, targetY / currentY);
+
+        // 1. Uniformly shrink and shift upward all media/text elements
+        const elementsToShrink = [
+            { obj: this.questionText, skipTypes: [] }, 
+            // Skip image for hotspot types as the image IS the result area
+            { obj: this.questionImage, skipTypes: ['hotspot', 'point-it-out'] },
+            { obj: this.questionVideo, skipTypes: [] },
+            { obj: this.questionAudioControls, skipTypes: [] }
+        ];
+
+        elementsToShrink.forEach(item => {
+            if (!item.obj) return;
+            if (item.skipTypes.includes(this.questionData.type)) return;
+
+            tl.to(item.obj, {
+                y: item.obj.y * scaleRatio,
+                scale: item.obj.scale * scaleRatio,
+                duration, 
+                ease
             }, 0);
-        }
+        });
 
-        // 2. Shrink and move media elements (Image, Video, Audio)
-        // Skip image for hotspot types as the image IS the result area
-        const skipImage = (this.questionData.type === 'hotspot' || this.questionData.type === 'point-it-out');
+        // 2. Slide the answer container up to directly tuck exactly underneath the minimized components
+        tl.to(this.answerContainer, {
+            y: targetY,
+            duration,
+            ease
+        }, 0);
 
-        if (this.questionImage && !skipImage) {
-            tl.to(this.questionImage, {
-                y: this.scene.getY(180),
-                scale: this.questionImage.scale * 0.4,
-                duration, ease
-            }, 0);
-        }
-
-        if (this.questionVideo) {
-            tl.to(this.questionVideo, {
-                y: this.scene.getY(180),
-                scale: this.questionVideo.scale * 0.4,
-                duration, ease
-            }, 0);
-        }
-
-        if (this.questionAudioControls) {
-            tl.to(this.questionAudioControls, {
-                y: this.scene.getY(180),
-                scale: 0.6,
-                duration, ease
-            }, 0);
-        }
-
+        console.log('BaseQuestion:: minimizeQuestionContent: currentY:', currentY, 'targetY:', targetY, 'scaleRatio:', scaleRatio);
         // YouTube is special (DOM based) - just hide it for now
         if (this.questionYouTubePlayer) {
             this.questionYouTubePlayer.stopVideo();

@@ -15,6 +15,17 @@ const questionSchema = new mongoose.Schema({
     video: { type: String },
     options: [{ type: String }],
     items: [{ type: String }],
+    itemImages: {
+        type: [{ type: String }],
+        validate: {
+            validator: function (imagesArray) {
+                if (imagesArray.length === 0) return true;
+                if (!this.items || imagesArray.length !== this.items.length) return false;
+                return imagesArray.every(url => typeof url === 'string' && url.trim().length > 0);
+            },
+            message: 'All items must have images, or you must remove all images.'
+        }
+    },
     pairs: [matchingPairSchema], // Array of matching pairs without _id
     extra: { type: mongoose.Schema.Types.Mixed },   // Misc extra data eg labels for ordering
     answer: { type: mongoose.Schema.Types.Mixed },

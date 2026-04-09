@@ -11,7 +11,7 @@ export class QuizPlayScene extends BaseScene {
 
     static readonly KEY = 'QuizPlayScene';
 
-    private currentQuestion: BaseQuestion;
+    private currentQuestion: any;
     private currentQuestionNumber: number = -1;
     private questionFactory: QuestionFactory;
     private waitingState: Boolean = false;
@@ -111,6 +111,38 @@ export class QuizPlayScene extends BaseScene {
 
         // Setup socket listeners
         this.setupSocketListeners();
+
+        // TESTING - add a DOMElement to handle input
+        // const formElement = this.add.dom(400, 300).createFromHTML(`
+        //     <form id="myForm" style="text-align: center;">
+        //         <input type="text" name="userInput" placeholder="Type here..."
+        //                style="font-size: 20px; padding: 5px; width: 200px;" />
+        //         <br><br>
+        //         <button type="submit" style="font-size: 18px; padding: 5px 15px;">
+        //             Submit
+        //         </button>
+        //     </form>
+        // `);
+
+        // // Access the real HTML form and input
+        // const realForm = formElement.node;
+        // const inputNode = realForm.querySelector('input[name="userInput"]');
+
+        // // Attach native submit handler
+        // realForm.addEventListener('submit', (event) => {
+        //     event.preventDefault();
+        //     if (inputNode.value.trim() !== '') {
+        //         console.log('Submitted:', inputNode.value);
+        //         inputNode.value = '';
+        //     }
+        //     this.socket.emit('consolelog', { message: 'Player submitted the form!' });
+        // });
+
+        // // Ensure tapping the input focuses it (mobile keyboard)
+        // inputNode.addEventListener('touchend', () => {
+        //     inputNode.focus(); // iOS will now show keyboard
+        //     this.socket.emit('consolelog', { message: 'Player tapped the input!' });
+        // });    
     }
 
 
@@ -246,7 +278,7 @@ export class QuizPlayScene extends BaseScene {
 
         // Question over - clear the screen
         // Note: we DON'T destroy the question since it might still be animating etc - just hide it
-        this.socket.on('server:action:endquestion', (data) => {
+        this.socket.on('server:endquestion', (data) => {
             console.log('QuizPlayScene:: server:endquestion - UI invisible:', data);
             this.UIContainer.setVisible(false);
             if (this.currentQuestion) {
@@ -282,7 +314,7 @@ export class QuizPlayScene extends BaseScene {
     // Waiting message displays, player is animated around the screen
     // Note: we need to check if answerSubmitted in case this function is called while a new question is added
     private gotoWaitingState(message: string = 'Waiting for next question...'): void {
-        
+
         // If we are no longer waiting (often in the time between delayed calls) then exit
         if (this.waitingState === false) {
             return
@@ -448,7 +480,7 @@ export class QuizPlayScene extends BaseScene {
         // e.g. { 'abc123': 10, 'def456': 0, ... }
         // pull out the correct key and retrieve the score for this player
         if (questionData.scores) {
-            let playerScore:number = 0;
+            let playerScore: number = 0;
             playerScore = questionData.scores[this.phaserPlayer.getSessionID()] || 0;
             if (playerScore) {
                 console.log(`Player score for this question: ${playerScore}`);
@@ -659,7 +691,7 @@ export class QuizPlayScene extends BaseScene {
                 lineSpacing: 4
             }
         ).setOrigin(0.5)
-        .setWordWrapWidth(960);
+            .setWordWrapWidth(960);
 
         const signupBtn = this.add.text(
             1520,
@@ -709,11 +741,11 @@ export class QuizPlayScene extends BaseScene {
             const totalScale = scale * 1.5;
             this.phaserPlayer.setVisible(true);
             this.phaserPlayer.setScale(totalScale);
-            
+
             // Center the avatar (approx x=56 in internal container) on the podium
             // and position feet on top of the podium (shifted 20px higher than previous 40px offset)
             this.phaserPlayer.setPosition(x - (56 * totalScale), y - (60 * scale));
-            
+
             // Add medal label ABOVE the avatar
             const medalLabel = this.add.text(x, y - (240 * scale), label, {
                 fontSize: `${this.getY(36 * scale)}px`,
@@ -732,13 +764,13 @@ export class QuizPlayScene extends BaseScene {
         this.podiums.push(graphics);
 
         const depth = width / 4;
-        
+
         // Shading colors
         const colorObj = Phaser.Display.Color.IntegerToColor(color);
         const darkColor = colorObj.clone().darken(30).color;
         const midColor = color;
         const lightColor = colorObj.clone().brighten(20).color;
-        
+
         // Vertices for the hexagonal top (isometric look)
         const topPoints = [
             { x: x - width / 2, y: y },                       // Left
@@ -820,17 +852,17 @@ export class QuizPlayScene extends BaseScene {
         }).setOrigin(0.5);
 
         const ratingContainer = this.add.container(960, 0);
-        
+
         // Create 5 interactive stars
         for (let i = 1; i <= 5; i++) {
             const star = this.add.text(-600 + (i * 240), this.getY(540), '⭐', { fontSize: `${this.getY(80)}px` })
                 .setOrigin(0.5)
                 .setInteractive({ useHandCursor: true });
-            
+
             star.on('pointerup', () => this.submitRating(i));
             star.on('pointerdown', () => star.setScale(1.4));
             star.on('pointerout', () => star.setScale(1.0));
-            
+
             ratingContainer.add(star);
         }
 
@@ -840,7 +872,7 @@ export class QuizPlayScene extends BaseScene {
     private submitRating(stars: number): void {
         console.log('Player submitted rating:', stars);
         this.socket.emit('player:rating', { stars: stars });
-        
+
         this.clearUI();
         const msg = this.add.text(960, 540, 'THANK YOU!', {
             fontFamily: '"Titan One", Arial',

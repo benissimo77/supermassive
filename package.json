@@ -17,6 +17,7 @@
     "deploy:host": "scp -r host/admin host/dashboard host/lobby host/quiz nodejs@videoswipe.net:~/supermassive/host && scp -r public/modules/dashboard*.js nodejs@videoswipe.net:~/supermassive/public/modules",
     "deploy:public": "scp -r public/*.html public/css public/login public/play nodejs@videoswipe.net:~/supermassive/public && scp -r public/modules/play-entry*.js public/modules/landing*.js public/modules/login*.js nodejs@videoswipe.net:~/supermassive/public/modules",
     "deploy:server": "scp -r server.js server nodejs@videoswipe.net:~/supermassive/ && ssh nodejs@videoswipe.net 'pm2 reload all'",
+    "deploy:server-games": "scp -r server/games nodejs@videoswipe.net:~/supermassive/server && ssh nodejs@videoswipe.net 'pm2 reload all'",
     "deploy:full": "npm-run-all deploy:modules deploy:host deploy:public deploy:server",
     "deploy:assets": "scp -r public/assets nodejs@videoswipe.net:~/supermassive/public/",
     "deploy:assets-img": "scp -r public/assets/img nodejs@videoswipe.net:~/supermassive/public/assets/",
@@ -69,4 +70,4 @@
     "tslib": "^2.8.1",
     "typescript": "^5.8.3"
   }
-}
+} 

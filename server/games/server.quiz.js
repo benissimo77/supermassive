@@ -253,6 +253,7 @@ class QuizStateMachine {
 				break;
 
 			case QuizState.NEXT_ROUND:
+				
 				this.quiz.mode = "ask";
 				if (this.quiz.moveToNextRound()) {
 					this.transitionTo(QuizState.INTRO_ROUND);
@@ -1394,10 +1395,9 @@ export default class Quiz extends Game {
 		hostQuestion.optionsShuffled = this.question.optionsShuffled;
 		hostQuestion.itemsShuffled = this.question.itemsShuffled;
 		hostQuestion.pairsShuffled = this.question.pairsShuffled;
-		delete hostQuestion.answer;
-		delete hostQuestion.options;
-		delete hostQuestion.items;
-		delete hostQuestion.pairs;
+
+		// UPDATE: we DON'T delete hostQuestion.items and hostQuestion.pairs because they MIGHT have associated images
+		// and we need the original array to identify where in the original items array they are found...
 
 		// This is an exception where we want to automatically move to next state without waiting for host
 		// WHY? Because after asking a question we know we instantly want to either collect answers or show the answer
@@ -1609,6 +1609,10 @@ export default class Quiz extends Game {
 		const scores = this.calculateCumulativeScore();
 		console.log('updateScores:', scores);
 		this.room.emitToHosts('server:updatescores', { 'scores': scores });
+
+		// Log some basic results of this round to the console
+		this.printRoundSummary();
+
 	}
 
 	// calculateCumulativeScore
@@ -1703,7 +1707,7 @@ export default class Quiz extends Game {
 				const simpleAnswerText = createSimpleString(question.answer);
 				Object.keys(question.responses).forEach((sessionID) => {
 					const simpleResult = createSimpleString(question.responses[sessionID].answer);
-					if (levenshteinDistance(simpleAnswerText, simpleResult) < 3) {
+					if (levenshteinDistance(simpleAnswerText, simpleResult) < 2) {
 						question.responses[sessionID].score = 1;
 						scores[sessionID] = 1;
 					}
@@ -1920,6 +1924,46 @@ export default class Quiz extends Game {
 		this.room.emitToHosts('server:endquestion');
 	}
 
+	// Outputs a tabular summary of the current round to the console
+	printRoundSummary() {
+		if (!this.round || !this.round.questions) return;
+
+		console.log(`\n=== SUMMARY: ROUND ${this.roundNumber} - ${this.round.title || ''} ===`);
+		const summary = {};
+
+		this.round.questions.forEach((q, index) => {
+			let qText = q.text || q.question || q.title || "Question";
+			if (qText.length > 28) qText = qText.substring(0, 26).replace(/\s+/g, ' ') + '..';
+
+			const row = {};
+
+			this.players.forEach(player => {
+				const response = q.responses && q.responses[player.sessionID];
+				const score = response && response.score !== undefined ? response.score : 0;
+				
+				// Handle object answers (like coordinates or arrays) gracefully
+				let answer = '-';
+				if (response && response.answer !== undefined) {
+					answer = typeof response.answer === 'object' ? JSON.stringify(response.answer) : String(response.answer);
+					// Strip any unwanted quote marks for cleaner console readability
+					answer = answer.replace(/["']/g, '');
+				}
+
+				// Truncate answer to keep column neat
+				if (answer.length > 29) answer = answer.substring(0, 29) + '..';
+
+				// Combine score and answer. e.g "1 | my answ.."
+				const colName = player.name || player.sessionID.substring(0, 5);
+				row[colName] = `${score} ${answer}`;
+			});
+
+			summary[`Q${index + 1}: ${qText}`] = row;
+		});
+
+		console.table(summary);
+		console.log('====================================\n');
+	}
+
 	// Called when we've reached the end of the questions in this round
 	// We still need to decide if we need to show answers and/or update scores
 	// Only after those steps have completed (if necessary) will we actually end the round
@@ -1946,11 +1990,51 @@ export default class Quiz extends Game {
 		this.room.emitToHosts('server:endround', information)
 	}
 
+	// Outputs a tabular summary of the current round to the console
+	printRoundSummary() {
+		if (!this.round || !this.round.questions) return;
+
+		console.log(`\n=== SUMMARY: ROUND ${this.roundNumber} - ${this.round.title || ''} ===`);
+		const summary = {};
+
+		this.round.questions.forEach((q, index) => {
+			let qText = q.text || q.question || q.title || "Question";
+			if (qText.length > 28) qText = qText.substring(0, 26).replace(/\s+/g, ' ') + '..';
+
+			const row = {};
+
+			this.players.forEach(player => {
+				const response = q.responses && q.responses[player.sessionID];
+				const score = response && response.score !== undefined ? response.score : 0;
+				
+				// Handle object answers (like coordinates or arrays) gracefully
+				let answer = '-';
+				if (response && response.answer !== undefined) {
+					answer = typeof response.answer === 'object' ? JSON.stringify(response.answer) : String(response.answer);
+					// Strip any unwanted quote marks for cleaner console readability
+					answer = answer.replace(/["']/g, '');
+				}
+
+				// Truncate answer to keep column neat
+				if (answer.length > 29) answer = answer.substring(0, 29) + '..';
+
+				// Combine score and answer, padded to force left-alignment in console.table
+				const colName = player.name || player.sessionID.substring(0, 5);
+				row[colName] = `${score} ${answer}`.padEnd(31, ' ');
+			});
+
+			summary[`Q${index + 1}: ${qText}`] = row;
+		});
+
+		console.table(summary);
+		console.log('====================================\n');
+	}
+
 	async endQuiz() {
 		const scores = this.calculateCumulativeScore();
 		console.log('endQuiz:', this.quizData, this.roundNumber, this.questionNumber, scores);
 		console.log('Final quizData:', JSON.stringify(this.quizData));
-		this.room.emitToHosts('server:endquiz', { quizTitle: this.quizData.title, scores: scores });
+		this.room.emitToHosts('server:endquiz', { title: this.quizData.title, scores: scores });
 
 		// Save results to database
 		try {

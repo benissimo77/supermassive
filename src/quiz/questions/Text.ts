@@ -236,14 +236,124 @@ export default class TextQuestion extends BaseQuestion {
     }
 
     public createRevealAnswerTimeline(): gsap.core.Timeline {
-        const tl = gsap.timeline();
+		const tl = this.minimizeQuestionContent();
         this.tl = tl;
+        const answerTextStr = this.questionData.answer ? this.questionData.answer.toString() : '';
+
+        // Add the correct answer at the top or center of the screen
         if (this.questionData.answer) {
             tl.add(() => {
-                const answerText = this.questionData.answer!.toString();
-                this.answerText.setText(answerText);
+                this.answerText.setText(answerTextStr);
+                this.answerText.setPosition(0, this.scene.getY(40));
+                // Set to 1 then tween from 0
+                this.answerText.setScale(1.0);
+                this.answerText.setAlpha(1.0);
+            });
+            // Pop the answer in
+            tl.from(this.answerText, {
+                scale: 0,
+                alpha: 0,
+                duration: 0.6,
+                ease: 'back.out(1.5)'
+            }, 0);
+        }
+
+        // Layout logic if we're showing players' text answers
+        if (this.questionData.responses) {
+            const numPlayers = Object.keys(this.questionData.responses).length;
+            
+            // Sort so players appear in alphabetical order rather than random join order
+            const sortedSessions = Object.keys(this.questionData.responses).sort((a, b) => {
+                const aName = this.scene.getPlayerConfigsAsArray().find(p => p.sessionID === a)?.name || '';
+                const bName = this.scene.getPlayerConfigsAsArray().find(p => p.sessionID === b)?.name || '';
+                return aName.localeCompare(bName);
+            });
+            console.log('TextQuestion::createRevealAnswerTimeline: sorting players:', sortedSessions);
+            
+            // Where the answerContainer will globally land after minimizeQuestionContent
+            const answerY = this.getTargetAnswerContainerY();
+            // Local startY allows to adjust vertical position of player answers grid
+            let startY = 240;
+            // Calculate dynamic row height to fit all players in a single column
+            const availableSpace = this.scene.getY(1080) - answerY - startY;
+            const maxRowHeight = 120; // Default comfortable row height
+            const rowHeight = numPlayers > 0 ? Math.min(maxRowHeight, availableSpace / numPlayers) : maxRowHeight;
+
+            // If we have lots of space then vertically centre the player answers in the available space
+            if (rowHeight * numPlayers < availableSpace) {
+                startY += (availableSpace - (rowHeight * numPlayers)) / 2;
+            }
+            
+            sortedSessions.forEach((sessionID, index) => {
+                const playerAnswer = this.questionData.responses![sessionID];
+                const player = this.scene.getPlayerBySessionID(sessionID);
+                if (!player) return;
+
+                // All horizontal logic uses the logical 1920 canvas width
+                const avatarScreenX = 160; 
+                // Avatar Y is global, so it must account for answerContainer's target position
+                const avatarScreenY = answerY + startY + (index * rowHeight);
+
+                tl.to(player, {
+                    x: avatarScreenX,
+                    y: avatarScreenY,
+                    // No scaling of global objects!
+                    duration: 0.5,
+                    ease: 'power2.out'
+                }, '>');
+
+                // Group for their answer text and validation. 
+                // Since this object is added to answerContainer (at x=960), we offset its local X.
+                const localGroupX = (avatarScreenX - 960) + 480;
+                const localGroupY = startY + (index * rowHeight);
+
+                const playerTextGroup = this.scene.add.container(localGroupX, localGroupY);
+                this.answerContainer.add(playerTextGroup);
+
+                const rawAns = playerAnswer.answer ? playerAnswer.answer.toString() : '';
+                const displayAns = rawAns.trim() === '' ? '...' : rawAns;
+                
+                // Color coding based on server score (which we trust completely)
+                let color = '#ff0000'; // Default wrong (red)
+                let iconText = '❌';
+
+                if (playerAnswer.snoozed) {
+                    color = '#aaaaaa'; // Grey out snoozed
+                    iconText = '💤';
+                } else if (playerAnswer.score > 0) {
+                    color = '#00ff00'; // Green if correct
+                    iconText = '✅';
+                }
+
+                const icon = this.scene.add.text(0, 0, iconText, {
+                    fontSize: 48
+                }).setOrigin(0.5, 0.5);
+                playerTextGroup.add(icon);
+
+                const ansText = this.scene.add.text(45, 0, displayAns, {
+                    fontFamily: '"Titan One", Arial',
+                    fontSize: 54,
+                    color: color,
+                    stroke: '#000000',
+                    strokeThickness: 4,
+                    align: 'left'
+                }).setOrigin(0, 0.5);
+                playerTextGroup.add(ansText);
+
+                // Start them invisible and slightly off to the right
+                playerTextGroup.setAlpha(0);
+                playerTextGroup.setX(localGroupX + 50);
+                
+                // Fade and slide in the player's text and icon
+                tl.to(playerTextGroup, {
+                    alpha: 1,
+                    x: localGroupX,
+                    duration: 0.4,
+                    ease: 'power2.out'
+                }, '<+0.2'); // Start sliding in slightly after the avatar starts moving
             });
         }
+
         tl.pause();
         return tl;
     }

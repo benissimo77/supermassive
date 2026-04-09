@@ -5,21 +5,24 @@ import { BaseQuestionData, MultipleChoiceQuestionData } from "./QuestionTypes";
 import MultipleChoiceQuestion from "./MultipleChoice";
 import TrueFalseQuestion from "./TrueFalse";
 import OrderingQuestion from "./Ordering";
+import ImageOrderingQuestion from "./ImageOrdering";
 import TextQuestion from "./Text";
+import PlayerTextQuestion from "./PlayerText";
+import PlayerNumberQuestion from "./PlayerNumber";
+import PlayerOrderingQuestion from "./PlayerOrdering";
 import NumberQuestion from "./Number";
 import HotspotQuestion from "./Hotspot";
 import DrawQuestion from "./Draw";
 
 export class QuestionFactory {
     private scene: BaseScene;
-    private questionTypes: Map<string, new (scene: BaseScene, data: any) => BaseQuestion>;
+    private questionTypes: Map<string, any>;
 
     constructor(scene: BaseScene) {
         this.scene = scene;
 
         // Initialize the map
-        // Define the type explicitly for the Map
-        this.questionTypes = new Map<string, new (scene: BaseScene, data: any) => BaseQuestion>([
+        this.questionTypes = new Map<string, any>([
             ['multiple-choice', MultipleChoiceQuestion],
             ['true-false', TrueFalseQuestion],
             ['text', TextQuestion],
@@ -27,6 +30,7 @@ export class QuestionFactory {
             ['number-closest', NumberQuestion],
             ['number-average', NumberQuestion],
             ['ordering', OrderingQuestion],
+            ['image-ordering', ImageOrderingQuestion],
             ['matching', OrderingQuestion],
             ['hotspot', HotspotQuestion],
             ['point-it-out', HotspotQuestion],
@@ -34,10 +38,32 @@ export class QuestionFactory {
         ]);
     }
 
-    create(type: string, data: BaseQuestionData): BaseQuestion {
+    create(type: string, data: BaseQuestionData): any {
+        console.log(`QuestionFactory.create: type=${type}, scene.TYPE=${this.scene.TYPE}`);
+
+        // --- PILOT MIGRATION INTERCEPT ---
+        if (this.scene.TYPE === 'play') {
+            if (type === 'text') {
+                return new PlayerTextQuestion(this.scene, data as any);
+            }
+            if (['number-exact', 'number-closest', 'number-average'].includes(type)) {
+                return new PlayerNumberQuestion(this.scene, data as any);
+            }
+            if (['ordering', 'matching'].includes(type)) {
+                return new PlayerOrderingQuestion(this.scene, data as any);
+            }
+        }
 
         // Get the constructor from the map
-        const QuestionClass = this.questionTypes.get(type);
+        let QuestionClass = this.questionTypes.get(type);
+
+        // If it's an ordering question and it has populated images, promote it to ImageOrdering
+        if (type === 'ordering') {
+            const hasImages = data.itemImages && data.itemImages.length > 0 && data.itemImages.some((url: string) => url.trim().length > 0);
+            if (hasImages) {
+                QuestionClass = ImageOrderingQuestion;
+            }
+        }
 
         if (QuestionClass) {
             return new QuestionClass(this.scene, data);

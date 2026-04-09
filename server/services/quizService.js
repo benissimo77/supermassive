@@ -10,6 +10,28 @@ const schemaPath = 'server/services/quiz-schema.json';
 const quizSchema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
 const validateQuizSchema = ajv.compile(quizSchema);
 
+// Custom validation rules that extend AJV logic for specific questions.
+// To avoid looping through the entire quiz payload for every single rule, 
+// we loop through the quiz hierarchy once, and pass each question to these rules.
+const questionValidators = [
+    // 1. Ordering Questions: All items must have images, or we must have no images
+    (q, rIndex, qIndex, errors) => {
+        if (q.type === 'ordering' && q.itemImages && q.itemImages.length > 0) {
+            const allHaveImages = q.itemImages.every(url => typeof url === 'string' && url.trim().length > 0);
+            if (!q.items || q.itemImages.length !== q.items.length || !allHaveImages) {
+                errors.push({
+                    instancePath: `/rounds/${rIndex}/questions/${qIndex}/itemImages`,
+                    schemaPath: '#/custom/itemImagesMatch',
+                    keyword: 'customLengthMatch',
+                    params: {},
+                    message: 'All items must have images, or you must remove all images.'
+                });
+            }
+        }
+    }
+    // Add additional question-level validation rule functions here in the future
+];
+
 // Define custom error types
 export class QuizServiceError extends Error {
     constructor(message, details = null) {
@@ -52,11 +74,28 @@ export function validateQuiz(quizData) {
     // Your existing validation logic
     const ajv = new Ajv({ allErrors: true });
     const validate = ajv.compile(quizSchema);
-    const valid = validate(quizData);
+    validate(quizData); // Returns primitive boolean, ignores mutations to errors array easily
+
+    // Clone AJV errors so we can inject our own
+    let errors = validate.errors ? [...validate.errors] : [];
+
+    // Run all custom extensive validation checks
+    if (quizData.rounds) {
+        quizData.rounds.forEach((round, rIndex) => {
+            if (round.questions) {
+                round.questions.forEach((q, qIndex) => {
+                    // Loop through all custom question validators once per question
+                    questionValidators.forEach(validator => {
+                        validator(q, rIndex, qIndex, errors);
+                    });
+                });
+            }
+        });
+    }
 
     return {
-        valid: valid,
-        errors: validate.errors || []
+        valid: errors.length === 0,
+        errors: errors
     }
 }
 

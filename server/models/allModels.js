@@ -12,13 +12,6 @@ class Player {
 		this.userID = obj.userID;
 		this.isBot = obj.isBot || false;
 		this.connected = obj.connected !== undefined ? obj.connected : true;
-		// Game data
-		this.role = null;
-		this.alive = true;
-		this.killphase = null;
-		this.sheriff = false;
-		this.witchkill = false;
-		this.witchsave = false;
 	}
 
 	/**

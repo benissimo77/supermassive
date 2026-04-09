@@ -1206,6 +1206,9 @@ export class QuizHostScene extends BaseScene {
         // Clear previous UI
         this.clearUI();
 
+        // Universal Rule for 'ask-question': Questions sit *above* players
+        this.mainContainer.bringToTop(this.questionContainer);
+
         // Create the appropriate question renderer based on type
         this.currentQuestion = this.questionFactory.create(question.type, question);
 
@@ -1244,6 +1247,10 @@ export class QuizHostScene extends BaseScene {
             this.tweens.killTweensOf(player);
             this.reparentObject(player, this.playerContainer);
         }
+        
+        // Universal Rule for 'show-answer': Players float *over* answers
+        this.mainContainer.bringToTop(this.playerContainer);
+
         this.currentQuestion.prepareAnswerResults().play();
 
     }
@@ -1406,7 +1413,7 @@ export class QuizHostScene extends BaseScene {
     // showFinalScores - end quiz screen
     // the racetrack is still visible on screen (should be for all possible combinations of answer/score settings)
     // fly out the racetrack and bring in the final scores display
-    // data.quizTitle: title of this quiz
+    // data.title: title of this quiz
     // data.score: dictionary object of playerID: score
     private showFinalScores(data: any): void {
 
@@ -1421,7 +1428,7 @@ export class QuizHostScene extends BaseScene {
             strokeThickness: 6,
             align: 'left'
         });
-        const titleText = this.add.text(100, this.getY(100), data.quizTitle, titleTextConfig)
+        const titleText = this.add.text(100, this.getY(100), data.title, titleTextConfig)
             .setOrigin(0, 0.5);
 
         // Show complete message
@@ -1561,7 +1568,7 @@ export class QuizHostScene extends BaseScene {
 
                 // Add medal label
                 const isFirst = rankIndex === 0;
-                const medalY = isFirst ? -80 : 20;
+                const medalY = isFirst ? -120 : 20;
                 const medal = this.add.text(100, medalY, pos.label, {
                     fontFamily: 'Titan One',
                     fontSize: this.getY(64),
@@ -1656,7 +1663,7 @@ export class QuizHostScene extends BaseScene {
         const creditsLines = [
             'QUIZ COMPLETE',
             '',
-            `  TITLE: ${data.quizTitle}`,
+            `  TITLE: ${data.title}`,
             '  PLATFORM: SUPERMASSIVE',
             '',
             'FEATURING',

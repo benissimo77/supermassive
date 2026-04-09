@@ -73,83 +73,20 @@
             touch-action: none;
         }
 
-        /* Portrait orientation warning overlay */
-        .orientation-warning {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #051C55;
-            z-index: 99999;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            padding: 2rem;
-        }
 
-        .orientation-warning .icon {
-            color: white;
-            font-size: 5rem;
-            margin-bottom: 2rem;
-            animation: rotateClockwise 2s ease-in-out infinite;
-        }
-
-        .orientation-warning .message {
-            color: darkorange;
-            font-family: "Lilita One", sans-serif;
-            font-size: 1.8rem;
-            line-height: 1.5;
-            max-width: 80%;
-        }
-
-        @keyframes rotateClockwise {
-
-            0%,
-            100% {
-                transform: rotate(0deg);
-            }
-
-            60% {
-                transform: rotate(90deg);
-            }
-            80% {
-                transform: rotate(90deg);
-            }
-        }
-
-        /* Show warning only in portrait mode
-        @media screen and (orientation: portrait) {
-            .orientation-warning {
-                display: flex;
-            }
-
-            #container {
-                display: none;
-            }
-        }
-             */
     </style>
 
 </head>
 
 <body>
-    <!-- Orientation warning (only visible in portrait) 📱↻</div>-->
-    <div class="orientation-warning">
-        <div class="icon">📱</div>
-        <div class="message">
-            Please rotate your device to landscape mode
-        </div>
-    </div>
 
     <div id="container"></div>
 
-    <!-- Add this before your other scripts -->
+    <!-- Add this before your other scripts
     <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
     <script>eruda.init();</script>
-
+ -->
+    
     <script src="/socket.io/socket.io.js"></script>
     <script src="/modules/phaser.min.js"></script>
     <script src="/modules/phaser.play.min.js"></script>

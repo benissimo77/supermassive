@@ -165,11 +165,17 @@ export abstract class BaseScene extends Phaser.Scene {
             this.add.existing(this.topContainer);
         }
 
-        // Especially on Apple devices we need to request wakelock only on user interaction
-        this.input.once('pointerdown', () => {
-            // this.requestFullscreenLandscape();
+        // Especially on Apple devices we need to request wakelock only on user interaction.
+        // We MUST use native DOM events here. Phaser's synthetic pointer events often lose the 
+        // "transient user activation" token that iOS Safari strictly requires for permission APIs.
+        const enableWakeLock = () => {
             this.requestWakeLock();
-        });
+            this.requestFullscreenPortrait();
+            this.game.canvas.removeEventListener('click', enableWakeLock);
+            this.game.canvas.removeEventListener('touchend', enableWakeLock);
+        };
+        this.game.canvas.addEventListener('click', enableWakeLock);
+        this.game.canvas.addEventListener('touchend', enableWakeLock);
 
         // Max debugging of all input events
         // This is VERY noisy so use with caution
@@ -287,6 +293,19 @@ export abstract class BaseScene extends Phaser.Scene {
     }
 
     handleResize(gameSize: Phaser.Structs.Size): void {
+
+        // CRITICAL FIX: If a player is actively typing into an HTML input field on mobile, 
+        // the software keyboard opening/closing will trigger window resizes. 
+        // Re-scaling the Phaser DOM elements or camera during this animation 
+        // forces the mobile browser to instantly abort the keyboard focus, 
+        // creating an endless resize/reflow loop. 
+        if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+            console.log(`${this.scene.key}:: BaseScene.handleResize: Ignored because HTML input is focused.`);
+            if (this.socket) {
+                this.socket.emit('consolelog', `${this.scene.key}:: BaseScene.handleResize: Ignored because HTML input is focused.`);
+            }
+            return;
+        }
 
         this.resizeCount++;
 
@@ -522,6 +541,7 @@ export abstract class BaseScene extends Phaser.Scene {
                 this.socket.emit('consolelog', `Wake lock active: ${this.getDeviceType()}`);
             } catch (err: any) {
                 console.error('Wake lock request failed:', err);
+                this.socket.emit('consolelog', `Wake lock failed: ${err?.message || err}`);
             }
         }
     }
@@ -539,7 +559,7 @@ export abstract class BaseScene extends Phaser.Scene {
         }
     }
 
-    private requestFullscreenLandscape(): void {
+    private requestFullscreenPortrait(): void {
 
         const device = this.getDeviceType();
         const canvas = this.game.canvas;
@@ -597,9 +617,9 @@ export abstract class BaseScene extends Phaser.Scene {
         }
 
         try {
-            await screen.orientation.lock('landscape');
-            console.log('✅ Orientation locked to landscape');
-            this.socket.emit('consolelog', 'Orientation locked: landscape');
+            await screen.orientation.lock('portrait');
+            console.log('✅ Orientation locked to portrait');
+            this.socket.emit('consolelog', 'Orientation locked: portrait');
         } catch (err: any) {
             console.warn('Orientation lock not available:', err.message);
             this.socket.emit('consolelog', `Orientation lock failed: ${err.message}`);

@@ -147,11 +147,13 @@ export default class TrueFalseQuestion extends BaseQuestion {
 
             // these calculations copied from multiple-choice since they are almost identical
             let currentY = 320;
-            const buttonHeight = (this.scene.getY(1080) - this.answerContainer.y) / 2;
+            const futureAnswerY = this.getTargetAnswerContainerY();
+            const buttonHeight = (this.scene.getY(1080) - futureAnswerY) / 2;
             const answerX = -480;
             const avatarX = 960;
 
             // Use fixed order for True/False
+            // Buttons are placed inside answerContainer so targetY is just to set the button spacing
             tl.addLabel('PositionButtons');
             ['true', 'false'].forEach((option: string, optionIndex: number) => {
                 const button = this.buttons.get(option);
@@ -179,7 +181,7 @@ export default class TrueFalseQuestion extends BaseQuestion {
                         if (player) {
                             tl.to(player, {
                                 x: avatarX + playerIndex * avatarSpacing,
-                                y: this.answerContainer.y + targetY,
+                                y: futureAnswerY + targetY,
                                 duration: 0.6,
                                 delay: 0.2 * playerIndex,
                                 ease: 'power2.out'

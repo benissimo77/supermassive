@@ -52,24 +52,6 @@ export default [
     },
 
     {
-        input: "websrc/host/dashboard-quizedit.js", // replace with path to your main JS file
-        output: [
-            {
-                file: "public/modules/dashboard-quizedit.min.js", // replace with desired output file path
-                format: "esm",
-                sourcemap: true,
-                globals: {
-                    io: 'io'
-                }
-            }
-        ],
-        plugins: [
-            terser(terserOptions), 
-            resolve()
-        ]
-    },
-
-    {
         input: "websrc/host/dashboard-quizedit-v2.js",
         output: [
             {

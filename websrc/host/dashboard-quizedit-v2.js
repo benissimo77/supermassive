@@ -269,6 +269,21 @@ export function initDashboardQuizEdit() {
 
     // --- 3. SYSTEM FUNCTIONS (Validation, Loading, Saving) ---
 
+    async function validateQuizSchema(quizJSON) {
+        try {
+            const response = await fetch('/api/quiz/validate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(quizJSON)
+            });
+            const result = await response.json();
+            return result.data;
+        } catch (e) {
+            console.error('Validation API error:', e);
+            return { valid: true, errors: [] };
+        }
+    }
+
     async function loadQuiz() {
         const id = new URLSearchParams(window.location.search).get('id');
         if (!id) return writeQuizToUI({ title: 'New Quiz', rounds: [] });
@@ -276,8 +291,15 @@ export function initDashboardQuizEdit() {
         try {
             const res = await fetch(`/api/quiz/${id}`);
             const result = await res.json();
-            if (result.success) await writeQuizToUI(result.data);
-            else alert('Failed to load quiz');
+            if (result.success) {
+                await writeQuizToUI(result.data);
+                const validation = await validateQuizSchema(result.data);
+                if (!validation.valid) {
+                    displayValidationErrors(validation.errors);
+                }
+            } else {
+                alert('Failed to load quiz');
+            }
         } catch (e) {
             console.error(e);
             alert('Error loading quiz');
@@ -286,9 +308,24 @@ export function initDashboardQuizEdit() {
 
     async function saveQuiz(e) {
         if (e) e.preventDefault();
+        
+        // Wipe all existing visual errors the moment the user attempts to save
+        if (typeof clearValidationErrors === 'function') {
+            clearValidationErrors();
+        }
+
         const data = readQuizFromUI();
         
         UI.saveButtons.forEach(btn => btn.textContent = 'Saving...');
+
+        const validation = await validateQuizSchema(data);
+        if (!validation.valid) {
+            displayValidationErrors(validation.errors);
+            const errStr = validation.errors.map(err => ' - ' + err.message).join('\n');
+            alert('Save failed: Please correct the errors before saving:\n\n' + errStr);
+            UI.saveButtons.forEach(btn => btn.textContent = 'Save Quiz');
+            return;
+        }
 
         try {
             const res = await fetch('/api/quiz/save', {
@@ -303,7 +340,13 @@ export function initDashboardQuizEdit() {
                 setTimeout(() => UI.saveButtons.forEach(btn => btn.textContent = 'Save Quiz'), 2000);
                 await writeQuizToUI(result.data);
             } else {
-                alert('Save failed: ' + result.message);
+                let errStr = result.message;
+                const validationErrors = result.error; // apiResponse maps 'details' directly to 'error'
+                if (validationErrors && Array.isArray(validationErrors) && validationErrors.length > 0) {
+                    displayValidationErrors(validationErrors);
+                    errStr += '\n' + validationErrors.map(err => ' - ' + err.message).join('\n');
+                }
+                alert('Save failed:\\n' + errStr);
                 UI.saveButtons.forEach(btn => btn.textContent = 'Save Quiz');
             }
         } catch (err) {
@@ -419,6 +462,29 @@ export function initDashboardQuizEdit() {
             new ImageLibrary({ onSelect: (img) => setImageSelectorSrc(qEl, img.url) }).show();
         }
 
+        if (btn.classList.contains('select-order-image-btn')) {
+            e.preventDefault();
+            console.log("Order image button clicked!");
+            const container = btn.closest('.order-image-container');
+            if (!container) console.warn("No .order-image-container found!");
+            
+            const imgInput = container.querySelector('[data-field="order-image"]');
+            const imgPreview = container.querySelector('[data-field="order-image-preview"]');
+
+            new ImageLibrary({
+                onSelect: (image) => {
+                    console.log("Image selected:", image);
+                    if (imgInput) imgInput.value = image.url;
+                    if (imgPreview) {
+                        imgPreview.style.backgroundImage = `url(${image.url})`;
+                        imgPreview.style.display = 'block';
+                    }
+                    markAsChanged();
+                }
+            }).show();
+            return;
+        }
+
         if (btn.classList.contains('clear-image-btn')) {
             setImageSelectorSrc(btn.closest('.question'), '');
         }
@@ -444,7 +510,24 @@ export function initDashboardQuizEdit() {
     });
 
     // Global listeners for change tracking
-    document.addEventListener('input', (e) => { if (e.target.id !== 'ai-prompt-input') markAsChanged(); });
+    document.addEventListener('input', (e) => { 
+        if (e.target.id !== 'ai-prompt-input') markAsChanged(); 
+    });
+
+    document.addEventListener('focusout', (e) => {
+        if (e.target.matches('[data-field="order-image"]')) {
+            const container = e.target.closest('.order-image-container');
+            if (container) {
+                const imgPreview = container.querySelector('[data-field="order-image-preview"]');
+                if (imgPreview) {
+                    const url = e.target.value.trim();
+                    imgPreview.style.backgroundImage = url ? `url(${url})` : 'none';
+                    imgPreview.style.display = url ? 'block' : 'none';
+                }
+            }
+        }
+    });
+
     document.addEventListener('change', (e) => { if (e.target.id !== 'ai-prompt-input') markAsChanged(); });
 
     new Sortable(UI.roundsContainer, {
@@ -454,4 +537,435 @@ export function initDashboardQuizEdit() {
     });
 
     loadQuiz();
+
+
+
+	// Add this function to improve validation error messages
+	function improveValidationErrorMessage(error) {
+		// The original error message
+		const originalMessage = error.message;
+		// The path where the error occurred
+		const path = error.instancePath;
+
+		// Common error translations
+		if (originalMessage === 'must match "then" schema') {
+			// Extract the question type from the data
+			const pathParts = path.split('/');
+
+			// For questions, check what type it is
+			if (path.includes('questions')) {
+				// Find the round and question index
+				const roundIndex = parseInt(pathParts[pathParts.indexOf('rounds') + 1]);
+				const questionIndex = parseInt(pathParts[pathParts.indexOf('questions') + 1]);
+
+				// Get the question data
+				const questionData = document.querySelectorAll('.round')[roundIndex]
+					?.querySelectorAll('.question')[questionIndex]
+					?.dataset.questionData;
+
+				if (questionData) {
+					const question = JSON.parse(questionData);
+
+					// Provide specific messages based on question type
+					switch (question.type) {
+
+						case 'multiple-choice':
+							return "This question requires at least 2 options and a correct answer";
+
+						case 'true-false':
+							return "This question requires a True or False answer";
+
+						case 'text':
+						case 'number-exact':
+						case 'number-closest':
+							return "This question requires an answer";
+
+						case 'number-average':
+							return "This question does not require an answer";
+
+						case 'hotspot':
+							return "This question requires hotspot coordinates";
+
+						case 'point-it-out':
+							return "This question requires coordinates of two opposite corners of the rectangle";
+
+						case 'ordering':
+							return "This question requires 2-6 items to order plus optional start/end labels";
+
+						case 'matching':
+							return "This question requires at least 2 matching pairs";
+
+						case 'draw':
+							return "This drawing question is missing required settings";
+
+						default:
+							return `This ${question.type} question is missing required fields`;
+					}
+				}
+			}
+
+			// Generic fallback message
+			return "This item is missing required fields based on its type";
+		}
+
+		// Other common error messages
+		if (originalMessage.includes("required property")) {
+			const property = originalMessage.match(/'([^']+)'/)?.[1];
+
+			// Map property names to user-friendly terms
+			const propertyMap = {
+				'title': 'Title',
+				'text': 'Question text',
+				'answer': 'Answer',
+				'options': 'Answer options',
+				'correctOption': 'Correct option',
+				'items': 'Items to order',
+				'pairs': 'Matching pairs',
+				'startLabel': 'Start label',
+				'endLabel': 'End label'
+			};
+
+			return `Missing required field: ${propertyMap[property] || property}`;
+		}
+
+		// Return the original message if we don't have a specific improvement
+		return originalMessage;
+	}
+
+
+	// Display validation errors and add warning icons
+	function displayValidationErrors(validationResults) {
+
+		// First, clear any existing error indicators
+		clearValidationErrors();
+
+		if (!validationResults || validationResults.length === 0) {
+			return;
+		}
+
+		// Create error tracking objects
+		const roundErrors = {};  // Store errors by round index
+		const questionErrors = {}; // Store errors by round and question indices
+
+		// Display summary of errors at the top
+		const errorCount = validationResults.length;
+		const errorSummary = document.getElementById('validation-summary');
+		errorSummary.textContent = `Found ${errorCount} error${errorCount > 1 ? 's' : ''}. Please fix before saving.`;
+		errorSummary.style.display = 'block';
+
+		// Process each error
+		validationResults.forEach(error => {
+			// Parse the error path to determine where to display the error
+			const path = error.instancePath.split('/');
+
+			// Skip the first empty element from the split
+			path.shift();
+
+			if (path.length === 0) {
+				// Quiz-level error
+				displayQuizError(error);
+			} else if (path[0] === 'rounds') {
+				const roundIndex = parseInt(path[1]);
+
+				// Track round errors
+				if (!roundErrors[roundIndex]) {
+					roundErrors[roundIndex] = [];
+				}
+				roundErrors[roundIndex].push(error.message);
+
+				if (path.length === 2 || path.length === 3) {
+					// Error on the round itself
+					const field = path.length > 2 ? path[2] : null;
+					displayRoundError(roundIndex, field, error);
+				} else if (path[2] === 'questions') {
+					const questionIndex = parseInt(path[3]);
+
+					// Track question errors
+					if (!questionErrors[roundIndex]) {
+						questionErrors[roundIndex] = {};
+					}
+					if (!questionErrors[roundIndex][questionIndex]) {
+						questionErrors[roundIndex][questionIndex] = [];
+					}
+					questionErrors[roundIndex][questionIndex].push(error.message);
+
+					// Display error in the question
+					const field = path.length > 4 ? path[4] : null;
+					displayQuestionError(roundIndex, questionIndex, field, error);
+				}
+			}
+		});
+
+		// Add warning icons to rounds with errors
+		Object.keys(roundErrors).forEach(roundIndex => {
+			addRoundErrorIndicator(parseInt(roundIndex), roundErrors[roundIndex].length);
+		});
+
+		// Add warning icons to questions with errors
+		Object.keys(questionErrors).forEach(roundIndex => {
+			Object.keys(questionErrors[roundIndex]).forEach(questionIndex => {
+				addQuestionErrorIndicator(
+					parseInt(roundIndex),
+					parseInt(questionIndex),
+					questionErrors[roundIndex][questionIndex].length
+				);
+			});
+		});
+	}
+
+	// Update clearValidationErrors to hide indicators instead of removing them
+	function clearValidationErrors() {
+		// Clear summary
+		const errorSummary = document.getElementById('validation-summary');
+		if (errorSummary) {
+			errorSummary.textContent = '';
+			errorSummary.style.display = 'none';
+		}
+
+		// Clear quiz errors
+		document.querySelectorAll('.error-message').forEach(el => el.remove());
+
+		// Clear field errors
+		document.querySelectorAll('.error-field').forEach(el => {
+			el.classList.remove('error-field');
+			el.title = '';
+		});
+
+		// Hide error indicators instead of removing them
+		document.querySelectorAll('.error-indicator, .warning-indicator').forEach(el => {
+			el.style.display = 'none';
+			el.classList.remove('animate');
+			delete el.dataset.count;
+		});
+	}
+
+	// Modify the addRoundErrorIndicator function to toggle visibility
+	function addRoundErrorIndicator(roundIndex, errorCount) {
+		const rounds = document.querySelectorAll('.round');
+		if (roundIndex >= 0 && roundIndex < rounds.length) {
+			const roundElement = rounds[roundIndex];
+			const indicator = roundElement.querySelector('.error-indicator');
+
+			if (indicator) {
+				// Make it visible
+				indicator.style.display = 'inline-flex';
+				indicator.title = `This round has ${errorCount} error${errorCount > 1 ? 's' : ''}`;
+
+				// Add error count if more than 1
+				if (errorCount > 1) {
+					indicator.dataset.count = errorCount;
+				} else {
+					delete indicator.dataset.count;
+				}
+
+				// Add animation to draw attention
+				setTimeout(() => {
+					indicator.classList.add('animate');
+				}, 100);
+			}
+		}
+	}
+
+	function addRoundWarningIndicator(roundIndex, warningCount) {
+		const rounds = document.querySelectorAll('.round');
+		if (roundIndex >= 0 && roundIndex < rounds.length) {
+			const roundElement = rounds[roundIndex];
+			const indicator = roundElement.querySelector('.warning-indicator');
+
+			if (indicator) {
+				indicator.style.display = 'inline-flex';
+				indicator.title = `This round has ${warningCount} warning${warningCount > 1 ? 's' : ''}`;
+				if (warningCount > 1) indicator.dataset.count = warningCount;
+				else delete indicator.dataset.count;
+				setTimeout(() => indicator.classList.add('animate'), 100);
+			}
+		}
+	}
+
+	// Modify the addQuestionErrorIndicator function to toggle visibility
+	function addQuestionErrorIndicator(roundIndex, questionIndex, errorCount) {
+		const rounds = document.querySelectorAll('.round');
+		if (roundIndex >= 0 && roundIndex < rounds.length) {
+			const roundElement = rounds[roundIndex];
+			const questions = roundElement.querySelectorAll('.question');
+
+			if (questionIndex >= 0 && questionIndex < questions.length) {
+				const questionElement = questions[questionIndex];
+				const indicator = questionElement.querySelector('.error-indicator');
+
+				if (indicator) {
+					// Make it visible
+					indicator.style.display = 'inline-flex';
+					indicator.title = `This question has ${errorCount} error${errorCount > 1 ? 's' : ''}`;
+
+					// Add error count if more than 1
+					if (errorCount > 1) {
+						indicator.dataset.count = errorCount;
+					} else {
+						delete indicator.dataset.count;
+					}
+
+					// Add animation to draw attention
+					setTimeout(() => {
+						indicator.classList.add('animate');
+					}, 100);
+				}
+			}
+		}
+	}
+
+	function addQuestionWarningIndicator(roundIndex, questionIndex, warningText) {
+		const rounds = document.querySelectorAll('.round');
+		if (roundIndex >= 0 && roundIndex < rounds.length) {
+			const roundElement = rounds[roundIndex];
+			const questions = roundElement.querySelectorAll('.question');
+
+			if (questionIndex >= 0 && questionIndex < questions.length) {
+				const questionElement = questions[questionIndex];
+				const indicator = questionElement.querySelector('.warning-indicator');
+
+				if (indicator) {
+					indicator.style.display = 'inline-flex';
+					indicator.title = `AI Warning: ${warningText}`;
+					setTimeout(() => indicator.classList.add('animate'), 100);
+				}
+			}
+		}
+	}
+
+	// Initialize event listeners for error indicators
+	function initErrorIndicatorHandlers() {
+		document.addEventListener('click', (event) => {
+			if (event.target.closest('.error-indicator')) {
+				const indicator = event.target.closest('.error-indicator');
+
+				// Find the closest round or question
+				const container = indicator.closest('.round, .question');
+
+				// Ensure it's expanded to show the errors
+				if (container && !container.hasAttribute('open')) {
+					container.setAttribute('open', 'true');
+				}
+
+				// Animate the error messages to draw attention
+				const errorMessages = container.querySelectorAll('.error-message');
+				errorMessages.forEach(msg => {
+					msg.style.transition = 'background-color 0.5s';
+					msg.style.backgroundColor = 'rgba(240, 173, 78, 0.3)';
+					setTimeout(() => {
+						msg.style.backgroundColor = 'rgba(217, 83, 79, 0.1)';
+					}, 500);
+				});
+			}
+		});
+	}
+
+
+	// Display quiz-level error
+	function displayQuizError(error) {
+		const quizElement = document.querySelector('.quiz');
+		const errorElement = document.createElement('div');
+		errorElement.className = 'error-message';
+		errorElement.textContent = improveValidationErrorMessage(error);
+
+		// Insert after the header
+		const header = quizElement.querySelector('header');
+		header.parentNode.insertBefore(errorElement, header.nextSibling);
+
+		// Also highlight the quiz title if it's empty
+		if (error.message.includes('title')) {
+			const titleInput = document.getElementById('quiz-title');
+			titleInput.classList.add('error-field');
+			titleInput.title = error.message;
+		}
+	}
+
+	// Display round-level error
+	function displayRoundError(roundIndex, field, error) {
+		const rounds = document.querySelectorAll('.round');
+		if (roundIndex >= 0 && roundIndex < rounds.length) {
+			const roundElement = rounds[roundIndex];
+
+			// Open the round to show the error
+			roundElement.open = true;
+
+			// Create error message
+			const errorElement = document.createElement('div');
+			errorElement.className = 'error-message';
+			errorElement.textContent = improveValidationErrorMessage(error);
+
+			// Insert after the header
+			const header = roundElement.querySelector('.card-header');
+			if (header) {
+				header.parentNode.insertBefore(errorElement, header.nextSibling);
+			}
+
+			// Highlight specific fields based on the error message
+			let titleInput = null;
+			if (error.message.includes('title')) {
+				titleInput = roundElement.querySelector('.round-title');
+			}
+			if (error.instancePath.includes('roundTimer')) {
+				titleInput = roundElement.querySelector('[data-field="round-timer"]');
+			}
+			if (error.instancePath.includes('updateScores')) {
+				titleInput = roundElement.querySelector('[data-field="update-scores"]');
+			}
+			if (error.instancePath.includes('showAnswer')) {
+				titleInput = roundElement.querySelector('[data-field="show-answer"]');
+			}
+			if (titleInput) {
+				titleInput.classList.add('error-field');
+				titleInput.title = error.message;
+			}
+		}
+	}
+
+	// Display question-level error
+	function displayQuestionError(roundIndex, questionIndex, field, error) {
+		const rounds = document.querySelectorAll('.round');
+		if (roundIndex >= 0 && roundIndex < rounds.length) {
+			const roundElement = rounds[roundIndex];
+			const questions = roundElement.querySelectorAll('.question');
+
+			if (questionIndex >= 0 && questionIndex < questions.length) {
+				const questionElement = questions[questionIndex];
+
+				// Open the round and question to show the error
+				roundElement.open = true;
+				questionElement.open = true;
+
+				// Create error message
+				const errorElement = document.createElement('div');
+				errorElement.className = 'error-message';
+				errorElement.textContent = improveValidationErrorMessage(error);
+
+				// Insert after the header
+				const header = questionElement.querySelector('.card-header');
+				if (header) {
+					header.parentNode.insertBefore(errorElement, header.nextSibling);
+				}
+
+				// Highlight specific field based on the error
+				if (field) {
+					const fieldElement = questionElement.querySelector(`[data-field="${field}"]`);
+					if (fieldElement) {
+						fieldElement.classList.add('error-field');
+						fieldElement.title = error.message;
+					}
+				} else if (error.message.includes('text')) {
+					const textInput = questionElement.querySelector('[data-field="question-text"]');
+					textInput.classList.add('error-field');
+					textInput.title = error.message;
+				} else if (error.message.includes('answer')) {
+					const answerInput = questionElement.querySelector('[data-field="answer"]');
+					if (answerInput) {
+						answerInput.classList.add('error-field');
+						answerInput.title = error.message;
+					}
+				}
+
+			}
+		}
+	}
 }

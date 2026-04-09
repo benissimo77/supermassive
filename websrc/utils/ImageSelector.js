@@ -68,32 +68,41 @@ export class ImageSelector extends HTMLElement {
     render() {
         this.innerHTML = `
             <style>
-                .container {
+                .is-container {
                     position: relative;
-                    min-width: 100%;
-                    min-height: 100%; /* Full height of the parent container */
+                    width: 100%;
+                    /* Height natively follows the image child */
                     overflow: hidden;
+                    display: block;
+                    margin: 0;
+                    padding: 0;
+                    border: none;
                 }
                 #image-selector-image {
-                    position: absolute; /* Position the image absolutely */
-                    top: 0;
-                    left: 0;
-                    width: 100%; /* Full width of the parent container */
-                    display: block; /* Remove inline spacing */
+                    display: block;
+                    width: 100%;
+                    height: auto;
+                    transform-origin: top left;
+                    margin: 0;
+                    padding: 0;
+                    border: none;
                 }
                 canvas {
                     position: absolute;
                     top: 0;
                     left: 0;
-                    // border:1px solid yellow;
                     pointer-events: none;
+                    transform-origin: top left;
+                    margin: 0;
+                    padding: 0;
+                    border: none;
                 }
                 img.hotspot { cursor: crosshair; }
                 img.rectangle { cursor: crosshair; }
                 img.disabled { cursor: default; }
 
             </style>
-            <div class="container">
+            <div class="is-container">
                 <img id="image-selector-image" src="${this.getAttribute('src')}" draggable="false">
                 <canvas></canvas>
             </div>
@@ -105,58 +114,31 @@ export class ImageSelector extends HTMLElement {
         this._canvas = this.querySelector('canvas');
         this._ctx = this._canvas.getContext('2d');
 
-        // Redraw the canvas and image when the image loads
+        // When image loads, just adjust canvas since layout is handled natively via CSS (width: 100%, height: auto)
         this._image.onload = () => {
-            // Calculate the aspect ratio
-            const imageAspectRatio = this._image.naturalWidth / this._image.naturalHeight;
-            const containerWidth = this._image.parentElement.clientWidth;
-            const containerHeight = this._image.parentElement.clientHeight;
-
-            // Calculate the dimensions of the image based on the container size
-            let imageWidth, imageHeight;
-
-            if (containerWidth / containerHeight > imageAspectRatio) {
-                // Container is wider than the image aspect ratio
-                imageWidth = containerHeight * imageAspectRatio;
-                imageHeight = containerHeight;
-            } else {
-                // Container is taller than the image aspect ratio
-                imageWidth = containerWidth;
-                imageHeight = containerWidth / imageAspectRatio;
-            }
-
-            // Set the image size and position
-            this._image.width = imageWidth;
-            this._image.height = imageHeight;
-            this._image.style.left = `${(containerWidth - imageWidth) / 2}px`;
-            this._image.style.top = `${(containerHeight - imageHeight) / 2}px`;
-
-            // Set the canvas size to match the image size
-            this._canvas.width = imageWidth;
-            this._canvas.height = imageHeight;
             this._adjustCanvasSize();
-
-            // Center the canvas in the container
-            this._canvas.style.left = `${(containerWidth - imageWidth) / 2}px`;
-            this._canvas.style.top = `${(containerHeight - imageHeight) / 2}px`;
         };
     }
 
     setupEventListeners() {
         if (this._mode === 'disabled') return;
-        this._image.addEventListener('pointerdown', this.handlePointerDown.bind(this));
-        this._image.addEventListener('pointermove', this.handlePointerMove.bind(this));
-        this._image.addEventListener('pointerup', this.handlePointerUp.bind(this));
-        this._image.addEventListener('pointerleave', this.handlePointerUp.bind(this));
+        const container = this.querySelector('.is-container');
+        
+        container.addEventListener('pointerdown', this.handlePointerDown.bind(this));
+        container.addEventListener('pointermove', this.handlePointerMove.bind(this));
+        container.addEventListener('pointerup', this.handlePointerUp.bind(this));
+        container.addEventListener('pointerleave', this.handlePointerUp.bind(this));
+        
+        // This is kept strictly on the image to stop browser dragging the physical HTML element
         this._image.addEventListener('dragstart', (e) => e.preventDefault());
 
-        this._image.addEventListener('touchstart', this.handleTouchStart.bind(this));
-        // this._image.addEventListener('touchmove', this.handleTouchMove.bind(this));
-        this._image.addEventListener('touchend', this.handleTouchEnd.bind(this));
+        container.addEventListener('touchstart', this.handleTouchStart.bind(this));
+        // container.addEventListener('touchmove', this.handleTouchMove.bind(this));
+        container.addEventListener('touchend', this.handleTouchEnd.bind(this));
 
         // Add wheel event listener
-        if (this._mode === 'hotspot') {
-            this._image.addEventListener('wheel', this.handleWheel.bind(this));    
+        if (this._mode === 'hotspot' || this._mode === 'rectangle') {
+            container.addEventListener('wheel', this.handleWheel.bind(this));    
         }
     }
 
@@ -164,8 +146,12 @@ export class ImageSelector extends HTMLElement {
         event.preventDefault();
         this._isDrawing = true;
         this._isMoving = false;
+        
+        // Track the raw client values for 1:1 pan tracking
+        this._lastClientX = event.clientX;
+        this._lastClientY = event.clientY;
+
         const { x, y } = this.clientToCanvas(event.clientX, event.clientY);
-        // console.log('Pointer down', x, y, this._offsetX, this._offsetY );
         this._startX = x;
         this._startY = y;
     }
@@ -175,19 +161,23 @@ export class ImageSelector extends HTMLElement {
         this._isMoving = true;
         event.preventDefault();
 
-        const { x, y } = this.clientToCanvas(event.clientX, event.clientY);
-
-        // Diff with startX and Y to see how far we've moved
-        const diffX = x - this._startX;
-        const diffY = y - this._startY;
-
         // If question type is hotspot then we pan the image
         // If question type is rectangle then we instead draw a rectangle
         if (this._mode === 'hotspot') {
+            // Pan math directly uses unscaled raw mouse movement
+            const diffX = event.clientX - this._lastClientX;
+            const diffY = event.clientY - this._lastClientY;
+            
             this._offsetX += diffX;
             this._offsetY += diffY;
+            
+            this._lastClientX = event.clientX;
+            this._lastClientY = event.clientY;
+            
+            this.clampOffsets();
             this.updateTransform();
         } else {
+            const { x, y } = this.clientToCanvas(event.clientX, event.clientY);
             this.drawRect(this._startX, this._startY, x - this._startX, y - this._startY);
         }
 
@@ -364,23 +354,45 @@ export class ImageSelector extends HTMLElement {
     handleWheel(event) {
         event.preventDefault();
         
-        // Get mouse position in image coordinates
-        const { x: mouseX, y: mouseY } = this.clientToCanvas(event.clientX, event.clientY);
-        const { x:containerX, y:containerY } = this.clientToContainer(event.clientX, event.clientY);
+        // Use a smoother zoom increment (0.2 instead of 0.5)
+        const zoomDelta = event.deltaY > 0 ? -0.2 : 0.2;
+        const newScale = Math.max(1, Math.min(this._scale + zoomDelta, 4));
 
-        // console.log('handleWheel:: mouse x,y:', mouseX, mouseY);
-        // console.log('handleWheel:: container x,y:', containerX, containerY);
-        const zoomFactor = event.deltaY > 0 ? -0.5 : 0.5;
-        const newScale = Math.max(1, Math.min(this._scale + zoomFactor, 4));
+        // Let's not recalculate offset if scale is already capped (prevents drifting at boundaries)
+        if (newScale === this._scale) return; 
 
-        // Update scale
+        // Grab mouse position pure screen coordinates relative to top-left of the container
+        const container = this.querySelector('.is-container');
+        const rect = container.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+
+        // How far visually into the canvas was the mouse previously?
+        const localX = (mouseX - this._offsetX) / this._scale;
+        const localY = (mouseY - this._offsetY) / this._scale;
+
+        // Apply new zoom
         this._scale = newScale;
 
-        // Calculate the new offsets - that took a while... :(
-        this._offsetX = containerX - mouseX * newScale;
-        this._offsetY = containerY - mouseY * newScale;
+        // Readjust offsets so that same local point lands directly under the mouse again
+        this._offsetX = mouseX - localX * this._scale;
+        this._offsetY = mouseY - localY * this._scale;
 
+        this.clampOffsets();
         this.updateTransform();
+    }
+
+    clampOffsets() {
+        if (!this._image) return;
+        const width = this._image.offsetWidth;
+        const height = this._image.offsetHeight;
+
+        // Constraints: max offset is 0. Min offset is the amount of 'extra' scaled width sticking out.
+        const minX = -width * (this._scale - 1);
+        const minY = -height * (this._scale - 1);
+
+        this._offsetX = Math.max(minX, Math.min(0, this._offsetX));
+        this._offsetY = Math.max(minY, Math.min(0, this._offsetY));
     }
 
     updateTransform() {
@@ -421,16 +433,21 @@ export class ImageSelector extends HTMLElement {
     }
 
     _adjustCanvasSize() {
-        const rect = this._image.getBoundingClientRect();
-        const windowScale = 1;
-        console.log('_adjustCanvasSize:', rect, window.innerWidth/1920);
-        if (rect.width == 0 | rect.height == 0) {
-            return;
-        }
-        this._canvas.width = rect.width / windowScale;
-        this._canvas.height = rect.height / windowScale;
-        this._canvas.style.width = `${rect.width / windowScale}px`;
-        this._canvas.style.height = `${rect.height / windowScale }px`;
+        if (!this._image || !this._canvas) return;
+        const width = this._image.offsetWidth;
+        const height = this._image.offsetHeight;
+        
+        console.log('_adjustCanvasSize:', width, height);
+        if (width === 0 || height === 0) return;
+
+        this._canvas.width = width;
+        this._canvas.height = height;
+        this._canvas.style.width = width + "px";
+        this._canvas.style.height = height + "px";
+        
+        // Ensure the component matches this naturally determined height
+        this.style.height = height + "px";
+
         this._redrawCanvas();
     }
 
@@ -454,11 +471,11 @@ export class ImageSelector extends HTMLElement {
 
     // Verified
     clientToImage(x, y) {
-        const rect = this._image.getBoundingClientRect();
-        const windowScale = 1;
+        const container = this.querySelector('.is-container');
+        const rect = container.getBoundingClientRect();
         return {
-            x: (x - rect.left) / windowScale,
-            y: (y - rect.top) / windowScale
+            x: (x - rect.left),
+            y: (y - rect.top)
         };
     }
     clientToCanvas(x, y) {
@@ -472,10 +489,12 @@ export class ImageSelector extends HTMLElement {
     }
     // To convert from image to canvas we just need to consider the scale
     // Offset is already built into the translation of the image/canvas
+    // NO IT IS NOT! The translation applies to the DOM element itself!
+    // The canvas pixels themselves inside the DOM element don't know about DOM translation!
     imageToCanvas(x, y) {
         return {
-            x: (x ) / this._scale,
-            y: (y ) / this._scale
+            x: (x - this._offsetX) / this._scale,
+            y: (y - this._offsetY) / this._scale
         };
     }
    // Verified
@@ -490,16 +509,16 @@ export class ImageSelector extends HTMLElement {
     // Verified
         
     canvasToNormalized(x, y) {
-        const scaleX = 1000 / this._image.width;
-        const scaleY = 1000 / this._image.height;
+        const scaleX = 1000 / this._image.offsetWidth;
+        const scaleY = 1000 / this._image.offsetHeight;
         return {
             x: Math.round( x * scaleX ),
             y: Math.round( y * scaleY )
         };
     }
     normalizedToCanvas(x, y) {
-        const scaleX = this._image.width / 1000;
-        const scaleY = this._image.height / 1000;
+        const scaleX = this._image.offsetWidth / 1000;
+        const scaleY = this._image.offsetHeight / 1000;
         return {
             x: x * scaleX,
             y: y * scaleY

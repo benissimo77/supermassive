@@ -155,30 +155,71 @@ export const QuestionTypeRegistry = {
                 <div class="form-group">
                     <label>Items to Order (enter in correct order):</label>
                     <div class="ordering-items flex flex-col gap-xs mt-xs">
-                        ${Array.from({ length: 6 }).map((_, i) => `<input type="text" data-field="order-item" placeholder="Item ${i + 1}">`).join('')}
+                        ${Array.from({ length: 6 }).map((_, i) => `
+                        <div style="display:flex; gap:0.5rem; margin-bottom:0.25rem; align-items:center;">
+                            <input style="flex:1" type="text" data-field="order-item" placeholder="Item ${i + 1}">
+                            <div style="flex:1; display:flex; gap:0.25rem; align-items:center;" class="order-image-container">
+                                <input style="flex:1" type="text" data-field="order-image" placeholder="Image URL ${i + 1} (optional)">
+                                <div data-field="order-image-preview" style="width:28px; height:28px; background-size:cover; background-position:center; border:1px solid #ccc; border-radius:4px; display:none; flex-shrink:0;"></div>
+                                <button type="button" class="btn btn-sm btn-ghost select-order-image-btn" title="Select Image from Library"><i class="fa-solid fa-image" style="pointer-events:none;"></i></button>
+                            </div>
+                        </div>`).join('')}
                     </div>
                 </div>
             `;
         },
         serialize: (container) => {
-            const items = Array.from(container.querySelectorAll('[data-field="order-item"]'))
-                .map(input => input.value.trim())
-                .filter(val => val !== '');
-            return {
+            const itemInputs = Array.from(container.querySelectorAll('[data-field="order-item"]'));
+            const imageInputs = Array.from(container.querySelectorAll('[data-field="order-image"]'));
+            
+            const items = [];
+            const itemImages = [];
+            let hasImages = false;
+
+            itemInputs.forEach((input, i) => {
+                const val = input.value.trim();
+                const imgVal = imageInputs[i].value.trim();
+                if (val !== '' || imgVal !== '') {
+                    items.push(val);
+                    itemImages.push(imgVal);
+                    if (imgVal !== '') hasImages = true;
+                }
+            });
+
+            const data = {
                 items,
                 extra: {
                     startLabel: container.querySelector('[data-field="order-start"]').value,
                     endLabel: container.querySelector('[data-field="order-end"]').value
                 }
             };
+
+            if (hasImages) {
+                data.itemImages = itemImages;
+            }
+
+            return data;
         },
         deserialize: (container, data) => {
             container.querySelector('[data-field="order-start"]').value = data.extra?.startLabel || '';
             container.querySelector('[data-field="order-end"]').value = data.extra?.endLabel || '';
+            
             const inputs = container.querySelectorAll('[data-field="order-item"]');
+            const imgInputs = container.querySelectorAll('[data-field="order-image"]');
             const items = data.items || [];
+            const itemImages = data.itemImages || [];
+            
             inputs.forEach((input, i) => {
                 input.value = items[i] || '';
+                if (imgInputs[i]) {
+                    const imgVal = itemImages[i] || '';
+                    imgInputs[i].value = imgVal;
+                    const preview = imgInputs[i].parentElement.querySelector('[data-field="order-image-preview"]');
+                    if (preview) {
+                        preview.style.backgroundImage = imgVal ? `url(${imgVal})` : 'none';
+                        preview.style.display = imgVal ? 'block' : 'none';
+                    }
+                }
             });
         }
     },

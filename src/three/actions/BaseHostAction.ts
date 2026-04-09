@@ -1,7 +1,6 @@
 import Phaser from 'phaser';
 import { BaseScene } from 'src/BaseScene';
 import { gsap } from 'gsap';
-import { ThreeSceneRefs } from 'src/three/ThreeSceneRefs';
 
 /**
  * BaseHostAction provides the generic layout and clean-up boilerplate
@@ -60,7 +59,7 @@ export default class BaseHostAction extends Phaser.GameObjects.Container {
      *
      * @param refs — live references to scene containers, players and cards the action may need.
      */
-    public getTimeline(refs: ThreeSceneRefs): gsap.core.Timeline {
+    public getTimeline(evaluateData: any): gsap.core.Timeline {
         // Base implementation is a no-op; subclasses override with real choreography.
         return gsap.timeline({ paused: true });
     }

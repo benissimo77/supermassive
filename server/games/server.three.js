@@ -44,7 +44,8 @@ class TileDirector {
         };
 
         this.rules = [
-            this.ruleJoker_SlowDownLeaders
+            this.ruleJoker_SlowDownLeaders,
+			this.ruleJoker_MaximumOnePerTurn
         ];
     }
 
@@ -237,6 +238,14 @@ class TileDirector {
             return "Joker: Leader pressure applied";
         }
     }
+
+	ruleJoker_MaximumOnePerTurn(weights, pos, context) {
+		const { turnReveals } = context;
+		if (turnReveals && turnReveals.some(r => r.icon === 'joker')) {
+			weights['joker'] = 0;
+			return "Joker: Max one per turn";
+		}
+	}
 }
 
 class ThreeStateMachine {
@@ -286,17 +295,25 @@ class ThreeStateMachine {
 				break;
 
 			case ThreeState.TURN_EVALUATE:
+				console.log('ThreeStateMachine:: nextState(): current state: TURN_EVALUATE - evaluating turn results');
 				if (this.game.checkJoker()) {
+					console.log('JOKER played');
 					this.transitionTo(ThreeState.JOKER);
 				} else {
-					if (this.game.checkWinner()) {
-						// this.transitionTo(ThreeState.GAME_OVER);
-						this.transitionTo(ThreeState.TILE_SELECTION);
+					if (this.game.checkBattleOver()) {
+						console.log('checkBattleOver: true');
+						if (this.game.checkWinner()) {
+							console.log('checkWinner: true');
+							this.transitionTo(ThreeState.GAME_OVER);
+						} else {
+							console.log('CheckBattleOver: false');
+							this.game.endBattle();
+							this.transitionTo(ThreeState.QUIZ_QUESTION);
+						}
 					} else {
-						// TODO - logic for deciding if we have another turn or not...
-						console.log('ThreeStateMachine:: TURN_EVALUATE - no joker, check for another battle turn here (TODO)...');
-						// this.transitionTo(ThreeState.QUIZ_QUESTION);
-						this.transitionTo(ThreeState.TILE_SELECTION);
+						console.log('CheckBattleOver: false');
+						// Loop back to next battle question — shows players back in their slots, then a new battle question follows
+						this.transitionTo(ThreeState.QUIZ_QUESTION);
 					}
 				}
 				break;
@@ -306,12 +323,19 @@ class ThreeStateMachine {
 				break;
 
 			case ThreeState.JOKER_EVALUATE:
+				console.log('ThreeStateMachine:: nextState(): current state: JOKER_EVALUATE - evaluating joker results', this.game.battleContext);
 				// Once the result animation has played out, loop back to resolving the original turn state 
 				// (Checking if they won via steal, or returning to normal selection)
-				if (this.game.checkWinner()) {
-					this.transitionTo(ThreeState.TILE_SELECTION);
+				if (this.game.checkBattleOver()) {
+					if (this.game.checkWinner()) {
+						this.transitionTo(ThreeState.GAME_OVER);
+					} else {
+						this.game.endBattle();
+						this.transitionTo(ThreeState.QUIZ_QUESTION);
+					}
 				} else {
-					this.transitionTo(ThreeState.TILE_SELECTION);
+					// Loop back to next battle question — shows players back in their slots, then a new battle question follows
+					this.transitionTo(ThreeState.QUIZ_QUESTION);
 				}
 				break;
         }
@@ -358,9 +382,9 @@ class ThreeStateMachine {
 			case ThreeState.QUIZ_QUESTION:
 				let response;
 				if (this.game.battleMode === BattleMode.OPEN) {
-					response = this.game.moveToNextRound();
+					response = this.game.moveToNextOpenQuestion();
 				 } else {
-					response = this.game.moveToNextQuestion();
+					response = this.game.moveToNextBattleQuestion();
 				 }
 				 if (response) {
 						console.log('Moved to next question:: battleMode:', this.game.battleMode, 'roundNumber:', this.game.roundNumber, 'questionNumber:', this.game.questionNumber);
@@ -590,30 +614,8 @@ export default class ThreeGame extends Game {
 	}
 
 
-	// nextRound
-	// A function that can be called to start a round
-	// Function returns true/false if there are more rounds
-	moveToNextRound() {
-		if (this.roundNumber < this.quizData.rounds[0].questions.length) {
-			this.roundNumber++;
-			return true;
-		}
-		return false;
-	}
-
-	// moveToPreviousRound - reverse of moveToNextRound
-	moveToPreviousRound() {
-		if (this.roundNumber > 1) {
-			this.roundNumber--;
-			return true;
-		}
-		return false;
-	}
-
-	// nextQuestion
-	// Similar to nextRound above - returns true/false if there are no more questions in this round
-	moveToNextQuestion() {
-		const round = this.quizData.rounds[1];
+	moveToNextOpenQuestion() {
+		const round = this.quizData.rounds[0];
 		if (this.questionNumber < round.questions.length) {
 			this.questionNumber++;
 			return true;
@@ -621,17 +623,14 @@ export default class ThreeGame extends Game {
 		return false;
 	}
 
-	// moveToPreviousQuestion - reverse of moveToNextQuestion
-	// At end of round this.questionNumber will be the length of the questions array
-	moveToPreviousQuestion() {
-		console.log('moveToPreviousQuestion:', this.questionNumber);
-		if (this.questionNumber > 1) {
-			this.questionNumber--;
+	moveToNextBattleQuestion() {
+		const round = this.quizData.rounds[1];
+		if (this.roundNumber < round.questions.length) {
+			this.roundNumber++;
 			return true;
 		}
 		return false;
 	}
-
 
 	// keyPressHandler
 	// Recieves keypresses from the host and acts
@@ -734,11 +733,11 @@ export default class ThreeGame extends Game {
 
 		// this.question holds a pointer into the master quizData to allow mutating for storing player responses and scores
 		if (this.battleMode === BattleMode.OPEN) {
-			this.question = this.quizData.rounds[0].questions[this.roundNumber - 1];
-			this.question.questionNumber = this.roundNumber * 10;
+			this.question = this.quizData.rounds[0].questions[this.questionNumber - 1];
+			this.question.questionNumber = this.questionNumber;
 		} else {
-			this.question = this.quizData.rounds[1].questions[this.questionNumber - 1];
-			this.question.questionNumber = this.roundNumber * 10 + this.questionNumber;
+			this.question = this.quizData.rounds[1].questions[this.roundNumber - 1];
+			this.question.questionNumber = 100 + this.roundNumber;
 		}
 
 		console.log('doQuestion:', this.battleMode, this.question);
@@ -871,11 +870,11 @@ export default class ThreeGame extends Game {
 		// Sync derived values back to original question object
 		this.question.answer = localQuestion.answer;
 
-		console.dir('showAnswer:', localQuestion);
+		console.dir(localQuestion);
 
 		this.room.registerHostResponseHandler(() => {
 			this.room.deregisterHostResponseHandler();
-			this.stateMachine.nextState(); // Move to COLLECT_ANSWERS automatically
+			this.stateMachine.nextState();
 		});
 		this.room.emitToHosts('server:state:answer', localQuestion);
 
@@ -1169,7 +1168,7 @@ export default class ThreeGame extends Game {
 		// Determine the teams for battle - either from passed-in data or question data
 		if (this.question && this.question.responses) {
 			// If we just came from an OPEN question, we need to extract the top 2 teams here
-			const sortedTeams = Object.keys(this.question.responses).sort((a, b) => this.question.responses[b] - this.question.responses[a]);
+		const sortedTeams = Object.keys(this.question.responses).sort((a, b) => (this.question.responses[b].score || 0) - (this.question.responses[a].score || 0));
 			let battleTeams = sortedTeams.slice(0, 2);
 			console.log('doTeamBattle: Automatically extracted top teams from question:', battleTeams);
 			if (battleTeams.length < 2) {
@@ -1193,10 +1192,9 @@ export default class ThreeGame extends Game {
 		console.log('ThreeGame::doTileSelection: Starting tile selection phase. Battle Context before processing:', this.battleContext);
 		console.dir(this.battleContext);
 		
-		// Ensure activeTurn is ready
-		if (!this.battleContext.activeTurn) {
-			this.battleContext.activeTurn = { scores: {}, selections: {}, reveals: [] };
-		}
+		// Always reset activeTurn at the start of each new tile selection round so
+		// stale answers and tile selections from the previous turn can't bleed through.
+		this.battleContext.activeTurn = { scores: {}, selections: {}, reveals: [] };
 
 		// BRIDGE: Migrate scores from the Quiz context into the Battle context
 		// This must happen here at the start of TileSelection, because this state
@@ -1317,6 +1315,11 @@ export default class ThreeGame extends Game {
 		this.battleContext.turns.push(this.battleContext.activeTurn);
 		
 		// Emit the sequence of events to the host for animation
+		// Once the host animation is done, auto-advance to TEAM_BATTLE to show players back in their slots
+		// this.room.registerHostResponseHandler(() => {
+		// 	this.room.deregisterHostResponseHandler();
+		// 	this.stateMachine.nextState();
+		// });
 		this.room.emitToHosts('server:state:turnevaluate', { 
 			reveals,
 			grid: this.grid, // Send final grid state for verification
@@ -1472,7 +1475,7 @@ export default class ThreeGame extends Game {
 						this.playerHands.set(fromSID, new Set());
 					}
 					const fromHand = this.playerHands.get(fromSID);
-					if (fromHand.has(fromTile)) {
+					if (fromHand.has(fromTile) && fromTile !== 'joker') {
 						result = 'steal';
 						this.stealTile(fromSID, jokerData.playerSID, fromTile);
 						// Since this is a joker steal it should always be safe - so remove from battleContext.tiles
@@ -1499,6 +1502,12 @@ export default class ThreeGame extends Game {
 
 		// Broadcast the stored result out to trigger the animations
 		this.room.emitToHosts('server:state:jokerevaluate', jokerData);
+
+		// When the host animation completes it will send host:response — advance to the next state
+		// this.room.registerHostResponseHandler(() => {
+		// 	this.room.deregisterHostResponseHandler();
+		// 	this.stateMachine.nextState(); // JOKER_EVALUATE → TILE_SELECTION
+		// });
 
 	}
 
@@ -1538,7 +1547,8 @@ export default class ThreeGame extends Game {
             playerHands: this.playerHands,
             battleTiles: this.battleContext.tiles,
             activeSID: playerSID,
-            battleTeams: this.battleContext.teams
+            battleTeams: this.battleContext.teams,
+            turnReveals: this.battleContext.activeTurn?.reveals || []
         });
 
         // Ensure the master grid is updated immediately with the revealed type
@@ -1609,12 +1619,54 @@ export default class ThreeGame extends Game {
         return Array.from(this.playerHands.keys()).find(k => k !== sid);
     }
 
+	// checkWinner
+	// Looks at the playerHands and determines if a team has collected 3 matching tiles yet.
+	// A "win" requires 3 tiles of the SAME icon type (looked up from this.grid).
+	// In the event that two teams both have a winning hand simultaneously, teams[0] wins (they went first).
     checkWinner() {
+		console.dir(this.playerHands, { depth: 3, colors: true });
+
+		const winners = [];
+
         for (const [sid, hand] of this.playerHands.entries()) {
-            if (hand.size >= 3) return sid;
+			// Count occurrences of each icon type in this hand
+			const typeCounts = {};
+			for (const pos of hand) {
+				const type = this.grid[pos];
+				if (!type) continue;
+				typeCounts[type] = (typeCounts[type] || 0) + 1;
+				if (typeCounts[type] >= 3) {
+					winners.push(sid);
+					break;
+				}
+			}
         }
-        return null;
+
+		if (winners.length === 0) return null;
+
+		// Tie-break: the team listed first in battleContext.teams went first and wins
+		if (winners.length > 1 && this.battleContext?.teams) {
+			for (const sid of this.battleContext.teams) {
+				if (winners.includes(sid)) return sid;
+			}
+		}
+
+		return winners[0];
     }
+
+	checkBattleOver() {
+		console.log('ThreeGame::checkBattleOver - checking if battle is over with tiles:', this.battleContext.activeTurn);
+		const activeTurn = this.battleContext.activeTurn;
+		if (!activeTurn || !activeTurn.reveals) {
+			console.warn('ThreeGame::checkBattleOver - No active turn or reveals found in battle context!');
+			return false;
+		}
+		// Count the number of 'collects' these are the new tiles that were collected this turn, must be 3-4 to continue the battle
+		const collectCount = activeTurn.reveals.filter(reveal => reveal.result === 'collect').length;
+		console.log(`ThreeGame::checkBattleOver - collectCount: ${collectCount}`);
+ 		// If less than 3 new tiles were collected then the battle is over
+		return collectCount < 3 || collectCount > 4;
+	}
 
     endBattle() {
         console.log('ThreeGame:: endBattle - Vaulting all tiles (clearing vulnerability)');
@@ -1622,6 +1674,7 @@ export default class ThreeGame extends Game {
 			this.battles.push(this.battleContext);
 		}
         this.battleContext = null;
+		this.battleMode = BattleMode.OPEN;
     }
 
 

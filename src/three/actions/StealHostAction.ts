@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { BaseScene } from 'src/BaseScene';
 import { gsap } from 'gsap';
 import BaseHostAction from './BaseHostAction';
-import { ThreeSceneRefs } from 'src/three/ThreeSceneRefs';
+import type { ThreeHostScene } from 'src/three/ThreeHostScene';
 
 export default class StealHostAction extends BaseHostAction {
 
@@ -67,59 +67,58 @@ export default class StealHostAction extends BaseHostAction {
      * JOKER_EVALUATE — full steal choreography.
      * Returns a paused timeline. The scene plays it and wires up host:response on onComplete.
      */
-    public getTimeline(refs: ThreeSceneRefs): gsap.core.Timeline {
-        const data = this.actionData;
-        const activePlayer = refs.players.get(data.playerSID);
-        const victimPlayer = refs.players.get(data.fromSID);
-        const targetCard = refs.cards[data.pos];
-
+    public getTimeline(evaluateData: any): gsap.core.Timeline {
         const tl = gsap.timeline({ paused: true });
+        const scene = this.scene as ThreeHostScene;
+
+        // Merge joker-setup data (known at JOKER time) with evaluate results (known at JOKER_EVALUATE time)
+        const data = { ...this.actionData, ...evaluateData };
+
+        const activePlayer = scene.threePlayers.get(data.playerSID);
+        const victimPlayer = scene.threePlayers.get(data.fromSID);
+        const targetCard   = scene.cards[data.pos];
 
         if (!activePlayer || !victimPlayer || !targetCard) {
-            console.error('StealHostAction::getTimeline — missing entities', { activePlayer, victimPlayer, targetCard });
+            console.error('StealHostAction::getTimeline — missing entities', { data });
             return tl;
         }
 
-        // 1. Slide the battle container off-screen and bring the joker container's players into view
-        tl.add(() => {}, '+=0.5');
-        tl.to(refs.battleContainer, { x: -1280, duration: 0.8, ease: 'Back.easeIn(1.7)' }, '+=0.2');
+        // Slot positions in battleContainer local space (design-space, scale applied by container)
+        const SLOT_X   = 80;
+        const SLOT_1_Y = 20 + 20 + 140 + 360 + 20; // slot 1 — victim (active player is already at slot 0)
 
-        // 2. Reparent players into the joker container at fixed positions (synchronous, inside tl.add)
+        // 0. Slide rules overlay back off-screen right, simultaneously reparent victim into slot 1.
+        //    Active player is already in battleContainer slot 0 from JOKER setup.
         tl.add(() => {
-            refs.reparentObject(activePlayer, refs.gridContainer);
-            activePlayer.setCardMode(false);
-            activePlayer.x = 40 + 40;
-            activePlayer.y = 140;
-
-            refs.reparentObject(victimPlayer, refs.gridContainer);
-            victimPlayer.setCardMode(false);
+            scene.reparentObject(victimPlayer, scene.battleContainer);
+            victimPlayer.setCardMode(true);
             victimPlayer.setIconGridVisibility(true);
-            victimPlayer.x = 40;
-            victimPlayer.y = 380;
+            // Start them off-screen below so they can tween up into position
+            victimPlayer.x = SLOT_X;
+            victimPlayer.y = SLOT_1_Y + 200;
         });
+        tl.to(scene.actionContainer, { x: 1920 + 1280, duration: 0.8, ease: 'power2.inOut' });
+        tl.to(victimPlayer, { y: SLOT_1_Y, duration: 0.6, ease: 'back.out(1.7)' }, '<+0.2');
 
-        // 3. Reveal the targeted tile
-        tl.add(() => { targetCard.flip(data.tileType, true, 0.5); }, '+=0.1');
+        // 1. Reveal the targeted tile on the grid
+        tl.add(() => { targetCard.flip(data.tileType, true, 0.5); }, '+=0.3');
 
-        // 4. Pop outcome text over the card
-        const resultText = this.scene.add.text(0, 0,
+        // 2. Pop outcome text above the card (in gridContainer local space)
+        const resultText = scene.add.text(0, 0,
             data.result === 'steal' ? 'STEAL!' : 'FAILED STEAL!',
-            {
-                fontFamily: 'Titan One', fontSize: '60px',
-                color: data.result === 'steal' ? '#ff0000' : '#aaaaaa',
-                stroke: '#000000', strokeThickness: 8
-            }
+            { fontFamily: 'Titan One', fontSize: '60px',
+              color: data.result === 'steal' ? '#ff0000' : '#aaaaaa',
+              stroke: '#000000', strokeThickness: 8 }
         ).setOrigin(0.5).setAlpha(0).setScale(0);
-
         tl.add(() => {
+            scene.gridContainer.add(resultText);
             resultText.setPosition(targetCard.x, targetCard.y);
-            refs.gridContainer.add(resultText);
         });
-        tl.to(resultText, { y: '-=120', scale: 1, alpha: 1, duration: 0.5, ease: 'back.out' }, '+=0.1');
+        tl.to(resultText, { y: '-=120', scale: 1, alpha: 1, duration: 0.5, ease: 'back.out' }, '+=0.2');
         tl.to(resultText, { alpha: 0, duration: 0.5, ease: 'power2.in' }, '+=1.5');
         tl.add(() => resultText.destroy());
 
-        // 5. Transfer the tile on success
+        // 3. Transfer the tile icon between the two visible players
         if (data.result === 'steal') {
             tl.add(() => {
                 victimPlayer.loseCollectedIcon(data.tileType, data.pos);
@@ -127,15 +126,11 @@ export default class StealHostAction extends BaseHostAction {
             }, '+=0.3');
         }
 
-        // 6. Always flip the tile back face-down
+        // 4. Flip the tile back face-down
         tl.add(() => { targetCard.flip('', false, 0.5); }, '+=0.2');
 
-        // 7. Remove the joker icon from the active player's grid
+        // 5. Remove the joker icon from the active player's grid
         tl.add(() => { activePlayer.loseCollectedIcon('joker', 0); }, '+=0.1');
-
-        // 8. Restore the battle UI — slide the joker overlay out, restore players, slide battle in
-        tl.add(() => { refs.doBattleSetup().play(); });
-        tl.to(refs.battleContainer, { x: 0, duration: 0.8, ease: 'back.out(1.7)' }, '<');
 
         return tl;
     }

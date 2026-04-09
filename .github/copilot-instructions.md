@@ -12,7 +12,7 @@
 
 ## Developer Workflows
 
-- **Start Dev Environment:** Use `npm start` (runs both rollup and server in parallel).
+- **Live Environment:** The user maintains active bash terminals running the server and a Rollup watch script. **DO NOT run `npm start`, `npm run server`, or `npm run rollup:prod` yourself.** Doing so will cause `EADDRINUSE` port collisions and MongoDB local lock file crashes. Just edit code and rely on the user's background watcher.
 - **Frontend:** Edit in `/src/`, assets in `/public/`.
 - **Backend:** Edit in `/server/`.
 - **Deploy/Sync:** Use `scp` or similar to update remote servers (see recent terminal usage).
@@ -104,6 +104,7 @@ To prevent regressions in fundamental systems, categorize files by their impact:
 - Only suggest abstractions that help ALL games
 - Prioritize shipping and working code over “clean architecture”
 - **Pause and Assess:** Before starting any large-scale refactor, structural reorganization, or language conversion (like JS to TS), I will pause to assess the complexity and risk. I will explicitly state the plan and wait for confirmation if the change is likely to destabilize the build or requires "blind" editing of large files.
+- **Micro-Commits (Save Points):** Encourage the user to make regular, atomic `git commit`s after reaching significant milestones or completing an isolated, working piece of logic. This codebase is in rapid iteration, and relying on `git checkout` is a literal lifesaver. Gently prompt the user: *"This would be a great time to commit your changes before we move on!"* when appropriate.
 - **Respect Stability Levels:** I will identify the "Stability Level" of a file before editing. For Level 1 and 2 files, I will be extra cautious, explain the potential side effects, and verify fundamental assumptions (like property names) before applying changes.
 - Always favor running a database migration on existing data instead of extending the code to handle multiple versions of database schemas.
 - **Never use terminal scripts for file edits:** I will never run terminal commands (like PowerShell scripts, sed, awk, or node file-system scripts) to manipulate, refactor, or edit files directly. I will ALWAYS use the built-in standard tools (like `replace_string_in_file`, `edit_file`, etc.) to edit codebase files.

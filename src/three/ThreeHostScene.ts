@@ -1,10 +1,10 @@
 import { BaseScene } from 'src/BaseScene';
 import { ThreeCard } from './ThreeCard';
 import { SocketDebugger } from 'src/utils/SocketDebugger';
-import { QuestionFactory } from './QuestionFactory';
-import { BaseQuestion } from '../quiz/questions/BaseQuestion';
+import { QuestionFactory } from 'src/quiz/questions/QuestionFactory';
+import { BaseQuestion } from 'src/quiz/questions/BaseQuestion';
 import { ThreePlayer } from './ThreePlayer';
-import { PlayerConfig, PhaserPlayerState } from '../quiz/PhaserPlayer';
+import { PlayerConfig, PhaserPlayerState } from 'src/quiz/PhaserPlayer';
 import { BattleMap } from './BattleMap';
 import { LobbyHUD } from 'src/ui/LobbyHUD';
 import { BeatManager } from 'src/utils/BeatManager';
@@ -12,6 +12,7 @@ import ThreeHostActionFactory from './actions/ThreeHostActionFactory';
 import BaseHostAction from './actions/BaseHostAction';
 
 import { gsap } from 'gsap';
+import { ThreeSceneRefs } from './ThreeSceneRefs';
 
 export enum ThreeState {
     INIT = 'INIT',
@@ -50,7 +51,21 @@ export class ThreeHostScene extends BaseScene {
     private lobbyHUD: LobbyHUD;
     private lastKeyTime: number = 0;
 
-    // Additional containers specific to ThreeHostScene
+    // Additional containers specific to ThreeHostScene.
+    //
+    // ANIMATION ARCHITECTURE — three rules:
+    //   1. stateTeardown = synchronous only. Kill stateTimeline, destroy owned objects, snap shared
+    //      containers to their neutral (off-screen) positions. No animation, no async.
+    //   2. stateTimeline = all animation. Every tween/timeline that drives a state lives here so
+    //      the single skip guard (stateTeardown progress(1).kill()) can interrupt anything cleanly.
+    //   3. Sub-animations (doBattleSetup, getAnswerTimeline, card flips) return paused gsap timelines
+    //      so they can be embedded into stateTimeline via tl.add(subTl, '<') without racing.
+    //
+    // Neutral (off-screen) positions — where stateTeardown snaps containers so that each
+    // stateSetup can animate IN from a known starting position without knowing the previous state:
+    //   battleContainer:  x = -1920  (off-screen left)
+    //   gridContainer:    x = 1280, scale = 0.1  (centred but collapsed)
+    //   actionContainer:  x = 1920 + 1280  (off-screen right)
     private gridContainer: Phaser.GameObjects.Container;
     private battleContainer: Phaser.GameObjects.Container;
     private questionContainer: Phaser.GameObjects.Container;
@@ -152,9 +167,8 @@ export class ThreeHostScene extends BaseScene {
         this.battleContainer = this.add.container(-1920, 0);
         this.playerContainer = this.add.container(0, 0);
         this.questionContainer = this.add.container(0, 0);
-        this.actionContainer = this.add.container(1280, this.getY(540)); // Center of screen for Joker splashes
+        this.actionContainer = this.add.container(1280, this.getY(540)); // Centre of screen — joker overlay sits here
 
-        // Grid and Players live in the Main/World container
         this.mainContainer.add([this.battleContainer, this.playerContainer, this.gridContainer, this.questionContainer, this.actionContainer]);
 
         // Create the grid (invisible to start and scaled down ready for the scale-up transition)
@@ -253,17 +267,13 @@ export class ThreeHostScene extends BaseScene {
             this.mainContainer
         ]);
 
-        // 3. Sync state-specific dynamic content visibility
-        if (this.currentQuestion) {
-            this.currentQuestion.renderHost();
-        }
-
         // scale the BattleUI to fit the screen - battleUI is designed to be 1080 height and then scaled to fit
         if (this.battleContainer) {
             // Experiment with scaling the battleUI to simplify the problem if fitting it all in
             console.log('ThreeHostScene:: Scaling battleContainer with scale factor', this.getY(1080) / 1080, 'getScaleFactor():', this.getScaleFactor());
             this.battleContainer.setScale(this.getY(1080) / 1080);
         }
+
 
         // If a Joker panel is active, let it adjust itself (e.g. recenter dynamically)
         if (this.currentState === ThreeState.JOKER && this.currentAction) {
@@ -296,14 +306,16 @@ export class ThreeHostScene extends BaseScene {
 
         console.log(`ThreeHostScene:: Tearing down state ${state}`);
 
-        // FIX: Force state timeline to instant completion to prevent half-finished state updates when skipping
+        // Kill any in-flight state animation immediately. progress(1) jumps to the end so
+        // onComplete callbacks still fire (e.g. socket.emit('host:response')) before killing.
         if (this.stateTimeline && this.stateTimeline.isActive()) {
             this.stateTimeline.progress(1).kill();
             this.stateTimeline = null;
         }
 
-        // EXIT logic for states to clean up after themselves
-        // ADD cases here as and when they come up
+        // EXIT logic: synchronous cleanup only — destroy owned objects, snap shared containers
+        // to their neutral positions (see comment above). No animation here; all animation
+        // belongs in stateSetup / stateTimeline so the skip guard above can always interrupt it.
         switch (state) {
 
             case ThreeState.LOBBY:
@@ -337,21 +349,16 @@ export class ThreeHostScene extends BaseScene {
                 break;
                 
             case ThreeState.JOKER:
-                // Slide action container off-screen to the right, then destroy
+                // Snap the action container off-screen and destroy. No animation —
+                // teardowns are instant resets; animation belongs in the next stateTimeline.
                 if (this.currentAction) {
-                    const oldAction = this.currentAction;
-                    this.currentAction = null; // Detach reference immediately
-                    
-                    this.tweens.add({
-                        targets: this.actionContainer,
-                        x: "+=1280",
-                        duration: 0.8,
-                        ease: "power2.inOut",
-                        onComplete: () => {
-                            oldAction.destroy();
-                        }
-                    });
+                    this.currentAction.destroy();
+                    this.currentAction = null;
                 }
+                this.actionContainer.setPosition(1920 + 1280, this.getY(540));
+                this.battleTeams.forEach((slotIndex, sessionID) => {
+                    this.threePlayers.get(sessionID)?.setHighlighted(false);
+                });
                 break;
         }
     }
@@ -390,25 +397,16 @@ export class ThreeHostScene extends BaseScene {
             case ThreeState.TEAM_BATTLE:
             case ThreeState.TILE_SELECTION:
 
-                // 2. Focus on the Board
+                // Slide the grid and battle container in simultaneously,
+                // then position players into their battle slots (all in parallel via '<')
                 this.gridContainer.setVisible(true);
-                this.tweens.add({
-                    targets: this.gridContainer,
-                    scale: 1,
-                    duration: 800,
-                    ease: 'Back.easeOut'
-                });
-
-                // 3 Battle Container
                 this.battleContainer.setVisible(true);
-                this.tweens.add({
-                    targets: this.battleContainer,
-                    x: 0,
-                    duration: 800,
-                    ease: 'Back.easeOut'
-                })
-
-                this.doBattleSetup(data);
+                gsap.timeline()
+                    .to(this.gridContainer, { scale: 1, duration: 0.8, ease: 'back.out(1.7)' })
+                    .to(this.battleContainer, { x: 0, duration: 0.8, ease: 'back.out(1.7)' }, '<')
+                    .add( () => {
+                        this.doBattleSetup(data).play();
+                    }, '<');
                 break;
 
             case ThreeState.TILE_SELECTION:
@@ -420,17 +418,17 @@ export class ThreeHostScene extends BaseScene {
                     this.currentAction.destroy();
                     this.currentAction = null;
                 }
+                // Slide the battle container out and the joker overlay in.
+                // The action renders its own panel/title at the grid centre.
                 this.currentAction = this.actionFactory.create(data);
                 if (this.currentAction) {
                     this.actionContainer.add(this.currentAction);
-                    this.currentAction.render();
-                    this.actionContainer.setPosition(1920 + 1280, this.getY(540)); // Start off-screen right
-                    this.tweens.add({
-                        targets: this.actionContainer,
-                        x: 1280,
-                        duration: 800,
-                        ease: 'Back.easeOut'
-                    });
+                    this.actionContainer.setPosition(1920 + 1280, this.getY(540));
+                    this.stateTimeline = gsap.timeline();
+                    this.stateTimeline
+                        .to(this.battleContainer, { x: -1920, duration: 0.8, ease: 'power2.inOut' })
+                        .add(() => { this.currentAction!.render(); })
+                        .to(this.actionContainer, { x: 1280, duration: 0.8, ease: 'back.out(1.7)' }, '<');
                 }
                 break;
         }
@@ -455,7 +453,11 @@ export class ThreeHostScene extends BaseScene {
 
     }
 
-    private doBattleSetup(data: any): void {
+    // Returns a paused gsap timeline containing the player position animations.
+    // All instant state mutations (setCardMode, reparent, etc.) fire synchronously when called,
+    // so the timeline can safely be embedded into a parent timeline or played directly.
+    private doBattleSetup(data: any): gsap.core.Timeline {
+        const tl = gsap.timeline({ paused: true });
 
         console.log('ThreeHostScene:: doBattleSetup:', data);
         this.battleMode = BattleMode.BATTLE;
@@ -471,30 +473,31 @@ export class ThreeHostScene extends BaseScene {
         // Loop through players either placing them into their correct battleSlot or hiding them
         this.threePlayers.forEach((p, sessionID) => {
             console.log('ThreeHostScene:: TEAM_BATTLE - placing player:', p.getSessionID(), sessionID);
-            if (data.battleTeams.includes(sessionID)) {
+            if (this.battleTeams.get(sessionID) !== undefined) {
                 p.setIconGridVisibility(true);
                 p.setCardMode(true);
                 p.setPlayerState(PhaserPlayerState.REVEALING);
-                this.tweens.killTweensOf(p);
-                
+                gsap.killTweensOf(p); // Kill GSAP tweens (this.tweens.killTweensOf only kills Phaser tweens)
+
                 const currentSlotIndex = this.battleTeams.get(sessionID);
-                const newSlotIndex = data.battleTeams.indexOf(sessionID);
+                // Fall back to existing slot mapping when data.battleTeams is not provided (e.g. post-joker reset)
+                const newSlotIndex = data.battleTeams ? data.battleTeams.indexOf(sessionID) : currentSlotIndex;
                 console.log('ThreeHostScene:: TEAM_BATTLE - player slot mapping:', sessionID, 'currentSlotIndex:', currentSlotIndex, 'newSlotIndex:', newSlotIndex);
-                
-                if (currentSlotIndex !== undefined && newSlotIndex !== undefined) {
+
+                if (currentSlotIndex !== undefined && newSlotIndex !== undefined && newSlotIndex !== -1) {
                     this.reparentObject(p, this.battleContainer);
                     this.battleContainer.sendToBack(p);
-                    
+
                     const targetX = 80;
                     const targetY = 20 + 20 + 140 + newSlotIndex * (BATTLESLOT_HEIGHT + 20);
 
-                    this.tweens.add({
-                        targets: p,
+                    // '<' runs all player position tweens in parallel
+                    tl.to(p, {
                         x: targetX,
                         y: targetY,
-                        duration: 800,
-                        ease: 'Back.easeOut'
-                    });
+                        duration: 0.8,
+                        ease: 'back.out(1.7)'
+                    }, '<');
                 }
             } else {
                 p.setIconGridVisibility(false);
@@ -503,6 +506,8 @@ export class ThreeHostScene extends BaseScene {
                 this.animatePlayer(p);
             }
         });
+
+        return tl;
     }
 
     private doTileSelection(data: any): void {
@@ -738,31 +743,28 @@ export class ThreeHostScene extends BaseScene {
         this.socket.on('server:state:battlequestion', async (question: any) => {
             console.log('ThreeHostScene:: server:state:battlequestion', question);
             this.changeState(ThreeState.BATTLE_QUESTION, question);
+
             await this.createQuestion(question);
 
-            // Animate transition (sliding from right)
-            this.currentQuestion.x = 1920;
-            gsap.to(this.currentQuestion, {
-                duration: 1,
-                x: 0,
-                ease: 'back.out(1.7)',
-                onComplete: () => {
-                    console.log('GSAP animation complete!');
-                    this.socket.emit('host:response');
-                    if (question.mode === 'ask') {
-                        this.soundManager.playMusic('quiz-countdown', { volume: 0.3, fadeIn: 6000 });
-                    } 
-                }
-            });
+            if (this.currentQuestion) {
+                this.currentQuestion?.renderHost();
 
-            // Set battling teams to state of ANSWERING
-            this.battleTeams.forEach((slotIndex, sessionID) => {
-                const player = this.threePlayers.get(sessionID);
-                if (player) {
-                    player.setPlayerState(PhaserPlayerState.ANSWERING);
-                    this.animatePlayer(player);
-                }
-            });
+                // Animate transition (sliding from right)
+                this.currentQuestion.x = 1920;
+                gsap.to(this.currentQuestion, {
+                    duration: 1,
+                    x: 0,
+                    ease: 'back.out(1.7)',
+                    onComplete: () => {
+                        console.log('GSAP animation complete!');
+                        this.socket.emit('host:response');
+                        if (question.mode === 'ask') {
+                            this.soundManager.playMusic('quiz-countdown', { volume: 0.3, fadeIn: 6000 });
+                        } 
+                    }
+                });
+
+            }
         });
 
         this.socket.on('server:state:battleanswer', async (question: any) => {
@@ -1054,8 +1056,6 @@ export class ThreeHostScene extends BaseScene {
                 this.cards.push(card);
             }
         }
-
-
     }
 
     private createBattleUI(): void {
@@ -1081,127 +1081,28 @@ export class ThreeHostScene extends BaseScene {
     }
 
     // Animates the result of a Joker intervention
-    private async doJokerEvaluate(data: any): Promise<void> {
+    private doJokerEvaluate(data: any): void {
         console.log('ThreeHostScene:: doJokerEvaluate:', data);
 
-        // Bit of a hack but just push the gridContainer to the bottom so that everything sits on top
-        this.mainContainer.sendToBack(this.gridContainer);
-
-        const tl = gsap.timeline({
-            onComplete: () => {
-                // Resume server state machine
-                this.socket.emit('host:response');
-            }
-        });
-        this.stateTimeline = tl;
-
-        // Small pause for effect
-        tl.add(() => {}, "+=0.5");
-
-        if (data.jokerType === 'steal') {
-            const activePlayer = this.threePlayers.get(data.playerSID);
-            const victimPlayer = this.threePlayers.get(data.fromSID);
-            const targetCard = this.cards[data.pos];
-
-            if (!activePlayer || !victimPlayer || !targetCard) {
-                console.error("Missing entities for steal operation");
-                return;
-            }
-
-            // 1. Slide the jokerOverlay to the right (x += 1280)
-            // (Removed here because it is now handled generically in stateTeardown)
-
-            // Prepare reparenting vars
-            let originalParent: Phaser.GameObjects.Container;
-            let originalLocalX: number;
-            let originalLocalY: number;
-            let originalScale: number;
-
-            // 2. Bring the victim avatar onto the screen by re-parenting
-            // Note this can be done before timeline even starts
-            originalParent = victimPlayer.parentContainer as Phaser.GameObjects.Container;
-            originalLocalX = victimPlayer.x;
-            originalLocalY = victimPlayer.y;
-            const playerGlobalScale = victimPlayer.getWorldTransformMatrix().scaleX;
-            const mainGlobalScale = this.mainContainer.getWorldTransformMatrix().scaleX;
-
-            console.log('JokerEvaluate - before tween: player scale:', playerGlobalScale, 'mainGlobalScale:', mainGlobalScale);
-
-            // Move to main container so it floats above everything
-            this.reparentObject(victimPlayer, this.mainContainer);
-            victimPlayer.setScale(playerGlobalScale / mainGlobalScale);
-            
-            // 4. setIconGridVisibilty(true) for this victim
-            victimPlayer.setIconGridVisibility(true);
-
-            // 3. Tween their avatar to the location of data.pos (x,y adjusted slightly)
-            tl.to(victimPlayer, {
-                x: () => {
-                    const worldPoint = targetCard.getWorldTransformMatrix();
-                    const localPoint = this.mainContainer.getLocalPoint(worldPoint.tx, worldPoint.ty);
-                    // Slightly shift left or right depending on tile column so we don't totally obscure it
-                    const offsetX = targetCard.x < 0 ? 140 : -140 - 240; 
-                    return localPoint.x + (offsetX * this.mainContainer.scaleX);
-                },
-                y: () => {
-                    const worldPoint = targetCard.getWorldTransformMatrix();
-                    const localPoint = this.mainContainer.getLocalPoint(worldPoint.tx, worldPoint.ty);
-                    // Float below if upper half (targetCard.y < 0), otherwise hover slightly above
-                    const offsetY = targetCard.y < 0 ? 160 : -160 - 100;
-                    return localPoint.y + (offsetY * this.mainContainer.scaleY); 
-                },
-                scaleX: 1,
-                scaleY: 1,
-                duration: 0.8,
-                ease: "back.out(1.2)"
-            });
-
-            // 5. Physical reveal of targeted tile (tiles are never pre-revealed so we always flip)
-            tl.add(targetCard.flip(data.tileType, true, 0.5), "+=0.1");
-
-            // Pop some text over the grid container
-            const text = this.add.text(0, 0, 'FAILEED STEAL!', {
-                fontFamily: 'Titan One', fontSize: '60px', color: '#aaaaaa', stroke: '#000000', strokeThickness: 8
-            }).setOrigin(0.5).setAlpha(0).setScale(0);
-            tl.add(() => {
-                text.setPosition(targetCard.x, targetCard.y);
-                this.gridContainer.add(text);
-            });
-            tl.to(text, { y: "-=120",scale: 1, alpha: 1, duration: 0.5, ease: 'back.out' }, "+=0.1");
-            tl.to(text, { alpha: 0, duration: 0.5, ease: 'power2.in' }, "+=1.5");
-            tl.add(() => text.destroy());
-
-            // 6. Steal successful or not? Trigger lose/add collected icon on success
-            if (data.result === 'steal') {
-                text.setText('STEAL!');
-                text.setColor('#ff0000');
-
-                tl.add(() => {
-                    victimPlayer.loseCollectedIcon(data.tileType, data.pos);
-                    activePlayer.addCollectedIcon(data.tileType, data.pos, data.newTileCount);
-                }, "+=0.3");
-            }
-
-            tl.add(() => {
-                victimPlayer.setIconGridVisibility(false);                
-                this.reparentObject(victimPlayer, originalParent);
-                victimPlayer.setScale(mainGlobalScale / playerGlobalScale);
-                console.log('JokerEvaluate - timeline victim just re-parented back to original parent');
-            });
-
-            // 7. Wait 1s second then tween the victim avatar back
-            tl.to(victimPlayer, {
-                x: originalLocalX,
-                y: originalLocalY,
-                scaleX: 1,
-                scaleY: 1,
-                duration: 1.8,
-                ease: "power2.inOut"
-            }, "+=0.5");
-
-            // 8. ALWAYS flip back to face-down
-            tl.add(targetCard.flip('', false, 0.5), "+=0.2");
+        if (!this.currentAction) {
+            console.error('ThreeHostScene:: doJokerEvaluate called with no currentAction');
+            return;
         }
+
+        const refs: ThreeSceneRefs = {
+            battleContainer: this.battleContainer,
+            gridContainer:   this.gridContainer,
+            players:         this.threePlayers,
+            cards:           this.cards,
+            reparentObject:  (obj, parent) => this.reparentObject(obj, parent),
+            doBattleSetup:   () => this.doBattleSetup({}),
+        };
+
+        this.stateTimeline = this.currentAction.getTimeline(refs);
+        this.stateTimeline.eventCallback('onComplete', () => {
+            this.socket.emit('host:response');
+        });
+        this.stateTimeline.play();
     }
 
     getPlayerBySessionID(sessionID: string): any {

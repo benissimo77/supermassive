@@ -2,7 +2,7 @@ import { BaseScene } from "src/BaseScene";
 import { BaseQuestion } from "src/quiz/questions/BaseQuestion";
 import { BaseQuestionData } from "src/quiz/questions/QuestionTypes";
 
-import OrderingQuestion from "src/quiz/questions/Ordering";
+import OrderingQuestion from "src/quiz/questions/PlayerOrdering";
 import NumberQuestion from "src/quiz/questions/Number";
 
 export class QuestionFactory {

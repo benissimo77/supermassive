@@ -112,6 +112,8 @@ export class ThreeCard extends Phaser.GameObjects.Container {
         // set flipped right away so that state is correct when used in master timeline
         this.flipped = showFront;
 
+        console.log('Card flipping from :', this.plane.rotateY, 'to', targetRotation, 'ending up flipped:', this.flipped);
+
         // CRITICAL BUGFIX: GSAP master timeline won't correctly play a nested child timeline 
         // if the child timeline is explicitly instantiated with { paused: true } and then added to a parent.
         // The master timeline expects unpaused timeline objects because it manages the playhead!

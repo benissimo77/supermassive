@@ -40,7 +40,7 @@ export class ThreePlayScene extends BaseScene {
     private waitingState: boolean = false;
     private quizFinished: boolean = false;
     private currentState: ThreeState = ThreeState.INIT;
-    
+
     private threePlayer: ThreePlayer;
 
     // UI elements
@@ -64,7 +64,7 @@ export class ThreePlayScene extends BaseScene {
     init(): void {
         console.log('ThreePlayScene:: init');
         super.init();
-        
+
         this.TYPE = 'play';
         this.questionFactory = new QuestionFactory(this);
         this.actionFactory = new ThreePlayerActionFactory(this, this.socket);
@@ -78,7 +78,7 @@ export class ThreePlayScene extends BaseScene {
             strokeThickness: 2,
             align: 'center',
         }
-        
+
     }
     preload(): void {
 
@@ -118,7 +118,6 @@ export class ThreePlayScene extends BaseScene {
         });
 
     }
-
     create(): void {
         super.create(); // Initialize layers from BaseScene
         this.TYPE = 'play';
@@ -165,7 +164,7 @@ export class ThreePlayScene extends BaseScene {
 
             // Apply the initial scale
             // btn.setScale(this.getPhysicalScale());
-            
+
             this.UIContainer.add(btn);
             this.testButtons.push(btn);
         });
@@ -195,7 +194,7 @@ export class ThreePlayScene extends BaseScene {
         this.socket.on('server:state:question', async (question, callback) => {
 
             this.changeState(ThreeState.QUIZ_QUESTION, question);
-            
+
             // If we are already displaying this question, ignore the message
             // This prevents wiping out player progress during silent reconnections
             if (this.currentQuestionNumber === question.questionNumber) {
@@ -304,8 +303,8 @@ export class ThreePlayScene extends BaseScene {
         });
 
         // Question over - clear the screen and destroy all question-related objects
-        this.socket.on('server:state:endquestion', (data) => {
-            console.log('ThreePlayScene:: server:state:endquestion', data);
+        this.socket.on('server:action:endquestion', (data) => {
+            console.log('ThreePlayScene:: server:action:endquestion', data);
             this.clearUI();
             if (this.currentQuestion) {
                 console.log('ThreePlayScene:: destroying current question');
@@ -359,7 +358,7 @@ export class ThreePlayScene extends BaseScene {
             case ThreeState.LOBBY:
                 break;
 
-            case ThreeState.QUIZ_QUESTION:                
+            case ThreeState.QUIZ_QUESTION:
                 break;
 
             case ThreeState.QUIZ_ANSWER:
@@ -373,9 +372,14 @@ export class ThreePlayScene extends BaseScene {
                     this.currentAction = null;
                 }
                 break;
+
+            case ThreeState.TURN_EVALUATE:
+                console.log('ThreePlayScene:: stateTeardown: TURN_EVALUATE');
+                this.gridContainer.setVisible(false);
+                break;
+
         }
     }
-
 
     // ENTER logic for new state
     stateSetup(state: ThreeState, data: any = {}): void {
@@ -401,10 +405,10 @@ export class ThreePlayScene extends BaseScene {
             case ThreeState.TILE_SELECTION:
                 if (data && this.actionFactory) {
                     this.clearUI();
-                    
+
                     data.ui = 'select-tiles';
                     this.currentAction = this.actionFactory.create(data);
-                    
+
                     if (this.currentAction) {
                         this.currentAction.onAction((payload: any) => {
                             // Forward the selected tiles (payload.answer) to the server
@@ -423,17 +427,22 @@ export class ThreePlayScene extends BaseScene {
                     }
                 }
                 break;
-                
+
+            case ThreeState.TURN_EVALUATE:
+                // Nothing to do in this state on the player side - just log that we are in this state
+                console.log('ThreePlayScene:: TURN_EVALUATE - nothing to do here...');
+                break;
+
             case ThreeState.JOKER:
                 if (data && this.actionFactory) {
                     this.clearUI();
-                    
+
                     this.currentAction = this.actionFactory.create(data);
                     if (this.currentAction) {
 
                         this.currentAction.onAction((payload: any) => {
                             console.log('ThreePlayScene:: Joker action submitted with payload:', payload);
-                            this.socket.emit('client:response', { answer: payload.answer } );
+                            this.socket.emit('client:response', { answer: payload.answer });
                         });
 
                         this.actionContainer.add(this.currentAction);
@@ -448,7 +457,7 @@ export class ThreePlayScene extends BaseScene {
 
     private async createQuestion(question: any): Promise<void> {
 
-        console.log('ThreePlayScene:: displayQuestion:', question);
+        console.log('ThreePlayScene:: createQuestion:', question);
 
         // Clear previous UI
         this.clearUI();
@@ -460,6 +469,8 @@ export class ThreePlayScene extends BaseScene {
 
         // Create the appropriate question renderer based on type
         this.currentQuestion = this.questionFactory.create(question.type, question);
+
+        console.log('ThreePlayScene:: created question:', this.currentQuestion);
 
         // Let the specialized renderer handle the display - this is when question gets added to the scene
         if (this.currentQuestion) {
@@ -482,7 +493,7 @@ export class ThreePlayScene extends BaseScene {
     // Waiting message displays, player is animated around the screen
     // Note: we need to check if answerSubmitted in case this function is called while a new question is added
     private gotoWaitingState(message: string = 'Waiting for next question...'): void {
-        
+
         // If we are no longer waiting (often in the time between delayed calls) then exit
         if (this.waitingState === false) {
             return
@@ -508,7 +519,7 @@ export class ThreePlayScene extends BaseScene {
     }
 
     private createGrid(): void {
-        
+
         // Clear old cards if they exist
         this.cards.forEach(c => c.destroy());
         this.cards = [];

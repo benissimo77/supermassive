@@ -51,7 +51,7 @@ class TileDirector {
     /**
      * Decides WHAT is behind tile index 'pos'.
      * @param {number} pos - The grid index being revealed (0-35)
-     * @param {Object} context - { grid, playerHands, battleIndices, activeSID, opponentSID, battleTeams }
+     * @param {Object} context - { grid, playerHands, battleTiles, activeSID, opponentSID, battleTeams }
      */
     decideTileAt(pos, context) {
         // If it's already revealed, return the existing type
@@ -199,7 +199,7 @@ class TileDirector {
     // --- RULES ---
 
     ruleTension_FavorVulnerableSteals(weights, pos, context) {
-        const { grid, playerHands, battleIndices, activeSID, battleTeams } = context;
+        const { grid, playerHands, battleTiles, activeSID, battleTeams } = context;
         if (!battleTeams || battleTeams.length < 2) return;
 
         const opponentSID = battleTeams.find(id => id !== activeSID);
@@ -209,7 +209,7 @@ class TileDirector {
         // Iterate through vulnerable indices (the ones revealed THIS battle)
         // and check if they exist in the opponent's Set.
         let boosted = false;
-        battleIndices.forEach(p => {
+        battleTiles.forEach(p => {
             if (opponentHand.has(p)) {
                 const type = grid[p];
                 // CRITICAL: Only boost if the type is a standard icon, NOT a joker
@@ -294,6 +294,7 @@ class ThreeStateMachine {
 						this.transitionTo(ThreeState.TILE_SELECTION);
 					} else {
 						// TODO - logic for deciding if we have another turn or not...
+						console.log('ThreeStateMachine:: TURN_EVALUATE - no joker, check for another battle turn here (TODO)...');
 						// this.transitionTo(ThreeState.QUIZ_QUESTION);
 						this.transitionTo(ThreeState.TILE_SELECTION);
 					}
@@ -754,10 +755,6 @@ export default class ThreeGame extends Game {
 		hostQuestion.optionsShuffled = this.question.optionsShuffled;
 		hostQuestion.itemsShuffled = this.question.itemsShuffled;
 		hostQuestion.pairsShuffled = this.question.pairsShuffled;
-		delete hostQuestion.answer;
-		delete hostQuestion.options;
-		delete hostQuestion.items;
-		delete hostQuestion.pairs;
 
 		// This is an exception where we want to automatically move to next state without waiting for host
 		// WHY? Because after asking a question we know we instantly want to either collect answers or show the answer
@@ -1227,7 +1224,7 @@ export default class ThreeGame extends Game {
 		// Build the clean payload for frontend Action
 		const payload = {
 			type: 'tileselection',
-			teams: this.battleContext.teams,
+			battleTeams: this.battleContext.teams,
 			scores: this.battleContext.activeTurn.scores,
 			grid: this.grid,
 			playerHands: playerHands
@@ -1369,7 +1366,7 @@ export default class ThreeGame extends Game {
 			const jokerType = this.director.selectJokerType( playerSID, {
 				grid: this.grid,
     	        playerHands: this.playerHands,
-        	    battleIndices: this.battleContext.tiles,
+        	    battleTiles: this.battleContext.tiles,
             	activeSID: playerSID,
 				battleTeams: this.battleContext.teams
 			});
@@ -1461,7 +1458,7 @@ export default class ThreeGame extends Game {
 				const tileType = this.director.decideTileAt(fromTile, {
 						grid: this.grid,
 						playerHands: this.playerHands,
-						battleIndices: this.battleContext.tiles,
+						battleTiles: this.battleContext.tiles,
 						activeSID: jokerData.playerSID,
 						battleTeams: this.battleContext.teams
 					});
@@ -1539,7 +1536,7 @@ export default class ThreeGame extends Game {
         const icon = this.director.decideTileAt(pos, {
             grid: this.grid,
             playerHands: this.playerHands,
-            battleIndices: this.battleContext.tiles,
+            battleTiles: this.battleContext.tiles,
             activeSID: playerSID,
             battleTeams: this.battleContext.teams
         });

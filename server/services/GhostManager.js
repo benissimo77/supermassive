@@ -218,8 +218,8 @@ export class GhostManager {
                             // Pick a spot reasonably far away but on canvas (avoid edges)
                             answer = {
                                 x: 500 + (Math.random() - 0.5) * 250,
-                                y: 500 + (Math.random() * 250
-                            };
+                                y: 500 + (Math.random() - 0.5) * 250
+                            }
                             break;
                         case 'point-it-out':
                             // Pick a spot outside the target box

@@ -32,7 +32,9 @@ export default class TeamTileWizardPlayerAction extends BasePlayerAction {
             ...this.actionData, 
             autoAdvance: true,
             // Optional: override the title dynamically based on the Joker meaning
-            title: this.actionData.jokerType === 'steal' ? "STEAL FROM WHO?" : "STEP 1: CHOOSE TEAM" 
+            title: this.actionData.jokerType === 'steal' ? "STEAL FROM WHO?"
+                 : this.actionData.jokerType === 'gift'  ? "GIFT TO WHO?"
+                 : "STEP 1: CHOOSE TEAM" 
         };
         this.teamStep = new SelectTeamPlayerAction(this.scene, 0, 0, teamData);
         
@@ -43,9 +45,10 @@ export default class TeamTileWizardPlayerAction extends BasePlayerAction {
 
 
         // ==== STEP 2: TILE SELECT ====
+        const step2Title = this.actionData.jokerType === 'gift' ? 'CHOOSE TILE TO GIFT' : 'STEP 2: CHOOSE TILES';
         const tileData = { 
             ...this.actionData, 
-            title: 'STEP 2: CHOOSE TILES' 
+            title: step2Title
         };
         // Start this step wildly off-screen to the right
         this.tileStep = new SelectTilesPlayerAction(this.scene, 1920, 0, tileData);

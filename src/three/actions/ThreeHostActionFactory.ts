@@ -1,15 +1,19 @@
-import Phaser from 'phaser';
+import { ThreeHostScene } from 'src/three/ThreeHostScene';
 
 /**
  * Interface acting as a simple Factory for mapping the server's requested UI
  * to the correct Phaser Container for Joker interventions.
  */
 import StealHostAction from './StealHostAction';
+import PassHostAction from './PassHostAction';
+import ShuffleHostAction from './ShuffleHostAction';
+import GiftHostAction from './GiftHostAction';
+import FreezeHostAction from './FreezeHostAction';
 
 export default class ThreeHostActionFactory {
-    private scene: Phaser.Scene;
+    private scene: ThreeHostScene;
 
-    constructor(scene: Phaser.Scene) {
+    constructor(scene: ThreeHostScene) {
         this.scene = scene;
     }
 
@@ -18,10 +22,20 @@ export default class ThreeHostActionFactory {
 
         switch (type) {
             case 'steal':
-                // Place at screen center (local to wherever the parent container is mapped)
                 return new StealHostAction(this.scene, 0, 0, actionData);
+
+            case 'pass':
+                return new PassHostAction(this.scene, 0, 0, actionData);
+
+            case 'shuffle':
+                return new ShuffleHostAction(this.scene, 0, 0, actionData);
+
+            case 'gift':
+                return new GiftHostAction(this.scene, 0, 0, actionData);
+
+            case 'freeze':
+                return new FreezeHostAction(this.scene, 0, 0, actionData);
             
-            // Add other UI modes here as we build them (e.g. 'freeze')
             default:
                 console.warn(`ThreeHostActionFactory: Unknown action type: ${type}`);
                 return null;

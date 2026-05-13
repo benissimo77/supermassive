@@ -354,7 +354,6 @@ export default class TextQuestion extends BaseQuestion {
             });
         }
 
-        tl.pause();
         return tl;
     }
 

@@ -1,0 +1,153 @@
+<!-- test.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test Page</title>
+    <script>
+        async function saveQuiz() {
+
+        // Collect quiz data from the form
+        const quizJSON = JSON.parse(document.getElementById('quizdata').value);
+
+        console.log('Save quiz:', quizJSON);
+
+        try {
+            const response = await fetch('/api/quiz/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    // Include any necessary authentication headers here
+                },
+                body: JSON.stringify(quizJSON)
+            });
+
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+
+            const savedQuiz = await response.json(); // Parse the response as JSON
+            console.log('Quiz saved successfully:', savedQuiz);
+            
+            // Optionally, update the UI or redirect the user
+            // For example, you might want to refresh the quiz list
+            //fetchQuizzes(); // Call the function to refresh the quiz list
+
+        } catch (error) {
+            console.error('Error saving quiz:', error);
+            // Optionally, display an error message to the user
+        }
+    }
+
+        // Function to fetch quizzes
+        async function fetchQuizzes() {
+            try {
+                const response = await fetch('/api/quiz', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // Include any necessary authentication headers here
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                const quizzes = await response.json();
+                console.log('Fetched quizzes:', quizzes);
+                displayQuizzes(quizzes);
+            } catch (error) {
+                console.error('Error fetching quizzes:', error);
+            }
+        }
+
+        // Function to display quizzes
+        function displayQuizzes(quizzes) {
+            const quizListDiv = document.getElementById('quizdata');
+            quizListDiv.value = ''; // Clear existing content
+
+            if (quizzes.length === 0) {
+                quizListDiv.innerHTML = '<p>No quizzes available.</p>';
+                return;
+            }
+
+            quizzes.forEach(quiz => {
+                const quizItem = document.createElement('div');
+                quizItem.innerHTML = `<h3>${quiz.title}</h3>`;
+                quizListDiv.value = JSON.stringify(quiz, null, 4); // 4 spaces for indentation
+               
+            });
+        }
+
+        // Function to create a new quiz
+        async function createQuiz() {
+            const title = document.getElementById('quizTitle').value;
+            const description = document.getElementById('quizDescription').value;
+
+            const quizData = { title, description };
+
+            try {
+                const response = await fetch('/api/quizzes', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(quizData)
+                });
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                const newQuiz = await response.json();
+                console.log('Quiz created:', newQuiz);
+                fetchQuizzes(); // Refresh the quiz list
+            } catch (error) {
+                console.error('Error creating quiz:', error);
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>API Test Page</h1>
+
+    <textarea rows="20" cols="100" id="quizdata">
+        {
+        "title": "Sample Quiz",
+        "description": "<p>This is a sample quiz to get you started.</p>",
+        "rounds": [
+        {
+            "title": "General Knowledge",
+            "description": "Test your general knowledge!",
+            "roundTimer": "0",
+            "showAnswer": "round",
+            "updateScores": "round",
+            "questions": [
+            {
+                "type": "text",
+                "text": "What is the capital of France?",
+                "image": null,
+                "audio": "https://youtu.be/VtM1Jlfx_eA?si=slW5pOj-snu9OnKX",
+                "answer": "Paris"
+            }]
+        }]
+        }
+    </textarea>
+    <button onclick="saveQuiz()">Save Quiz</button>
+
+    <h2>Create a New Quiz 67150d5798c76cabc58b715d</h2>
+    <label for="quizTitle">Title:</label>
+    <input type="text" id="quizTitle" required>
+    <br>
+    <label for="quizDescription">Description:</label>
+    <textarea id="quizDescription"></textarea>
+    <br>
+    <button onclick="createQuiz()">Create Quiz</button>
+
+    <h2>Quizzes</h2>
+    <button onclick="fetchQuizzes()">Fetch Quizzes</button>
+    <div id="quizList"></div>
+</body>
+</html>

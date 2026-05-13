@@ -197,9 +197,25 @@ function identifyUser(socket) {
 			const [type, roomCode] = pathSegments;
 
 			if (type === 'host') {
-				userObj.host = true;
-				userObj.role = 'host';
-				if (roomCode) userObj.room = roomCode.toUpperCase();
+				// Security check: Only allow host privileges if the user owns the room in their session,
+				// or if they are an elevated user (Admin/Producer).
+				const roomCodeUpper = roomCode?.toUpperCase();
+				const sessionRoomUpper = session.room?.toUpperCase();
+				
+				// Producers often use different devices, so we also trust the session.room 
+				// which was verified against the DB in the checkRoom HTTP middleware.
+				const isStaff = session.role === 'admin' || session.role === 'producer';
+
+				if (isStaff || (roomCodeUpper && roomCodeUpper === sessionRoomUpper)) {
+					userObj.host = true;
+					userObj.role = session.role || 'host';
+					if (roomCode) userObj.room = roomCodeUpper;
+				} else {
+					console.warn(`SocketServer.identifyUser:: Unauthorized host attempt for room ${roomCodeUpper}`);
+					userObj.host = false;
+					userObj.role = 'player'; // Downgrade to player if unauthorized
+					if (roomCode) userObj.room = roomCodeUpper;
+				}
 			} else if (type === 'admin') {
 				userObj.role = 'admin';
 				if (roomCode) userObj.room = roomCode.toUpperCase();

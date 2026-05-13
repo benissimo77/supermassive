@@ -7,11 +7,11 @@ import { gsap } from 'gsap';
  * for any UI shown during an Action intervention (e.g., Selecting a Team or Tile).
  *
  * LIFECYCLE:
- *   JOKER state    → render()       — display joker type title + active team (same for all joker types)
- *   JOKER_EVALUATE → getTimeline()  — full choreography for this specific joker type.
- *                                     Receives ThreeSceneRefs so it can move containers, players and
- *                                     cards freely. Returns a paused gsap timeline; the scene plays it
- *                                     and wires up the onComplete socket emit.
+ *   JOKER state    → layout()            — snap all elements to their final positions for current screen size.
+ *                    getRenderTimeline() — entrance animation; calls layout() first, then tweens FROM
+ *                                         off-screen/hidden start states. Embedded into stateTimeline.
+ *   On resize      → layout()            — instant re-snap, no animation.
+ *   JOKER_EVALUATE → getTimeline()       — action-specific choreography, embedded into stateTimeline.
  */
 export default class BaseHostAction extends Phaser.GameObjects.Container {
     
@@ -23,45 +23,38 @@ export default class BaseHostAction extends Phaser.GameObjects.Container {
         super(scene, x, y);
         this.scene = scene;
         this.actionData = actionData;
-
-        // Optional: Common Setup: Fade out the background to focus attention if desired
-        // We leave this transparent by default because subclasses often create localized
-        // overlays (e.g. over the board but leaving the players visible).
-        // this.backgroundOverlay = scene.add.graphics();
-        // this.backgroundOverlay.fillStyle(0x000000, 0.7);
-        // this.backgroundOverlay.fillRect(-960, -540, 1920, 1080);
-        // this.add(this.backgroundOverlay);
-
-        scene.add.existing(this);
     }
 
     /**
-     * Called when the JOKER state is entered.
-     * Subclasses should build their panel, title and active-team avatar here.
-     * The base implementation fades the container in; call super.render() from subclasses.
+     * Snap all elements to their correct positions for the current screen size.
+     * Called on resize (instant, no animation) and at the start of getAnnouncementTimeline().
+     * Subclasses must override this.
      */
-    public render(): void {
+    public layout(): void {
         this.setVisible(true);
-        this.setAlpha(0);
-        this.scene.tweens.add({
-            targets: this,
-            alpha: 1,
-            duration: 300,
-            ease: 'Power2'
-        });
     }
 
     /**
-     * Called when JOKER_EVALUATE is entered.
-     * Subclasses must override this to return their full choreography as a paused gsap timeline.
-     * The scene will play() the timeline and attach the onComplete socket emit — the action
-     * should NOT emit host:response itself.
-     *
-     * @param refs — live references to scene containers, players and cards the action may need.
+     * Entrance animation for the JOKER state.
+     * Calls layout() first to place elements, then tweens FROM their off-screen/hidden start states
+     * so that progress(1).kill() always leaves elements in their correct final positions.
+     * Returns an unpaused timeline for embedding into stateTimeline.
+     * Subclasses should override and call super.getAnnouncementTimeline() to get the base fade-in.
      */
-    public getTimeline(evaluateData: any): gsap.core.Timeline {
-        // Base implementation is a no-op; subclasses override with real choreography.
-        return gsap.timeline({ paused: true });
+    public getAnnouncementTimeline(): gsap.core.Timeline {
+        this.layout();
+        const tl = gsap.timeline();
+        tl.from(this, { alpha: 0, duration: 0.3, ease: 'power2.out' });
+        return tl;
+    }
+
+    /**
+     * Action-specific choreography for JOKER_EVALUATE.
+     * Returns an unpaused timeline for embedding into stateTimeline.
+     * Subclasses override with real choreography.
+     */
+    public getEvaluateTimeline(evaluateData: any): gsap.core.Timeline {
+        return gsap.timeline();
     }
 
     /**

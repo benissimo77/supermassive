@@ -29,6 +29,12 @@
 					<h1>Quiz Editor</h1>
 				</div>
 				<div class="flex gap-md">
+					<button id="paste-json-btn" class="btn btn-secondary" style="background-color: #bbbbee; color: black; border: none; position: relative;">
+						<i class="fa-solid fa-file-import"></i>
+						Paste JSON
+						<!-- <span data-role="guest" data-role-max="guest" style="position: absolute; top: -8px; right: -8px; background: #ff4757; color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">HOST ONLY</span> -->
+					</button>
+
 					<button id="ai-generate-btn" class="btn btn-secondary" style="background-color: #8e44ad; color: white; border: none; position: relative;">
 						<i class="fa-solid fa-wand-magic-sparkles"></i>
 						AI Generate
@@ -67,6 +73,28 @@
 					<div id="ai-status" class="mt-sm" style="display: none; font-style: italic; color: #8e44ad; align-items: center;">
 						<div class="spinner"></div>
 						<span>Generating your quiz... this may take 30-60 seconds.</span>
+					</div>
+				</div>
+			</div>
+
+			<!-- Paste JSON Modal/Panel -->
+			<div id="paste-json-panel" class="card mb-md" style="display: none; border: 2px solid #8e44ad;">
+				<div class="card-header" style="background-color: transparent;">
+					<h3 style="margin: 0; color: #8e44ad;">Paste JSON</h3>
+				</div>
+				<div class="card-body">
+					<p class="mb-sm">Paste your quiz JSON here.</p>
+					
+					<div class="flex gap-sm">
+						<textarea id="paste-json-input" placeholder="Enter your quiz JSON..." style="flex-grow: 1;"></textarea>
+						<button id="paste-json-submit" class="btn btn-primary" style="background-color: #8e44ad;">
+							<i class="fa-solid fa-file-import"></i>
+							Import
+						</button>
+					</div>
+					<div id="paste-json-status" class="mt-sm" style="display: none; font-style: italic; color: #8e44ad; align-items: center;">
+						<div class="spinner"></div>
+						<span>Importing Quiz JSON...</span>
 					</div>
 				</div>
 			</div>

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Player Avatar Designer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous"> -->
+
+    <style>
+.image-container {
+    position: relative;
+    width: 180px;
+    height: 209px;
+}
+
+.mask {
+    position: relative;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    -webkit-mask-image: url(img/shield-360/shieldmask.png);
+    mask-image: url(img/shield-360/shieldmask.png);
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+}
+.content {
+    position: relative;
+    z-index: 1; /* Ensure the content image appears above the mask */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+#patternCanvases {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: left;
+    width: 240;
+    border: 0px solid white;
+}
+#patternCanvases > canvas {
+    padding: 4px;
+    border: 2px dotted blue;
+}
+#patternCanvases > canvas.selected {
+    padding:4px;
+    border: 2px solid yellow;
+}
+body {
+    background-color: darkblue;
+    color: orangered;
+}
+input[type="color"] {
+    width: 45%;
+    height: 50px;
+    margin: 6px;
+}
+</style>
+
+</head>
+<body>
+    <div class="container">
+
+        <h1>Enter Your Team</h1>
+        
+        <form method="GET" action="team.php">
+            <input type="hidden" name="teamShield" id="teamShield">
+
+            <label for="teamName">Team Name:</label>
+            <input type="text" name="teamName" id="teamName" maxlength="15">
+
+            <!-- SHIELD mask class defines a CSS mask of a shield applied to its contents (ie the canvas) -->
+            <div class="image-container">
+                <div class="mask">
+                    <canvas id="targetCanvas" width="180" height="209"></canvas>
+                </div>
+                <div class="content">
+                    <img src="img/shield-360/shieldborder.png"  alt="Shield border">
+                </div>
+            </div>
+
+            <!-- Sample canvases showing the different shield designs available -->
+            <div id="patternCanvases">
+
+                <!-- Add your color picker components here -->
+                <label for="color-picker-1">Color 1:</label>
+                <input type="color" id="color-picker-1" value="#FF0000">
+                <label for="color-picker-2">Color 2:</label>
+                <input type="color" id="color-picker-2" value="#FFFFFF">
+            
+            </div>
+
+            <input type="submit" value="Enter">
+        </form>
+
+    </div>
+<script>
+
+// Init the first canvas as the selected one
+var selectedShieldDesignIndex = 0;
+var selectedShieldDesignSrc = '';   /* will be set whenever a shield is selected */
+var shieldImages = [];
+const colorPicker1 = document.getElementById('color-picker-1');
+const colorPicker2 = document.getElementById('color-picker-2');
+const targetCanvas = document.getElementById('targetCanvas');
+console.log('targetCanvas:', targetCanvas.width, targetCanvas.height);
+
+const paintShield = function() {
+    const selectedColor1 = colorPicker1.value;
+    const selectedColor2 = colorPicker2.value;
+    console.log('Color picker 1:', selectedColor1);
+    console.log('Color picker 2:', selectedColor2);
+    console.log('Selected shield design:', selectedShieldDesignIndex);
+
+    // Retrieve the source image holding the currently selected shield design
+    const sourceImage = shieldImages[selectedShieldDesignIndex];
+    console.log('Source image:', sourceImage.width, sourceImage.height);
+    // Prepare the target canvas for drawing
+    const targetCtx = targetCanvas.getContext('2d');
+    targetCtx.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
+    targetCtx.drawImage(sourceImage, 0, 0, targetCanvas.width, targetCanvas.height);
+    let imgData = targetCtx.getImageData(0, 0, targetCanvas.width, targetCanvas.height);
+    console.log('Image data length: ', imgData.data.length, arrayToRGBString([255,0,0]));
+    let foreCount = 0;
+    let backCount = 0;
+    for (var i = 0; i < imgData.data.length; i += 4) {
+        // Mask uses RED to denote foreground and BLACK for background
+        // So if GREEN / BLUE are low then it's a foreground pixel
+        // Testing - check contents
+        if (imgData.data[i] > 128) {
+            foreCount++;
+            [ imgData.data[i], imgData.data[i + 1], imgData.data[i + 2], imgData[i + 3] ]= rgbStringToArray(selectedColor1);
+        } else {
+            backCount++;
+            [ imgData.data[i], imgData.data[i + 1], imgData.data[i + 2], imgData[i + 3] ] = rgbStringToArray(selectedColor2);
+        }
+    }
+    // console.log('Foreground count:', foreCount, 'Background count:', backCount);
+    targetCtx.putImageData(imgData, 0, 0);
+}
+colorPicker1.addEventListener('input', paintShield);
+colorPicker2.addEventListener('input', paintShield);
+
+// Add mouse events for the canvas samples
+// Locate all canvas elements and attach event listeners to capture mouse events
+// Add a class of 'selected' to the selected canvas element
+const newShieldPattern = function(target) {
+    for (var c of document.getElementById("patternCanvases").querySelectorAll('canvas')) {
+        c.classList.remove('selected');
+    }
+    c = document.getElementById(target.id);
+    c.classList.add('selected');
+    selectedShieldDesignIndex = c.getAttribute('index');
+    selectedShieldDesignSrc = c.src;
+    paintShield();
+    console.log('newShieldPattern:', target.id, selectedShieldDesignIndex, selectedShieldDesignSrc);
+}
+
+const loadShieldPatterns = function() {
+    const patterns = [
+'img/shield-360/_0000s_0000_pattern-horizontal-15.png',
+'img/shield-360/_0000s_0001_pattern-horizontal-9.png',
+'img/shield-360/_0000s_0002_pattern-horizontal-5.png',
+'img/shield-360/_0000s_0003_pattern-horizontal-3.png',
+'img/shield-360/_0000s_0004_pattern-horizontal-2.png',
+
+'img/shield-360/_0001s_0000_pattern-vertical-15.png',
+'img/shield-360/_0001s_0001_pattern-vertical-9.png',
+'img/shield-360/_0001s_0002_pattern-vertical-5.png',
+'img/shield-360/_0001s_0003_pattern-vertical-3.png',
+'img/shield-360/_0001s_0004_pattern-vertical-2.png',
+
+'img/shield-360/_0002s_0000_pattern-diagonaldown-15.png',
+'img/shield-360/_0002s_0001_pattern-diagonaldown-9.png',
+'img/shield-360/_0002s_0002_pattern-diagonaldown-5.png',
+'img/shield-360/_0002s_0003_pattern-diagonaldown-3.png',
+'img/shield-360/_0002s_0004_pattern-diagonaldown-2.png',
+
+'img/shield-360/_0003s_0000_pattern-diagonalup-15.png',
+'img/shield-360/_0003s_0001_pattern-diagonalup-9.png',
+'img/shield-360/_0003s_0002_pattern-diagonalup-5.png',
+'img/shield-360/_0003s_0003_pattern-diagonalup-3.png',
+'img/shield-360/_0003s_0004_pattern-diagonalup-2.png',
+
+'img/shield-360/_0004s_0000_pattern-checker-13.png',
+'img/shield-360/_0004s_0001_pattern-checker-5.png',
+'img/shield-360/_0004s_0002_pattern-checker-2.png',
+'img/shield-360/_0000_pattern-diagonaldown-1.png',
+'img/shield-360/_0001_pattern-diagonalup-1.png'
+];
+    for (var i = 0; i < patterns.length; i++) {
+        const canvas = document.createElement('canvas');
+        canvas.setAttribute('index', i);
+        canvas.setAttribute('id', 'canvas-' + i);
+        // canvas.setAttribute('tabindex', i);
+        canvas.width = 40;
+        canvas.height = 52;
+        const ctx = canvas.getContext('2d');
+        // start by setting the background color since patterns have transparency
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const img = new Image();
+        img.src = patterns[i];
+        img.onload = function() {
+            ctx.drawImage(img, 60, 70, 240, 280, 0,0, canvas.width, canvas.height);
+            // Elements now created - paint the initial shield design
+            newShieldPattern(document.getElementById('canvas-0'));
+        }
+        shieldImages.push(img);
+        document.getElementById('patternCanvases').appendChild(canvas);
+        canvas.addEventListener('click', (e) => newShieldPattern(e.currentTarget));
+    }
+}
+
+const rgbStringToArray = function(rgbString) {
+    // Remove the "#" character if it's present
+    const cleanedString = rgbString.replace("#", "");
+
+    // Parse the hexadecimal values into decimal integers
+    const red = parseInt(cleanedString.substring(0, 2), 16);
+    const green = parseInt(cleanedString.substring(2, 4), 16);
+    const blue = parseInt(cleanedString.substring(4, 6), 16);
+
+    return [red, green, blue, 255];
+}
+const arrayToRGBString = function(colorArray) {
+    return "#" + colorArray[0].toString(16).padStart(2, '0') + colorArray[1].toString(16).padStart(2, '0') + colorArray[2].toString(16).padStart(2, '0');
+}
+
+window.onload = function() {
+    console.log('Window loaded');
+    loadShieldPatterns();
+};
+
+document.addEventListener('keydown', function(e) {
+    console.log('Key pressed:', e.keyCode);
+    if (e.keyCode === 37) {
+
+        // Left arrow key is pressed
+        // plusSlides(-1)
+
+    } else if (e.keyCode === 39) {
+
+        // Right arrow key is pressed
+        // plusSlides(1)
+    }
+});
+
+</script>

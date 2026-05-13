@@ -21,6 +21,7 @@
     "deploy:full": "npm-run-all deploy:modules deploy:host deploy:public deploy:server",
     "deploy:assets": "scp -r public/assets nodejs@videoswipe.net:~/supermassive/public/",
     "deploy:assets-img": "scp -r public/assets/img nodejs@videoswipe.net:~/supermassive/public/assets/",
+    "deploy:assets-three": "scp -r public/assets/three nodejs@videoswipe.net:~/supermassive/public/assets/",
     "migrate-quiz": "node server/scripts/migrateQuiz.js",
     "password-hash": "node server/scripts/passwordHash.js"
   },

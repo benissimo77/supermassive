@@ -7,6 +7,7 @@ export class PlayerConfig {
 	socketID: string;
 	sessionID: string;
 	userID: string | null;
+	connected: boolean = true;
 }
 
 export enum PhaserPlayerState {
@@ -20,6 +21,7 @@ export enum PhaserPlayerState {
 
 export class PhaserPlayer extends Phaser.GameObjects.Container {
 	public scene: BaseScene;
+	private playerConfig: PlayerConfig;
 	private socketID: string;
 	private sessionID: string;
 	private userID: string | null;
@@ -34,6 +36,7 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 	constructor(scene: BaseScene, playerConfig: PlayerConfig) {
 		super(scene, 0, 0);
 		this.scene = scene;
+		this.playerConfig = playerConfig;
 
 		console.log('PhaserPlayer constructor:', playerConfig.name);
 
@@ -236,25 +239,34 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 	// Note: we now make players totally invisible when they disconnect
 	// This was done for live streaming, kicking players should make them disappear
 	// If needed we can re-introduce the 'ghost' players but for now lets just make them invisible
-	disconnected(): void {
+	disconnect(): void {
 		if (this.playerTexture) {
 			this.playerTexture.setAlpha(0);
 		}
 		this.stopFlames();
 		this.playerScoreText.setText('');
+		this.playerConfig.connected = false;
 	}
-	connected(): void {
+	connect(): void {
 		if (this.playerTexture) {
 			this.playerTexture.setAlpha(1);
 		}
 		this.resetPlayerScoreText();
+		this.playerConfig.connected = true;
 	}
 
 	destroy(fromScene?: boolean) {
-		if (this.playerTexture) {
-			this.playerTexture.destroy();
+		console.warn(`*** Destroying PhaserPlayer: ${this.playerConfig.name} ***`);
+
+		// Don't destroy  the player - that's very bad - just reparent back to playerContainer
+		if ('playerContainer' in this.scene) {
+		    this.scene.reparentObject(this, (this.scene as any).playerContainer);
+		} else {
+			if (this.playerTexture) {
+				this.playerTexture.destroy();
+			}
+			super.destroy(fromScene);
 		}
-		super.destroy(fromScene);
 	}
 
 	public getSocketID(): string {

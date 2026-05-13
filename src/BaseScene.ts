@@ -1,6 +1,6 @@
 import SocketManagerPlugin from './socketManager';
 import { Socket } from 'socket.io-client';
-import { PlayerConfig } from 'src/play/DOMPlayer';
+import { PlayerConfig } from 'src/quiz/PhaserPlayer';
 import { SoundManager } from 'src/audio/SoundManager';
 
 export abstract class BaseScene extends Phaser.Scene {
@@ -12,6 +12,7 @@ export abstract class BaseScene extends Phaser.Scene {
     private resizeDebounceTimer: any = null;
     private resizeHandler: (gameSize: Phaser.Structs.Size) => void;
     private shutdownHandler: () => void;
+    protected globalKeypressHandler: (event: KeyboardEvent) => void;
 
     // Containers for the different layers that make up the scene
     protected backgroundContainer: Phaser.GameObjects.Container;
@@ -26,6 +27,8 @@ export abstract class BaseScene extends Phaser.Scene {
     public socket: Socket;
     protected roomID: string = '';
 
+    // players will be overridden by any child scene - adapted for its own purposes
+    public abstract players: Map<string, Phaser.GameObjects.Container>;
     protected playerConfigs: Map<string, PlayerConfig> = new Map<string, PlayerConfig>();
     public mySessionID: string | null = null;
 
@@ -37,7 +40,6 @@ export abstract class BaseScene extends Phaser.Scene {
     // The labelConfig/buttonConfig is used for text styles in the scene, properties can be overridden as needed
     public labelConfig: Phaser.Types.GameObjects.Text.TextStyle;
     public buttonConfig: Phaser.Types.GameObjects.Text.TextStyle;
-
 
     init(): void {
         console.log(`${this.scene.key}:: BaseScene.init: hello`);
@@ -89,13 +91,14 @@ export abstract class BaseScene extends Phaser.Scene {
         // Initialize the SoundManager
         this.soundManager = SoundManager.getInstance(this);
 
-        // Ensure audio continues playing even when the tab is not active
+        // Ensure audio and game logic continues playing even when the tab is not active
         // This is critical for streaming via OBS when the admin is switching tabs
         if (this.sound) {
             this.sound.pauseOnBlur = false;
         }
-
-        // This is useful for debugging but quite noisy
+        // Prevents the Phaser clock and physics from stopping when tab loses focus
+        this.game.events.off('hidden');
+        this.game.events.off('visible');
         // this.socket.onAny((event, ...args) => {
         //     console.log('BaseScene:: Socket event:', event, args);
         // });
@@ -117,6 +120,15 @@ export abstract class BaseScene extends Phaser.Scene {
 
         // Initialize the ping test handler
         this.initPingTest();
+
+        // Log all image loads and their texture keys to help debug image issues
+        this.load.on('filecomplete-image', (key) => {
+            const tex = this.textures.get(key);
+            if (tex && tex.source && tex.source[0]) {
+                console.log('Image Loaded:', key, tex.source[0].url);
+            }
+        });
+
 
     }
 
@@ -168,14 +180,18 @@ export abstract class BaseScene extends Phaser.Scene {
         // Especially on Apple devices we need to request wakelock only on user interaction.
         // We MUST use native DOM events here. Phaser's synthetic pointer events often lose the 
         // "transient user activation" token that iOS Safari strictly requires for permission APIs.
-        const enableWakeLock = () => {
-            this.requestWakeLock();
-            this.requestFullscreenPortrait();
-            this.game.canvas.removeEventListener('click', enableWakeLock);
-            this.game.canvas.removeEventListener('touchend', enableWakeLock);
-        };
-        this.game.canvas.addEventListener('click', enableWakeLock);
-        this.game.canvas.addEventListener('touchend', enableWakeLock);
+        if (__DEV__) {
+            // Don't add wake lock or fullscreen - leave for production use only
+        } else {
+            const enableWakeLock = () => {
+                this.requestWakeLock();
+                this.requestFullscreenPortrait();
+                this.game.canvas.removeEventListener('click', enableWakeLock);
+                this.game.canvas.removeEventListener('touchend', enableWakeLock);
+            };
+            this.game.canvas.addEventListener('click', enableWakeLock);
+            this.game.canvas.addEventListener('touchend', enableWakeLock);
+        }
 
         // Max debugging of all input events
         // This is VERY noisy so use with caution
@@ -247,7 +263,6 @@ export abstract class BaseScene extends Phaser.Scene {
 
         if (sessionID) {
             const player = this.playerConfigs.get(sessionID);
-
             // We no longer remove player in case they re-join
             // this.playerConfigs.delete(sessionID);
         }
@@ -437,6 +452,28 @@ export abstract class BaseScene extends Phaser.Scene {
                 this.socket?.emit('consolelog', `[Keyboard Event] ${eventName}, ${event.key}, ${event}`);
             });
         });
+    }
+
+    public registerGlobalKeypressHandler(handler: (event: KeyboardEvent) => void): void {
+        // General keyboard listener - useful for keyboard control
+        // Don't do anything unless we have a scene.input object
+        if (this.input && this.input.keyboard) {
+            if (this.globalKeypressHandler) {
+                this.input.keyboard.off('keydown', this.globalKeypressHandler, this);
+            }
+            if (handler) {
+                this.globalKeypressHandler = handler;
+            }
+            if (this.globalKeypressHandler) {
+                this.input.keyboard.on('keydown', this.globalKeypressHandler, this);
+            }
+        }
+    }
+
+    public deregisterGlobalKeypressHandler(): void {
+        if (this.input?.keyboard && this.globalKeypressHandler) {
+            this.input.keyboard.off('keydown', this.globalKeypressHandler, this);
+        }
     }
 
 

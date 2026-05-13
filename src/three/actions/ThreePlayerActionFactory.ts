@@ -1,13 +1,14 @@
 import Phaser from 'phaser';
 
+import { BaseScene } from 'src/BaseScene'
 import SelectTeamPlayerAction from './SelectTeamPlayerAction';
 import SelectTilesPlayerAction from './SelectTilesPlayerAction';
 import TeamTileWizardPlayerAction from './TeamTileWizardPlayerAction';
 
 export default class ThreePlayerActionFactory {
-    private scene: Phaser.Scene;
+    private scene: BaseScene;
 
-    constructor(scene: Phaser.Scene) {
+    constructor(scene: BaseScene) {
         this.scene = scene;
     }
 

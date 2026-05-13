@@ -19,24 +19,24 @@ const isAdmin = (req, res, next) => {
 
 // Middleware to check if the (admin) user is in a room
 function checkRoom(req, res, next) {
-	if (req.params.room) {
-		req.session.room = req.params.room;
+	const roomFromUrl = req.params.room?.toUpperCase();
+	const sessionRoom = req.session.room?.toUpperCase();
+	const isAdmin = req.user?.role === 'admin' || req.user?.role === 'producer';
+
+	if (roomFromUrl === sessionRoom || isAdmin) {
+		return next();
 	}
 
-	if (req.session && req.session.room) {
-		next();
-	} else {
-		res.redirect('/host/dashboard');
-	}
+	res.redirect('/host/dashboard');
 }
 
 // All admin routes require admin privileges
 router.use([isAuth, isAdmin]);
 
 // Admin Stage
-// Allows viewing the admin panel for a specific room/game
-// URL: /admin/:room/:game
-router.get('/:room([A-Z]{4})/:game', checkRoom, (req, res) => {
+// Allows viewing the admin panel for a specific room
+// URL: /admin/:room
+router.get('/:room([A-Z]{4})', checkRoom, (req, res) => {
 	const { game } = req.params;
 	res.sendFile('admin/index.html', { root: './host' });
 });

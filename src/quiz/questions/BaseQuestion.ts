@@ -41,7 +41,7 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
     protected questionYouTubePlayer: YouTubePlayerUI;
     protected questionAudioControls: Phaser.GameObjects.Container;
     protected answerContainer: Phaser.GameObjects.Container;
-    protected tl: gsap.core.Timeline;
+    protected tl: gsap.core.Timeline;   // Used by child classes
     private debugContainer: Phaser.GameObjects.Container;
 
     constructor(scene: BaseScene, questionData: BaseQuestionData) {
@@ -274,7 +274,7 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
         const imageHeight = allocated['image'] || 0;
         const answerHeight = allocated['answers'] || 0;
 
-        console.log('BaseQuestion::renderHost:', this.questionData.mode, this.scene.TYPE, {
+        console.log('BaseQuestion::renderHost:', this.questionData.mode, {
             answerHeight, textHeight, audioHeight, videoHeight, imageHeight
         });
 
@@ -330,7 +330,7 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
         this.debugContainer.removeAll();
         this.debugContainer.add(graphics);
 
-        console.log('Question created:', this.questionData);
+        console.log('Question rendered:', this.questionData);
     }
 
     public renderPlayer(): void {
@@ -592,25 +592,13 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
     }
 
     /**
-     * prepareAnswerResults
-     * Function called by the scene to trigger the reveal of the answer.
-     * Note: This is now a factory method that returns a timeline instead of playing it.
-     */
-    public prepareAnswerResults(): gsap.core.Timeline {
-
-        // Let subclasses implement specific answer visualization
-        const tl = this.createRevealAnswerTimeline();
-        return tl;
-    }
-
-/**
     * Abstract method - each question type implements its specific content 
     */
     protected abstract createAnswerUI(): void;
     protected abstract showAnswerContent(height: number): void;
-    public abstract createRevealAnswerTimeline(): gsap.core.Timeline;
     protected abstract makeInteractive(): void;
     protected abstract makeNonInteractive(): void;
+    public abstract createRevealAnswerTimeline(): gsap.core.Timeline;
 
     public destroy(fromScene?: boolean): void {
         console.log('BaseQuestion:: destroy:', this.questionData.id);

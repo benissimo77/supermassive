@@ -15,6 +15,7 @@ import { YouTubePlayerUI } from './YouTubePlayerUI';
 import { GlobalNavbar } from 'src/ui/GlobalNavbar';
 import { SoundSettingsPanel } from 'src/ui/SoundSettingsPanel';
 import { BeatManager } from 'src/utils/BeatManager';
+import { GameObjects } from 'phaser';
 
 export class QuizHostScene extends BaseScene {
 
@@ -27,7 +28,7 @@ export class QuizHostScene extends BaseScene {
     private currentRoundNumber: number = 0;
     private currentQuestionNumber: number = 0;
     private quizMap: QuizMap;
-    private phaserPlayers: Map<string, PhaserPlayer> = new Map();
+    private players: Map<string, PhaserPlayer> = new Map();
     private playerAnswers: Map<string, any> = new Map();
     private questionFactory: QuestionFactory;
 
@@ -72,7 +73,6 @@ export class QuizHostScene extends BaseScene {
     }
 
     init(): void {
-
         super.init();
 
         console.log('QuizHostScene:: init.');
@@ -82,31 +82,21 @@ export class QuizHostScene extends BaseScene {
         this.playerAnswers = new Map();
         this.questionFactory = new QuestionFactory(this);
 
-        // General keyboard listener - useful for keyboard control
-        if (this.input?.keyboard) {
-            this.input.keyboard.on('keydown', this.handleKeyDown, this);
-        }
-        // General mouse listener - can adjust display when user moves mouse
-        // this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-        //     console.log(`Pointer moved to: x=${pointer.x}, y=${pointer.y}`);
-        // }, this);
-
     }
 
     preload(): void {
-
         super.preload();
 
         // Load common assets for all question types
         // Background images
         this.load.image('quiz-background', '/img/quiz/background.jpg');
-        // this.load.image('quiz-background', '/img/quiz/background.jpg');
-        // this.load.image('quiz-background', '/assets/img/grid1920x1080.png');
-
-        // Button images
         this.load.image('simple-button', '/assets/img/simplebutton.png');
         this.load.image('simple-button-hover', '/assets/img/simplebutton-hover.png');
         this.load.image('dropzone', '/assets/img/dropzone.png');
+        this.load.image('dropzone-square', '/assets/img/dropzone-square.png');
+        this.load.image('checkmark', '/assets/three/checkmark.png');
+        this.load.image('crossmark', '/assets/three/crossmark.png');
+
 
         // Player UI assets
         this.load.image('playernamepanel', '/assets/rounded-rect-grey-480x48x14.png');
@@ -168,6 +158,9 @@ export class QuizHostScene extends BaseScene {
         this.backgroundOverlay.fillStyle(0x000000, 0.7);
         this.backgroundOverlay.fillRect(0, 0, 1920, this.getY(1080));
         this.backgroundContainer.add(this.backgroundOverlay);
+
+        // Register global keypress handler for host controls (next question, previous question, toggle instructions, etc.)
+        this.registerGlobalKeypressHandler(this.handleKeyDown);
 
         // Create score racetrack but begin with it off-screen
         // TODO: factor this out into its own SCENE
@@ -323,11 +316,11 @@ export class QuizHostScene extends BaseScene {
             console.log('QuizHostScene:: playerconnect :', { playerConfigs: this.getPlayerConfigsAsArray() });
             const player: PhaserPlayer = this.getPlayerBySessionID(playerConfig.sessionID);
             if (player) {
-                player.connected();
+                player.connect();
             } else {
                 this.addPlayer(playerConfig);
             }
-
+ 
             // Refresh instructions and HUD
             if (this.instructionState === 'maximized') {
                 this.showInstructions();
@@ -343,7 +336,7 @@ export class QuizHostScene extends BaseScene {
             console.log('QuizHostScene:: playerdisconnect:', sessionID);
             const player: PhaserPlayer = this.getPlayerBySessionID(sessionID);
             if (player) {
-                player.disconnected();
+                player.disconnect();
             } else {
                 console.warn(`Player with session ID ${sessionID} not found.`);
             }
@@ -366,6 +359,20 @@ export class QuizHostScene extends BaseScene {
             }
         });
 
+
+        // This is an all-purpose socket event that can perform any useful action
+        this.socket.on('server:hostaction', (data) => {
+            console.log('QuizHostScene:: server:hostaction:', data);
+            if (data.action === 'toggleInstructions') {
+                this.toggleInstructions();
+            }
+            if (data.action === 'toggleNavbar') {
+                this.globalNavbar?.toggle();
+            }
+            if (data.action === 'adjustTimer') {
+                this.adjustHUDTimer(data.delta);
+            }
+        });
 
         // Listen for intro quiz message
         this.socket.on('server:introquiz', (data) => {
@@ -451,7 +458,7 @@ export class QuizHostScene extends BaseScene {
             // Set all players to state of ANSWERING
             // - re-parent them in playerContainer
             // - animate them to the bottom of the screen on the next tween update
-            this.phaserPlayers.forEach((player: PhaserPlayer) => {
+            this.players.forEach((player: PhaserPlayer) => {
                 this.reparentObject(player, this.playerContainer);
                 player.setPlayerState(PhaserPlayerState.ANSWERING);
                 player.resetPlayerScoreText();
@@ -562,11 +569,19 @@ export class QuizHostScene extends BaseScene {
         
         // Handle local hotkeys
         if (event.code === 'KeyI') {
-            this.toggleInstructions();
+            this.socket.emit('host:action', { action: 'toggleInstructions' });
             return;
         }
         if (event.code === 'KeyN') {
-            this.globalNavbar?.toggle();
+            this.socket.emit('host:action', { action: 'toggleNavbar' });
+            return;
+        }
+        if (event.code === 'ArrowUp') {
+            this.socket.emit('host:action', { action: 'adjustTimer', delta: 60 });
+            return;
+        }
+        if (event.code === 'ArrowDown') {
+            this.socket.emit('host:action', { action: 'adjustTimer', delta: -60 });
             return;
         }
 
@@ -627,7 +642,7 @@ export class QuizHostScene extends BaseScene {
     // Returns a PhaserPlayer instance, though maybe this is not needed
     addPlayer(playerConfig: PlayerConfig): PhaserPlayer {
         const phaserPlayer: PhaserPlayer = new PhaserPlayer(this, playerConfig);
-        this.phaserPlayers.set(playerConfig.sessionID, phaserPlayer);
+        this.players.set(playerConfig.sessionID, phaserPlayer);
         this.add.existing(phaserPlayer);
         this.playerContainer.add(phaserPlayer);
 
@@ -658,24 +673,38 @@ export class QuizHostScene extends BaseScene {
             return;
         }
 
+        let targetX: number = Phaser.Math.Between(0, 1920);
+        let targetY: number = Phaser.Math.Between(0, this.getY(1080));
+        if (player.getPlayerState() === PhaserPlayerState.ANSWERING) {
+            targetY = this.getY(1080 - 20);
+        }
+        // For HIDDEN we can get a bit clever and move them off the side they are closest to
+        if (player.getPlayerState() === PhaserPlayerState.HIDDEN) {
+            const fromLeft = player.x < 960;
+            targetX = fromLeft ? Phaser.Math.Between(-1920, -960) : Phaser.Math.Between(1920, 1920 + 960);
+            const fromTop = player.y < this.getY(540);
+            targetY = fromTop ? Phaser.Math.Between(-this.getY(1080), -this.getY(-540)) : Phaser.Math.Between(this.getY(1080), this.getY(1080 + 540));
+        }
         this.tweens.killTweensOf(player);
         this.tweens.add({
             targets: player,
             scale: 1,
-            x: Phaser.Math.Between(0, 1920),
-            y: player.getPlayerState() === PhaserPlayerState.FLOATING ? Phaser.Math.Between(0, this.getY(980)) : this.getY(1080 - 20),
+            x: targetX,
+            y: targetY,
             duration: Phaser.Math.Between(2000, 4000),
             ease: 'Cubic.easeInOut',
             onComplete: () => {
-                this.animatePlayer(player);
+                if (player.getPlayerState() !== PhaserPlayerState.HIDDEN) {
+                    this.animatePlayer(player);
                 // player.setPosition(0, Phaser.Math.Between(0, this.getY(1080)));
+                }
             }
         });
     }
 
     // getPlayerBySessionID - overridden from BaseScene to return PhaserPlayer
     getPlayerBySessionID(sessionID: string): PhaserPlayer {
-        return this.phaserPlayers.get(sessionID)!;
+        return this.players.get(sessionID)!;
     }
 
     private createUI(): void {
@@ -764,7 +793,9 @@ export class QuizHostScene extends BaseScene {
     private showStartingSoonHUD(titleTextOverride?: string): void {
         if (titleTextOverride) this.lobbyTitle = titleTextOverride;
         
-        const playerCount = this.getPlayerConfigsAsArray().length;
+        const playerCount = this.getPlayerConfigsAsArray()
+            .filter(player => player.connected)
+            .length;
 
         // If it already exists, just update the player count text and return
         if (this.startingSoonHUD && this.HUDWaitingText) {
@@ -841,11 +872,17 @@ export class QuizHostScene extends BaseScene {
         const colon = this.add.text(0, -6, ":", timerStyle).setOrigin(0.5, 0.5);
         const secText = this.add.text(15, 0, secs.toString().padStart(2, '0'), timerStyle).setOrigin(0, 0.5);
 
+        // Store references for external timer adjustment
+        this.data.set('HUDMinText', minText);
+        this.data.set('HUDSecText', secText);
+
         // "Starting Soon" - larger than 960 x since entire container is scaled down
         const startingText = this.add.text(1080, -320, "STARTING SOON!", {
             fontFamily: 'Titan One',
             fontSize: '44px',
-            color: '#FFFF00'
+            color: '#FFFF00',
+            stroke: '#000000',
+            strokeThickness: 6
         }).setOrigin(1, 1);
 
         // Player Count
@@ -854,7 +891,7 @@ export class QuizHostScene extends BaseScene {
             fontSize: '36px',
             color: '#ffffff',
             stroke: '#000000',
-            strokeThickness: 6
+            strokeThickness: 4
         }).setOrigin(1,1);
 
         this.startingSoonHUD.add([title, startingText, minText, colon, secText, this.HUDWaitingText]);
@@ -876,6 +913,30 @@ export class QuizHostScene extends BaseScene {
                     }
                 },
                 loop: true
+            });
+        }
+    }
+
+    private adjustHUDTimer(delta: number): void {
+        this.HUDCountdownSeconds = Math.max(0, this.HUDCountdownSeconds + delta);
+        
+        // Update the display immediately
+        const minText = this.data.get('HUDMinText') as Phaser.GameObjects.Text;
+        const secText = this.data.get('HUDSecText') as Phaser.GameObjects.Text;
+        
+        if (minText && minText.active && secText && secText.active) {
+            const m = Math.floor(this.HUDCountdownSeconds / 60);
+            const s = this.HUDCountdownSeconds % 60;
+            minText.setText(`${m.toString().padStart(2, '0')}`);
+            secText.setText(`${s.toString().padStart(2, '0')}`);
+            
+            // Visual feedback for the adjustment
+            this.tweens.add({
+                targets: [minText, secText],
+                scale: 1.2,
+                duration: 100,
+                yoyo: true,
+                ease: 'Quad.easeOut'
             });
         }
     }
@@ -1199,9 +1260,9 @@ export class QuizHostScene extends BaseScene {
      * Initialize and create a complete question display based on question data
      * Once created the calling function is responsible for adding it to the scene / animating it in whatever...
      */
-    private async createQuestion(question: any): Promise<void> {
+    private async createQuestion(questionData: any): Promise<void> {
 
-        console.log('QuizHostScene:: createQuestion:', question);
+        console.log('QuizHostScene:: createQuestion:', questionData);
 
         // Clear previous UI
         this.clearUI();
@@ -1210,7 +1271,7 @@ export class QuizHostScene extends BaseScene {
         this.mainContainer.bringToTop(this.questionContainer);
 
         // Create the appropriate question renderer based on type
-        this.currentQuestion = this.questionFactory.create(question.type, question);
+        this.currentQuestion = this.questionFactory.create(questionData.type, questionData);
 
         // Let the specialized renderer handle the display - this is when question gets added to the scene
         if (this.currentQuestion) {
@@ -1242,17 +1303,15 @@ export class QuizHostScene extends BaseScene {
         }
 
         // Prepare the players to be moved around to represent their choices
-        for (const [playerID, player] of this.phaserPlayers) {
-            player.setPlayerState(PhaserPlayerState.REVEALING);
-            this.tweens.killTweensOf(player);
+        for (const [sessionID, player] of this.players) {
+            player.setPlayerState(PhaserPlayerState.HIDDEN);
             this.reparentObject(player, this.playerContainer);
+            this.animatePlayer(player);
         }
         
         // Universal Rule for 'show-answer': Players float *over* answers
         this.mainContainer.bringToTop(this.playerContainer);
-
-        this.currentQuestion.prepareAnswerResults().play();
-
+        this.currentQuestion.createRevealAnswerTimeline().play();
     }
 
     private startTimer(duration: number): void {
@@ -1322,9 +1381,10 @@ export class QuizHostScene extends BaseScene {
         this.soundManager.playMusic('quiz-race', { volume: 0.5 });
 
         // Set the players to racing, kill any existing tweens and re-parent to racetrack
-        this.phaserPlayers.forEach((player: PhaserPlayer) => {
+        this.players.forEach((player: PhaserPlayer) => {
             player.setPlayerState(PhaserPlayerState.RACING);
             this.tweens.killTweensOf(player);
+            console.log('Reparenting player to racetrack for racing animation:', player, this.racetrack);
             this.reparentObject(player, this.racetrack);
         });
 
@@ -1456,7 +1516,7 @@ export class QuizHostScene extends BaseScene {
         });
 
         // Prepare players for podium
-        this.phaserPlayers.forEach((player: PhaserPlayer) => {
+        this.players.forEach((player: PhaserPlayer) => {
             if (player.parentContainer === this.racetrack) {
                 player.x += this.racetrack.x;
                 player.y += this.racetrack.y;
@@ -1509,7 +1569,7 @@ export class QuizHostScene extends BaseScene {
         const initialMoveTl = gsap.timeline();
         for (let i = sortedScores.length; i-- > 0; ) {
             const [playerID, score] = sortedScores[i];
-            const player = this.phaserPlayers.get(playerID);
+            const player = this.players.get(playerID);
             if (player) {
                 this.tweens.killTweensOf(player);
                 this.playerContainer.bringToTop(player);
@@ -1540,7 +1600,7 @@ export class QuizHostScene extends BaseScene {
             if (!scoreEntry) return;
 
             const [playerID, score] = scoreEntry;
-            const player = this.phaserPlayers.get(playerID);
+            const player = this.players.get(playerID);
             if (player) {
                 const pos = podiumPositions[rankIndex];
                 const revealTl = gsap.timeline();
@@ -1636,7 +1696,7 @@ export class QuizHostScene extends BaseScene {
         });
 
         // Fade out the players
-        this.phaserPlayers.forEach(player => {
+        this.players.forEach(player => {
             this.tweens.add({
                 targets: player,
                 alpha: 0,

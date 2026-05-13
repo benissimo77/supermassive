@@ -58,10 +58,10 @@ export abstract class PlayerBaseQuestion extends Phaser.GameObjects.Container {
     protected abstract showAnswerContent(height: number): void;
     protected abstract makeInteractive(): void;
     protected abstract makeNonInteractive(): void;
-    
+    public abstract createRevealAnswerTimeline(): gsap.core.Timeline;
+
     // Stub these out to avoid ts errors if someone casts it to BaseQuestion or tries to use host methods
     public renderHost(): void {}
-    public prepareAnswerResults(): any { return null; }
     
     public destroy(fromScene?: boolean): void {
         console.log('PlayerBaseQuestion:: destroy:', this.questionData?.id);

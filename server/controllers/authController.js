@@ -102,6 +102,10 @@ class AuthController {
                         role = user.emailVerified ? 'host' : 'guest';
                     }
 
+                    // Sync activeRoom to session
+                    req.session.room = user.activeRoom;
+                    req.session.role = role;
+
                     res.status(200).json(success('Logged in successfully', {
                         user: {
                             id: user._id,

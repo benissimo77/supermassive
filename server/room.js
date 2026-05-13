@@ -24,7 +24,9 @@ class Room {
 		// Note: this is async but we don't need to await it here since we're leaving...
 		// IMPORTANT: This is commented out when travelling as not always available...
 		// TODO: UNCOMMENT THIS LINE WHEN GOING TO PRODUCTION!!!
-		this.generateQRCode(this.id);
+		if (process.env.NODE_ENV === 'production') {
+			this.generateQRCode(this.id);
+		}
 	}
 
 	// we say user because at this point we don't know if they are a player or a host/moderator/viewer etc...
@@ -149,6 +151,8 @@ class Room {
 
 	attachHostEvents(socket) {
 
+		console.log('ROOM.js:: Attaching host events for socket:', socket.id);
+
 		// host:ready
 		// Sent by host when they have loaded the host page and are ready to start receiving messages
 		socket.on('host:ready', (data, callback) => {
@@ -272,6 +276,7 @@ class Room {
 				this.hostResponseHandler(socket, response);
 			}
 		})
+
 		// host:keypress - sent by host when they press a key on their keyboard
 		// key is an object holding the key plus flags to indicate shift, ctrl, alt etc
 		socket.on('host:keypress', (key) => {
@@ -280,6 +285,13 @@ class Room {
 				this.hostKeypressHandler(socket, key);
 			}
 		})
+
+		// This is a general-purpose event that can be used to trigger any custom action defined by the host
+		// Server merely broadcasts to all hosts - individual games can interpret data however they list
+		socket.on('host:action', (data) => {
+			console.log('host:action:', data);
+			this.emitToHosts('server:hostaction', data);
+		});
 
 		socket.on('admin:kickplayer', (sessionID) => {
 			console.log('Room:: host:kickplayer:', sessionID);

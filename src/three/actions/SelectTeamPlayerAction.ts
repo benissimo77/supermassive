@@ -26,6 +26,7 @@ export default class SelectTeamPlayerAction extends BasePlayerAction {
         let headerLabel = 'CHOOSE A TEAM';
         if (this.actionData.jokerType === 'steal') headerLabel = 'STEAL FROM:'; 
         if (this.actionData.jokerType === 'freeze') headerLabel = 'FREEZE WHO?';
+        if (this.actionData.jokerType === 'gift')   headerLabel = 'GIFT TO:';
 
         this.actionTitle = this.scene.add.text(0, 0, headerLabel, {
             fontFamily: 'Titan One',
@@ -45,18 +46,15 @@ export default class SelectTeamPlayerAction extends BasePlayerAction {
             this.actionData.teamlist.forEach((target: any, index: number) => {
                 const playerUI = new ThreePlayer(this.scene, target);
 
-                playerUI.makeInteractive(() => {
-                    if (this.isDragging) return; // Prevent click if we were just dragging
-                    this.onTeamSelected(target.sessionID);
-                });
-
                 this.scrollContainer.add(playerUI);
                 this.buttons.push(playerUI);
             });
         }
 
         this.setupDragEvents();
-        
+
+        this.makeInteractive();
+
         // Add strictly positioned base footer controls.
         // Initially invisible/disabled until a selection is made.
         this.createFooterControls();
@@ -107,73 +105,52 @@ export default class SelectTeamPlayerAction extends BasePlayerAction {
         });
     }
 
+    private makeInteractive(): void {
+        this.buttons.forEach(btn => {
+            btn.makeInteractive(() => {
+                if (this.isDragging) return; // Prevent click if we were just dragging
+                this.onTeamSelected((btn as any).playerConfig.sessionID);
+            });
+        });
+    }
+
     public render(): void {
-        const centerX = 960;
-        
-        // Position title near the top of the interface
         if (this.actionTitle) {
-            this.actionTitle.setPosition(centerX, this.scene.getY(150));
+            this.actionTitle.setPosition(960, this.scene.getY(150));
         }
 
-        // Reset scroll position on layout change
         this.scrollContainer.setPosition(0, 0);
-        this.bounds.max = 0;
-        this.bounds.min = 0; // Disable scrolling metrics for now
+        this.bounds = { min: 0, max: 0 };
 
-        if (this.scene.isPortrait()) {
-            
-            const cellWidth = 480;
-            const cellHeight = 150;
-            
-            // Calculate a safe scale where a 2-column grid will fit
-            // (logical width is 1920 so 480 * 2 = 960... meaning it comfortably fits 2 columns at 1.0)
-            const numAvatars = this.buttons.length;
-            const columns = 2; // Always 2 columns in portrait
-            
-            // Layout starting coordinates
-            const startY = this.scene.getY(300);
-            
-            // Calculate starting X to center the block of 2 columns
-            const totalWidth = columns * cellWidth;
-            const startX = centerX - (totalWidth / 2) + (cellWidth / 2);
+        // Grid: 4 columns × 2 rows in landscape, 2 columns × 4 rows in portrait
+        const cols = this.scene.isPortrait() ? 2 : 4;
 
-            this.buttons.forEach((playerUI, index) => {
-                const row = Math.floor(index / columns);
-                const col = index % columns;
-                
-                // Keep the items moderately scaled
-                // Avatars are 480picels wide so in portrait mode with a 2-column grid we want them to become more like ~800 pixels wide
-                playerUI.setScale(800/480); 
-                
-                // We add some buffer to the xPos calculation so columns don't overlap as much
-                const xPos = startX + (col * (cellWidth + 60)); 
-                const yPos = startY + (row * cellHeight * 1.2 * this.scene.getPhysicalScale());
-                playerUI.setPosition(xPos, yPos);
-            });
+        // ThreePlayer natural card dimensions in logical units
+        const PLAYER_W = 560;
+        const PLAYER_H = 360;
+        const GAP = 40;
 
-        } else {
-            // LANDSCAPE: Layout as a 3 or 4 column grid
-            const cellWidth = 480;
-            const cellHeight = 150;
-            const columns = this.buttons.length > 6 ? 4 : 3;
-            
-            const startY = this.scene.getY(300);
-            const totalWidth = columns * (cellWidth + 40);
-            const startX = centerX - (totalWidth / 2) + (cellWidth / 2);
+        // Scale so that `cols` players + gaps fill the 1920-wide logical canvas
+        const playerScale = (1920 - (cols - 1) * GAP) / (cols * PLAYER_W);
 
-            this.buttons.forEach((playerUI, index) => {
-                const row = Math.floor(index / columns);
-                const col = index % columns;
-                
-                playerUI.setScale(1);
-                
-                const xPos = startX + (col * (cellWidth + 40)); // Small padding between columns
-                const yPos = startY + (row * cellHeight * 1.5); // Space them out vertically
-                playerUI.setPosition(xPos, yPos);
-            });
-        }
-        
-        // Layout any active footer pieces.
+        const CELL_W = (PLAYER_W + GAP) * playerScale;
+        const CELL_H = (PLAYER_H + GAP) * playerScale;
+
+        // Centre the grid horizontally at x=960.
+        // ThreePlayer's origin is NOT the card centre — battleSlotBg starts at x=-40 with origin(0,0.5),
+        // so the card centre in player-local space is at x = -40 + 560/2 = 240.
+        // In world space that offset is 240 * playerScale, which we subtract to align card centres.
+        const CARD_CENTER_OFFSET_X = (-40 + PLAYER_W / 2) * playerScale; // = 240 * playerScale
+        const startX = 960 - ((cols - 1) / 2) * CELL_W - CARD_CENTER_OFFSET_X;
+        const startY = this.scene.getY(300);
+
+        this.buttons.forEach((playerUI, index) => {
+            const col = index % cols;
+            const row = Math.floor(index / cols);
+            playerUI.setScale(playerScale);
+            playerUI.setPosition(startX + col * CELL_W, startY + row * CELL_H);
+        });
+
         this.layoutFooterControls();
     }
 
@@ -182,21 +159,14 @@ export default class SelectTeamPlayerAction extends BasePlayerAction {
 
         this.selectedTeamID = targetSID;
 
-        // Visual feedback: dim others, highlight selected
+        // Visual feedback: deselect all, then select the chosen one
         this.buttons.forEach(btn => {
-            if ((btn as any).playerConfig.sessionID === targetSID) {
-                btn.setAlpha(1);
-            } else {
-                btn.setAlpha(0.4);
-            }
+            btn.setSelected((btn as any).playerConfig.sessionID === targetSID);
         });
 
         // Determine if we need to show submit or auto-advance
         if (this.actionData.autoAdvance) {
-            // Slight delay so the user registers their visual selection before the wizard slides away
-            this.scene.time.delayedCall(400, () => {
-                this.handleSubmit();
-            });
+            this.handleSubmit();
         } else {
             // Show the standard footer
             this.scene.tweens.add({
@@ -204,8 +174,8 @@ export default class SelectTeamPlayerAction extends BasePlayerAction {
                 alpha: 1,
                 duration: 200,
                 onComplete: () => {
-                    this.submitButton?.setInteractive({ useHandCursor: true });
-                    this.resetButton?.setInteractive({ useHandCursor: true });
+                    this.submitButton.setInteractive({ useHandCursor: true });
+                    this.resetButton.setInteractive({ useHandCursor: true });
                 }
             });
         }
@@ -215,11 +185,11 @@ export default class SelectTeamPlayerAction extends BasePlayerAction {
         this.selectedTeamID = null;
         
         // Restore avatars
-        this.buttons.forEach(btn => btn.setAlpha(1));
+        this.buttons.forEach(btn => btn.setHighlighted(false));
 
         // Hide footer
-        this.submitButton?.setAlpha(0).disableInteractive();
-        this.resetButton?.setAlpha(0).disableInteractive();
+        this.submitButton.setAlpha(0).disableInteractive();
+        this.resetButton.setAlpha(0).disableInteractive();
     }
 
     protected handleSubmit(): void {
@@ -234,8 +204,24 @@ export default class SelectTeamPlayerAction extends BasePlayerAction {
             });
         }
 
+        const tl = gsap.timeline();
+        if (this.submitButton) {
+            tl.to(this.submitButton, { y: this.scene.getY(2160), duration: 0.5, ease: 'back.in' });
+        }
+        if (this.resetButton) {
+            tl.to(this.resetButton, { y: this.scene.getY(2160), duration: 0.5, ease: 'back.in' }, "<");
+        }
+        tl.add(() => {
+            this.scene.soundManager.playFX('submit-answer');
+        }, "<+0.25");
+
+        tl.addLabel('buttonsOut');
+        for (const btn of this.buttons) {
+            tl.to(btn, { y: this.scene.getY(2160), duration: 0.5, ease: 'back.in' }, "buttonsOut");
+        }
+
         if (this.actionTitle) {
-            this.actionTitle.setText("WAITING...");
+            tl.to( this.actionTitle, { y: "-=1080", duration:0.5, ease:'back.in' });
         }
     }
 }

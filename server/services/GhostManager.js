@@ -45,7 +45,7 @@ export class GhostManager {
             const nameIndex = Math.floor(Math.random() * this.names.length);
             name = this.names.splice(nameIndex, 1)[0];
         }
-        name += ' (Bot)';
+        // name += ' (Bot)';
 
         // Pick an avatar and remove it from the list to avoid duplicates in this room
         let avatar = '12370830';
@@ -107,20 +107,30 @@ export class GhostManager {
     simulateQuizResponse(ghost, questionData) {
         const { socket, userObj } = ghost;
 
-        // Random delay between 2 and 8 seconds
-        const delay = 2000 + Math.random() * 6000;
+        // Try to get the correct answer from the game instance
+        const game = this.room.game;
+
+        // Better pause logic to suit the question type
+        // First range is for the simplest questions true/false multiple choice
+        let delay = 2000 + Math.random() * 6000;
+        if (game && game.question) {
+            const questionType = game.question.type;
+            if (questionType === 'text' || questionType === 'number-exact' || questionType === 'hotspot' || questionType === 'point-it-out') {
+                delay = 4000 + Math.random() * 8000;
+            } else if (questionType === 'matching' || questionType === 'ordering' || questionType === 'number-closest') {
+                delay = 8000 + Math.random() * 10000;
+            }
+        }
         
         setTimeout(() => {
             let answer = null;
 
-            // Try to get the correct answer from the game instance
-            const game = this.room.game;
-            if (game && game.name === 'quiz' && game.question) {
+            if (game && game.question) {
                 const realQuestion = game.question;
                 const isCorrect = Math.random() < userObj.skillLevel;
 
                 if (isCorrect) {
-                    // Correct answer logic
+                    // Correct (or near-correct) answer logic
                     switch (realQuestion.type) {
                         case 'multiple-choice':
                         case 'true-false':
@@ -132,17 +142,49 @@ export class GhostManager {
                             break;
                         case 'text':
                         case 'number-exact':
-                        case 'number-closest':
-                            answer = realQuestion.answer;
-                            break;
                         case 'matching':
                         case 'ordering':
                             answer = realQuestion.answer;
                             break;
+                        case 'number-closest':
+                            const val = parseFloat(realQuestion.answer);
+                            answer = realQuestion.answer;
+                            if (!isNaN(val)) {
+                                // Skill determines how "perfect" the guess is
+                                const variance = (1 - userObj.skillLevel) * (val * 0.3); // Up to 30% variance
+                                const offset = (Math.random() - 0.5) * variance;
+                                answer = val + offset;
+                            }
+                            break;
+                        case 'hotspot':
+                            // Get near it based on skill
+                            const hx = realQuestion.answer.x;
+                            const hy = realQuestion.answer.y;
+                            const hVariance = (1 - userObj.skillLevel) * 100; // Up to 100 logical pixels (based on 1000x1000 canvas) away
+                            answer = {
+                                x: hx + (Math.random() - 0.5) * hVariance,
+                                y: hy + (Math.random() - 0.5) * hVariance
+                            };
+                            break;
+                        case 'point-it-out':
+                            // Aim for roughly the center of the bounding box
+                            const start = realQuestion.answer.start;
+                            const end = realQuestion.answer.end;
+                            const centerX = (start.x + end.x) / 2;
+                            const centerY = (start.y + end.y) / 2;
+                            const pVarianceX = (end.x - start.x) * 0.2; // 20% of width
+                            const pVarianceY = (end.y - start.y) * 0.2; // 20% of height
+                            answer = {
+                                x: centerX + (Math.random() - 0.5) * pVarianceX,
+                                y: centerY + (Math.random() - 0.5) * pVarianceY
+                            };
+                            break;
                     }
                 } else {
+
                     // Incorrect answer logic
                     switch (realQuestion.type) {
+
                         case 'multiple-choice':
                         case 'true-false':
                             const options = realQuestion.optionsShuffled || realQuestion.options || [];
@@ -158,18 +200,38 @@ export class GhostManager {
                         case 'text':
                             const wrongAnswers = ['I think so', 'Maybe?', 'No idea', 'Pass', '???'];
                             answer = wrongAnswers[Math.floor(Math.random() * wrongAnswers.length)];
+                            answer = '';
                             break;
                         case 'number-exact':
                         case 'number-closest':
                             const val = parseFloat(realQuestion.answer);
                             if (!isNaN(val)) {
-                                // Pick a number within +/- 50% of the answer, but not the answer itself
-                                let offset = (Math.random() - 0.5) * val;
-                                if (Math.abs(offset) < 1) offset = 1; // Ensure it's actually wrong
+                                // Pick a number significantly away but "realistic-looking"
+                                let offset = (Math.random() > 0.5 ? 1 : -1) * (val * (0.2 + Math.random() * 0.5));
+                                if (Math.abs(offset) < 1) offset = 5; 
                                 answer = Math.round(val + offset);
                             } else {
                                 answer = Math.floor(Math.random() * 100);
                             }
+                            break;
+                        case 'hotspot':
+                            // Pick a spot reasonably far away but on canvas (avoid edges)
+                            answer = {
+                                x: 500 + (Math.random() - 0.5) * 250,
+                                y: 500 + (Math.random() * 250
+                            };
+                            break;
+                        case 'point-it-out':
+                            // Pick a spot outside the target box
+                            const start = realQuestion.answer.start;
+                            const end = realQuestion.answer.end;
+                            // Randomly decide to be wrong in X or Y
+                            let px = 400 + Math.random() * 1100;
+                            let py = 200 + Math.random() * 600;
+                            // Simple nudge outside if we coincidentally hit inside
+                            if (px > start.x && px < end.x) px += 500;
+                            px = Math.max(20, Math.min(980, px));
+                            answer = { x: px, y: py };
                             break;
                         case 'matching':
                         case 'ordering':
@@ -194,7 +256,7 @@ export class GhostManager {
                 } else if (questionData.type === 'number-exact' || questionData.type === 'number-closest') {
                     answer = Math.floor(Math.random() * 100);
                 } else {
-                    answer = "Pass";
+                    answer = "";
                 }
             }
             

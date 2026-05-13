@@ -3,6 +3,7 @@ import { BaseScene } from "src/BaseScene";
 import { BaseQuestion } from "./BaseQuestion";
 import { NineSliceButton } from "src/ui/NineSliceButton";
 import { OrderMatchQuestionData } from "./QuestionTypes";
+import { SimpleButton } from "src/ui/SimpleButton";
 
 /**
  * OrderingQuestion - Handles both 'ordering' and 'matching' question types for the Host Screen
@@ -10,7 +11,7 @@ import { OrderMatchQuestionData } from "./QuestionTypes";
 export default class OrderingQuestion extends BaseQuestion {
 
     protected buttons: Map<string, NineSliceButton> = new Map<string, NineSliceButton>();
-    protected dropzones: Map<number, Phaser.GameObjects.NineSlice> = new Map<number, Phaser.GameObjects.NineSlice>();
+    protected dropzones: Map<number, SimpleButton> = new Map<number, SimpleButton>();
     protected dropzoneLabels: Map<number, Phaser.GameObjects.Text> = new Map<number, Phaser.GameObjects.Text>();
     protected items: string[] = [];
     protected labels: string[] = [];
@@ -163,7 +164,6 @@ export default class OrderingQuestion extends BaseQuestion {
 
         console.log("OrderingQuestion::createRevealAnswerTimeline:", this.questionData);
         const tl = gsap.timeline();
-        this.tl = tl;
 
         this.buttons.forEach((button, item) => {
             this.answerContainer.bringToTop(button);
@@ -191,7 +191,6 @@ export default class OrderingQuestion extends BaseQuestion {
             }
         });
 
-        tl.pause();
         return tl;
     }
 

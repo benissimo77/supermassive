@@ -3,7 +3,6 @@ import { gsap } from "gsap";
 
 import { BaseScene } from 'src/BaseScene';
 import BasePlayerAction from './BasePlayerAction';
-import { NineSliceButton } from "src/ui/NineSliceButton";
 import { ThreeChip } from "../ThreeChip";
 import { ThreeCard } from "../ThreeCard";
 
@@ -18,6 +17,7 @@ export default class SelectTilesPlayerAction extends BasePlayerAction {
     private gridContainer: Phaser.GameObjects.Container;
     private selectionChips: ThreeChip[] = [];
     private cards: ThreeCard[] = [];
+    private myHand: Set<number> = new Set();
     
     // The grid is always 6x6 max. In the future, we could receive this from the server.
     private readonly GRID_SIZE = 6;
@@ -37,9 +37,6 @@ export default class SelectTilesPlayerAction extends BasePlayerAction {
         } else if (this.actionData.scores && this.scene.mySessionID && this.actionData.scores[this.scene.mySessionID] !== undefined) {
              // Clean payload structure uses direct scores mapping
              this.maxTiles = this.actionData.scores[this.scene.mySessionID];
-        } else if (this.actionData.responses && this.scene.mySessionID && this.actionData.responses[this.scene.mySessionID]) {
-             // Fallback for old standard tile selection state which formatted via responses map
-             this.maxTiles = this.actionData.responses[this.scene.mySessionID].score || 0;
         }
 
         // Title
@@ -123,11 +120,7 @@ export default class SelectTilesPlayerAction extends BasePlayerAction {
             });
         }
 
-        if (this.actionTitle) {
-            this.actionTitle.setText("WAITING...");
-        }
-
-        // Juice - animate the keypad out
+        // Juice - animate the elememts out
         const tl = gsap.timeline();
         if (this.submitButton) {
             tl.to(this.submitButton, { y: this.scene.getY(2160), duration: 0.5, ease: 'back.in' });
@@ -141,6 +134,15 @@ export default class SelectTilesPlayerAction extends BasePlayerAction {
             this.scene.soundManager.playFX('submit-answer');
         }, "<+0.25");
         tl.play();
+
+        if (this.actionTitle) {
+            tl.to(this.actionTitle, { y: "-=1080", duration: 0.5, ease: 'back.in'} );
+        }
+        this.selectionChips.forEach( (chip) => {
+            tl.to( chip, { y: "-=1080", duration: 0.5, ease: 'back.in'}, "<" );
+        });
+
+
     }
 
     protected handleReset(): void {
@@ -153,18 +155,16 @@ export default class SelectTilesPlayerAction extends BasePlayerAction {
             c.setSelection(0);
         });
         
-        // Let parent wizards know the reset button was clicked
-        this.emit('action-reset');
     }
 
     private createGrid(): void {
         this.cards.forEach(c => c.destroy());
         this.cards = [];
 
-        // Check for player-specific hand in playerHands
-        const myHand = new Set<number>();
-        if (this.actionData.playerHands && this.scene.mySessionID && this.actionData.playerHands[this.scene.mySessionID]) {
-             (this.actionData.playerHands[this.scene.mySessionID] as number[]).forEach((idx: number) => myHand.add(idx));
+        // Populate hand from the server-provided myHand array (only this player's own tiles)
+        this.myHand = new Set<number>();
+        if (this.actionData.myHand) {
+            (this.actionData.myHand as number[]).forEach((idx: number) => this.myHand.add(idx));
         }
 
         // Master grid defines what represents which index
@@ -182,16 +182,13 @@ export default class SelectTilesPlayerAction extends BasePlayerAction {
                 this.gridContainer.add(card);
                 this.cards.push(card);
 
-                const isOwnedByMe = myHand.has(index);
-                const tileType = masterGrid[index] || 'icon_1';
+                // Reveal players selected tiles
+                const isOwnedByMe = this.myHand.has(index);
+                const tileType = masterGrid[index] || 'joker';
                 if (isOwnedByMe) {
                     card.flip(tileType, true, 0).play(); // Reveal without interact trigger
                 }
 
-                // If it's a joker tile or owned by someone else depending on rules...
-                if (tileType === 'joker') {
-                    card.setInteractive(false);
-                }
             }
         }
     }
@@ -213,7 +210,7 @@ export default class SelectTilesPlayerAction extends BasePlayerAction {
         }
     }
 
-    public destroy(fromScene?: boolean): void {
+    public destroy(fromScene: boolean = true): void {
         this.cards.forEach(c => c.destroy());
         this.selectionChips.forEach(c => c.destroy());
         super.destroy(fromScene);

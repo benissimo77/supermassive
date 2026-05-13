@@ -62,6 +62,8 @@ export class QuestionFactory {
             const hasImages = data.itemImages && data.itemImages.length > 0 && data.itemImages.some((url: string) => url.trim().length > 0);
             if (hasImages) {
                 QuestionClass = ImageOrderingQuestion;
+            } else {
+                QuestionClass = OrderingQuestion;
             }
         }
 

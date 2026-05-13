@@ -84,12 +84,12 @@ export class ThreePlayScene extends BaseScene {
 
         // Cards and Icons
         this.load.image('card_back', '/assets/three/card-back.png');
-        this.load.image('icon_1', '/assets/three/icon-key-bg.png');
-        this.load.image('icon_2', '/assets/three/icon-energy-bg.png');
-        this.load.image('icon_3', '/assets/three/icon-gold-bg.png');
-        this.load.image('icon_4', '/assets/three/icon-trophy-bg.png');
-        this.load.image('icon_5', '/assets/three/icon-star-bg.png');
-        this.load.image('icon_6', '/assets/three/icon-crown-bg.png');
+        this.load.image('1_key', '/assets/three/icon-key-bg.png');
+        this.load.image('2_energy', '/assets/three/icon-energy-bg.png');
+        this.load.image('3_gold', '/assets/three/icon-gold-bg.png');
+        this.load.image('4_trophy', '/assets/three/icon-trophy-bg.png');
+        this.load.image('5_star', '/assets/three/icon-star-bg.png');
+        this.load.image('6_crown', '/assets/three/icon-crown-bg.png');
         this.load.image('joker', '/assets/three/joker.png');
 
         // Player UI assets
@@ -142,6 +142,9 @@ export class ThreePlayScene extends BaseScene {
                     this.add.existing(this.threePlayer);
                     this.threePlayer.setPosition(-480, Phaser.Math.Between(this.getY(200), this.getY(880)));
                     this.animatePlayer(this.threePlayer);
+
+                    // QUICK HACK - for now just make this player invisible
+                    this.threePlayer.setVisible(false);
                 }
             });
         };
@@ -407,20 +410,37 @@ export class ThreePlayScene extends BaseScene {
                     this.clearUI();
 
                     data.ui = 'select-tiles';
-                    this.currentAction = this.actionFactory.create(data);
+                    const callback = (payload: any) => {
+                        // Forward the selected tiles (payload.answer) to the server
+                        this.socket.emit('client:response', { answer: payload.answer, answerTime: 0 });
 
-                    if (this.currentAction) {
-                        this.currentAction.onAction((payload: any) => {
-                            // Forward the selected tiles (payload.answer) to the server
-                            this.socket.emit('client:response', { answer: payload.answer, answerTime: 0 });
-
-                            // Add a slight delay then go to a waiting state
-                            this.waitingState = true;
-                            this.time.delayedCall(2500, () => {
-                                this.gotoWaitingState();
-                            });
+                        // Add a slight delay then go to a waiting state
+                        this.waitingState = true;
+                        this.time.delayedCall(2500, () => {
+                            this.gotoWaitingState();
                         });
+                    }
+                    // Extra logic - if we have 0 tiles to select then short-circuit and respond without even rendering
+                    // 2 ways to have tiles to select: either data.tiles > 0 or data.scores[sessionID] > 0
+                    let immediateAnswer = true;
+                    if (data.tiles) {
+                        if (data.tiles > 0) {
+                            immediateAnswer = false;
+                        }
+                    } else if (data.scores) {
+                        if (data.scores[this.mySessionID] !== undefined && data.scores[this.mySessionID] > 0) {
+                            immediateAnswer = false;
+                        }
+                    }
+                    if (immediateAnswer) {
+                        console.log('ThreePlayScene:: No tiles to select, auto-submitting empty answer');
+                        callback({ answer: '' });
+                        return;
+                    }
 
+                    this.currentAction = this.actionFactory.create(data);
+                    if (this.currentAction) {
+                        this.currentAction.onAction(callback);
                         this.actionContainer.add(this.currentAction);
                         this.currentAction.initialize();
                         this.currentAction.render();
@@ -632,12 +652,12 @@ export class ThreePlayScene extends BaseScene {
             this.waitingPanel.setScale(physicalScale);
         }
         // Re-scale and position player if answer NOT submitted ie player is in corner
-        if (this.threePlayer) {
-            this.threePlayer.setScale(physicalScale);
-            if (!this.waitingState) {
-                this.threePlayer.setPosition(0, this.getY(1060));
-            }
-        }
+        // if (this.threePlayer) {
+        //     this.threePlayer.setScale(physicalScale);
+        //     if (!this.waitingState) {
+        //         this.threePlayer.setPosition(0, this.getY(1060));
+        //     }
+        // }
 
         // Re-position and scale grid container
         // Grid is 6 tiles wide with each tile 180px including spacing, so total width is 1080px - we want to keep it centered on the screen regardless of the display orientation

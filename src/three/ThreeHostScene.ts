@@ -57,22 +57,23 @@ export class ThreeHostScene extends BaseScene {
     //      containers to their neutral (off-screen) positions. No animation, no async.
     //   2. stateTimeline = all animation. Every tween/timeline that drives a state lives here so
     //      the single skip guard (stateTeardown progress(1).kill()) can interrupt anything cleanly.
-    //   3. Sub-animations (doBattleSetup, getAnswerTimeline, card flips) return paused gsap timelines
-    //      so they can be embedded into stateTimeline via tl.add(subTl, '<') without racing.
+    //   3. Sub-animations (getBattleSetupTimeline, getAnswerTimeline, card flips) return gsap timelines
+    //      that are embedded into stateTimeline via tl.add(subTl, '<'). No {paused:true} needed —
+    //      GSAP auto-play is RAF-deferred so the parent takes ownership before the first tick fires.
     //
     // Neutral (off-screen) positions — where stateTeardown snaps containers so that each
     // stateSetup can animate IN from a known starting position without knowing the previous state:
     //   battleContainer:  x = -1920  (off-screen left)
     //   gridContainer:    x = 3840    (off-screen right, slides in from right)
-    //   actionContainer:  x = 1920 + 1280  (off-screen right)
+    //   actionContainer:  x = 1920  (off-screen right)
     public gridContainer: Phaser.GameObjects.Container;
     public battleContainer: Phaser.GameObjects.Container;
     public versusLabel: Phaser.GameObjects.Text; // 'VS' during battle, joker type name during joker phase
     private questionContainer: Phaser.GameObjects.Container;
-    private playerContainer: Phaser.GameObjects.Container;
+    public playerContainer: Phaser.GameObjects.Container;
 
     private currentQuestion: BaseQuestion | null = null;
-    public threePlayers: Map<string, ThreePlayer> = new Map();
+    public players: Map<string, ThreePlayer> = new Map();
     private questionFactory: QuestionFactory;
 
     // Cards are actually 160x160 but CARD_SIZE allows for 8 pixels space between cards
@@ -92,21 +93,33 @@ export class ThreeHostScene extends BaseScene {
         super({ key: 'ThreeHostScene' });
     }
 
+    init(): void {
+        super.init();
+        this.TYPE = 'host';
+        this.questionFactory = new QuestionFactory(this);
+        this.actionFactory = new ThreeHostActionFactory(this);
+
+    }
+
     preload(): void {
+        super.preload();
 
         // Phaser assets should use root-relative paths to load from /public/
         this.load.image('quiz-background', '/img/quiz/background.jpg');
 
         // Cards and Icons
         this.load.image('card_back', '/assets/three/card-back.png');
-        this.load.image('icon_1', '/assets/three/icon-key-bg.png');
-        this.load.image('icon_2', '/assets/three/icon-energy-bg.png');
-        this.load.image('icon_3', '/assets/three/icon-gold-bg.png');
-        this.load.image('icon_4', '/assets/three/icon-trophy-bg.png');
-        this.load.image('icon_5', '/assets/three/icon-star-bg.png');
-        this.load.image('icon_6', '/assets/three/icon-crown-bg.png');
+        this.load.image('1_key', '/assets/three/icon-key-bg.png');
+        this.load.image('2_energy', '/assets/three/icon-energy-bg.png');
+        this.load.image('3_gold', '/assets/three/icon-gold-bg.png');
+        this.load.image('4_trophy', '/assets/three/icon-trophy-bg.png');
+        this.load.image('5_star', '/assets/three/icon-star-bg.png');
+        this.load.image('6_crown', '/assets/three/icon-crown-bg.png');
         this.load.image('joker', '/assets/three/joker.png');
         this.load.image('joker-white', '/assets/three/joker-white.png');
+
+        this.load.image('checkmark', '/assets/three/checkmark.png');
+        this.load.image('crossmark', '/assets/three/crossmark.png');
 
         // Player UI assets
         this.load.image('playernamepanel', '/assets/rounded-rect-grey-480x48x14.png');
@@ -118,15 +131,16 @@ export class ThreeHostScene extends BaseScene {
         this.load.image('versus', '/assets/three/versus.png');
 
         // Quiz-related images
+        this.load.image('dropzone', '/assets/img/dropzone.png');
+        this.load.image('dropzone-square', '/assets/img/dropzone-square.png');
         this.load.image('simple-button', '/assets/img/simplebutton.png');
         this.load.image('simple-button-hover', '/assets/img/simplebutton-hover.png');
-        this.load.image('dropzone', '/assets/img/dropzone.png');
 
         // Audio
+        this.load.audio('quiz-music-intro', '/assets/audio/quiz/music/modern-beat-jingle-intro-149598.mp3');
         this.load.audio('quiz-countdown', '/assets/audio/quiz/music/quiz-countdown-337785.mp3');
         this.load.audio('question-answered', '/assets/audio/quiz/fx/446100__justinvoke__bounce.wav');
         this.load.audio('end-question', '/assets/audio/quiz/fx/gong-hit-2-184010.mp3');
-
 
         // Load custom fonts
         this.load.rexWebFont({
@@ -134,19 +148,6 @@ export class ThreeHostScene extends BaseScene {
                 families: ['Titan One']
             }
         });
-
-    }
-
-    init(): void {
-        super.init();
-        this.TYPE = 'host';
-        this.questionFactory = new QuestionFactory(this);
-        this.actionFactory = new ThreeHostActionFactory(this);
-
-        // General keyboard listener - useful for keyboard control
-        if (this.input?.keyboard) {
-            this.input.keyboard.on('keydown', this.handleKeyDown, this);
-        }
 
     }
 
@@ -167,7 +168,7 @@ export class ThreeHostScene extends BaseScene {
         this.battleContainer = this.add.container(-1920, 0);
         this.playerContainer = this.add.container(0, 0);
         this.questionContainer = this.add.container(0, 0);
-        this.actionContainer = this.add.container(1280, this.getY(540)); // Centre of screen — rules overlay sits here
+        this.actionContainer = this.add.container(0, 0); // Starts off-screen right via stateSetup, slides to (0,0) when active
 
         this.mainContainer.add([this.battleContainer, this.playerContainer, this.gridContainer, this.questionContainer, this.actionContainer]);
 
@@ -204,6 +205,9 @@ export class ThreeHostScene extends BaseScene {
                 this.initServerHandshake();
             });
         }
+
+        // Global keypress handler manages central keypress events step forward, step backward etc...
+        this.registerGlobalKeypressHandler(this.handleKeyDown);
 
     }
 
@@ -271,10 +275,10 @@ export class ThreeHostScene extends BaseScene {
             this.battleContainer.setScale(this.getY(1080) / 1080);
         }
 
-        // If a Joker panel is active, let it adjust itself (e.g. recenter dynamically)
-        if (this.currentState === ThreeState.JOKER && this.currentAction) {
-            // Action containers reside at 960, getY(540) via BaseScene logic
-            this.actionContainer.setPosition(1280, this.getY(540));
+        // If a Joker panel is active, snap it to the correct position for the new screen size
+        if (this.currentAction) {
+            this.currentAction.layout();
+            this.actionContainer.setPosition(0, 0);
         }
 
         // If we have a grid container then ensure it still fits the screen
@@ -309,7 +313,7 @@ export class ThreeHostScene extends BaseScene {
 
         // Kill any in-flight state animation immediately. progress(1) jumps to the end so
         // onComplete callbacks still fire (e.g. socket.emit('host:response')) before killing.
-        if (this.stateTimeline && this.stateTimeline.isActive()) {
+        if (this.stateTimeline) {
             this.stateTimeline.progress(1).kill();
             this.stateTimeline = null;
         }
@@ -325,7 +329,7 @@ export class ThreeHostScene extends BaseScene {
 
             case ThreeState.QUIZ_QUESTION:
                 this.battleTeams.forEach((slotIndex, sessionID) => {
-                    this.threePlayers.get(sessionID)?.setHighlighted(false);
+                    this.players.get(sessionID)?.setHighlighted(false);
                 });
                 break;
 
@@ -350,7 +354,7 @@ export class ThreeHostScene extends BaseScene {
             case ThreeState.TILE_SELECTION:
                 // Clean highlight from battle slots
                 this.battleTeams.forEach((slotIndex, sessionID) => {
-                    this.threePlayers.get(sessionID)?.setHighlighted(false);
+                    this.players.get(sessionID)?.setHighlighted(false);
                 });
                 break;
 
@@ -358,31 +362,37 @@ export class ThreeHostScene extends BaseScene {
                 // Nothing to reset visually — battleMap stays visible until the round is truly over (TILE_SELECTION).
                 break;
                 
+
             case ThreeState.JOKER:
-                // Leave battleContainer and active player in place — JOKER_EVALUATE still needs them.
-                // Leave currentAction alive — JOKER_EVALUATE needs it.
-                // Leave actionContainer on-screen — JOKER_EVALUATE slides it away.
-                this.battleTeams.forEach((slotIndex, sessionID) => {
-                    this.threePlayers.get(sessionID)?.setHighlighted(false);
-                });
+                // Snap panel off-screen. Leave currentAction alive — JOKER_EVALUATE needs getEvaluateTimeline().
+                // this.actionContainer.setX(1920);
+                // // Reset versusLabel to 'VS' at its on-screen position for a clean state handoff.
+                // if (this.versusLabel) {
+                //     this.versusLabel.setText('VS');
+                //     this.versusLabel.setX(40 + BATTLESLOT_WIDTH / 2);
+                // }
+                // this.battleTeams.forEach((slotIndex, sessionID) => {
+                //     this.players.get(sessionID)?.setHighlighted(false);
+                // });
                 break;
 
             case ThreeState.JOKER_EVALUATE:
-                // Reset versusLabel (text + alpha) and move both battle players back to playerContainer (hidden).
+                // Reset versusLabel (text, alpha, x) and move all battle players back to playerContainer.
                 // The next stateSetup (TEAM_BATTLE / TILE_SELECTION) will reparent and animate them back in.
                 if (this.versusLabel) {
                     this.versusLabel.setText('VS');
                     this.versusLabel.setAlpha(1);
+                    this.versusLabel.setX(40 + BATTLESLOT_WIDTH / 2); // restore after slide-in tween
                 }
                 this.battleTeams.forEach((slotIndex, sessionID) => {
-                    const p = this.threePlayers.get(sessionID);
+                    const p = this.players.get(sessionID);
                     if (p) {
                         p.setPlayerState(PhaserPlayerState.HIDDEN);
                         this.reparentObject(p, this.playerContainer);
                         this.tweens.killTweensOf(p);
                     }
                 });
-                this.actionContainer.setPosition(1920 + 1280, this.getY(540));
+                this.actionContainer.setPosition(1920, 0); // off-screen right from full-screen centre
                 if (this.currentAction) {
                     this.currentAction.destroy();
                     this.currentAction = null;
@@ -390,7 +400,6 @@ export class ThreeHostScene extends BaseScene {
                 break;
         }
     }
-
 
     // ENTER logic for new state
     stateSetup(state: ThreeState, data: any = {}): void {
@@ -412,6 +421,14 @@ export class ThreeHostScene extends BaseScene {
                 break;
 
             case ThreeState.QUIZ_QUESTION:
+                this.players.forEach( (p, sessionID) => {
+                    p.setCardMode(false);
+                    p.setIconGridVisibility(false);
+                    p.setPlayerScoreText('');
+                    p.setPlayerState(PhaserPlayerState.ANSWERING);
+                    this.reparentObject(p, this.playerContainer);
+                    this.animatePlayer(p);
+                });
                 // If we're returning from a battle, slide the battle UI off and reset player appearance.
                 // These are no-ops on the very first question (nothing is on-screen yet).
                 gsap.to(this.battleContainer, { x: -1920, duration: 0.5, ease: 'power2.inOut' });
@@ -426,27 +443,30 @@ export class ThreeHostScene extends BaseScene {
                 break;
 
             case ThreeState.BATTLE_QUESTION:
+                this.questionContainer.setVisible(true);
+                this.questionContainer.setAlpha(1);
+
                 // Slide battle UI and grid off-screen. Players ride the battleContainer off to the left;
                 // only reparent them into playerContainer after the slide completes so the leftward exit is visible.
                 this.stateTimeline = gsap.timeline();
                 this.stateTimeline
                     .to(this.battleContainer, { x: -1920, duration: 0.6, ease: 'power2.inOut' })
                     .to(this.gridContainer, { x: 3840, duration: 0.6, ease: 'power2.inOut' }, '<')
-                    .add(() => {
-                        // Container is off-screen — reparent preserving world position, then float to bottom
-                        this.battleTeams.forEach((slotIndex, sessionID) => {
-                            const p = this.threePlayers.get(sessionID);
-                            if (p) {
-                                this.reparentObject(p, this.playerContainer);
-                                p.setCardMode(false);
-                                p.setIconGridVisibility(false);
-                                p.setPlayerState(PhaserPlayerState.ANSWERING);
-                                this.animatePlayer(p);
-                            }
-                        });
+
+                // Move all players either HIDDEN or ANSERING into battleContainer so they slide in with the battle UI. stateTeardown will move them back out.
+                this.stateTimeline.add( () => {
+                    this.players.forEach((p, sessionID) => {
+                        p.setCardMode(false);
+                        p.setIconGridVisibility(false);
+                        p.setPlayerScoreText('');
+                        p.setPlayerState(PhaserPlayerState.HIDDEN);
+                        this.reparentObject(p, this.playerContainer);
+                        if (this.battleTeams.has(sessionID)) {
+                            p.setPlayerState(PhaserPlayerState.ANSWERING);
+                        }
+                        this.animatePlayer(p);
                     });
-                this.questionContainer.setVisible(true);
-                this.questionContainer.setAlpha(1);
+                });
                 break;
 
             case ThreeState.BATTLE_ANSWER:
@@ -454,28 +474,39 @@ export class ThreeHostScene extends BaseScene {
                 this.questionContainer.setAlpha(1);
                 break;
 
-
-            case ThreeState.TEAM_BATTLE:
-            case ThreeState.TILE_SELECTION:
-
+            case ThreeState.TEAM_BATTLE: {
                 // Reset battleMap when entering TEAM_BATTLE (the very start of each new battle round).
                 // This is deferred past TURN_EVALUATE so it persists through the JOKER → JOKER_EVALUATE
                 // cycle, but must be cleared before the battle UI is shown — hence TEAM_BATTLE not TILE_SELECTION.
-                if (state === ThreeState.TEAM_BATTLE) {
-                    this.battleMap.resetBattleMap();
-                }
+                this.battleContainer.setVisible(true);
+                this.battleMap.resetBattleMap();
+                this.battleMode = BattleMode.BATTLE;
+                const tl = gsap.timeline();
+                tl.add(this.getBattleSetupTimeline(data));
+                this.stateTimeline = tl;
+                break;
+            }
 
+            case ThreeState.TILE_SELECTION: {
                 // Slide the grid and battle container in simultaneously,
                 // then position players into their battle slots (all in parallel via '<')
+                this.battleMap.resetBattleMap();
                 this.gridContainer.setVisible(true);
                 this.battleContainer.setVisible(true);
-                gsap.timeline()
-                    .to(this.gridContainer, { x: 1280, duration: 0.8, ease: 'back.out(1.7)' })
-                    .to(this.battleContainer, { x: 0, duration: 0.8, ease: 'back.out(1.7)' }, '<')
-                    .add( () => {
-                        this.doBattleSetup(data).play();
-                    }, '<');
+                const tl = gsap.timeline();
+                tl.to(this.gridContainer, { x: 1280, duration: 0.8, ease: 'back.out(1.7)' });
+                tl.to(this.battleContainer, { x: 0, duration: 0.8, ease: 'back.out(1.7)' }, '<');
+                tl.add(this.getBattleSetupTimeline(data), '<');
+                this.stateTimeline = tl;
                 break;
+            }
+
+            case ThreeState.TURN_EVALUATE: {
+                // Play turn evaluation animation on battleMap
+                const tl = this.getTurnEvaluateTimeline(data);
+                this.stateTimeline = tl;
+                break;
+            }
 
             case ThreeState.JOKER: {
                 if (this.currentAction) {
@@ -484,43 +515,62 @@ export class ThreeHostScene extends BaseScene {
                 }
                 this.currentAction = this.actionFactory.create(data);
                 if (this.currentAction) {
-                    // Rules overlay starts off-screen right
                     this.actionContainer.add(this.currentAction);
-                    this.actionContainer.setPosition(1920 + 1280, this.getY(540));
-
-                    // Change VS label to the joker type name so audience knows what's happening
-                    if (this.versusLabel) {
-                        this.versusLabel.setText(data.jokerType?.toUpperCase() || 'JOKER');
-                    }
-
-                    // Tween active player to slot 0, hide all other players
-                    const activePlayer = this.threePlayers.get(data.playerSID);
-                    this.threePlayers.forEach((p, sessionID) => {
-                        if (sessionID !== data.playerSID) {
-                            p.setPlayerState(PhaserPlayerState.HIDDEN);
-                            this.reparentObject(p, this.playerContainer);
-                            this.animatePlayer(p);
-                        }
-                    });
-
-                    // Slide rules overlay in; also tween active player to slot 0 if they're not there already
-                    this.stateTimeline = gsap.timeline();
-                    if (activePlayer) {
-                        this.stateTimeline.to(activePlayer, {
-                            x: 80, y: 20 + 20 + 140, // slot 0
-                            duration: 0.5, ease: 'power2.inOut'
-                        });
-                    }
-                    this.stateTimeline
-                        .add(() => { this.currentAction!.render(); })
-                        .to(this.actionContainer, { x: 1280, duration: 0.8, ease: 'back.out(1.7)' }, '<');
+                    this.actionContainer.setX(1920); // off-screen right, ready to slide in
                 }
+
+                // Slot positions in battleContainer-local space (battleContainer is scaled, not these coords)
+                const SLOT_X = 80;
+                const SLOT_0_Y = 20 + 20 + 140; // top battle slot y
+
+                const tl = gsap.timeline();
+
+                // Grid slides off right, panel slides in from right — simultaneously
+                tl.to(this.gridContainer, { x: 3840, duration: 0.6, ease: 'power2.inOut' });
+                tl.to(this.battleContainer, {
+                    x: 0,
+                    duration: 0.6,
+                    ease: 'power2.inOut'
+                }, "<");
+
+                // versusLabel: swap text to 'JOKER', snap off and slide back in
+                this.versusLabel?.setText('JOKER');
+                tl.from(this.versusLabel, {
+                    x: -BATTLESLOT_WIDTH,
+                    duration: 0.3,
+                    ease: 'power2.inOut'
+                }, "<");
+
+                // Active player → top slot; inactive player → off-screen left — both simultaneously
+                this.battleTeams.forEach((slotIndex, sessionID) => {
+                    const p = this.players.get(sessionID);
+                    if (p) {
+                        if (sessionID === data.playerSID) {
+                            tl.to(p, { x: SLOT_X, y: SLOT_0_Y, duration: 0.6, ease: 'power2.inOut' }, '<');
+                        } else {
+                            tl.to(p, { x: -BATTLESLOT_WIDTH, duration: 0.6, ease: 'power2.inOut' }, '<');
+                        }
+                    }
+                });
+
+                // Panel entrance animation (inner choreography defined by the action type)
+                if (this.currentAction) {
+                    tl.to(this.actionContainer, { x: 0, duration: 0.6, ease: 'power2.inOut' }, '<');
+                    tl.add(this.currentAction.getAnnouncementTimeline());
+                }
+                this.stateTimeline = tl;
                 break;
             }
+
+            case ThreeState.JOKER_EVALUATE: {
+                // Slide rules overlay out and fade VS label back to full opacity simultaneously
+                this.stateTimeline = this.getJokerEvaluateTimeline(data);
+                break;
+            }
+                
         }
 
     }
-
 
     // LobbyUI is all the elements that comprise the "Waiting to Start" state
     // Starting soon message, player count, countdown timer, instructions panel
@@ -530,7 +580,7 @@ export class ThreeHostScene extends BaseScene {
         this.lobbyHUD.setVisible(true);
 
         // Start lobby music
-        // this.soundManager.playMusic('quiz-music-intro', { volume: 0.5 });
+        this.soundManager.playMusic('quiz-music-intro', { volume: 0.5 });
         const music = this.soundManager.getCurrentMusicTrack();
         if (music && music.sound) {
             // "modern-beat-jingle-intro" sounds like ~128 BPM
@@ -539,14 +589,13 @@ export class ThreeHostScene extends BaseScene {
 
     }
 
-    // Returns a paused gsap timeline containing the player position animations.
+    // Returns a gsap timeline containing the player position animations.
     // All instant state mutations (setCardMode, reparent, etc.) fire synchronously when called,
     // so the timeline can safely be embedded into a parent timeline or played directly.
-    public doBattleSetup(data: any): gsap.core.Timeline {
-        const tl = gsap.timeline({ paused: true });
+    public getBattleSetupTimeline(data: any): gsap.core.Timeline {
 
-        console.log('ThreeHostScene:: doBattleSetup:', data);
-        this.battleMode = BattleMode.BATTLE;
+        console.log('ThreeHostScene:: getBattleSetupTimeline:', data);
+        const tl = gsap.timeline();
 
         // Always repopulate from data.battleTeams when provided (handles new battles and team changes).
         // Fall back to existing slot mapping only when data.battleTeams is absent (e.g. post-joker where
@@ -557,36 +606,45 @@ export class ThreeHostScene extends BaseScene {
             this.battleTeams.set(data.battleTeams[1], 1);
         }
 
+        // Tween in the battleContainer if its not already on-screen
+        tl.addLabel('placePlayers');
+        tl.to(this.battleContainer, {
+            x: 0,
+            duration: 0.8,
+            ease: 'back.out(1.7)'
+        });
+
         // Loop through players either placing them into their correct battleSlot or hiding them
-        this.threePlayers.forEach((p, sessionID) => {
+        this.players.forEach((p, sessionID) => {
             console.log('ThreeHostScene:: TEAM_BATTLE - placing player:', p.getSessionID(), sessionID);
             if (this.battleTeams.get(sessionID) !== undefined) {
-                p.setIconGridVisibility(true);
-                p.setCardMode(true);
-                p.setPlayerState(PhaserPlayerState.REVEALING);
-                gsap.killTweensOf(p); // Kill GSAP tweens (this.tweens.killTweensOf only kills Phaser tweens)
 
-                const currentSlotIndex = this.battleTeams.get(sessionID);
+                const newSlotIndex = this.battleTeams.get(sessionID);
                 // Fall back to existing slot mapping when data.battleTeams is not provided (e.g. post-joker reset)
-                const newSlotIndex = data.battleTeams ? data.battleTeams.indexOf(sessionID) : currentSlotIndex;
-                console.log('ThreeHostScene:: TEAM_BATTLE - player slot mapping:', sessionID, 'currentSlotIndex:', currentSlotIndex, 'newSlotIndex:', newSlotIndex);
+                // We don't need to do this now since we always copy data.battleTeams to this.battleTeams before this loop so we can always refer to this.battleTeams
+                console.log('ThreeHostScene:: TEAM_BATTLE - player slot mapping:', sessionID, 'newSlotIndex:', newSlotIndex);
+                this.reparentObject(p, this.battleContainer);
+                this.battleContainer.sendToBack(p);
 
-                if (currentSlotIndex !== undefined && newSlotIndex !== undefined && newSlotIndex !== -1) {
-                    this.reparentObject(p, this.battleContainer);
-                    this.battleContainer.sendToBack(p);
+                const targetX = 80;
+                const targetY = 20 + 20 + 140 + newSlotIndex * (BATTLESLOT_HEIGHT + 20);
 
-                    const targetX = 80;
-                    const targetY = 20 + 20 + 140 + newSlotIndex * (BATTLESLOT_HEIGHT + 20);
+                // '<' runs all player position tweens in parallel
+                tl.to(p, {
+                    x: targetX,
+                    y: targetY,
+                    duration: 0.8,
+                    ease: 'back.out(1.7)',
+                    onComplete: () => {
+                        p.setIconGridVisibility(true);
+                        p.setCardMode(true);
+                        p.setPlayerState(PhaserPlayerState.REVEALING);
+                        gsap.killTweensOf(p); // Kill GSAP tweens (this.tweens.killTweensOf only kills Phaser tweens)
+                    }
+                }, 'placePlayers');
 
-                    // '<' runs all player position tweens in parallel
-                    tl.to(p, {
-                        x: targetX,
-                        y: targetY,
-                        duration: 0.8,
-                        ease: 'back.out(1.7)'
-                    }, '<');
-                }
             } else {
+                this.reparentObject(p, this.playerContainer);
                 p.setIconGridVisibility(false);
                 p.setCardMode(false);
                 p.setPlayerState(PhaserPlayerState.HIDDEN);
@@ -601,7 +659,7 @@ export class ThreeHostScene extends BaseScene {
         console.log('ThreeHostScene:: doTileSelection:', data);
         // Loop through the responses and set the player score text to their score
         for (const [sessionID, response] of Object.entries(data.responses)) {
-            const player = this.threePlayers.get(sessionID);
+            const player = this.players.get(sessionID);
             const r = response as any;
             if (player) {
                 console.log('ThreeHostScene:: doTileSelection - placing response for player:', sessionID, 'score:', r.score);
@@ -614,7 +672,7 @@ export class ThreeHostScene extends BaseScene {
 
     addPlayer(playerConfig: PlayerConfig): ThreePlayer {
         const phaserPlayer: ThreePlayer = new ThreePlayer(this, playerConfig);
-        this.threePlayers.set(playerConfig.sessionID, phaserPlayer);
+        this.players.set(playerConfig.sessionID, phaserPlayer);
         this.add.existing(phaserPlayer);
         this.playerContainer.add(phaserPlayer);
 
@@ -640,7 +698,7 @@ export class ThreeHostScene extends BaseScene {
                 yTarget = this.getY(1080 - 20);
                 break;
             case PhaserPlayerState.HIDDEN:
-                yTarget = this.getY(1280);
+                yTarget = this.getY(1680);
                 break;
         }
         this.tweens.add({
@@ -688,12 +746,12 @@ export class ThreeHostScene extends BaseScene {
         }
 
         // Prepare the players to be moved around to represent their choices
-        for (const [playerID, player] of this.threePlayers) {
+        for (const [playerID, player] of this.players) {
             player.setPlayerState(PhaserPlayerState.REVEALING);
             this.tweens.killTweensOf(player);
             this.reparentObject(player, this.playerContainer);
         }
-        return this.currentQuestion.prepareAnswerResults();
+        return this.currentQuestion.createRevealAnswerTimeline();
     }
 
 
@@ -708,45 +766,69 @@ export class ThreeHostScene extends BaseScene {
         // First socket events are general ones sent by room - keep these together (they are special so don't follow the same schema as other events)
         this.socket.on('playerconnect', (playerConfig: PlayerConfig) => {
             console.log('ThreeHostScene:: playerconnect', playerConfig);
-            if (!this.threePlayers.has(playerConfig.sessionID)) {
+            const player: ThreePlayer = this.getPlayerBySessionID(playerConfig.sessionID);
+            if (player) {
+                player.connect();
+            } else {
                 this.addPlayer(playerConfig);
-                this.lobbyHUD.updatePlayerCount(this.threePlayers.size);
             }
+            // Update HUD
+            const playerCount = this.getPlayerConfigsAsArray()
+                .filter(player => player.connected)
+                .length;
+            this.lobbyHUD.updatePlayerCount(playerCount);
+
+        });
+
+        // When player disconnects don't remove from list as they might re-join
+        // They simply become 'dormant' and won't receive questions - but if they re-join they will be right back where they left off
+        this.socket.on('playerdisconnect', (sessionID: string) => {
+            console.log('ThreeHostScene:: playerdisconnect:', sessionID);
+            const player: ThreePlayer = this.getPlayerBySessionID(sessionID);
+            if (player) {
+                player.disconnect();
+            } else {
+                console.warn(`Player with session ID ${sessionID} not found.`);
+            }
+
+            // Update HUD
+            const playerCount = this.getPlayerConfigsAsArray()
+                .filter(player => player.connected)
+                .length;
+            this.lobbyHUD.updatePlayerCount(playerCount);
+
         });
 
         this.socket.on('server:players', (players: any[]) => {
             console.log('ThreeHostScene:: server:players', players);
             players.forEach(p => {
-                if (!this.threePlayers.has(p.sessionID)) {
+                if (!this.players.has(p.sessionID)) {
                     this.addPlayer(p);
                 }
             });
-            this.lobbyHUD.updatePlayerCount(players.length);
+            // Update HUD
+            const playerCount = this.getPlayerConfigsAsArray()
+                .filter(player => player.connected)
+                .length;
+            this.lobbyHUD.updatePlayerCount(playerCount);
         });
 
         this.socket.on('server:state:question', async (question: any) => {
+            // Reparent all players to float at the bottom while answering
+            // Either an Open or a Battle question — stateSetup handles sliding battle UI off and reparenting players
             if (question.battleMode === BattleMode.OPEN) {
                 this.changeState(ThreeState.QUIZ_QUESTION, question);
-                // Reparent all players to float at the bottom while answering
-                this.threePlayers.forEach((player: ThreePlayer) => {
-                    this.reparentObject(player, this.playerContainer);
-                    player.setCardMode(false);
-                    player.setIconGridVisibility(false);
-                    player.setPlayerScoreText('');
-                    player.setPlayerState(PhaserPlayerState.ANSWERING);
-                    this.animatePlayer(player);
-                });
             } else {
-                // Battle question — stateSetup handles sliding battle UI off and reparenting players
                 this.changeState(ThreeState.BATTLE_QUESTION, question);
             }
 
             await this.createQuestion(question);
 
             // Slide question in from the right (same for both open and battle)
+            const tl = gsap.timeline();
             if (this.currentQuestion) {
                 this.currentQuestion.x = 1920;
-                gsap.to(this.currentQuestion, {
+                tl.to(this.currentQuestion, {
                     duration: 1,
                     x: 0,
                     ease: 'back.out(1.7)',
@@ -758,6 +840,7 @@ export class ThreeHostScene extends BaseScene {
                     }
                 });
             }
+            this.stateTimeline = tl;
         });
 
         this.socket.on('server:state:answer', async (question: any) => {
@@ -784,7 +867,7 @@ export class ThreeHostScene extends BaseScene {
                     for (const [sessionID, response] of Object.entries(question.responses)) {
                         const r = response as any;
                         console.log('Updating score for sessionID:', sessionID, 'score:', r.score);
-                        const player = this.threePlayers.get(sessionID);
+                        const player = this.players.get(sessionID);
                         if (player) {
                             player.setPlayerScoreText(r.score || '-');
                         }
@@ -792,45 +875,33 @@ export class ThreeHostScene extends BaseScene {
                     this.socket.emit('host:response');
                 });
             }
-            tl.play();
         });
 
         // Player answered a question
         this.socket.on('server:questionanswered', (data) => {
-
             const player: ThreePlayer = this.getPlayerBySessionID(data.sessionID);
+            console.log('ThreeHostScene:: server:questionanswered - player answered:', data.sessionID, 'player object:', player, 'currentState:', this.currentState);
             if (player) {
                 this.soundManager.playFX('question-answered', 0.3);
-                if (this.battleMode === BattleMode.OPEN) {
-                    player.setPlayerState(PhaserPlayerState.ANSWERED);
-                    this.tweens.killTweensOf(player);
-                    this.tweens.add({
-                        targets: player,
-                        y: this.getY(880),
-                        duration: 500,
-                        ease: 'Back.InOut',
-                        onComplete: () => {
-                            player.setPlayerState(PhaserPlayerState.FLOATING);
-                            this.animatePlayer(player);
-                        }
-                    });
-                } else if (this.currentState === ThreeState.BATTLE_QUESTION) {
-                    // Battle question: players are floating in playerContainer — pop up so audience sees who answered.
-                    player.setPlayerState(PhaserPlayerState.ANSWERED);
-                    this.tweens.killTweensOf(player);
-                    this.tweens.add({
-                        targets: player,
-                        y: this.getY(880),
-                        duration: 500,
-                        ease: 'Back.InOut',
-                        onComplete: () => {
-                            player.setPlayerState(PhaserPlayerState.FLOATING);
-                            this.animatePlayer(player);
-                        }
-                    });
-                } else {
+
+                if (this.currentState === ThreeState.TILE_SELECTION || this.currentState === ThreeState.JOKER) {
                     // TILE_SELECTION: player is in a battle slot — just highlight to confirm they submitted.
+                    // Same for JOKER
+                    // Same for BATTLE_QUESTION since we want to confirm answer submission but don't want to interrupt the battle reveal animation by moving them around.
                     player.setHighlighted(true);
+                } else {
+                    player.setPlayerState(PhaserPlayerState.ANSWERED);
+                    this.tweens.killTweensOf(player);
+                    this.tweens.add({
+                        targets: player,
+                        y: this.getY(880),
+                        duration: 500,
+                        ease: 'Back.InOut',
+                        onComplete: () => {
+                            player.setPlayerState(PhaserPlayerState.FLOATING);
+                            this.animatePlayer(player);
+                        }
+                    });
                 }
             }
         });
@@ -841,43 +912,6 @@ export class ThreeHostScene extends BaseScene {
             // Slight edge case to logic here since this event can be called multiple times
             // But we only want to invoke a state change the first time...
             this.changeState(ThreeState.TEAM_BATTLE, data);
-        });
-
-        this.socket.on('server:state:battlequestion', async (question: any) => {
-            console.log('ThreeHostScene:: server:state:battlequestion', question);
-            this.changeState(ThreeState.BATTLE_QUESTION, question);
-
-            // createQuestion handles renderHost() internally
-            await this.createQuestion(question);
-
-            if (this.currentQuestion) {
-                // Slide in from right — same pattern as open question
-                this.currentQuestion.x = 1920;
-                gsap.to(this.currentQuestion, {
-                    duration: 1,
-                    x: 0,
-                    ease: 'back.out(1.7)',
-                    onComplete: () => {
-                        this.socket.emit('host:response');
-                        if (question.mode === 'ask') {
-                            this.soundManager.playMusic('quiz-countdown', { volume: 0.3, fadeIn: 6000 });
-                        }
-                    }
-                });
-            }
-        });
-
-        this.socket.on('server:state:battleanswer', async (question: any) => {
-            console.log('ThreeHostScene:: server:state:battleanswer', question);
-            this.changeState(ThreeState.BATTLE_ANSWER, question);
-            await this.createQuestion(question);
-            const tl:gsap.core.Timeline = this.getAnswerTimeline();
-            this.stateTimeline = tl;
-            tl.eventCallback('onComplete', () => {
-                console.log('Battle Answer reveal animation complete:', question);
-                this.socket.emit('host:response');
-            });
-            tl.play();
         });
 
         this.socket.on('server:state:tileselection', (data: any) => {
@@ -921,7 +955,7 @@ export class ThreeHostScene extends BaseScene {
 
         this.socket.on('server:action:collecttile', (data: { sessionID: string, icon: string, newTileCount?: number }) => {
             console.log('ThreeHostScene:: server:action:collecttile', data);
-            const player = this.threePlayers.get(data.sessionID);
+            const player = this.players.get(data.sessionID);
             if (player) {
                 player.setIconGridVisibility(true);
                 player.addCollectedIcon(data.icon, 0, data.newTileCount || 1);
@@ -930,7 +964,7 @@ export class ThreeHostScene extends BaseScene {
 
         this.socket.on('server:action:losetile', (data: { sessionID: string, icon: string }) => {
             console.log('ThreeHostScene:: server:action:losetile', data);
-            const player = this.threePlayers.get(data.sessionID);
+            const player = this.players.get(data.sessionID);
             if (player) {
                 player.setIconGridVisibility(true);
                 player.loseCollectedIcon(data.icon, 0);
@@ -940,7 +974,6 @@ export class ThreeHostScene extends BaseScene {
         this.socket.on('server:state:turnevaluate', (data: { reveals: any[] }) => {
             console.log('ThreeHostScene:: server:state:turnevaluate:', data);
             this.changeState(ThreeState.TURN_EVALUATE, data);
-            this.doTurnEvaluate(data);
         });
 
         this.socket.on('server:state:joker', (data: any) => {
@@ -951,7 +984,6 @@ export class ThreeHostScene extends BaseScene {
         this.socket.on('server:state:jokerevaluate', (data: any) => {
             console.log('ThreeHostScene:: server:state:jokerevaluate:', data);
             this.changeState(ThreeState.JOKER_EVALUATE, data);
-            this.doJokerEvaluate(data);
         });
 
         this.socket.on('game:turn', (data: { sessionID: string }) => {
@@ -960,7 +992,7 @@ export class ThreeHostScene extends BaseScene {
         });
     }
 
-    private async doTurnEvaluate(data: { reveals: any[] }): Promise<void> {
+    private getTurnEvaluateTimeline(data: { reveals: any[] }): gsap.core.Timeline {
         console.log('ThreeHostScene:: handleTurnEvaluate start:', data);
 
         // Helper functions to add an animated message above a card
@@ -997,13 +1029,13 @@ export class ThreeHostScene extends BaseScene {
 
         // 1. Create a timeline for the reveals plus short pause before begin
         const tl = gsap.timeline();
-        this.stateTimeline = tl;
+
         tl.add(() => {}, "+=0.5");
 
         // 2. Process each reveal step
         for (const reveal of data.reveals) {
             const card = this.cards[reveal.pos];
-            const activePlayer = this.threePlayers.get(reveal.playerSID);
+            const activePlayer = this.players.get(reveal.playerSID);
 
             // Turn start: Highlight active player slot
             tl.add(() => {
@@ -1038,7 +1070,7 @@ export class ThreeHostScene extends BaseScene {
 
                     // BattleTeam Map keys are sessionIDs, values are slot indices (0 or 1)
                     let fromSID = reveal.fromSID;
-                    const victim = this.threePlayers.get(fromSID);
+                    const victim = this.players.get(fromSID);
                     tl.add(() => {
                         if (victim) victim.loseCollectedIcon(reveal.icon, reveal.pos);
                         if (activePlayer) activePlayer.addCollectedIcon(reveal.icon, reveal.pos, reveal.newTileCount);
@@ -1054,7 +1086,12 @@ export class ThreeHostScene extends BaseScene {
 
                 case 'collect':
                     if (card) {
-                        tl.add(addCardMessage(this, card, 'NEW TILE!', { color: '#00ff00' }), ">");
+                        // Tile could be a joker - if so then message should be JOKER!
+                        if (reveal.icon === 'joker') {
+                            tl.add(addCardMessage(this, card, 'JOKER!', { color: '#ff00ff' }), ">");
+                        } else {
+                            tl.add(addCardMessage(this, card, 'NEW TILE!', { color: '#00ff00' }), ">");
+                        }
                     }
                     tl.add(() => {
                         if (activePlayer) activePlayer.addCollectedIcon(reveal.icon, reveal.pos, reveal.newTileCount);
@@ -1071,27 +1108,29 @@ export class ThreeHostScene extends BaseScene {
             // Brief pause between reveals in a turn
             tl.add(() => {
                 this.battleTeams.forEach((slotIndex, sessionID) => {
-                    this.threePlayers.get(sessionID)?.setHighlighted(false);
+                    this.players.get(sessionID)?.setHighlighted(false);
                 });
             }, "+=0.5");
         }
 
         // 3. After all reveals, flip back all the non-joker tiles
-        tl.add(() => {
-            for (const reveal of data.reveals) {
-                const card = this.cards[reveal.pos];
-                if (card.isFlipped() && reveal.icon !== 'joker') {
-                    tl.add( card.flip('', false), ">+=0.1" );
-                }
+        tl.add( () => {}, "+=0.5");
+        for (const reveal of data.reveals) {
+            const card = this.cards[reveal.pos];
+            if (card.isFlipped() && reveal.icon !== 'joker') {
+                tl.call(() => { card.flip('', false); } );
             }
-        }, "+=0.5");
+        }
+
+        // And add a final pause to cover the previous flips which don't get added to the master timeline
+        tl.add( () => {}, "+=0.5");
 
         // Auto-advance to TEAM_BATTLE when all reveals are done
         tl.eventCallback('onComplete', () => {
             this.socket.emit('host:response');
         });
 
-        tl.play();
+        return tl;
     }
 
     private setActiveTeam(sessionID: string): void {
@@ -1099,7 +1138,7 @@ export class ThreeHostScene extends BaseScene {
         const winnerIndex = this.battleTeams.get(sessionID);
 
         this.battleTeams.forEach((slotIndex, sID) => {
-            this.threePlayers.get(sID)?.setHighlighted(slotIndex === winnerIndex);
+            this.players.get(sID)?.setHighlighted(slotIndex === winnerIndex);
         });
 
     }
@@ -1187,34 +1226,85 @@ export class ThreeHostScene extends BaseScene {
         this.battleContainer.setScale(this.getY(1080) / 1080);
     }
 
-    // Animates the result of a Joker intervention
-    private doJokerEvaluate(data: any): void {
-        console.log('ThreeHostScene:: doJokerEvaluate:', data);
+    // Staged JOKER_EVALUATE sequence:
+    //   1. Overlay slides off revealing the battle arena
+    //   2. Joker title (versusLabel) and active player appear
+    //   3. Victim player slides in from the left (if applicable)
+    //   4. Action-specific animation (steal reveal, icon transfer, etc.)
+    //   5. host:response to auto-advance
+    private getJokerEvaluateTimeline(data: any): gsap.core.Timeline {
+        console.log('ThreeHostScene:: getJokerEvaluateTimeline:', data);
 
+        const tl = gsap.timeline();
+
+        // Ensure an action exists — JOKER_EVALUATE may arrive without JOKER having run (reconnect, skip, etc.)
         if (!this.currentAction) {
-            console.error('ThreeHostScene:: doJokerEvaluate called with no currentAction');
-            return;
+            this.currentAction = this.actionFactory.create(data);
+            if (this.currentAction) {
+                this.actionContainer.add(this.currentAction);
+                this.currentAction.layout();
+            }
         }
 
-        const tl = this.currentAction.getTimeline(data);
+        const SLOT_X = 80;
+        const SLOT_1_Y = 20 + 20 + 140 + BATTLESLOT_HEIGHT + 20;
 
-        // After the steal animation, slide the victim off-screen and fade the joker label
-        // before signalling completion — so the audience sees the victim leave cleanly.
-        const victimPlayer = this.threePlayers.get(data.fromSID);
+        const activePlayer = this.players.get(data.playerSID);
+        activePlayer?.setHighlighted(false);
+
+        // For PASS the incoming team (toSID) slides in as the "other slot" player.
+        // For Steal and others, fromSID is the victim.
+        const secondSlotSID = data.toSID ?? data.fromSID;
+        const victimPlayer = secondSlotSID ? this.players.get(secondSlotSID) : undefined;
+
+        // 1. Slide the joker panel off to the right
+        tl.to(this.actionContainer, { x: 1920, duration: 0.6, ease: 'power2.inOut' });
+
+        // 2. versusLabel: slide off left, swap text to joker type, slide back in
+        tl.to(this.versusLabel, { x: -BATTLESLOT_WIDTH, duration: 0.3, ease: 'power2.inOut' }, '+=0.1');
+        tl.add(() => {
+            if (this.versusLabel) {
+                this.versusLabel.setText(data.jokerType?.toUpperCase() || 'JOKER');
+            }
+            if (activePlayer) {
+                activePlayer.setHighlighted(true);
+            }
+        });
+        tl.to(this.versusLabel, { x: 40 + BATTLESLOT_WIDTH / 2, duration: 0.4, ease: 'back.out(1.7)' });
+
+        // 3. Victim player slides in from the left into slot 1 (if there is one)
         if (victimPlayer) {
-            tl.to(victimPlayer, { y: '+=700', duration: 0.5, ease: 'power2.in' });
+            tl.add(() => {
+                this.reparentObject(victimPlayer, this.battleContainer);
+                this.battleContainer.sendToBack(victimPlayer);
+                victimPlayer.setCardMode(true);
+                victimPlayer.setIconGridVisibility(true);
+                victimPlayer.setHighlighted(false);
+                victimPlayer.setX(-BATTLESLOT_WIDTH); // snap to off-screen left (slide-in start position)
+                victimPlayer.setY(SLOT_1_Y);
+            });
+            // Slide from off-screen left into slot 1
+            tl.to(victimPlayer, { x: SLOT_X, duration: 0.5, ease: 'back.out(1.7)' });
         }
-        if (this.versusLabel) {
-            tl.to(this.versusLabel, { alpha: 0, duration: 0.3, ease: 'power2.in' }, '<');
+
+        // 4. Run the joker-type-specific animation (e.g. tile reveal, icon transfer)
+        if (this.currentAction) {
+            tl.add(this.currentAction.getEvaluateTimeline(data), '+=0.3');
         }
+
+        // Whatever the result, active player now loses their collected JOKER icon
+        tl.add(() => {
+            activePlayer?.loseCollectedIcon('joker', 0);
+        });
+
+        // 5. Auto-advance when the full sequence is done
         tl.add(() => { this.socket.emit('host:response'); });
 
-        this.stateTimeline = tl;
-        tl.play();
+        return tl;
     }
 
     getPlayerBySessionID(sessionID: string): any {
-        return this.threePlayers.get(sessionID);
+        return this.players.get(sessionID);
     }
 
     sceneShutdown() {

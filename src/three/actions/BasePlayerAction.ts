@@ -12,13 +12,20 @@ export default class BasePlayerAction extends Phaser.GameObjects.Container {
     protected actionCallback: Function | null = null;
     
     // Standard Footer Controls
-    protected submitButton?: NineSliceButton;
-    protected resetButton?: NineSliceButton;
+    protected submitButton: NineSliceButton;
+    protected resetButton: NineSliceButton;
 
     constructor(scene: BaseScene, x: number, y: number, actionData: any) {      
         super(scene, x, y);
         this.scene = scene;
         this.actionData = actionData;
+
+        this.submitButton = new NineSliceButton(this.scene, 'SUBMIT');
+        this.submitButton.setButtonSize(320, 80);
+        this.submitButton.setVisible(false);
+        this.resetButton = new NineSliceButton(this.scene, 'RESET');
+        this.resetButton.setButtonSize(320, 80);
+        this.resetButton.setVisible(false);
 
         scene.add.existing(this);
     }
@@ -28,13 +35,12 @@ export default class BasePlayerAction extends Phaser.GameObjects.Container {
      * Hooks their tap events up to `handleSubmit` and `handleReset`.
      */
     protected createFooterControls(): void {
-        this.submitButton = new NineSliceButton(this.scene, 'SUBMIT');
-        this.submitButton.setButtonSize(320, 80);
+
+        this.submitButton.setVisible(true);
         this.submitButton.setInteractive({ useHandCursor: true });
         this.submitButton.on('pointerup', () => this.handleSubmit());
 
-        this.resetButton = new NineSliceButton(this.scene, 'RESET');
-        this.resetButton.setButtonSize(320, 80);
+        this.resetButton.setVisible(true);
         this.resetButton.setInteractive({ useHandCursor: true });
         this.resetButton.on('pointerup', () => this.handleReset());
 
@@ -46,16 +52,15 @@ export default class BasePlayerAction extends Phaser.GameObjects.Container {
      * Use this in child `render()` functions.
      */
     protected layoutFooterControls(): void {
-        if (!this.submitButton || !this.resetButton) return;
 
         const centerX = 960;
         
         if (this.scene.isPortrait()) {
             // Scale them to fit most of the bottom of the screen width
-            this.resetButton.setScale(800 / this.resetButton.displayWidth, 1);
-            this.submitButton.setScale(800 / this.submitButton.displayWidth, 1);
+            this.resetButton.setScale(800 / this.resetButton.displayWidth);
+            this.submitButton.setScale(800 / this.submitButton.displayWidth);
         } else {
-            // Put them side by side in landscape
+            // Landscape is 1920pixels wide so 320 button size is about right
             this.resetButton.setScale(1);
             this.submitButton.setScale(1);
         }
@@ -67,10 +72,10 @@ export default class BasePlayerAction extends Phaser.GameObjects.Container {
      * Lock/Unlock standard interaction.
      */
     protected disableFooterControls(): void {
-        this.submitButton?.removeAllListeners();
-        this.submitButton?.disableInteractive();
-        this.resetButton?.removeAllListeners();
-        this.resetButton?.disableInteractive();
+        this.submitButton.removeAllListeners();
+        this.submitButton.disableInteractive();
+        this.resetButton.removeAllListeners();
+        this.resetButton.disableInteractive();
     }
 
     /**
@@ -96,7 +101,7 @@ export default class BasePlayerAction extends Phaser.GameObjects.Container {
         this.handleReset();
     }
 
-    public destroy(fromScene?: boolean): void {
+    public destroy(fromScene: boolean = true): void {
         if (this.submitButton) {
             this.submitButton.destroy();
             this.resetButton?.destroy();

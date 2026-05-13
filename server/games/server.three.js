@@ -38,31 +38,31 @@ class TileDirector {
     constructor() {
         // Source of truth for remaining tiles
         this.remaining = {
-            'icon_1': 5, 'icon_2': 5, 'icon_3': 5,
-            'icon_4': 5, 'icon_5': 5, 'icon_6': 5,
-            'joker': 6
+            '1_key': 5, '2_energy': 5, '3_gold': 5,
+            '4_trophy': 5, '5_star': 5, '6_crown': 5,
+            'joker': 15
         };
 
         this.rules = [
             this.ruleJoker_SlowDownLeaders,
-			this.ruleJoker_MaximumOnePerTurn
+			this.ruleJoker_MaximumOnePerTurn,
+			this.ruleGift_NoJokers,
+			this.ruleShuffle_LowJokers
         ];
     }
 
     /**
      * Decides WHAT is behind tile index 'pos'.
      * @param {number} pos - The grid index being revealed (0-35)
-     * @param {Object} context - { grid, playerHands, battleTiles, activeSID, opponentSID, battleTeams }
+     * @param {Object} context - { grid, playerHands, battleTiles, activeSID, opponentSID, battleTeams, jokerType? }
      */
     decideTileAt(pos, context) {
         // If it's already revealed, return the existing type
         if (context.grid[pos]) return context.grid[pos];
 
-        // 1. Initial weights based on actual remaining counts
-        let weights = {};
-        Object.keys(this.remaining).forEach(type => {
-            weights[type] = this.remaining[type]; 
-        });
+        // 1. Shallow copy of remaining counts as starting weights.
+        //    Rules adjust weights freely without affecting this.remaining (the source of truth).
+        let weights = { ...this.remaining };
 
         // 2. Apply influence rules
         const influences = [];
@@ -79,7 +79,7 @@ class TileDirector {
             this.remaining[selectedType]--;
         }
 
-        console.log(`Director:: Revealed Index [${pos}] as [${selectedType}] (${this.remaining[selectedType]} left)`);
+        console.log(`TileDirector:: Revealed Index [${pos}] as [${selectedType}] (${this.remaining[selectedType]} left)`);
         influences.forEach(inf => console.log(` - ${inf}`));
 
         return selectedType;
@@ -116,11 +116,14 @@ class TileDirector {
         // Base weights for each joker type
         let weights = {
             steal: 20,
-            swap: 10,
-            plus2: 15,
-            freeze: 15,
-            shield: 10,
-            bank: 5
+            pass: 20,
+            shuffle: 20,
+            gift: 20,
+            freeze: 20,
+            // swap: 10,
+            // plus2: 15,
+            // shield: 10,
+            // bank: 5
         };
 
         // Condition checks
@@ -154,11 +157,19 @@ class TileDirector {
             delete weights['steal'];
         }
 
-        // 2. Don't choose SHIELD, BANK, or SWAP if the player has no tiles 
+        // 2. Don't choose SHIELD, BANK, SWAP, SHUFFLE, or GIFT if the player has no tiles
         if (myTileCount === 0) {
             delete weights['shield'];
             delete weights['bank'];
             delete weights['swap'];
+            delete weights['shuffle'];
+            delete weights['gift'];
+        }
+
+        // 3. Don't choose GIFT if there's nobody else to gift to (solo play edge case)
+        const otherPlayerCount = playerHands.size - 1;
+        if (otherPlayerCount <= 0) {
+            delete weights['gift'];
         }
 
         // 3. Fallback weighted pick based on what survived the filters
@@ -169,7 +180,6 @@ class TileDirector {
         console.log(`Director:: Joker selected [${selectedJoker}] for player [${playerSID}] with context: MyTiles=${myTileCount}, OthersHaveTiles=${otherTilesFound}`);
 
 		// TODO remove the fixed joker type
-		return 'steal';
         return selectedJoker;
     }
 
@@ -185,16 +195,59 @@ class TileDirector {
 					"Stolen tiles cannot be stolen from you during this battle"
 				];
 
-			case 'swap':
+			case 'pass':
 				return [
-					"Swap: Exchange one of your tiles with an opponent's tile. A risky move!"
+					"The battle continues regardless of the current Battle Map",
+					"You, unfortunately, take no more part in it... :(",
+					"Select a team - they will take your place in battle",
+					"Tiles you collected during battle are safe"
 				];
 
-			case 'plus2':
+			case 'shuffle':
 				return [
-					"Plus 2: Reveal two additional tiles immediately. More chances, more risks!"
+					"Select a tile",
+					"Its position on the board will be swapped with a randomly-chosen (unrevealed) tile",
+					"Tile ownership is unaffected, only tile position on the board"
+				];
+
+			case 'gift':
+				return [
+					"Select a team and a tile",
+					"Team must NOT be in the current battle",
+					"That tile will be given to the selected team",
+					"If they already own that tile your gift does nothing"
+				];
+
+			case 'freeze':
+				return [
+					"Select a team",
+					"They will be locked out of the next round",
+					"Meaning they will be prohibited from entering the next battle!"
+				];
+
+			case 'take':
+				return [
+					"Select a tile - you will immediately gain that tile",
+					"Your selected tile cannot be stolen during this battle",
+					"If you select a tile you already own you simply make it safe"
 				];
 		}
+	}
+
+	getJokerUI(jokerType) {
+		switch (jokerType) {
+			case 'steal':
+				return 'team-tiles-wizard';
+			case 'pass':
+				return 'select-team';
+			case 'shuffle':
+				return 'select-tiles';
+			case 'gift':
+				return 'team-tiles-wizard';
+			case 'freeze':
+				return 'select-team';
+		}
+		return 'team-tiles-wizard';
 	}
 
     // --- RULES ---
@@ -241,11 +294,38 @@ class TileDirector {
 
 	ruleJoker_MaximumOnePerTurn(weights, pos, context) {
 		const { turnReveals } = context;
+		console.log('TileDirector:: ruleJoker_MaximumOnePerTurn: Checking for multiple jokers in turn reveals:');
+		console.dir(turnReveals);
 		if (turnReveals && turnReveals.some(r => r.icon === 'joker')) {
 			weights['joker'] = 0;
 			return "Joker: Max one per turn";
 		}
 	}
+
+	/**
+	 * When a tile is being lazily-revealed during a GIFT joker, forbid jokers.
+	 * Receiving a joker as a gift forces an unwanted nested joker round which
+	 * complicates the battle flow significantly.
+	 */
+	ruleGift_NoJokers(weights, pos, context) {
+		if (context.jokerType === 'gift') {
+			weights['joker'] = 0;
+			return "Gift joker: joker type suppressed";
+		}
+	}
+
+	/**
+	 * When a tile is being lazily-revealed during a SHUFFLE joker, limit jokers.
+	 * Shuffling a joker is fine - but there is a chance that TWO jokers could be selected
+	 * So reduce the overall chance of getting a Joker during a SHUFFLE
+	 */
+	ruleShuffle_LowJokers(weights, pos, context) {
+		if (context.jokerType === 'gift') {
+			weights['joker'] = weights['joker'] / 3;
+			return "Shuffle joker: joker type reduced";
+		}
+	}
+
 }
 
 class ThreeStateMachine {
@@ -322,7 +402,7 @@ class ThreeStateMachine {
 				this.transitionTo(ThreeState.JOKER_EVALUATE);
 				break;
 
-			case ThreeState.JOKER_EVALUATE:
+			case ThreeState.JOKER_EVALUATE: {
 				console.log('ThreeStateMachine:: nextState(): current state: JOKER_EVALUATE - evaluating joker results', this.game.battleContext);
 				// Once the result animation has played out, loop back to resolving the original turn state 
 				// (Checking if they won via steal, or returning to normal selection)
@@ -334,10 +414,10 @@ class ThreeStateMachine {
 						this.transitionTo(ThreeState.QUIZ_QUESTION);
 					}
 				} else {
-					// Loop back to next battle question — shows players back in their slots, then a new battle question follows
 					this.transitionTo(ThreeState.QUIZ_QUESTION);
 				}
 				break;
+			}
         }
     }
 
@@ -424,8 +504,13 @@ class ThreeStateMachine {
 
 			case ThreeState.JOKER_EVALUATE:
 				console.log('TransitionTo: JOKER_EVALUATE - animating result...');
-				this.game.doJokerEvaluate();
+				this.game.doJokerEvaluate();				
 				return;
+
+			case ThreeState.GAME_OVER:
+				this.game.doGameOver();
+				return;
+
 		}
 
 		// For now just send the state name to host - might be enough for now...
@@ -453,6 +538,7 @@ export default class ThreeGame extends Game {
         this.grid = Array(36).fill(null); // positions 0-35
         this.playerHands = new Map(); // sessionID -> Set[pos]
         this.battles = [];
+        this.frozenTeams = new Set(); // Teams locked out of the next TEAM_BATTLE eligibility
 
 		// Using roundNumber and questionNumber since they were used by the quiz and so somewhat tested
 		// Slightly different definition: roundNumber total number of rounds therefore index into first 'round' of questions (the round questions)
@@ -777,6 +863,7 @@ export default class ThreeGame extends Game {
 		// In cases where we are live streaming we DON'T want to move to the next state automatically
 		// So only do this if we are NOT live streaming
 		// OR when answering the question - even live streaming we can still show the answer straight away
+		// Other cases: we ask a question must immediately move to collecting answers to auto-move to next state
 		if (!this.liveStream || this.mode === 'answer') {
 			this.room.registerHostResponseHandler(() => {
 				this.room.deregisterHostResponseHandler();
@@ -833,7 +920,28 @@ export default class ThreeGame extends Game {
 		// Add timestamp before sending
 		const questionSentTime = Date.now();
 
-		this.room.emitToAllPlayers("server:state:question", playerQuestion, (acknowledgement) => {
+		let playerSockets = this.players
+			.filter(player => player.connected)
+			.map((player) => { return player.socketID });
+		if (this.battleMode === BattleMode.BATTLE) {
+			// Pull the two battle teams from battle context and put their sessionID into an array for sending to emitToAllPlayers
+			playerSockets = this.battleContext.teams.map(sessionID => this.room.getPlayerBySessionID(sessionID)?.socketID);
+		}
+		// If this is an OPEN question we might have some frozen teams - remove from the playerSockets list so they don't receive the question and can't answer
+
+		if (this.battleMode === BattleMode.OPEN) {
+			 playerSockets = playerSockets.filter(socketID => {
+				const player = this.room.getPlayerBySocketID(socketID);
+				return player && this.frozenTeams.has(player.sessionID) === false;
+			});
+			 console.log('collectAnswers: filtered playerSockets for frozen teams:', playerSockets, this.frozenTeams);
+			 this.frozenTeams = new Set(); // Clear frozen teams after filtering so they can play the next question
+		}
+
+
+		console.log('collectAnswers:: sending question to playerSockets:');
+		console.dir(playerSockets);
+		this.room.emitToPlayers(playerSockets, "server:state:question", playerQuestion, (acknowledgement) => {
 			const roundTripTime = Date.now() - questionSentTime;
 			console.log('Player acknowledged question:', acknowledgement, 'RTT (ms):', roundTripTime);
 		});
@@ -1212,20 +1320,12 @@ export default class ThreeGame extends Game {
 			this.battleContext.activeTurn.scores = data.scores;
 		}
 
-		// Prepare a map of what each player has collected 
-		// (Converting Set to Array for JSON serialisation)
-		const playerHands = {};
-		this.playerHands.forEach((hand, sid) => {
-			playerHands[sid] = Array.from(hand);
-		});
-
 		// Build the clean payload for frontend Action
 		const payload = {
 			type: 'tileselection',
 			battleTeams: this.battleContext.teams,
 			scores: this.battleContext.activeTurn.scores,
-			grid: this.grid,
-			playerHands: playerHands
+			grid: this.grid
 		};
 
 		this.room.emitToHosts('server:state:tileselection', payload);
@@ -1244,7 +1344,15 @@ export default class ThreeGame extends Game {
 		}
 		
 		this.room.registerClientResponseHandler(responseHandler);
-		this.room.emitToPlayers(this.battleContext.teams, 'server:state:tileselection', payload);
+
+		// Send tileselection event only to the teams in battle
+		// Send each a myHand property as part of the payload detailing their own tiles so far...
+		this.battleContext.teams.forEach(sid => {
+			const myHand = this.playerHands.get(sid) || new Set();
+			payload.myHand = Array.from(myHand);
+			this.room.emitToPlayers([ sid ], 'server:state:tileselection', payload);
+		});		
+	
 	}
 
 	doTurnEvaluate(data = {}) {
@@ -1278,6 +1386,13 @@ export default class ThreeGame extends Game {
 
  		// We will build a list of all reveal outcomes in chronological order
  		const reveals = [];
+		// And since we want to be able to access them during the evaluation we assign to active turn
+		if (this.battleContext.activeTurn) {
+			this.battleContext.activeTurn.reveals = reveals;
+		} else {
+			this.battleContext.activeTurn = { reveals: reveals };
+		}
+
 		const p1_SID = this.battleContext.teams[0];
 		const p2_SID = this.battleContext.teams[1];
 
@@ -1308,9 +1423,8 @@ export default class ThreeGame extends Game {
 		}
 
 		console.dir( 'Reveals:', reveals, { depth: null, colors: true });
+		this.logGrid('Grid after turn evaluation:');
 
-		// Record the loop history
-		this.battleContext.activeTurn.reveals = reveals;
 		// Keep a historical record, but continue using activeTurn
 		this.battleContext.turns.push(this.battleContext.activeTurn);
 		
@@ -1377,10 +1491,16 @@ export default class ThreeGame extends Game {
 			const jokerRules = this.director.getJokerRules(jokerType);
 
 			// Store the joker type in the active turn so that it is available in other states
+			const ui = this.director.getJokerUI(jokerType);
+
+			// Tile selection count varies per joker type
+			const tileCountByType = { steal: 1, pass: 0, shuffle: 1, gift: 1, freeze: 0 };
+			const tileCount = tileCountByType[jokerType] ?? 1;
+
 			const jokerPayload = {
-				ui: 'team-tile-wizard',
+				ui: ui,
 				teams: 1,
-				tiles: 1,
+				tiles: tileCount,
 				jokerType: jokerType,
 				jokerRules: jokerRules,
 				pos: thisReveal.pos,
@@ -1389,22 +1509,34 @@ export default class ThreeGame extends Game {
 
 			this.battleContext.activeTurn.joker = jokerPayload;
 
-			// 1. Tell Host to show the Joker Graphic/Rules
 			this.room.emitToHosts('server:state:joker', jokerPayload);
 
-			// 2. Identify the target group of players for the UI prompt (often just the other teams in the battle)
-			// Example for Steal/Freeze: Provide valid targets to pick from
-			// Usually its just all players exceot the active player (they can't choose themselves)
-			const validOpponents = this.room.getConnectedPlayers()
-				.filter(p => p.sessionID !== playerSID)
-				.map(p => ({
+			// 2. Identify valid opponents for the player's UI prompt
+			let teamlist = this.room.getConnectedPlayers()
+				.filter(p => p.sessionID !== playerSID);
+
+			// PASS: can't pass to a team currently in battle
+			if (jokerType === 'pass') {
+				teamlist = teamlist.filter(p => !this.battleContext.teams.includes(p.sessionID));
+			}
+			// GIFT: can't gift to a team currently in battle
+			if (jokerType === 'gift') {
+				teamlist = teamlist.filter(p => !this.battleContext.teams.includes(p.sessionID));
+			}
+
+			teamlist = teamlist.map(p => ({
 					sessionID: p.sessionID,
 					name: p.name,
 					avatar: p.avatar
 				}));
+
+			// Include a grid snapshot and only this player's own hand — no need to expose other hands.
+			const myHand = Array.from(this.playerHands.get(playerSID) || []);
 			const playerPayload = {
 				...jokerPayload,
-				teamlist: validOpponents
+				teamlist,
+				grid: this.grid,
+				myHand,
 			};
 
 			// 3. Send the prompt solely to the active player who earned the Joker
@@ -1414,7 +1546,6 @@ export default class ThreeGame extends Game {
 			// 4. Wait for their selection before calculating result
 			this.room.registerClientResponseHandler( (socket, data) => {
 					console.log(`ThreeGame::doJoker: Received joker action from ${playerSID}`, data);
-					
 					jokerPayload.response = data;
 
 					// Send a message to the host so they know player has responded and can manually step to the next state
@@ -1452,7 +1583,7 @@ export default class ThreeGame extends Game {
 		// Maybe there is a smarter way to do this but for now it should work
 		switch (jokerData.jokerType) {
 
-			case 'steal':
+			case 'steal': {
 				const fromSID = answer.teams[0];
 				const fromPlayer = this.room.getPlayerBySessionID(fromSID);
 				const fromTile = answer.tiles[0];
@@ -1469,7 +1600,7 @@ export default class ThreeGame extends Game {
 				// We must explicitly save it back to the grid in case it was newly generated!
 				this.grid[fromTile] = tileType;
 
-				let result = '';
+				let result = 'no-op';
 				if (fromPlayer) {
 					if (!this.playerHands.has(fromSID)) {
 						this.playerHands.set(fromSID, new Set());
@@ -1480,37 +1611,176 @@ export default class ThreeGame extends Game {
 						this.stealTile(fromSID, jokerData.playerSID, fromTile);
 						// Since this is a joker steal it should always be safe - so remove from battleContext.tiles
 						this.battleContext.tiles.delete(fromTile);
-					} else {
-						result = 'no-op';
 					}
 				}
-				jokerData.result = result;
 				jokerData.fromSID = fromSID;
 				jokerData.pos = fromTile;
+				jokerData.jokerResult = { result, tileType, newTileCount: this.getTileCountForPlayer(jokerData.playerSID, tileType) };
 				break;
+			}
+
+			case 'pass': {
+				const incomingSID = answer.teams[0]; // The team the active player is handing the battle to
+
+				// Vault active player's tiles — remove them from battleContext.tiles so they can't be stolen
+				const activeSID = jokerData.playerSID;
+				const activeHand = this.playerHands.get(activeSID);
+				// TODO: this logic is NOT perfect. This will remove ALL the active player's tiles from battleContext.tiles, even those that were not revealed in this battle.
+				// This is because we currently have no way to differentiate which tiles in a player's hand were revealed in the current battle vs previous battles.
+				// This means if a player has revealed 3 tiles in battle 1 and then passes in battle 2, all 3 of those tiles will be protected from stealing in battle 2 even if only 1 of them was actually revealed in battle 2.
+				// To fix this we would need to track which specific tiles were revealed in each battle (perhaps by storing the positions of revealed tiles in the turn data) and then only remove those specific tiles from battleContext.tiles when passing.
+				// A simpler method might be to store which player currently holds the tiles from this battle, and when passing only the active team's tiles are removed from battleContext.tiles				
+				if (activeHand) {
+					activeHand.forEach(pos => this.battleContext.tiles.delete(pos));
+				}
+
+				// Swap the active player out of battleContext.teams for the incoming team
+				const teamIndex = this.battleContext.teams.indexOf(activeSID);
+				if (teamIndex !== -1) {
+					this.battleContext.teams[teamIndex] = incomingSID;
+				}
+
+				jokerData.fromSID = activeSID;
+				jokerData.toSID   = incomingSID;
+				jokerData.jokerResult = { battleTeams: [...this.battleContext.teams] };
+				break;
+			}
+
+			case 'shuffle': {
+				const tilesToShuffle = answer.tiles || [];
+				const shuffleResults = [];
+
+				for (const oldPos of tilesToShuffle) {
+
+					// Compute empty positions fresh each iteration so a prior shuffle doesn't pollute
+					const occupiedByHands = new Set();
+					this.playerHands.forEach(hand => hand.forEach(p => occupiedByHands.add(p)));
+					const emptyPositions = [];
+					for (let i = 0; i < this.grid.length; i++) {
+						if (!this.grid[i] && !occupiedByHands.has(i)) {
+							emptyPositions.push(i);
+						}
+					}
+
+					if (emptyPositions.length === 0) {
+						console.warn(`ThreeGame::doJokerEvaluate::shuffle: No empty positions for tile at ${oldPos}`);
+						continue;
+					}
+
+					const newPos = emptyPositions[Math.floor(Math.random() * emptyPositions.length)];
+
+					const oldTileType = this.director.decideTileAt(oldPos, {
+						grid: this.grid,
+						playerHands: this.playerHands,
+						battleTiles: this.battleContext.tiles,
+						activeSID: jokerData.playerSID,
+						battleTeams: this.battleContext.teams,
+						jokerType: 'shuffle'
+					});
+					// Ensure grid is updated just in case oldTile was a new selection
+					this.grid[oldPos] = oldTileType;
+
+					const newTileType = this.director.decideTileAt(newPos, {
+						grid: this.grid,
+						playerHands: this.playerHands,
+						battleTiles: this.battleContext.tiles,
+						activeSID: jokerData.playerSID,
+						battleTeams: this.battleContext.teams,
+						jokerType: 'shuffle'
+					});
+
+					// Shuffle (swap) tiles in grid
+					this.grid[newPos] = oldTileType;
+					this.grid[oldPos] = newTileType;
+
+					// Update whichever hand(s) contain oldPos — ownership check handled by the player UI
+					this.playerHands.forEach(hand => {
+						if (hand.has(oldPos)) {
+							hand.delete(oldPos);
+							hand.add(newPos);
+						}
+					});
+
+					// If old tile was vulnerable to being stolen then update tiles to reflect new position
+					if (this.battleContext.tiles.has(oldPos)) {
+						this.battleContext.tiles.delete(oldPos);
+						this.battleContext.tiles.add(newPos);
+					}
+
+					shuffleResults.push({ oldPos, newPos, oldTileType: oldTileType, newTileType: newTileType });
+				}
+
+				jokerData.jokerResult = { moves: shuffleResults };
+				// fromSID intentionally absent — no "victim" slides into the battle slots
+				break;
+			}
+
+			case 'gift': {
+				const recipientSID = answer.teams[0];
+				const giftTilePos = answer.tiles[0];
+				const activeSID = jokerData.playerSID;
+				const activeHand = this.playerHands.get(activeSID);
+				const tileType = this.director.decideTileAt(giftTilePos, {
+					grid: this.grid,
+					playerHands: this.playerHands,
+					battleTiles: this.battleContext.tiles,
+					activeSID: activeSID,
+					battleTeams: this.battleContext.teams,
+					jokerType: 'gift'
+				});
+
+				activeHand.delete(giftTilePos);
+				if (!this.playerHands.has(recipientSID)) {
+					this.playerHands.set(recipientSID, new Set());
+				}
+				this.playerHands.get(recipientSID).add(giftTilePos);
+				// Gifted tile is now in recipient's safe hands — remove from battle danger zone
+				this.battleContext.tiles.delete(giftTilePos);
+				result = 'gift';
+
+				jokerData.fromSID = activeSID;
+				jokerData.toSID = recipientSID;
+				jokerData.pos = giftTile;
+				jokerData.jokerResult = {
+					result,
+					tileType,
+					recipientNewTileCount: this.getTileCountForPlayer(recipientSID, tileType)
+				};
+				break;
+			}
+
+			case 'freeze': {
+				const frozenSID = answer.teams[0];
+				this.frozenTeams.add(frozenSID);
+
+				jokerData.fromSID = frozenSID;   // frozen team slides in as "victim" in slot 1
+				jokerData.jokerResult = {};
+				break;
+			}
 
 		}
 
-		// Final data item to add is the new number of tiles for the stolen set
-		// There could be a scenario where a steal results in a team losing a tile but the stealing team does NOT get it
-		// So to fix this we must explicitly pass the tile count for the stealing team
-		if (jokerData.pos !== undefined) {
-			const tileType = this.grid[jokerData.pos];
-			jokerData.tileType = tileType;
-			jokerData.newTileCount = this.getTileCountForPlayer(jokerData.playerSID, tileType);
-		}
+		console.log('ThreeGame::doJokerEvaluate: Final evaluated joker data:', jokerData);
+		this.logGrid('doJokerEvaluate: Updated grid');
 
 		// Broadcast the stored result out to trigger the animations
 		this.room.emitToHosts('server:state:jokerevaluate', jokerData);
-
 		// When the host animation completes it will send host:response — advance to the next state
 		// this.room.registerHostResponseHandler(() => {
 		// 	this.room.deregisterHostResponseHandler();
 		// 	this.stateMachine.nextState(); // JOKER_EVALUATE → TILE_SELECTION
 		// });
-
 	}
 
+	doGameOver() {
+
+		console.log('ThreeGame::doGameOver: Final player hands:', this.playerHands);
+		console.dir(this.battleContext, { depth: null, colors: true });
+		const winners = this.checkWinner();
+		console.log('ThreeGame::doGameOver: Winners:', winners);
+
+	}
+	
 	getTileCountForPlayer(playerSID, tileType) {
 		const stealingTeamHand = this.playerHands.get(playerSID);
 		if (stealingTeamHand) {
@@ -1533,7 +1803,7 @@ export default class ThreeGame extends Game {
      * Handles one reveal by one player.
 	 * Format of JSON returned:
 	 * {
-	 *   icon: 'icon_1',
+	 *   icon: '1_key',
 	 *   pos: 5,
 	 *   result: 'steal' | 'collect' | 'no-op',
 	 *   fromSID: 'p2' (used when stealing - be explicit to allow stealing from any player not just opponent)
@@ -1571,7 +1841,7 @@ export default class ThreeGame extends Game {
 			}
 			if (this.playerHands.get(playerSID).has(pos)) {
                 result = 'no-op';
-            } else {
+			} else {
 				this.collectTile(playerSID, pos);
 				result = 'collect';
 			}
@@ -1610,7 +1880,7 @@ export default class ThreeGame extends Game {
         toHand.add(pos);
 		if (this.battleContext.teams.includes(fromSID)) {
 			this.battleContext.tiles.add(pos);  
-		}   
+		}
         console.log(`STEAL: Position ${pos} moved from ${fromSID} to ${toSID}`);
     }
 
@@ -1619,11 +1889,30 @@ export default class ThreeGame extends Game {
         return Array.from(this.playerHands.keys()).find(k => k !== sid);
     }
 
+    // Logs this.grid as a 6×6 table matching the actual board layout.
+    // Grid is column-major (index = col * 6 + row), so we iterate rows outer, cols inner.
+    logGrid(label = '') {
+        const SIZE = 6;
+        const pad = 10;
+        let out = `\n=== LogGrid: ${label} ===\n`;
+        for (let row = 0; row < SIZE; row++) {
+            const cells = [];
+            for (let col = 0; col < SIZE; col++) {
+                const pos = col * SIZE + row;
+                const val = this.grid[pos] ?? '.';
+                cells.push(`[${String(pos).padStart(2)}]${String(val).padEnd(pad)}`);
+            }
+            out += cells.join(' ') + '\n';
+        }
+        console.log(out);
+    }
+
 	// checkWinner
 	// Looks at the playerHands and determines if a team has collected 3 matching tiles yet.
 	// A "win" requires 3 tiles of the SAME icon type (looked up from this.grid).
 	// In the event that two teams both have a winning hand simultaneously, teams[0] wins (they went first).
     checkWinner() {
+		console.log('Checking Winner:: playerhands:');
 		console.dir(this.playerHands, { depth: 3, colors: true });
 
 		const winners = [];
@@ -1633,7 +1922,7 @@ export default class ThreeGame extends Game {
 			const typeCounts = {};
 			for (const pos of hand) {
 				const type = this.grid[pos];
-				if (!type) continue;
+				if (!type || type === 'joker') continue;
 				typeCounts[type] = (typeCounts[type] || 0) + 1;
 				if (typeCounts[type] >= 3) {
 					winners.push(sid);
@@ -1655,12 +1944,19 @@ export default class ThreeGame extends Game {
     }
 
 	checkBattleOver() {
-		console.log('ThreeGame::checkBattleOver - checking if battle is over with tiles:', this.battleContext.activeTurn);
+		console.log('ThreeGame::checkBattleOver - checking if battle is over with tiles:');
+		console.dir(this.battleContext.activeTurn);
 		const activeTurn = this.battleContext.activeTurn;
 		if (!activeTurn || !activeTurn.reveals) {
 			console.warn('ThreeGame::checkBattleOver - No active turn or reveals found in battle context!');
 			return false;
 		}
+
+		// RULE - if we just passed then battle continues (with new battle teams)
+		if (activeTurn.joker && activeTurn.joker.jokerType === 'pass') {
+			return false;
+		}1
+
 		// Count the number of 'collects' these are the new tiles that were collected this turn, must be 3-4 to continue the battle
 		const collectCount = activeTurn.reveals.filter(reveal => reveal.result === 'collect').length;
 		console.log(`ThreeGame::checkBattleOver - collectCount: ${collectCount}`);

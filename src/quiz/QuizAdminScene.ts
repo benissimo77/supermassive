@@ -173,7 +173,7 @@ export class QuizAdminScene extends BaseScene {
         }).setInteractive({ useHandCursor: true });
 
         spawnGhostBtn.on('pointerdown', () => {
-            this.socket.emit('host:spawn_ghost');
+            this.socket.emit('admin:spawn_ghost');
             this.logEvent('SPAWNING GHOST BOT...', 'system');
         });
         this.UIContainer.add(spawnGhostBtn);
@@ -188,7 +188,7 @@ export class QuizAdminScene extends BaseScene {
         }).setInteractive({ useHandCursor: true });
 
         clearGhostsBtn.on('pointerdown', () => {
-            this.socket.emit('host:remove_ghosts');
+            this.socket.emit('admin:remove_ghosts');
             this.logEvent('REMOVING ALL GHOST BOTS', 'system');
         });
         this.UIContainer.add(clearGhostsBtn);
@@ -313,7 +313,7 @@ export class QuizAdminScene extends BaseScene {
         // Expose kick function to window for the HTML buttons
         (window as any).phaserAdminKick = (sessionID: string) => {
             console.log('Admin:: Kicking player:', sessionID);
-            this.socket.emit('host:kickplayer', sessionID);
+            this.socket.emit('admin:kickplayer', sessionID);
         };
     }
 

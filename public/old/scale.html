@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Major Scale Practice</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #1a1a2e;
+            color: #e6e6e6;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        .number-display {
+            font-size: 20vh;
+            font-weight: bold;
+            height: 35vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 40px 0;
+            color: #4ecca3;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .controls {
+            width: 100%;
+            padding: 20px;
+            background-color: #232342;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .slider-container {
+            margin: 20px 0;
+            width: 100%;
+        }
+
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        button {
+            background-color: #4ecca3;
+            color: #1a1a2e;
+            border: none;
+            padding: 12px 24px;
+            margin: 10px 5px;
+            border-radius: 5px;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #3aa885;
+        }
+
+        .button-group {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+        }
+
+        .current-settings {
+            margin-top: 15px;
+            text-align: center;
+            font-size: 1.1em;
+        }
+
+        .flash {
+            opacity: 0.3;
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Major Scale Practice</h1>
+
+        <div class="number-display" id="number-display">1</div>
+
+        <div class="controls">
+            <div class="slider-container">
+                <label for="speed-slider">Speed (seconds between notes)</label>
+                <div class="slider-labels">
+                    <span>Fast (0.5s)</span>
+                    <span>Slow (5s)</span>
+                </div>
+                <input type="range" id="speed-slider" min="0.5" max="5" step="0.1" value="2">
+            </div>
+
+            <div class="current-settings">
+                <div id="current-speed">Current delay: 2 seconds</div>
+            </div>
+
+            <div class="button-group">
+                <button id="start-btn">Start</button>
+                <button id="stop-btn">Stop</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Elements
+            const numberDisplay = document.getElementById('number-display');
+            const speedSlider = document.getElementById('speed-slider');
+            const currentSpeedDisplay = document.getElementById('current-speed');
+            const startBtn = document.getElementById('start-btn');
+            const stopBtn = document.getElementById('stop-btn');
+
+            // Variables
+            let intervalId = null;
+            let currentDelay = parseFloat(speedSlider.value);
+
+            // Update display when slider changes
+            speedSlider.addEventListener('input', function () {
+                currentDelay = parseFloat(this.value);
+                currentSpeedDisplay.textContent = `Current delay: ${currentDelay.toFixed(1)} seconds`;
+
+                // If currently running, restart with new delay
+                if (intervalId !== null) {
+                    stopPractice();
+                    startPractice();
+                }
+            });
+
+            // Generate a random number 1-7, different from current
+            function getRandomNote(current) {
+                let newNote;
+                do {
+                    newNote = Math.floor(Math.random() * 7) + 1;
+                } while (newNote === current && current !== 0);
+
+                return newNote;
+            }
+
+            // Start practice session
+            function startPractice() {
+                if (intervalId !== null) return;
+
+                startBtn.disabled = true;
+
+                // Show first number immediately
+                updateNumber();
+
+                // Set up interval for subsequent numbers
+                intervalId = setInterval(updateNumber, currentDelay * 1000);
+            }
+
+            // Update the displayed number with visual feedback
+            function updateNumber() {
+                // Visual feedback - brief flash effect
+                numberDisplay.classList.add('flash');
+
+                setTimeout(() => {
+                    // Get current displayed number
+                    const currentNumber = parseInt(numberDisplay.textContent);
+
+                    // Generate new number and update display
+                    const newNumber = getRandomNote(currentNumber);
+                    numberDisplay.textContent = newNumber;
+
+                    // Remove flash effect
+                    numberDisplay.classList.remove('flash');
+                }, 200);
+            }
+
+            // Stop practice session
+            function stopPractice() {
+                clearInterval(intervalId);
+                intervalId = null;
+                startBtn.disabled = false;
+            }
+
+            // Event listeners for buttons
+            startBtn.addEventListener('click', startPractice);
+            stopBtn.addEventListener('click', stopPractice);
+
+            // Initialize display
+            currentSpeedDisplay.textContent = `Current delay: ${currentDelay.toFixed(1)} seconds`;
+        });
+    </script>
+</body>
+
+</html>

@@ -625,7 +625,6 @@ export default class DrawQuestion extends BaseQuestion {
         
         // Draw questions don't have a single "correct" answer to reveal
         // We just return a timeline that could be extended
-        tl.pause();
         return tl;
     }
 

@@ -9,6 +9,7 @@ export class ThreePlayer extends PhaserPlayer {
 
     private battleSlotBg: Phaser.GameObjects.NineSlice;
     private battleSlotHighlight: Phaser.GameObjects.NineSlice;
+    private isSelected: boolean = false;
 
     // Grid Configuration
     private readonly ICON_SIZE = 40;
@@ -90,15 +91,14 @@ export class ThreePlayer extends PhaserPlayer {
                 this.setHighlighted(true);
             }, this)
             .on('pointerout', () => {
-                // this.playerTexture.clearTint();
                 pointerDownFired = false;
-                this.setHighlighted(false);})
+                if (!this.isSelected) this.setHighlighted(false);
+            })
             .on('pointerdown', () => {
                 pointerDownFired = true;
                 this.setHighlighted(true);
             })
             .on('pointerup', () => {
-                this.setHighlighted(false);
                 if (pointerDownFired) {
                     pointerDownFired = false;
                     onClick();
@@ -120,6 +120,14 @@ export class ThreePlayer extends PhaserPlayer {
         this.sendToBack(this.battleSlotBg);
     }
 }
+
+    /**
+     * Marks this player as the selected choice — highlight persists until deselected.
+     */
+    public setSelected(active: boolean): void {
+        this.isSelected = active;
+        this.setHighlighted(active);
+    }
 
     /**
      * Toggles the yellow highlight border around the card

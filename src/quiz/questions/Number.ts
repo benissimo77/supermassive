@@ -566,7 +566,6 @@ export default class NumberQuestion extends BaseQuestion {
             }); 
         }
 
-        tl.pause();
         return tl;
     }
 

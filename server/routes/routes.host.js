@@ -2,6 +2,7 @@
 // This file sets up the routes for /host - hosting a game OR general host page showing general host info
 // Must be logged in to view these routes
 import express from 'express';
+import User from '../models/mongo.user.js';
 const router = express.Router({ strict: true });
 
 const isAuth = (req, res, next) => {
@@ -39,27 +40,19 @@ function checkHost(req, res, next) {
 	}
 }
 
-// Middleware to check if the (host) user is in a room - creates a new room if not
+// Middleware to check if the (host) user is in a room
+// Ensures user can only host the room currently in their session
 function checkRoom(req, res, next) {
-	// If room is in the URL, use it
-	if (req.params.room) {
-		req.session.room = req.params.room;
+	const roomFromUrl = req.params.room?.toUpperCase();
+	const sessionRoom = req.session.room?.toUpperCase();
+	const isAdmin = req.user?.role === 'admin';
+
+	if (roomFromUrl === sessionRoom || isAdmin) {
+		return next();
 	}
 
-	// In development we want to be able to override the room name by adding directly to query
-	if (process.env.NODE_ENV === 'development') {
-		if (req.query.room) {
-			req.session.room = req.query.room;
-		}
-	}
-
-	if (req.session && req.session.room) {
-		next();
-	} else {
-		// If no room, redirect to dashboard to start one
-		console.log('checkRoom:: No room in session, redirecting to /host/dashboard');
-		res.redirect('/host/dashboard');
-	}
+	console.warn(`routes.host.checkRoom:: Unauthorized host attempt for room ${roomFromUrl} (Session expects: ${sessionRoom})`);
+	res.redirect('/host/dashboard');
 }
 
 // Base host routes (Auth only)
@@ -78,11 +71,22 @@ router.get('/', (req, res) => {
 
 // Start a game (The Redirector)
 // Generates a room and redirects to the Stage
-// UPDATE: host might have already hosted a room so might have a room in session already (use this for consistency)
-router.get('/:game/start', (req, res) => {
+// Host is redirected to /host/:room/:game and their activeRoom is saved for the Producer to follow.
+router.get('/:game/start', async (req, res) => {
 	console.log('routes.host:: /:game/start - starting game:', req.params.game, req.session);
 	if (!req.session || !req.session.room) {
-		req.session.room = generateNewRoomName();
+		const newRoom = generateNewRoomName();
+		req.session.room = newRoom;
+
+		// Save the active room to the database for this user (enables Producer shadow role)
+		if (req.user && req.user._id) {
+			try {
+				await User.findByIdAndUpdate(req.user._id, { activeRoom: newRoom });
+				console.log(`routes.host:: Updated activeRoom to ${newRoom} for user ${req.user.email}`);
+			} catch (err) {
+				console.error('routes.host:: Failed to update activeRoom in DB:', err);
+			}
+		}
 	}
 	const room = req.session.room;
 	const game = req.params.game;
@@ -93,6 +97,28 @@ router.get('/:game/start', (req, res) => {
 // Catch room-only URLs and default to the lobby
 router.get('/:room([A-Z]{4})', (req, res) => {
 	res.redirect(`/host/${req.params.room}/lobby`);
+});
+
+// End / Retire a room
+router.get('/:room([A-Z]{4})/end', async (req, res) => {
+	const room = req.params.room.toUpperCase();
+	console.log(`routes.host:: Request to end room: ${room}`);
+
+	// Only clear if the user actually owns this room (protection)
+	if (req.session.room?.toUpperCase() === room || req.user?.role === 'admin') {
+		req.session.room = null;
+
+		if (req.user && req.user._id) {
+			try {
+				await User.findByIdAndUpdate(req.user._id, { activeRoom: null });
+				console.log(`routes.host:: Retired activeRoom in DB for user ${req.user.email}`);
+			} catch (err) {
+				console.error('routes.host:: Failed to clear activeRoom in DB:', err);
+			}
+		}
+	}
+
+	res.redirect('/host/dashboard');
 });
 
 // Active Game (The Stage)

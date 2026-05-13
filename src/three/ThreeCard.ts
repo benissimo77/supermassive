@@ -24,6 +24,7 @@ export class ThreeCard extends Phaser.GameObjects.Container {
         // TODO - make plane size dynamic based on screen size - currently absolutely sized
         this.plane = scene.add.plane(0, 0, backTexture);
         this.plane.setDisplaySize(160, 160);
+        this.plane.scaleX = -this.plane.scaleX;
         this.add(this.plane);
 
         // 2. Setup the Selection Badge (Container with circle and text)
@@ -107,7 +108,12 @@ export class ThreeCard extends Phaser.GameObjects.Container {
         if (this.plane.rotateY >= 360) this.plane.rotateY = 0;
 
         // Calculate target: 180 (front) or 0 (back)
-        const targetRotation = showFront ? 180 : 360;
+        let targetRotation = showFront ? 180 : 360;
+
+        // See if this fix solves the card performing a full flip issue...
+        if (this.plane.rotateY == 0 && targetRotation == 360) {
+            targetRotation = 0;
+        }
 
         // set flipped right away so that state is correct when used in master timeline
         this.flipped = showFront;
@@ -152,8 +158,8 @@ export class ThreeCard extends Phaser.GameObjects.Container {
                 
                 if (this.plane.texture.key !== targetTex) {
                     this.plane.setTexture(targetTex);
-                    // Reset display size after texture swap on Plane
                     this.plane.setDisplaySize(160, 160);
+                    this.plane.scaleX = -this.plane.scaleX;
                 }
             }
         }, 0);

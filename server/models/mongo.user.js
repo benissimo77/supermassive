@@ -20,7 +20,8 @@ const userSchema = mongoose.Schema({
 
     token: { type: 'string', default: null },
     tokenExpiry: { type: 'date', default: null },
-    emailVerified: { type: Boolean, default: false }
+    emailVerified: { type: Boolean, default: false },
+    activeRoom: { type: 'string', default: null }
 });
 
 // hash the password

@@ -45,6 +45,7 @@ export interface MatchingQuestionData extends BaseQuestionData {
 export interface OrderingQuestionData extends BaseQuestionData {
     type: 'ordering';
     itemsShuffled: string[];
+    itemImages?: string[];
     extra: { startLabel:string; endLabel:string };
     answer?: number[];  // Array of indices, only when mode='answer'
 }

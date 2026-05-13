@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drawing Canvas with Paper.js</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paper.js/0.12.15/paper-full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: row;
+        }
+        .container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            width: 100%;
+            height: 100%;
+        }
+        .controls {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            background-color: #f0f0f0;
+        }
+        .icon {
+            cursor: pointer;
+            width:20px;
+            height:20px;
+            padding: 5px;
+            margin: 3px;
+            border: 3px solid transparent;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .icon.selected {
+            border-color: gold;
+        }
+        .thin { width: 5px; height: 5px; background-color: #000; border-radius: 50%; pointer-events: none;}
+        .medium { width: 10px; height: 10px; background-color: #000; border-radius: 50%; pointer-events: none;}
+        .thick { width: 15px; height: 15px; background-color: #000; border-radius: 50%; pointer-events: none;}
+        .very-thick { width: 20px; height: 20px; background-color: #000; border-radius: 50%; pointer-events: none;}
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <button id="submit-drawing">DONE</button>
+        <div class="icon" data-thickness="2"><div class="thin"></div></div>
+        <div class="icon" data-thickness="5"><div class="medium"></div></div>
+        <div class="icon" data-thickness="12"><div class="thick"></div></div>
+        <div class="icon" data-thickness="30"><div class="very-thick"></div></div>
+        <i class="fas fa-paint-brush icon" id="brush-icon"></i>
+        <i class="fas fa-eraser icon" id="eraser-icon"></i>
+        <div>
+        <input type="color" id="color-picker" value="#000000">
+        <button id="undo">Undo</button>
+        </div>
+    </div>
+    <div class="container">
+        <canvas id="drawing-canvas"></canvas>
+    </div>
+
+    <script>
+        // Initialize Paper.js
+        paper.setup('drawing-canvas');
+
+        // Set up drawing tool
+        var tool = new paper.Tool();
+        var path;
+        var strokeColor = '#000000';
+        var strokeWidth = 5;
+
+        tool.onMouseDown = function(event) {
+            path = new paper.Path();
+            path.strokeColor = strokeColor;
+            path.strokeWidth = strokeWidth;
+            path.strokeCap = 'round'; // Set rounded ends for lines
+            path.add(event.point);
+        }
+
+        tool.onMouseDrag = function(event) {
+            path.add(event.point);
+            path.smooth({ type: 'continuous' });
+        }
+
+        tool.onMouseUp = function(event) {
+            path.add(event.point);
+            path.smooth({ type: 'continuous' });
+            path.simplify(); // Simplify the path to reduce the number of points
+        }
+
+        // Function to change color
+        function changeColor(color) {
+            strokeColor = color;
+        }
+
+        // Function to change line thickness
+        function changeLineThickness(thickness) {
+            strokeWidth = thickness;
+        }
+
+        // Function to export drawing as SVG
+        function exportDrawing() {
+            var svg = paper.project.exportSVG({ asString: true });
+            console.log(svg); // You can send this SVG data to your server or store it as needed
+        }
+
+        // Function to switch to brush mode
+        function switchToBrush() {
+            strokeColor = document.getElementById('color-picker').value;
+            document.getElementById('brush-icon').classList.add('selected');
+            document.getElementById('eraser-icon').classList.remove('selected');
+        }
+
+        // Function to switch to eraser mode
+        function switchToEraser() {
+            strokeColor = '#ffffff'; // Assuming white is the background color
+            document.getElementById('eraser-icon').classList.add('selected');
+            document.getElementById('brush-icon').classList.remove('selected');
+        }
+
+        // Function to undo the last path
+        function undoLastPath() {
+            if (paper.project.activeLayer.children.length > 0) {
+                var lastPath = paper.project.activeLayer.children[paper.project.activeLayer.children.length - 1];
+                lastPath.remove();
+            }
+        }
+
+        // Example usage
+        document.getElementById('color-picker').addEventListener('change', (e) => {
+            changeColor(e.target.value);
+        });
+
+        document.querySelectorAll('.icon[data-thickness]').forEach(icon => {
+            icon.addEventListener('click', (e) => {
+                const thickness = e.target.getAttribute('data-thickness');
+                changeLineThickness(thickness);
+                document.querySelectorAll('.icon[data-thickness]').forEach(i => i.classList.remove('selected'));
+                e.target.classList.add('selected');
+            });
+        });
+
+        document.getElementById('brush-icon').addEventListener('click', switchToBrush);
+        document.getElementById('eraser-icon').addEventListener('click', switchToEraser);
+
+        document.getElementById('submit-drawing').addEventListener('click', () => {
+            exportDrawing();
+        });
+
+        document.getElementById('undo').addEventListener('click', () => {
+            undoLastPath();
+        });
+
+
+        // Resize canvas to fit the container
+        function resizeCanvas() {
+            paper.view.viewSize = new paper.Size(window.innerWidth, window.innerHeight);
+        }
+
+        // Call resizeCanvas on window resize
+        window.addEventListener('resize', resizeCanvas);
+
+        // Initial resize
+        resizeCanvas();
+    </script>
+</body>
+</html>

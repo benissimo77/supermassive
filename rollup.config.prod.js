@@ -62,7 +62,8 @@ export default [
             terser({
                 compress: {
                     passes: 2,
-                    drop_console: true
+                    // UPDATE: while still developing just leave console logs... no-one is going to look
+                    // drop_console: true
                 }
             })
         ]

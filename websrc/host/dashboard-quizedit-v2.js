@@ -25,10 +25,157 @@ export function initDashboardQuizEdit() {
         aiPanel: document.getElementById('ai-generator-panel'),
         aiPromptInput: document.getElementById('ai-prompt-input'),
         aiSubmitBtn: document.getElementById('ai-submit-btn'),
-        aiStatus: document.getElementById('ai-status')
+        aiStatus: document.getElementById('ai-status'),
+        aiGenerateBtn: document.getElementById('ai-generate-btn'),
+        
+        // Paste JSON Import
+        pasteJsonBtn: document.getElementById('paste-json-btn'),
+        pasteJsonPanel: document.getElementById('paste-json-panel'),
+        pasteJsonInput: document.getElementById('paste-json-input'),
+        pasteJsonSubmit: document.getElementById('paste-json-submit'),
+        pasteJsonStatus: document.getElementById('paste-json-status')
     };
 
+    // --- PASTE JSON IMPORT INTEGRATION ---
+    if (UI.pasteJsonBtn && UI.pasteJsonPanel && UI.pasteJsonInput && UI.pasteJsonSubmit && UI.pasteJsonStatus) {
+        UI.pasteJsonBtn.addEventListener('click', () => {
+            UI.pasteJsonPanel.style.display = UI.pasteJsonPanel.style.display === 'none' ? 'block' : 'none';
+            if (UI.pasteJsonPanel.style.display === 'block') {
+                UI.pasteJsonInput.focus();
+            }
+        });
+        UI.pasteJsonSubmit.addEventListener('click', handlePasteJsonImport);
+    }
+
+    async function handlePasteJsonImport() {
+        UI.pasteJsonSubmit.disabled = true;
+        UI.pasteJsonStatus.style.display = 'block';
+        let parsed;
+        try {
+            parsed = JSON.parse(UI.pasteJsonInput.value);
+        } catch (e) {
+            UI.pasteJsonStatus.textContent = 'Invalid JSON.';
+            UI.pasteJsonSubmit.disabled = false;
+            return;
+        }
+
+        // Get current quiz data
+        let quizData = readQuizFromUI();
+        let changed = false;
+        // Determine what was pasted and append accordingly
+        if (parsed && typeof parsed === 'object') {
+            if (Array.isArray(parsed.rounds)) {
+                // Looks like a full quiz
+                quizData.rounds = quizData.rounds.concat(parsed.rounds);
+                changed = true;
+            } else if (Array.isArray(parsed)) {
+                // Array of questions: append to last round
+                if (quizData.rounds.length > 0) {
+                    quizData.rounds[quizData.rounds.length - 1].questions = quizData.rounds[quizData.rounds.length - 1].questions.concat(parsed);
+                    changed = true;
+                } else {
+                    UI.pasteJsonStatus.textContent = 'No round exists to add questions.';
+                    UI.pasteJsonSubmit.disabled = false;
+                    return;
+                }
+            } else if (parsed.questions && Array.isArray(parsed.questions)) {
+                // Single round
+                quizData.rounds.push(parsed);
+                changed = true;
+            } else if (parsed.type && parsed.text) {
+                // Single question
+                if (quizData.rounds.length > 0) {
+                    quizData.rounds[quizData.rounds.length - 1].questions.push(parsed);
+                    changed = true;
+                } else {
+                    UI.pasteJsonStatus.textContent = 'No round exists to add question.';
+                    UI.pasteJsonSubmit.disabled = false;
+                    return;
+                }
+            } else {
+                UI.pasteJsonStatus.textContent = 'Unrecognized JSON structure.';
+                UI.pasteJsonSubmit.disabled = false;
+                return;
+            }
+        }
+
+        // Validate and update UI
+        try {
+            await writeQuizToUI(quizData);
+            markAsChanged();
+            UI.pasteJsonStatus.textContent = 'Import successful!';
+            UI.pasteJsonInput.value = '';
+            setTimeout(() => {
+                UI.pasteJsonPanel.style.display = 'none';
+                UI.pasteJsonStatus.style.display = 'none';
+                // UI.pasteJsonStatus.textContent = '';
+                UI.pasteJsonStatus.innerHTML = `<div class="spinner"></div>
+						<span>Importing Quiz JSON...</span>`;
+
+            }, 1200);
+        } catch (e) {
+            UI.pasteJsonStatus.textContent = 'Validation or import failed.';
+        } finally {
+            UI.pasteJsonSubmit.disabled = false;
+        }
+    }
+
     let hasUnsavedChanges = false;
+
+    // --- AI GENERATOR INTEGRATION ---
+    if (UI.aiPanel && UI.aiPromptInput && UI.aiSubmitBtn && UI.aiStatus) {
+        // Show AI panel when clicking the AI-generate button
+        if (UI.aiGenerateBtn) {
+            UI.aiGenerateBtn.addEventListener('click', () => {
+                UI.aiPanel.style.display = UI.aiPanel.style.display === 'none' ? 'block' : 'none';
+                if (UI.aiPanel.style.display === 'block') UI.aiPromptInput.focus();
+            });
+        }
+        UI.aiSubmitBtn.addEventListener('click', generateAIQuiz);
+        UI.aiPromptInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') generateAIQuiz();
+        });
+    }
+
+    async function generateAIQuiz() {
+        // Optionally check for host role (remove if not needed)
+        if (typeof Auth?.checkRole === 'function') {
+            const isHost = await Auth.checkRole('host');
+            if (!isHost) {
+                alert('AI Generation is a Host feature. Please verify your email address to unlock this feature.');
+                return;
+            }
+        }
+
+        const prompt = UI.aiPromptInput.value.trim();
+        if (!prompt) return;
+
+        UI.aiSubmitBtn.disabled = true;
+        UI.aiStatus.style.display = 'flex';
+
+        try {
+            const response = await fetch('/api/quiz/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt })
+            });
+            const result = await response.json();
+            if (result.success) {
+                await writeQuizToUI(result.data);
+                markAsChanged();
+                UI.aiPanel.style.display = 'none';
+                UI.aiPromptInput.value = '';
+            } else {
+                alert('AI Generation failed: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Error generating AI quiz:', error);
+            alert('Error generating AI quiz');
+        } finally {
+            UI.aiSubmitBtn.disabled = false;
+            UI.aiStatus.style.display = 'none';
+        }
+    }
 
     // --- 1. CORE LAYERS: HTML <-> JSON ---
 

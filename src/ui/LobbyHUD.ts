@@ -96,6 +96,7 @@ export class LobbyHUD extends Phaser.GameObjects.Container {
     public showInstructionPanel(roomID: string, instructionState: 'hidden' | 'minimized' | 'maximized' = 'maximized'): void {
 
         this.roomID = roomID;
+        let qr = Phaser.GameObjects.Image;
 
         if (this.instructionsPanel) {
             this.instructionsPanel.destroy();
@@ -109,7 +110,8 @@ export class LobbyHUD extends Phaser.GameObjects.Container {
             this.scene.load.image('roomQR', `/assets/qr/${this.roomID}.png`);
             this.scene.load.once('complete', (data:any) => {
                 console.log('ThreeHostScene:: QR Loaded', {data} );
-                this.showInstructionPanel(this.roomID, instructionState);
+                // The line below causes an infinite loop if the QR can't be loaded
+                // this.showInstructionPanel(this.roomID, instructionState);
             });
             this.scene.load.start();
         }
@@ -169,7 +171,7 @@ export class LobbyHUD extends Phaser.GameObjects.Container {
             // Right side: QR Code (Perfectly centered in the white 352x352 block)
             if (this.scene.textures.exists('roomQR')) {
                 const qrImageSize = 320;
-                const qr = this.scene.add.image((panelWidth / 2) - (qrBlockSize / 2), panelHeight / 2, 'roomQR')
+                qr = this.scene.add.image((panelWidth / 2) - (qrBlockSize / 2), panelHeight / 2, 'roomQR')
                     .setDisplaySize(qrImageSize, qrImageSize);
                 this.instructionsPanel.add(qr);
                 console.log('LobbyHUD:: Added roomQR to instructions panel with 16px border');

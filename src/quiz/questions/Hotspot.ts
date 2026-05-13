@@ -655,7 +655,6 @@ private resetDrag(): void {
 			
         }
 
-		tl.pause();
 		return tl;
 	}
 

@@ -370,7 +370,7 @@ export class QuizHostScene extends BaseScene {
                 this.globalNavbar?.toggle();
             }
             if (data.action === 'syncTimer') {
-                this.HUDCountdownSeconds = data.seconds;
+                this.HUDCountdownSeconds = data.seconds;0
                 this.updateTimerDisplay();
             }
         });
@@ -582,6 +582,9 @@ export class QuizHostScene extends BaseScene {
             let nextMinute = Math.ceil(currentSeconds / 60) * 60;
             if (nextMinute === currentSeconds) nextMinute += 60;
             this.socket.emit('host:action', { action: 'syncTimer', seconds: nextMinute });
+            // This time will get over-written as soon as the server responds but this provides an instant feedback to make the UI feel responsive
+            this.HUDCountdownSeconds = nextMinute;
+            this.updateTimerDisplay();
             return;
         }
         if (event.code === 'ArrowDown') {
@@ -589,6 +592,9 @@ export class QuizHostScene extends BaseScene {
             let prevMinute = Math.floor(currentSeconds / 60) * 60;
             if (prevMinute === currentSeconds) prevMinute -= 60;
             this.socket.emit('host:action', { action: 'syncTimer', seconds: Math.max(0, prevMinute) });
+            // This time will get over-written as soon as the server responds but this provides an instant feedback to make the UI feel responsive
+            this.HUDCountdownSeconds = Math.max(0, prevMinute);
+            this.updateTimerDisplay();
             return;
         }
 
@@ -1320,8 +1326,8 @@ export class QuizHostScene extends BaseScene {
 
         // Prepare the players to be moved around to represent their choices
         for (const [sessionID, player] of this.players) {
-            player.setPlayerState(PhaserPlayerState.HIDDEN);
             this.reparentObject(player, this.playerContainer);
+            player.setPlayerState(PhaserPlayerState.HIDDEN);
             this.animatePlayer(player);
         }
         

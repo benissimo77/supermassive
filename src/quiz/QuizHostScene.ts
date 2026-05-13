@@ -369,8 +369,9 @@ export class QuizHostScene extends BaseScene {
             if (data.action === 'toggleNavbar') {
                 this.globalNavbar?.toggle();
             }
-            if (data.action === 'adjustTimer') {
-                this.adjustHUDTimer(data.delta);
+            if (data.action === 'syncTimer') {
+                this.HUDCountdownSeconds = data.seconds;
+                this.updateTimerDisplay();
             }
         });
 
@@ -577,11 +578,17 @@ export class QuizHostScene extends BaseScene {
             return;
         }
         if (event.code === 'ArrowUp') {
-            this.socket.emit('host:action', { action: 'adjustTimer', delta: 60 });
+            const currentSeconds = Math.ceil(this.HUDCountdownSeconds);
+            let nextMinute = Math.ceil(currentSeconds / 60) * 60;
+            if (nextMinute === currentSeconds) nextMinute += 60;
+            this.socket.emit('host:action', { action: 'syncTimer', seconds: nextMinute });
             return;
         }
         if (event.code === 'ArrowDown') {
-            this.socket.emit('host:action', { action: 'adjustTimer', delta: -60 });
+            const currentSeconds = Math.floor(this.HUDCountdownSeconds);
+            let prevMinute = Math.floor(currentSeconds / 60) * 60;
+            if (prevMinute === currentSeconds) prevMinute -= 60;
+            this.socket.emit('host:action', { action: 'syncTimer', seconds: Math.max(0, prevMinute) });
             return;
         }
 
@@ -917,6 +924,18 @@ export class QuizHostScene extends BaseScene {
         }
     }
 
+    private updateTimerDisplay(): void {
+        const minText = this.data.get('HUDMinText') as Phaser.GameObjects.Text;
+        const secText = this.data.get('HUDSecText') as Phaser.GameObjects.Text;
+        
+        if (minText && minText.active && secText && secText.active) {
+            const m = Math.floor(this.HUDCountdownSeconds / 60);
+            const s = Math.floor(this.HUDCountdownSeconds % 60);
+            minText.setText(`${m.toString().padStart(2, '0')}`);
+            secText.setText(`${s.toString().padStart(2, '0')}`);
+        }
+    }
+
     private adjustHUDTimer(delta: number): void {
         this.HUDCountdownSeconds = Math.max(0, this.HUDCountdownSeconds + delta);
         
@@ -925,10 +944,7 @@ export class QuizHostScene extends BaseScene {
         const secText = this.data.get('HUDSecText') as Phaser.GameObjects.Text;
         
         if (minText && minText.active && secText && secText.active) {
-            const m = Math.floor(this.HUDCountdownSeconds / 60);
-            const s = this.HUDCountdownSeconds % 60;
-            minText.setText(`${m.toString().padStart(2, '0')}`);
-            secText.setText(`${s.toString().padStart(2, '0')}`);
+            this.updateTimerDisplay();
             
             // Visual feedback for the adjustment
             this.tweens.add({

@@ -6,4 +6,6 @@ dist/
 .local_mongo_db/
 keeper_changes.diff
 server/scripts/seedMe.mjs
+public/modules/*.min.js
+public/modules/*.min.js.map
 

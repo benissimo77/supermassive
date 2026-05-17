@@ -11,7 +11,7 @@ export class QuizPlayScene extends BaseScene {
 
     static readonly KEY = 'QuizPlayScene';
 
-    private currentQuestion: any;
+    private currentQuestion: BaseQuestion;
     private currentQuestionNumber: number = -1;
     private questionFactory: QuestionFactory;
     private waitingState: Boolean = false;

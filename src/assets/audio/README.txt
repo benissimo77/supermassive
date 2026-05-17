@@ -1,3 +1,0 @@
-This folder contains src material for audio files
-These are files that could be useful but which haven't found their way into the games yet...
-Copy files from here into the public/assets/audio folder when you want to use them.

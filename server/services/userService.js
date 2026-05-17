@@ -18,7 +18,7 @@ class UserService {
     const now = Date.now();
     const cached = this.userCache.get(id.toString());
     if (cached && (now - cached.timestamp < 5000)) {
-      // return cached.user;
+      return cached.user;
     }
 
     console.log('userService: findUserById (DB hit) :', id);
@@ -65,7 +65,7 @@ class UserService {
 
       if (verificationToken) {
         userData.token = verificationToken;
-        userData.tokenExpiry = new Date(Date.now() + 24 * 360 * 1000);
+        userData.tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
       }
 
       const user = await this.userModel.create(userData);

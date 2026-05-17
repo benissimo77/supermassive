@@ -9,7 +9,9 @@ export default function createSocketServer(server) {
 		transports: ['websocket', 'polling'],
 		allowEIO3: true, // If you are using Engine.IO v3 clients
 		cors: {
-			origin: ['https://admin.socket.io', 'http://localhost:3000'],
+			origin: process.env.NODE_ENV === 'production'
+				? ['https://admin.socket.io']
+				: ['https://admin.socket.io', 'http://localhost:3000'],
 			methods: ['GET', 'POST'],
 			credentials: true
 		}
@@ -97,7 +99,7 @@ export default function createSocketServer(server) {
 		thisRoom.addUserToRoom(socket, userObj);
 	});
 
-	io.on('disconnection', (socket) => {
+	io.on('disconnect', (socket) => {
 		console.log('io.disconnect:', socket.id);
 	});
 
@@ -196,11 +198,12 @@ function identifyUser(socket) {
 			const pathSegments = url.pathname.split('/').filter(s => s.length > 0);
 			const [type, roomCode] = pathSegments;
 
+			const roomCodeUpper = roomCode ? roomCode.toUpperCase() : null;
+			const sessionRoomUpper = session.room ? session.room.toUpperCase() : null;
+
 			if (type === 'host') {
 				// Security check: Only allow host privileges if the user owns the room in their session,
 				// or if they are an elevated user (Admin/Producer).
-				const roomCodeUpper = roomCode?.toUpperCase();
-				const sessionRoomUpper = session.room?.toUpperCase();
 				
 				// Producers often use different devices, so we also trust the session.room 
 				// which was verified against the DB in the checkRoom HTTP middleware.
@@ -209,21 +212,22 @@ function identifyUser(socket) {
 				if (isStaff || (roomCodeUpper && roomCodeUpper === sessionRoomUpper)) {
 					userObj.host = true;
 					userObj.role = session.role || 'host';
-					if (roomCode) userObj.room = roomCodeUpper;
 				} else {
 					console.warn(`SocketServer.identifyUser:: Unauthorized host attempt for room ${roomCodeUpper}`);
 					userObj.host = false;
 					userObj.role = 'player'; // Downgrade to player if unauthorized
-					if (roomCode) userObj.room = roomCodeUpper;
 				}
 			} else if (type === 'admin') {
-				userObj.role = 'admin';
-				if (roomCode) userObj.room = roomCode.toUpperCase();
+				// Defense-in-depth: only grant admin socket role if the session already has admin privileges
+				if (session.role === 'admin' || session.role === 'producer') {
+					userObj.role = 'admin';
+				}
 			} else if (type === 'play') {
 				userObj.host = false;
 				userObj.role = 'player';
-				if (roomCode) userObj.room = roomCode.toUpperCase();
 			}
+
+			userObj.room = roomCodeUpper;
 
 			// 3. Query Parameter Overrides (ONLY for dev testing)
 			if (process.env.NODE_ENV !== 'production') {

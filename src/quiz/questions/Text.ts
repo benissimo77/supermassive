@@ -236,6 +236,7 @@ export default class TextQuestion extends BaseQuestion {
     }
 
     public createRevealAnswerTimeline(): gsap.core.Timeline {
+
 		const tl = this.minimizeQuestionContent();
         this.tl = tl;
         const answerTextStr = this.questionData.answer ? this.questionData.answer.toString() : '';
@@ -340,6 +341,27 @@ export default class TextQuestion extends BaseQuestion {
                 }).setOrigin(0, 0.5);
                 playerTextGroup.add(ansText);
 
+                // State storage for toggling
+                ansText.setData('isCorrect', playerAnswer.score > 0);
+
+                // Per-answer overrule listener using closure for performance and clarity
+                const overruleHandler = (data: any) => {
+                    if (data.action === 'overrule' && data.answer === rawAns) {
+                        const newColor = data.isCorrect ? '#00ff00' : '#ff0000';
+                        const newIcon = data.isCorrect ? '✅' : '❌';
+
+                        ansText.setColor(newColor);
+                        icon.setText(newIcon);
+
+                        // Update local state so next click toggles correctly
+                        ansText.setData('isCorrect', data.isCorrect);
+                        gsap.from(ansText, { scale: ansText.scale * 1.2, duration: 0.3, ease: 'back.out' });
+                    }
+                    };
+
+                this.scene.events.on('server:hostaction', overruleHandler);
+
+
                 // Start them invisible and slightly off to the right
                 playerTextGroup.setAlpha(0);
                 playerTextGroup.setX(localGroupX + 50);
@@ -351,6 +373,22 @@ export default class TextQuestion extends BaseQuestion {
                     duration: 0.4,
                     ease: 'power2.out'
                 }, '<+0.2'); // Start sliding in slightly after the avatar starts moving
+
+                // Add overrule interaction for host
+                ansText.setInteractive({ useHandCursor: true });
+                ansText.on('pointerdown', () => {
+                    const isCurrentlyCorrect = ansText.getData('isCorrect');
+                    const newCorrectState = !isCurrentlyCorrect;
+
+                    console.log(`TextQuestion:: Overrule click: ${displayAns} (Current: ${isCurrentlyCorrect} -> New: ${newCorrectState})`);
+
+                    // Emit to server
+                    this.scene.socket.emit('host:response', {
+                        action: 'overrule',
+                        answer: rawAns,
+                        isCorrect: newCorrectState
+                    });
+                });
             });
         }
 
@@ -360,6 +398,7 @@ export default class TextQuestion extends BaseQuestion {
     // Note that destroy can be called from HOST or PLAYER screen so must consider both paths
     public destroy(): void {
 
+        this.scene.events.off('server:hostaction');
         if (this.keyboard) {
             this.keyboard.destroy();
         }

@@ -72,7 +72,6 @@ function getUserIDString(userID) {
 // Validate a quiz against the schema
 export function validateQuiz(quizData) {
     // Your existing validation logic
-    const ajv = new Ajv({ allErrors: true });
     const validate = ajv.compile(quizSchema);
     validate(quizData); // Returns primitive boolean, ignores mutations to errors array easily
 

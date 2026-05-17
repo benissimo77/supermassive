@@ -1,0 +1,543 @@
+{
+	"title": "Movie Mastermind: 2024 In Review",
+	"description": "<p>How well do you know the biggest blockbusters and brightest stars of 2024?</p>",
+	"rounds": [
+		{
+			"title": "Box Office Hits 2024",
+			"description": "Round 1: The biggest movies of the year.",
+			"roundTimer": "0",
+			"showAnswer": "question",
+			"updateScores": "question",
+			"questions": [
+				{
+					"type": "multiple-choice",
+					"text": "Who directed the 2024 MCU blockbuster 'Deadpool & Wolverine'?",
+					"options": [
+						"Shawn Levy",
+						"James Gunn",
+						"Taika Waititi",
+						"Ryan Reynolds"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "In 'Inside Out 2', what is the name of the new orange emotion voiced by Maya Hawke?",
+					"options": [
+						"Anxiety",
+						"Envy",
+						"Ennui",
+						"Embarrassment"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Which actor played the chilling antagonist Feyd-Rautha Harkonnen in 'Dune: Part Two'?",
+					"options": [
+						"Austin Butler",
+						"Timothée Chalamet",
+						"Barry Keoghan",
+						"Tom Holland"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Auliʻi Cravalho returned to voice which title character in a 2024 Disney animated sequel?",
+					"options": [
+						"Moana",
+						"Elsa",
+						"Tiana",
+						"Rapunzel"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Who directed the 2024 musical film adaptation of 'Wicked'?",
+					"options": [
+						"Jon M. Chu",
+						"Lin-Manuel Miranda",
+						"Rob Marshall",
+						"Steven Spielberg"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "In 'Inside Out 2', what is the first name of the teenage girl whose mind serves as the film's setting?",
+					"options": [
+						"Riley",
+						"Joy",
+						"Val",
+						"Grace"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Which actor made a surprise return as his former character Johnny Storm in 'Deadpool & Wolverine'?",
+					"options": [
+						"Chris Evans",
+						"Robert Downey Jr.",
+						"Chris Hemsworth",
+						"Mark Ruffalo"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Which director helmed the 2024 science fiction epic 'Dune: Part Two'?",
+					"options": [
+						"Denis Villeneuve",
+						"Christopher Nolan",
+						"Ridley Scott",
+						"Zack Snyder"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Which singer and actress plays the role of Glinda the Good in 'Wicked'?",
+					"options": [
+						"Ariana Grande",
+						"Cynthia Erivo",
+						"Taylor Swift",
+						"Lady Gaga"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Which actor voices the powerful demigod Maui in 'Moana 2'?",
+					"options": [
+						"Dwayne Johnson",
+						"Jason Momoa",
+						"Roman Reigns",
+						"Kevin Hart"
+					]
+				}
+			]
+		},
+		{
+			"title": "Stars & Directors 2024",
+			"description": "Round 2: Names behind the cameras and the faces on screen.",
+			"roundTimer": "0",
+			"showAnswer": "question",
+			"updateScores": "question",
+			"questions": [
+				{
+					"type": "multiple-choice",
+					"text": "Who directed the 2024 animated hit 'Despicable Me 4'?",
+					"options": [
+						"Chris Renaud",
+						"Pierre Coffin",
+						"Kyle Balda",
+						"Illumination Entertainment"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Which director helmed the live-action/CGI prequel 'Mufasa: The Lion King'?",
+					"options": [
+						"Barry Jenkins",
+						"Jon Favreau",
+						"Guy Ritchie",
+						"Rob Marshall"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Which actor voices Po in 'Kung Fu Panda 4'?",
+					"options": [
+						"Jack Black",
+						"Dustin Hoffman",
+						"Bryan Cranston",
+						"Seth Rogen"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Who directed the long-awaited sequel 'Beetlejuice Beetlejuice'?",
+					"options": [
+						"Tim Burton",
+						"Danny Elfman",
+						"Sam Raimi",
+						"Guillermo del Toro"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Which legendary director returned to the arena to helm 'Gladiator II'?",
+					"options": [
+						"Ridley Scott",
+						"Martin Scorsese",
+						"Francis Ford Coppola",
+						"James Cameron"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Who directed the 2024 disaster film sequel 'Twisters'?",
+					"options": [
+						"Lee Isaac Chung",
+						"Jan de Bont",
+						"Steven Spielberg",
+						"Joseph Kosinski"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Which actor stars as the main character Lucius in 'Gladiator II'?",
+					"options": [
+						"Paul Mescal",
+						"Pedro Pascal",
+						"Denzel Washington",
+						"Connie Nielsen"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "In 'Sonic the Hedgehog 3', which actor provides the voice for the character Shadow?",
+					"options": [
+						"Keanu Reeves",
+						"Ben Schwartz",
+						"Idris Elba",
+						"Jim Carrey"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Who directed the 2024 film 'Kingdom of the Planet of the Apes'?",
+					"options": [
+						"Wes Ball",
+						"Matt Reeves",
+						"James Mangold",
+						"Rupert Wyatt"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Which actor stars as Mike Lowrey in the 2024 sequel 'Bad Boys: Ride or Die'?",
+					"options": [
+						"Will Smith",
+						"Martin Lawrence",
+						"Terry Crews",
+						"Jamie Foxx"
+					]
+				}
+			]
+		},
+		{
+			"title": "Film Trivia Mix",
+			"description": "Round 3: A mix of ordering, true/false, and fun facts.",
+			"roundTimer": "0",
+			"showAnswer": "question",
+			"updateScores": "question",
+			"questions": [
+				{
+					"type": "ordering",
+					"text": "Place these 2024 films in order of their domestic release (Earliest to Latest).",
+					"extra": {
+						"startLabel": "Earliest",
+						"endLabel": "Latest"
+					},
+					"items": [
+						"Dune: Part Two (March)",
+						"Inside Out 2 (June)",
+						"Deadpool & Wolverine (July)",
+						"Wicked (November)"
+					]
+				},
+				{
+					"type": "true-false",
+					"text": "True or False: In Moana 2, the title character is voiced by Zendaya.",
+					"answer": "false"
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Which of these is NOT one of the new emotions introduced in 'Inside Out 2'?",
+					"options": [
+						"Happiness",
+						"Envy",
+						"Ennui",
+						"Anxiety"
+					]
+				},
+				{
+					"type": "ordering",
+					"text": "Sort these 2024 films by their approximate worldwide box office gross (Highest to Lowest).",
+					"extra": {
+						"startLabel": "Highest",
+						"endLabel": "Lowest"
+					},
+					"items": [
+						"Inside Out 2",
+						"Deadpool & Wolverine",
+						"Moana 2",
+						"Dune: Part Two"
+					]
+				},
+				{
+					"type": "true-false",
+					"text": "True or False: The 2024 film 'Twisters' is a sequel to the 1996 film 'Twister'.",
+					"answer": "true"
+				},
+				{
+					"type": "multiple-choice",
+					"text": "In 'Dune: Part Two', what is the name of the spice-rich desert planet?",
+					"options": [
+						"Arrakis",
+						"Tatooine",
+						"Pandora",
+						"Hoth"
+					]
+				},
+				{
+					"type": "true-false",
+					"text": "True or False: 'Gladiator II' was released exactly 10 years after the original 2000 film.",
+					"answer": "false"
+				},
+				{
+					"type": "ordering",
+					"text": "Place these 2024 film stars in alphabetical order of their LAST names.",
+					"extra": {
+						"startLabel": "A",
+						"endLabel": "Z"
+					},
+					"items": [
+						"Timothée Chalamet",
+						"Ariana Grande",
+						"Amy Poehler",
+						"Ryan Reynolds"
+					]
+				},
+				{
+					"type": "true-false",
+					"text": "True or False: 'Inside Out 2' became the highest-grossing animated film of all time during its 2024 run.",
+					"answer": "true"
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Which legendary actor plays the Wizard of Oz in the 2024 film 'Wicked'?",
+					"options": [
+						"Jeff Goldblum",
+						"Tom Hanks",
+						"Bryan Cranston",
+						"Bill Murray"
+					]
+				}
+			]
+		},
+		{
+			"title": "Supporting Stars & Roles",
+			"description": "Round 4: The essential supporting cast of 2024's biggest films.",
+			"roundTimer": "0",
+			"showAnswer": "question",
+			"updateScores": "question",
+			"questions": [
+				{
+					"type": "multiple-choice",
+					"text": "Which actor plays the Dean of Shiz University, Madame Morrible, in the 2024 film 'Wicked'?",
+					"options": [
+						"Michelle Yeoh",
+						"Meryl Streep",
+						"Glenn Close",
+						"Cate Blanchett"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "In 'Dune: Part Two', which actor portrays Princess Irulan, the Emperor's daughter?",
+					"options": [
+						"Florence Pugh",
+						"Anya Taylor-Joy",
+						"Margot Robbie",
+						"Emma Stone"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Who plays the character Gurney Halleck, Paul's mentor and friend, in 'Dune: Part Two'?",
+					"options": [
+						"Josh Brolin",
+						"Oscar Isaac",
+						"Javier Bardem",
+						"Stellan Skarsgård"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Which actress voices the emotion Disgust in 'Inside Out 2', taking over the role from Mindy Kaling?",
+					"options": [
+						"Liza Lapira",
+						"Awkwafina",
+						"Tiffany Haddish",
+						"Leslie Jones"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "In 'Deadpool & Wolverine', which actor returns as the fan-favorite character Peter?",
+					"options": [
+						"Rob Delaney",
+						"Ryan Reynolds",
+						"Karan Soni",
+						"T.J. Miller"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Which actor voices the emotion Ennui (Boredom) in the Pixar sequel 'Inside Out 2'?",
+					"options": [
+						"Adèle Exarchopoulos",
+						"Marion Cotillard",
+						"Léa Seydoux",
+						"Eva Green"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Who plays Mr. Paradox, the TVA agent who recruits Wade Wilson in 'Deadpool & Wolverine'?",
+					"options": [
+						"Matthew Macfadyen",
+						"David Tennant",
+						"Tom Hiddleston",
+						"Owen Wilson"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Which veteran actress voices the emotion Nostalgia in 'Inside Out 2'?",
+					"options": [
+						"June Squibb",
+						"Helen Mirren",
+						"Judi Dench",
+						"Maggie Smith"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "In 'Moana 2', who voices the quirky craftswoman Loto on Moana's wayfinding crew?",
+					"options": [
+						"Rose Matafeo",
+						"Rachel House",
+						"Taika Waititi",
+						"Jemaine Clement"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Which actor from the original 'Gladiator' (2000) reprises her role as Lucilla in the 2024 sequel?",
+					"options": [
+						"Connie Nielsen",
+						"Djimon Hounsou",
+						"Derek Jacobi",
+						"Joaquin Phoenix"
+					]
+				}
+			]
+		},
+		{
+			"title": "2024 Film Potpourri",
+			"description": "Round 5: A final mix of trivia from the year's diverse film slate.",
+			"roundTimer": "0",
+			"showAnswer": "question",
+			"updateScores": "question",
+			"questions": [
+				{
+					"type": "multiple-choice",
+					"text": "Which 2024 monster film features Godzilla and Kong teaming up against a new threat?",
+					"options": [
+						"Godzilla x Kong: The New Empire",
+						"Godzilla Minus One",
+						"Kong: Skull Island",
+						"Monsterverse: Uprising"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Who directed the 2024 animated sequel 'Kung Fu Panda 4'?",
+					"options": [
+						"Mike Mitchell",
+						"Jennifer Yuh Nelson",
+						"Dean DeBlois",
+						"Mark Osborne"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Which 2024 film serves as a direct sequel to Tim Burton's 1988 classic 'Beetlejuice'?",
+					"options": [
+						"Beetlejuice Beetlejuice",
+						"Beetlejuice Returns",
+						"The Ghost with the Most",
+						"Burton's Beetlejuice"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "In 'Despicable Me 4', which actor voices Gru's new nemesis, Maxime Le Mal?",
+					"options": [
+						"Will Ferrell",
+						"Steve Carell",
+						"Pierre Coffin",
+						"Jason Segel"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Which 2024 film follows a group of storm chasers in Oklahoma?",
+					"options": [
+						"Twisters",
+						"Vortex",
+						"Storm Warning",
+						"Windy City"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "In the 2024 film 'Mufasa: The Lion King', who voices the character Taka, the future Scar?",
+					"options": [
+						"Kelvin Harrison Jr.",
+						"Jeremy Irons",
+						"Chiwetel Ejiofor",
+						"Seth Rogen"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Which 2024 film is the fourth installment in the modern 'Planet of the Apes' reboot series?",
+					"options": [
+						"Kingdom of the Planet of the Apes",
+						"Dawn of the Planet of the Apes",
+						"War for the Planet of the Apes",
+						"Rise of the Planet of the Apes"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "In 'Bad Boys: Ride or Die', who plays the role of Marcus Burnett alongside Will Smith?",
+					"options": [
+						"Martin Lawrence",
+						"Kevin Hart",
+						"Jamie Foxx",
+						"Terrence Howard"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Which actor stars as Tyler Owens, the 'Tornado Wrangler', in the film 'Twisters'?",
+					"options": [
+						"Glen Powell",
+						"Paul Mescal",
+						"Austin Butler",
+						"Tom Holland"
+					]
+				},
+				{
+					"type": "multiple-choice",
+					"text": "Who directed the 2024 sci-fi film 'Kingdom of the Planet of the Apes'?",
+					"options": [
+						"Wes Ball",
+						"Matt Reeves",
+						"James Mangold",
+						"Rupert Wyatt"
+					]
+				}
+			]
+		}
+	]
+}

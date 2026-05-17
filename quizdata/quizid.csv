@@ -1,0 +1,12 @@
+quiz,Title of the Quiz,Description - additional information which can include basic HTML <b>markup</b> but nothing complex like <script...>
+round,Title of this round,Description - additional info on round - similar to quiz above,{"overrides":"active"}
+question,questiontype,Remainder of line determined by what type of question it is... eg basic will be a question and then up to 6 answers
+question,basic,What is the capital of France?,Paris,Madrid,Berlin,London
+question,truefalse,True or False? An apple is a vegetable?,False
+question,sort,Arrange the following in alphabetical order,Apple,Banana,Cabbage,Donkey,{"overrides":"inactive", "duration":5,"questiontypes":"timed"}
+question,buzzer,Who is the first to know the answer to this question?
+round,Round 2 Here!,Description - this is the description for round 2 - similar to quiz above,{"overrides":"active"}
+question,sort,Arrange the following in alphabetical order,Apple,Banana,Cabbage,Donkey,{"overrides":"inactive", "duration":5,"questiontypes":"timed"}
+question,buzzer,Who is the first to know the answer to this question?
+round,Round 3 Here!,Description - this has no questions in it,{"overrides":"active"}
+

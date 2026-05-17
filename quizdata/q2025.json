@@ -1,0 +1,322 @@
+{
+  "title": "End of Year Quiz 2025",
+  "description": "A quiz covering world news, culture, sport, science, and internet trends from the year 2025.",
+  "rounds": [
+    {
+      "title": "Headline News 2025",
+      "description": "Major and minor news stories that shaped 2025.",
+      "roundTimer": "0",
+      "showAnswer": "round",
+      "updateScores": "round",
+      "questions": [
+        {
+          "type": "multiple-choice",
+          "text": "Which country hosted the G20 Summit in 2025?",
+          "options": ["answer", "South Korea", "Brazil", "France"]
+        },
+        {
+          "type": "multiple-choice",
+          "text": "Which major climate agreement milestone was scheduled for review in 2025?",
+          "options": ["answer", "Kyoto Follow-up Accord", "COP21 Green Protocol", "Bali Environmental Framework"]
+        },
+        {
+          "type": "text",
+          "text": "What was the name of the 2025 global economic forecast released mid-year that predicted a major shift in AI-driven productivity?",
+          "answer": "answer"
+        },
+        {
+          "type": "true-false",
+          "text": "True or false: In 2025, a major international conference on digital privacy introduced the first unified global AI safety reporting standard.",
+          "answer": "answer"
+        },
+        {
+          "type": "number-exact",
+          "text": "How many countries participated in the 2025 Global Clean Energy Pledge update?",
+          "answer": 0
+        },
+        {
+          "type": "multiple-choice",
+          "text": "Which company announced a breakthrough commercial fusion milestone in 2025?",
+          "options": ["answer", "Commonwealth Fusion Systems", "Tokamak Energy", "ITER Consortium"]
+        },
+        {
+          "type": "text",
+          "text": "What city hosted the emergency cybersecurity summit following the major cloud outage of 2025?",
+          "answer": "answer"
+        },
+        {
+          "type": "multiple-choice",
+          "text": "Which global health organisation declared the end of a multi-year outbreak in 2025?",
+          "options": ["answer", "CDC", "UNHCR", "MSF"]
+        },
+        {
+          "type": "number-closest",
+          "text": "How many satellites were reportedly affected by the geomagnetic storm in 2025?",
+          "answer": 0
+        },
+        {
+          "type": "true-false",
+          "text": "True or false: A major world leader resigned unexpectedly halfway through 2025.",
+          "answer": "answer"
+        }
+      ]
+    },
+    {
+      "title": "Sporting Moments 2025",
+      "description": "From major championships to viral sporting moments.",
+      "roundTimer": "0",
+      "showAnswer": "round",
+      "updateScores": "round",
+      "questions": [
+        {
+          "type": "multiple-choice",
+          "text": "Which nation won the 2025 Women’s European Football Championship?",
+          "options": ["answer", "Spain", "France", "Germany"]
+        },
+        {
+          "type": "text",
+          "text": "Which athlete broke a long-standing world record in 2025?",
+          "answer": "answer"
+        },
+        {
+          "type": "true-false",
+          "text": "True or false: VAR technology underwent a significant rule update in 2025.",
+          "answer": "answer"
+        },
+        {
+          "type": "number-exact",
+          "text": "What was the winning point tally in the 2025 NBA Finals Game 7?",
+          "answer": 0
+        },
+        {
+          "type": "multiple-choice",
+          "text": "Which country surprised commentators with a major upset win in the 2025 Rugby Championship?",
+          "options": ["answer", "Australia", "New Zealand", "South Africa"]
+        },
+        {
+          "type": "text",
+          "text": "Which tennis player won Wimbledon 2025?",
+          "answer": "answer"
+        },
+        {
+          "type": "number-average",
+          "text": "Guess the average attendance of the 2025 Cricket World Final (in thousands). The closest to the group average wins.",
+          "answer": 0
+        },
+        {
+          "type": "multiple-choice",
+          "text": "Which Formula 1 team introduced a radical aero package mid-season in 2025?",
+          "options": ["answer", "Ferrari", "Red Bull", "Mercedes"]
+        }
+      ]
+    },
+    {
+      "title": "Culture & Entertainment 2025",
+      "description": "Films, TV, music, books and cultural shifts of the year.",
+      "roundTimer": "0",
+      "showAnswer": "round",
+      "updateScores": "round",
+      "questions": [
+        {
+          "type": "multiple-choice",
+          "text": "Which movie became an unexpected global box-office hit in 2025?",
+          "options": ["answer", "Movie A", "Movie B", "Movie C"]
+        },
+        {
+          "type": "text",
+          "text": "Which artist released the highest-streamed album of 2025?",
+          "answer": "answer"
+        },
+        {
+          "type": "multiple-choice",
+          "text": "Which TV series debuted in 2025 and immediately topped the streaming charts?",
+          "options": ["answer", "Series A", "Series B", "Series C"]
+        },
+        {
+          "type": "true-false",
+          "text": "True or false: A new social media platform launched in 2025 and surpassed 50 million users within 3 months.",
+          "answer": "answer"
+        },
+        {
+          "type": "text",
+          "text": "Which memoir released in 2025 became a bestseller within its first week?",
+          "answer": "answer"
+        },
+        {
+          "type": "multiple-choice",
+          "text": "Which cultural festival introduced a groundbreaking AI-assisted performance category in 2025?",
+          "options": ["answer", "Festival A", "Festival B", "Festival C"]
+        },
+        {
+          "type": "number-closest",
+          "text": "How many copies (in millions) did the year's most-streamed single sell in 2025?",
+          "answer": 0
+        },
+        {
+          "type": "true-false",
+          "text": "True or false: A 1990s TV series received a successful reboot in 2025.",
+          "answer": "answer"
+        }
+      ]
+    },
+    {
+      "title": "Internet Trends & Viral Moments 2025",
+      "description": "TikTok, Reddit, memes, online culture and internet oddities.",
+      "roundTimer": "0",
+      "showAnswer": "round",
+      "updateScores": "round",
+      "questions": [
+        {
+          "type": "multiple-choice",
+          "text": "What was the biggest TikTok challenge of early 2025?",
+          "options": ["answer", "Challenge A", "Challenge B", "Challenge C"]
+        },
+        {
+          "type": "text",
+          "text": "Which meme dominated social media in 2025?",
+          "answer": "answer"
+        },
+        {
+          "type": "multiple-choice",
+          "text": "Which subreddit saw explosive growth due to a viral incident in 2025?",
+          "options": ["answer", "r/Unexpected", "r/Technology", "r/Funny"]
+        },
+        {
+          "type": "true-false",
+          "text": "True or false: A new AI-image prank filter went viral in mid-2025.",
+          "answer": "answer"
+        },
+        {
+          "type": "number-exact",
+          "text": "How many million views did the most-watched TikTok of 2025 reach?",
+          "answer": 0
+        },
+        {
+          "type": "multiple-choice",
+          "text": "Which niche hobby unexpectedly went mainstream online in 2025?",
+          "options": ["answer", "Miniature Pottery", "Urban Foraging", "Reverse Gardening"]
+        },
+        {
+          "type": "text",
+          "text": "What phrase became the most-used catchphrase on social media in 2025?",
+          "answer": "answer"
+        }
+      ]
+    },
+    {
+      "title": "Science, Tech & Space 2025",
+      "description": "Breakthroughs, discoveries and technology milestones.",
+      "roundTimer": "0",
+      "showAnswer": "round",
+      "updateScores": "round",
+      "questions": [
+        {
+          "type": "multiple-choice",
+          "text": "Which tech giant unveiled a major AI model update in 2025?",
+          "options": ["answer", "Company A", "Company B", "Company C"]
+        },
+        {
+          "type": "text",
+          "text": "What was the codename of the 2025 Mars rover technology demonstration?",
+          "answer": "answer"
+        },
+        {
+          "type": "true-false",
+          "text": "True or false: A private company completed the first commercial lunar materials return in 2025.",
+          "answer": "answer"
+        },
+        {
+          "type": "number-exact",
+          "text": "How many exoplanets were added to confirmed catalogues in 2025?",
+          "answer": 0
+        },
+        {
+          "type": "multiple-choice",
+          "text": "Which major consumer technology shifted to 100% recyclable materials in its 2025 model?",
+          "options": ["answer", "Product A", "Product B", "Product C"]
+        },
+        {
+          "type": "text",
+          "text": "Which breakthrough battery technology achieved mass production in 2025?",
+          "answer": "answer"
+        },
+        {
+          "type": "number-closest",
+          "text": "By how many percent did global EV sales grow in 2025?",
+          "answer": 0
+        },
+        {
+          "type": "true-false",
+          "text": "True or false: Scientists published the first full 3D map of a major deep-sea trench in 2025.",
+          "answer": "answer"
+        }
+      ]
+    },
+    {
+      "title": "Quirky, Weird & Wonderful 2025",
+      "description": "The fun, the strange, and the stories that made people smile.",
+      "roundTimer": "0",
+      "showAnswer": "round",
+      "updateScores": "round",
+      "questions": [
+        {
+          "type": "multiple-choice",
+          "text": "Which collectible caused chaos in shops due to a viral buying craze in 2025?",
+          "options": ["answer", "Labubu Dolls", "Plush Yaks", "Cosmic Beans Figures"]
+        },
+        {
+          "type": "text",
+          "text": "Which small town went viral after unveiling a bizarrely shaped public statue in 2025?",
+          "answer": "answer"
+        },
+        {
+          "type": "ordering",
+          "text": "Order these 2025 viral trends chronologically from earliest to latest.",
+          "items": ["Trend A", "Trend B", "Trend C", "Trend D"],
+          "extra": {
+            "startLabel": "Earliest",
+            "endLabel": "Latest"
+          }
+        },
+        {
+          "type": "true-false",
+          "text": "True or false: A zoo in 2025 accidentally became a meme after a parrot learned to imitate smartphone notifications.",
+          "answer": "answer"
+        },
+        {
+          "type": "matching",
+          "text": "Match the strange 2025 headline to the country it happened in.",
+          "pairs": [
+            {
+              "left": "Headline A",
+              "right": "Country A"
+            },
+            {
+              "left": "Headline B",
+              "right": "Country B"
+            },
+            {
+              "left": "Headline C",
+              "right": "Country C"
+            }
+          ]
+        },
+        {
+          "type": "number-closest",
+          "text": "How many applications were submitted to become the '2025 Volunteer Time Traveller' in a viral publicity stunt?",
+          "answer": 0
+        },
+        {
+          "type": "number-average",
+          "text": "Guess the average sale price (USD) of the rarest 2025 collectible sold at auction.",
+          "answer": 0
+        },
+        {
+          "type": "multiple-choice",
+          "text": "What unusual world record was broken in 2025?",
+          "options": ["answer", "Longest Synchronized Nap", "Most People Balancing Spoons", "Fastest Human Pyramid Assembly"]
+        }
+      ]
+    }
+  ]
+}

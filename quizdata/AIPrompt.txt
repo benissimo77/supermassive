@@ -1,0 +1,89 @@
+SuperMassive Quiz AI Specification (Final Version)
+
+1. Quiz Overview
+
+A quiz consists of 5 rounds, each with 8–12 questions.
+
+Rounds can be timed (fixed seconds per round) or untimed (host controls duration).
+
+Questions are presented as text, optionally supplemented with images and/or audio.
+
+The goal is to create a quiz that is fun, engaging, and challenging for a general audience, including family players across a wide range of ages (children, adults, grandparents).
+
+2. Round Structure
+
+Rounds may be organized in two main ways:
+
+By Subject
+All questions relate to a particular theme (e.g., History, Geography, TV & Film, Science, Mathematics).
+Each question may vary in type (multiple-choice, text, etc.) but stays within the thematic context.
+
+By Question Type
+All questions in the round use the same type (e.g., Picture Round, Audio Round, Ordering Round).
+The subject matter may vary from question to question, but the mode of answering is consistent.
+
+AI Guidance: When generating rounds, aim to balance subject matter and question type diversity across the quiz. Avoid repeating the same type or topic consecutively unless intentionally designing a themed round.
+
+3. Question Types
+
+Quizzes may include a variety of question types. Examples include:
+
+Multiple-choice: 2–8 options; first item in the array is correct; options are shuffled by the engine.
+
+True/False: Answer is “true” or “false.”
+
+Text: Player types a short text answer. Attention here for making answers easy to type, and avoiding potentially ambiguous spellings.
+
+Number-based: number-exact, number-closest, number-average. 
+- Number exact: players must answer the exact number.
+- Number closest: players guess the answer, players closest to the correct answer score higher. 
+- Number average: players guess their answer and the average of all guesses is calculated - players closest to this average score higher.
+
+Ordering: Player orders a list of items (3–6 items).
+
+Matching: Player matches pairs of items (up to 5 pairs of items).
+
+Draw: Player draws a specified shape, line, or symbol.
+
+NOTE: Do NOT generate "Hotspot" or "Point-It-Out" questions at this stage.
+
+4. Image Requirements
+
+Must be publicly viewable in a browser.
+
+Optional: PNG or JPG format.
+
+Avoid low-resolution or ambiguous images.
+
+No licensing check is required at this stage; assume valid usage for small-scale testing.
+
+
+5. General Question Guidelines
+
+- Questions must be engaging, not trivial, yet not impossible.
+- A challenging but fair question should align roughly with the knowledge of an intelligent 18-year-old with general awareness of popular culture, current events, history, and science. Questions should 'average' around this level with a mixture above and below this average level.
+- Subjects trending on news, online content, and forums are good candidates.
+
+CRITICAL: NO CLUES IN QUESTIONS
+The answer, or a significant part of the answer, or a direct clue to the answer must NOT appear in the question.
+- BAD (Answer in question): "Match the country with its currency: Canada" -> Answer: "Canadian Dollar" (Fails because 'Canada' is in the answer).
+- BAD (Direct clue): "Which colorful bridge in San Francisco is famously painted international orange?" -> Answer: "Golden Gate Bridge" (Fails because 'orange' and 'colorful' lead too strongly to a visual description).
+- BAD (Trivial): "What is the capital of England?" -> "London" (Too easy).
+
+6. Diversity Guidelines
+
+Avoid repetition of subjects, question types, or images within a round.
+
+Across the quiz:
+Include questions suitable for children (popular culture, TV characters).
+Include questions suitable for adults/grandparents (history, geography, general knowledge).
+Encourage a variety of cognitive skills: recognition, estimation, ordering, calculation, memory recall, and reasoning.
+
+7. Intended Outcome for AI
+
+Using this specification, AI should be able to:
+Select visually rich, contextually appropriate images.
+Ensure a balanced, diverse, engaging quiz with multiple subjects, types, and difficulty levels.
+Produce output compatible with the quiz schema, including images.
+Strictly adhere to the rule that the question text must not reveal or trivialize the answer.
+

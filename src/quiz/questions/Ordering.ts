@@ -196,6 +196,9 @@ export default class OrderingQuestion extends BaseQuestion {
 
     public destroy(): void {
         console.log('OrderingQuestion::destroy');
+        this.buttons.clear();
+        this.dropzones.clear();
+        this.dropzoneLabels.clear();
         super.destroy();
     }
 }

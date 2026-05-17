@@ -1,0 +1,367 @@
+{
+    "title": "The Veluwe 2025 Golf, Food, Wine and Poker Mega-Quiz!",
+    "description": "Ok, not very mega, but hey sales...",
+    "rounds": [
+        {
+            "title": "General Ignorance",
+            "description": "We are warming up! Just your basic general knowledge questions. Four possible answers, how much do you know?",
+            "roundTimer": "0",
+            "showAnswer": "round",
+            "updateScores": "round",
+            "questions": [
+                {
+                    "type": "multiple-choice",
+                    "text": "Science: Which gas do plants absorb from the atmosphere?",
+                    "options": [
+                        "Carbon Dioxide",
+                        "Oxygen",
+                        "Nitrogen",
+                        "Hydrogen"
+                    ]
+                },
+                {
+                    "type": "multiple-choice",
+                    "text": "Geography: What is the smallest country in the world?",
+                    "options": [
+                        "Vatican City",
+                        "Monaco",
+                        "San Marino",
+                        "Liechtenstein"
+                    ]
+                },
+                {
+                    "type": "multiple-choice",
+                    "text": "History: Who was the first President of the United States?",
+                    "options": [
+                        "George Washington",
+                        "Thomas Jefferson",
+                        "Abraham Lincoln",
+                        "John Adams"
+                    ]
+                },
+                {
+                    "type": "multiple-choice",
+                    "text": "On a similar note: Who was the first President of Ireland?",
+                    "options": [
+                        "Douglas Hyde",
+                        "Éamon de Valera",
+                        "W.T. Cosgrave",
+                        "Michael Collins"
+                    ]
+                },
+                {
+                    "type": "multiple-choice",
+                    "text": "Scotland does not have a President - but they do have a First Minister! Who was Scotland's first First Minister?",
+                    "options": [
+                        "Donald Dewar",
+                        "Alex Salmond",
+                        "Henry McLeish",
+                        "Jack McConnell"
+                    ]
+                },
+                {
+                    "type": "multiple-choice",
+                    "text": "Since we're in Netherlands: Who was the first Stadhouder of the independent Dutch Republic?",
+                    "options": [
+                        "William I of Orange",
+                        "Johan van Oldenbarnevelt",
+                        "Maurice of Nassau",
+                        "Johan de Witt"
+                    ]
+                },
+                {
+                    "type": "ordering",
+                    "text": "Arrange those four positions in order of when they were first created. Whose traditions are oldest???",
+                    "extra": {
+                        "startLabel": "Earliest",
+                        "endLabel": "Latest"
+                    },
+                    "items": [
+                        "Dutch Stadhouder",
+                        "US Presidency",
+                        "Irish Presidency",
+                        "Scottish First Minister"
+                    ]
+                }
+            ]
+        },
+        {
+            "title": "POKER",
+            "description": "A few questions about poker - just to get you in the mood for the main event later...",
+            "roundTimer": "0",
+            "showAnswer": "round",
+            "updateScores": "round",
+            "questions": [
+                {
+                    "type": "multiple-choice",
+                    "text": "Which of these is NOT a variation of poker?",
+                    "options": [
+                        "Canasta",
+                        "Omaha",
+                        "Seven-Card Stud",
+                        "Razz"
+                    ]
+                },
+                {
+                    "type": "ordering",
+                    "text": "Arrange these poker positions in clockwise order starting from the small blind.",
+                    "extra": {
+                        "startLabel": "First",
+                        "endLabel": "Last"
+                    },
+                    "items": [
+                        "Small Blind",
+                        "Big Blind",
+                        "Under the Gun",
+                        "Hijack",
+                        "Cutoff",
+                        "Button"
+                    ]
+                },
+                {
+                    "type": "matching",
+                    "text": "Match these advanced poker concepts with their definitions.",
+                    "pairs": [
+                        {
+                            "left": "Implied Odds",
+                            "right": "Potential future bets you might win if you hit your draw"
+                        },
+                        {
+                            "left": "Reverse Implied Odds",
+                            "right": "When making your hand might cost you more than you win"
+                        },
+                        {
+                            "left": "Blockers",
+                            "right": "Cards in your hand that reduce opponent's chances of strong holdings"
+                        },
+                        {
+                            "left": "Polarized Range",
+                            "right": "Betting with very strong hands and bluffs but not middle strength"
+                        },
+                        {
+                            "left": "GTO",
+                            "right": "Strategy that cannot be exploited regardless of opponent's play"
+                        }
+                    ]
+                },
+                {
+                    "type": "multiple-choice",
+                    "text": "Which of these is NOT part of the 'Independent Chip Model' (ICM) considerations in tournament poker?",
+                    "options": [
+                        "Expected hourly rate of return",
+                        "Pay jump considerations",
+                        "Stack size relative to tournament average",
+                        "Probability of finishing in each position"
+                    ]
+                },
+                {
+                    "type": "multiple-choice",
+                    "text": "Who won the 2025 World Series of Poker Main Event?",
+                    "image": "https://www.imageservera.com/cdn-cgi/image/format=webp/uploadedimages/202507/Jul17/CR_ORG_Michael-Mizrachi--2025-WSOP-Main-Event-winner-17075985.jpg",
+                    "options": [
+                        "Michael Mizrachi",
+                        "Jonathan Tamayo",
+                        "Elmer",
+                        "Joe McKeehen"
+                    ]
+                },
+                {
+                    "type": "number-closest",
+                    "text": "How many players did he beat in order to take the title?",
+                    "answer": 9735
+                },
+                {
+                    "type": "true-false",
+                    "text": "True or False - he won with T3o?",
+                    "answer": false
+                },
+                {
+                    "type": "text",
+                    "text": "Enter the (two-letter) initials of the poker player known as 'The Magician'?",
+                    "image": "https://casinochecking.com/wp-content/uploads/2018/08/Antonio-Esfandiari-poker-2000x1331.jpg",
+                    "answer": "AE"
+                }
+            ]
+        },
+        {
+            "title": "Food and Drink",
+            "description": "A few questions about food and drink - it was that or questions about cycling",
+            "roundTimer": "0",
+            "showAnswer": "round",
+            "updateScores": "round",
+            "questions": [
+                {
+                    "type": "multiple-choice",
+                    "text": "What is the most widely consumed beverage in the world?",
+                    "options": [
+                        "Tea",
+                        "Coffee",
+                        "Water",
+                        "Juice"
+                    ]
+                },
+                {
+                    "type": "matching",
+                    "text": "Match these wines with their primary grape varieties.",
+                    "pairs": [
+                        {
+                            "left": "Cabernet Sauvignon",
+                            "right": "Red grape with black currant notes"
+                        },
+                        {
+                            "left": "Chardonnay",
+                            "right": "White grape often aged in oak"
+                        },
+                        {
+                            "left": "Merlot",
+                            "right": "Soft red grape with plum flavors"
+                        },
+                        {
+                            "left": "Sauvignon Blanc",
+                            "right": "Crisp white grape with grassy notes"
+                        },
+                        {
+                            "left": "Pinot Noir",
+                            "right": "Light red grape with cherry notes"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "title": "GOLF!",
+            "description": "Well why not eh? It is a golf weekend after all...",
+            "roundTimer": "0",
+            "showAnswer": "round",
+            "updateScores": "round",
+            "questions": [
+                {
+                    "type": "multiple-choice",
+                    "text": "What is the term for a score of one under par on a hole?",
+                    "options": [
+                        "Birdie",
+                        "Eagle",
+                        "Par",
+                        "Bogey"
+                    ]
+                },
+                {
+                    "type": "text",
+                    "text": "What are the (two-letter) initials of this golfer?",
+                    "image": "https://staticg.sportskeeda.com/editor/2023/03/20b83-16799468691823-1920.jpg",
+                    "answer": "AP"
+                },
+                {
+                    "type": "multiple-choice",
+                    "text": "What is the maximum number of clubs a golfer is allowed to carry in their bag during a round?",
+                    "options": [
+                        "14",
+                        "10",
+                        "12",
+                        "16"
+                    ]
+                },
+                {
+                    "type": "number-closest",
+                    "text": "What is the length in yards of the longest golf hole in the world, the 7th hole at the Satsuki Golf Club in Japan?",
+                    "answer": 964
+                },
+                {
+                    "type": "matching",
+                    "text": "Match these famous golf courses with their locations.",
+                    "pairs": [
+                        {
+                            "left": "St Andrews",
+                            "right": "Scotland"
+                        },
+                        {
+                            "left": "Augusta National",
+                            "right": "Georgia, USA"
+                        },
+                        {
+                            "left": "Pebble Beach",
+                            "right": "California, USA"
+                        },
+                        {
+                            "left": "Oakmont",
+                            "right": "Pennsylvania, USA"
+                        },
+                        {
+                            "left": "Valderrama",
+                            "right": "Spain"
+                        }
+                    ]
+                },
+                {
+                    "type": "multiple-choice",
+                    "text": "Which famous golfer is known as \"The Golden Bear\"?",
+                    "options": [
+                        "Jack Nicklaus",
+                        "Tiger Woods",
+                        "Arnold Palmer",
+                        "Gary Player"
+                    ]
+                },
+                {
+                    "type": "number-closest",
+                    "text": "In what year was the Ryder Cup first contested?",
+                    "answer": 1927
+                },
+                {
+                    "type": "multiple-choice",
+                    "text": "Which tournament is considered the oldest major championship in golf?",
+                    "options": [
+                        "The Open Championship",
+                        "The Masters",
+                        "The U.S. Open",
+                        "The PGA Championship"
+                    ]
+                },
+                {
+                    "type": "ordering",
+                    "text": "Order these golf clubs from shortest to longest in terms of typical distance hit.",
+                    "extra": {
+                        "startLabel": "Shortest",
+                        "endLabel": "Longest"
+                    },
+                    "items": [
+                        "5-iron",
+                        "3-iron",
+                        "5-wood",
+                        "3-wood",
+                        "Driver"
+                    ]
+                },
+                {
+                    "type": "number-closest",
+                    "text": "For a reasonably proficient male golfer in their 50s (ahem), what is a typical driving distance in yards?",
+                    "answer": 220
+                },
+                {
+                    "type": "multiple-choice",
+                    "text": "What is awarded to the winner of The Masters Tournament?",
+                    "options": [
+                        "The Green Jacket",
+                        "The Claret Jug",
+                        "The Wanamaker Trophy",
+                        "The Ryder Cup"
+                    ]
+                }
+            ]
+        },
+        {
+            "title": "Wrapping Up",
+            "description": "A few final questions to finish off... if we made it to here then it must have worked out ok!",
+            "roundTimer": "0",
+            "showAnswer": "question",
+            "updateScores": "question",
+            "questions": [
+                {
+                    "type": "draw",
+                    "text": "Draw a picture of anything you like - it must have at least two colours and use at least two different line widths",
+                    "answer": "Let's have a look at what you did..."
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,102 @@
+{
+    "title": "SuperMassive Demo Quiz Images",
+    "description": "A multi-topic quiz featuring a variety of question types and difficulty levels.",
+    "rounds": [
+        {
+            "title": "Current Affairs",
+            "description": "Recent news and world events.",
+            "roundTimer": "30",
+            "showAnswer": "question",
+            "updateScores": "question",
+            "questions": [
+{
+  "type": "point-it-out",
+  "image": "https://upload.wikimedia.org/wikipedia/commons/6/6a/Mona_Lisa.jpg",
+  "text": "Point out the Mona Lisa painting in this museum display.",
+  "answer": {
+    "start": { "x": 350, "y": 180 },
+    "end": { "x": 650, "y": 780 }
+  }
+}
+,
+{
+  "type": "point-it-out",
+  "image": "https://upload.wikimedia.org/wikipedia/commons/1/10/Lincoln_Memorial_%28Washington%2C_D.C.%29_-_interior.jpg",
+  "text": "Point out the statue of Abraham Lincoln in this interior photo of the Lincoln Memorial.",
+  "answer": {
+    "start": { "x": 380, "y": 260 },
+    "end": { "x": 620, "y": 720 }
+  }
+}
+,
+{
+  "type": "point-it-out",
+  "image": "https://upload.wikimedia.org/wikipedia/commons/8/8c/Cristiano_Ronaldo_2018.jpg",
+  "text": "Point out Cristiano Ronaldo in this football photograph.",
+  "answer": {
+    "start": { "x": 330, "y": 180 },
+    "end": { "x": 560, "y": 820 }
+  }
+}
+,
+{
+  "type": "point-it-out",
+  "image": "https://upload.wikimedia.org/wikipedia/commons/6/6b/Leaning_Tower_of_Pisa_2013.jpg",
+  "text": "Point out the Leaning Tower of Pisa in this city scene.",
+  "answer": {
+    "start": { "x": 450, "y": 80 },
+    "end": { "x": 680, "y": 850 }
+  }
+}
+,
+{
+  "type": "point-it-out",
+  "image": "https://upload.wikimedia.org/wikipedia/commons/0/0c/GoldenGateBridge-001.jpg",
+  "text": "Point out the Golden Gate Bridge in this San Francisco landscape.",
+  "answer": {
+    "start": { "x": 50, "y": 300 },
+    "end": { "x": 950, "y": 650 }
+  }
+}
+,
+{
+  "type": "hotspot",
+  "image": "https://upload.wikimedia.org/wikipedia/commons/a/a8/Paris_vue_d%27ensemble_tour_Eiffel.jpg",
+  "text": "Click on the location of the Eiffel Tower in this skyline of Paris.",
+  "answer": { "x": 520, "y": 420 }
+}
+,
+{
+  "type": "hotspot",
+  "image": "https://upload.wikimedia.org/wikipedia/commons/1/12/Himalaya_map.png",
+  "text": "Click the approximate location of Mount Everest on this map of the Himalayas.",
+  "answer": { "x": 705, "y": 465 }
+}
+,
+{
+  "type": "hotspot",
+  "image": "https://upload.wikimedia.org/wikipedia/commons/b/bc/Australia_blank_map.png",
+  "text": "Click the approximate location of Sydney on this blank map of Australia.",
+  "answer": { "x": 885, "y": 815 }
+}
+,
+{
+  "type": "hotspot",
+  "image": "https://upload.wikimedia.org/wikipedia/commons/a/a1/Statue_of_Liberty_7.jpg",
+  "text": "Click the location of the Statue of Liberty in this photograph.",
+  "answer": { "x": 510, "y": 690 }
+}
+,
+{
+  "type": "hotspot",
+  "image": "https://upload.wikimedia.org/wikipedia/commons/f/f1/Mount_Etna_aerial_view.jpg",
+  "text": "Click the location of the main crater at the summit of Mount Etna.",
+  "answer": { "x": 525, "y": 295 }
+}
+
+
+
+            ]
+        }
+    ]
+}

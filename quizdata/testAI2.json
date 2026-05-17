@@ -1,0 +1,159 @@
+{
+  "title": "SuperMassive Demo Quiz",
+  "description": "A multi-topic quiz featuring a variety of question types and difficulty levels.",
+  "rounds": [
+    {
+      "title": "Current Affairs",
+      "description": "Recent news and world events.",
+      "roundTimer": "30",
+      "showAnswer": "question",
+      "updateScores": "question",
+      "questions": [
+        {
+          "type": "multiple-choice",
+          "text": "Who is the current President of France?",
+          "options": [
+            "Emmanuel Macron",
+            "François Hollande",
+            "Nicolas Sarkozy",
+            "Jacques Chirac"
+          ],
+          "difficulty": 2,
+          "image": null,
+          "audio": null
+        },
+        {
+          "type": "true-false",
+          "text": "The 2024 Summer Olympics were held in Los Angeles.",
+          "answer": "false",
+          "difficulty": 1,
+          "image": null,
+          "audio": null
+        }
+      ]
+    },
+    {
+      "title": "TV & Film",
+      "description": "Questions about movies and television.",
+      "roundTimer": "20",
+      "showAnswer": "round",
+      "updateScores": "question",
+      "questions": [
+        {
+          "type": "text",
+          "text": "Which actor played Tony Stark in the Marvel Cinematic Universe?",
+          "answer": "Robert Downey Jr.",
+          "difficulty": 1,
+          "image": "https://upload.wikimedia.org/wikipedia/commons/5/50/Robert_Downey_Jr_2014_Comic_Con_%28cropped%29.jpg",
+          "audio": null
+        },
+        {
+          "type": "hotspot",
+          "text": "Click as close as possible to the Statue of Liberty in this image.",
+          "answer": { "x": 850, "y": 400 },
+          "difficulty": 3,
+          "image": "https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=1000&q=80",
+          "audio": null
+        }
+      ]
+    },
+    {
+      "title": "Sport",
+      "description": "Sports and athletes.",
+      "roundTimer": "10",
+      "showAnswer": "question",
+      "updateScores": "round",
+      "questions": [
+        {
+          "type": "number-exact",
+          "text": "How many players are there in a standard volleyball team?",
+          "answer": 6,
+          "difficulty": 2,
+          "image": null,
+          "audio": null
+        },
+        {
+          "type": "point-it-out",
+          "text": "Select the penalty spot on this football pitch image.",
+          "answer": {
+            "start": { "x": 480, "y": 520 },
+            "end": { "x": 520, "y": 560 }
+          },
+          "difficulty": 4,
+          "image": "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1000&q=80",
+          "audio": null
+        }
+      ]
+    },
+    {
+      "title": "History",
+      "description": "Historical events and figures.",
+      "roundTimer": "60",
+      "showAnswer": "round",
+      "updateScores": "round",
+      "questions": [
+        {
+          "type": "ordering",
+          "text": "Put these events in chronological order.",
+          "items": [
+            "Fall of the Berlin Wall",
+            "Moon Landing",
+            "Signing of the Magna Carta",
+            "French Revolution"
+          ],
+          "extra": {
+            "startLabel": "Earliest",
+            "endLabel": "Latest"
+          },
+          "difficulty": 3,
+          "image": null,
+          "audio": null
+        },
+        {
+          "type": "matching",
+          "text": "Match the leader to their country.",
+          "pairs": [
+            { "left": "Mahatma Gandhi", "right": "India" },
+            { "left": "Angela Merkel", "right": "Germany" },
+            { "left": "Abraham Lincoln", "right": "USA" }
+          ],
+          "difficulty": 2,
+          "image": null,
+          "audio": null
+        }
+      ]
+    },
+    {
+      "title": "Mathematics & General Knowledge",
+      "description": "Math and general trivia.",
+      "roundTimer": "20",
+      "showAnswer": "question",
+      "updateScores": "question",
+      "questions": [
+        {
+          "type": "number-closest",
+          "text": "What is the approximate value of the square root of 2?",
+          "answer": 1.41,
+          "difficulty": 3,
+          "image": null,
+          "audio": null
+        },
+        {
+          "type": "number-average",
+          "text": "Guess the average number of hours a person sleeps per night.",
+          "difficulty": 1,
+          "image": null,
+          "audio": null
+        },
+        {
+          "type": "draw",
+          "text": "Draw a Venn diagram showing the intersection of two sets.",
+          "answer": "A diagram with two overlapping circles.",
+          "difficulty": 5,
+          "image": null,
+          "audio": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        }
+      ]
+    }
+  ]
+}

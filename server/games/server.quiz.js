@@ -1423,11 +1423,43 @@ export default class Quiz extends Game {
 		// So only do this if we are NOT live streaming
 		// OR when answering the question - even live streaming we can still show the answer straight away
 		if (!this.liveStream || this.mode === 'answer') {
-			this.room.registerHostResponseHandler(() => {
+			this.room.registerHostResponseHandler((socket, response) => {
 				this.room.deregisterHostResponseHandler();
 				this.stateMachine.nextState();
 			});
 		}
+	}
+
+	handleOverrule(answer, isCorrect) {
+		console.log(`Quiz::handleOverrule: answer="${answer}", isCorrect=${isCorrect}`);
+		if (!this.question) {
+			console.warn('Quiz::handleOverrule: No active question');
+			return;
+		}
+
+		if (!this.question.alternativeAnswers) {
+			this.question.alternativeAnswers = [];
+		}
+
+		const cleanAnswer = String(answer).trim().toLowerCase();
+		const currentAnswer = String(this.question.answer).trim().toLowerCase();
+
+		if (isCorrect) {
+			// Add to alternativeAnswers if not already there and not the main answer
+			if (cleanAnswer !== currentAnswer && !this.question.alternativeAnswers.includes(cleanAnswer)) {
+				this.question.alternativeAnswers.push(cleanAnswer);
+			}
+		} else {
+			// Remove from alternativeAnswers if it was there
+			this.question.alternativeAnswers = this.question.alternativeAnswers.filter(a => a !== cleanAnswer);
+		}
+
+		// Update all hosts with the new overrule state so they can update their UI
+		this.room.emitToHosts('server:hostaction', {
+			action: 'overrule',
+			answer: answer,
+			isCorrect: isCorrect
+		});
 	}
 
 	waitingForStream() {
@@ -1530,6 +1562,20 @@ export default class Quiz extends Game {
 
 		console.dir('showAnswer:', localQuestion);
 		this.room.emitToHosts('server:showanswer', localQuestion);
+
+		// Since we now have the chance that host wants to overrule a player score we need a host response handler
+		// We also have the Ordering question that steps through so we have two host response events to deal with here
+		this.room.registerHostResponseHandler((socket, response) => {
+			console.log('HostResponseHandler received:', response);
+			if (response && response.action) {
+				if (response.action === 'overrule') {
+					this.handleOverrule(response.answer, response.isCorrect);
+				} else if (response.action === 'nextRevealStep') {
+					// Simply relay the "step" request to all hosts
+					this.room.emitToHosts('server:hostaction', { action: 'nextRevealStep' });
+				}
+			}
+		});
 
 		// For now also just send same event to all players - QuizPlayScene will decide what to display
 		// Special cases such as the one below will need to be catered for here... for now just send to all
@@ -1660,7 +1706,7 @@ export default class Quiz extends Game {
 	// Each question type has its own scoring method - principle is the same:
 	// Loop through the keys of the responses dictionary calculating a score for each player
 	calculateQuestionScore(question, round) {
-		console.log('calculateQuestionScore:', question, round);
+		console.log('calculateQuestionScore:', question);
 
 		var scores = {};
 
@@ -1674,6 +1720,7 @@ export default class Quiz extends Game {
 		if (round.scoreMethod === 'snooze') {
 			// Find the response with the highest time (ie the last response) and mark it as snoozed
 			// Note: we must consider that a team didn't answer at all - in which case they are the snoozer
+			// In this case we don't need to make any of the responses as snoozed since non-answering player negates the need to snooze anyone here
 			if (Object.keys(question.responses).length === this.room.players.length) {
 				let latestTime = 0;
 				let latestSessionID = null;
@@ -1704,12 +1751,26 @@ export default class Quiz extends Game {
 		switch (question.type) {
 
 			case 'text':
-				const simpleAnswerText = createSimpleString(question.answer);
+				// Map alternativeAnswers to simple strings for comparison
+				let validAnswers = [];
+				if (question.alternativeAnswers) {
+					validAnswers = question.alternativeAnswers.map(a => createSimpleString(a));
+				}
+				validAnswers.push(createSimpleString(question.answer));
+
 				Object.keys(question.responses).forEach((sessionID) => {
 					const simpleResult = createSimpleString(question.responses[sessionID].answer);
-					if (levenshteinDistance(simpleAnswerText, simpleResult) < 2) {
+
+					// Check against all valid answers in the array
+					const isCorrect = validAnswers.some(ans => levenshteinDistance(ans, simpleResult) < 2);
+
+					if (isCorrect) {
+						console.log('Correct answer for sessionID:', sessionID, 'answer:', question.responses[sessionID].answer);
 						question.responses[sessionID].score = 1;
 						scores[sessionID] = 1;
+					} else {
+						console.log('Incorrect answer for sessionID:', sessionID, 'answer:', question.responses[sessionID].answer);
+						question.responses[sessionID].score = 0;
 					}
 				});
 				break;

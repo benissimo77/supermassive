@@ -1,0 +1,340 @@
+{
+  "title": "2025 Movie Quiz",
+  "rounds": [
+    {
+      "roundNumber": 1,
+      "title": "Blockbuster Duos",
+      "description": "Two questions for each of the year's biggest opening features.",
+      "questions": [
+        {
+          "question": "Which actor takes on the mantle of the Man of Steel in the 2025 film directed by James Gunn?",
+          "type": "multiple-choice",
+          "options": ["David Corenswet", "Henry Cavill", "Tyler Hoechlin", "Brandon Routh"],
+          "difficulty": "easy"
+        },
+        {
+          "question": "In the 2025 'Superman' reboot, which actor portrays the iconic villain Lex Luthor?",
+          "type": "multiple-choice",
+          "options": ["Nicholas Hoult", "Jesse Eisenberg", "Kevin Spacey", "Gene Hackman"],
+          "difficulty": "medium"
+        },
+        {
+          "question": "In 'A Minecraft Movie', which actor portrays the character known as Steve?",
+          "type": "multiple-choice",
+          "options": ["Jack Black", "Jason Momoa", "Chris Pratt", "Pedro Pascal"],
+          "difficulty": "easy"
+        },
+        {
+          "question": "Which director, known for 'Napoleon Dynamite', helmed the live-action Minecraft adaptation?",
+          "type": "multiple-choice",
+          "options": ["Jared Hess", "Taika Waititi", "Shawn Levy", "James Gunn"],
+          "difficulty": "medium"
+        },
+        {
+          "question": "Which actress leads the cast of the 20th Century Studios production 'Jurassic World Rebirth'?",
+          "type": "multiple-choice",
+          "options": ["Scarlett Johansson", "Bryce Dallas Howard", "Florence Pugh", "Margot Robbie"],
+          "difficulty": "easy"
+        },
+        {
+          "question": "The 2025 film 'Jurassic World Rebirth' was directed by the filmmaker behind 2014's 'Godzilla'. Who is he?",
+          "type": "multiple-choice",
+          "options": ["Gareth Edwards", "Colin Trevorrow", "Steven Spielberg", "J.A. Bayona"],
+          "difficulty": "medium"
+        },
+        {
+          "question": "Which actor headlines the 2025 Formula 1 racing drama simply titled 'F1'?",
+          "type": "multiple-choice",
+          "options": ["Brad Pitt", "Damson Idris", "Lewis Hamilton", "Tom Cruise"],
+          "difficulty": "easy"
+        },
+        {
+          "question": "Directed by Joseph Kosinski, the film 'F1' features which actor as the younger teammate Joshua Pearce?",
+          "type": "multiple-choice",
+          "options": ["Damson Idris", "John Boyega", "Daniel Kaluuya", "Michael B. Jordan"],
+          "difficulty": "hard"
+        },
+        {
+          "question": "In the third installment titled 'Fire and Ash', which actor returns to play Jake Sully?",
+          "type": "multiple-choice",
+          "options": ["Sam Worthington", "Stephen Lang", "Cliff Curtis", "Zoe Saldaña"],
+          "difficulty": "easy"
+        },
+        {
+          "question": "Which filmmaker returned to write and direct the 2025 epic 'Avatar: Fire and Ash'?",
+          "type": "multiple-choice",
+          "options": ["James Cameron", "Peter Jackson", "Ridley Scott", "George Lucas"],
+          "difficulty": "easy"
+        }
+      ]
+    },
+    {
+      "roundNumber": 2,
+      "title": "Sequels & Series Refreshes",
+      "description": "Focusing on the 2025 entries in established franchises.",
+      "questions": [
+        {
+          "question": "Which actor officially leads 'Captain America: Brave New World' as the new Cap, Sam Wilson?",
+          "type": "multiple-choice",
+          "options": ["Anthony Mackie", "Sebastian Stan", "Harrison Ford", "Wyatt Russell"],
+          "difficulty": "easy"
+        },
+        {
+          "question": "In 'Captain America: Brave New World', which Screen Legend takes over the role of Thaddeus 'Thunderbolt' Ross?",
+          "type": "multiple-choice",
+          "options": ["Harrison Ford", "William Hurt", "Robert Redford", "Tommy Lee Jones"],
+          "difficulty": "easy"
+        },
+        {
+          "question": "In the Marvel film 'Thunderbolts*', which actress reprises her role as the assassin Yelena Belova?",
+          "type": "multiple-choice",
+          "options": ["Florence Pugh", "Scarlett Johansson", "Olga Kurylenko", "Hailee Steinfeld"],
+          "difficulty": "easy"
+        },
+        {
+          "question": "Which actor, known for playing the Winter Soldier, is a central part of the 'Thunderbolts*' team?",
+          "type": "multiple-choice",
+          "options": ["Sebastian Stan", "Wyatt Russell", "David Harbour", "Lewis Pullman"],
+          "difficulty": "easy"
+        },
+        {
+          "question": "Which actress portrays Elphaba Thropp in the 2025 musical sequel 'Wicked: For Good'?",
+          "type": "multiple-choice",
+          "options": ["Cynthia Erivo", "Ariana Grande", "Michelle Yeoh", "Idina Menzel"],
+          "difficulty": "easy"
+        },
+        {
+          "question": "In the 'Wicked' films, which pop star plays the role of Glinda Upland?",
+          "type": "multiple-choice",
+          "options": ["Ariana Grande", "Taylor Swift", "Selena Gomez", "Lady Gaga"],
+          "difficulty": "easy"
+        },
+        {
+          "question": "Which actor portrays Reed Richards (Mr. Fantastic) in the 2025 MCU film 'The Fantastic Four: First Steps'?",
+          "type": "multiple-choice",
+          "options": ["Pedro Pascal", "John Krasinski", "Miles Teller", "Ioan Gruffudd"],
+          "difficulty": "medium"
+        },
+        {
+          "question": "Who plays Johnny Storm, also known as the Human Torch, in 'The Fantastic Four: First Steps'?",
+          "type": "multiple-choice",
+          "options": ["Joseph Quinn", "Ebon Moss-Bachrach", "Paul Mescal", "Austin Butler"],
+          "difficulty": "medium"
+        },
+        {
+          "question": "Which actor returns as the voice of Nick Wilde in the animated sequel 'Zootopia 2'?",
+          "type": "multiple-choice",
+          "options": ["Jason Bateman", "J.K. Simmons", "Idris Elba", "Ginnifer Goodwin"],
+          "difficulty": "easy"
+        },
+        {
+          "question": "In 'Zootopia 2', which actress reprises her role as the voice of Judy Hopps?",
+          "type": "multiple-choice",
+          "options": ["Ginnifer Goodwin", "Shakira", "Jenny Slate", "Octavia Spencer"],
+          "difficulty": "easy"
+        }
+      ]
+    },
+    {
+      "roundNumber": 3,
+      "title": "Animation & Live-Action Adaptations",
+      "description": "Pairs from the world of animation and its live-action counterparts.",
+      "questions": [
+        {
+          "question": "Which child actress portrays the title character in the 2025 live-action 'Lilo & Stitch' film?",
+          "type": "multiple-choice",
+          "options": ["Maia Kealoha", "Brooklynn Prince", "Alanis Guillen", "Halle Bailey"],
+          "difficulty": "medium"
+        },
+        {
+          "question": "In the 2025 live-action 'Lilo & Stitch', who returned to provide the iconic voice of Experiment 626?",
+          "type": "multiple-choice",
+          "options": ["Chris Sanders", "Daveigh Chase", "Jason Scott Lee", "Ving Rhames"],
+          "difficulty": "medium"
+        },
+        {
+          "question": "Which actor portrays the live-action version of Hiccup in the 2025 adaptation of 'How to Train Your Dragon'?",
+          "type": "multiple-choice",
+          "options": ["Mason Thames", "Walker Scobell", "Finn Wolfhard", "Jack Dylan Grazer"],
+          "difficulty": "hard"
+        },
+        {
+          "question": "Who directed the 2025 live-action 'How to Train Your Dragon', having also helmed the original animated trilogy?",
+          "type": "multiple-choice",
+          "options": ["Dean DeBlois", "Chris Sanders", "Brad Bird", "Jennifer Yuh Nelson"],
+          "difficulty": "medium"
+        },
+        {
+          "question": "In the 2025 Disney animated film 'Elio', which actor provides the voice for the lead character, Elio Solis?",
+          "type": "multiple-choice",
+          "options": ["Yonas Kibreab", "Anthony Gonzalez", "Jacob Tremblay", "Inigo Dominic Lazaro"],
+          "difficulty": "hard"
+        },
+        {
+          "question": "Which Academy Award-winning 'America's Ugly Betty' actress voices Elio's mother, Olga, in the 2025 film?",
+          "type": "multiple-choice",
+          "options": ["America Ferrera", "Salma Hayek", "Penélope Cruz", "Zoe Saldaña"],
+          "difficulty": "medium"
+        },
+        {
+          "question": "In the 2025 live-action 'Snow White', which actress takes on the role of the titular princess?",
+          "type": "multiple-choice",
+          "options": ["Rachel Zegler", "Gal Gadot", "Lily Collins", "Kristen Stewart"],
+          "difficulty": "easy"
+        },
+        {
+          "question": "Which 'Wonder Woman' star portrays the Evil Queen in the 2025 live-action 'Snow White' movie?",
+          "type": "multiple-choice",
+          "options": ["Gal Gadot", "Charlize Theron", "Cate Blanchett", "Angelina Jolie"],
+          "difficulty": "easy"
+        },
+        {
+          "question": "The 2025 animated film 'The Bad Guys 2' features which Academy Award winner as the voice of Mr. Wolf?",
+          "type": "multiple-choice",
+          "options": ["Sam Rockwell", "Marc Maron", "Craig Robinson", "Anthony Ramos"],
+          "difficulty": "medium"
+        },
+        {
+          "question": "Which actress, known for 'The Joker', voices the character of Fox (Diane Foxington) in 'The Bad Guys' series?",
+          "type": "multiple-choice",
+          "options": ["Zazie Beetz", "Awkwafina", "Lily Singh", "Alex Borstein"],
+          "difficulty": "hard"
+        }
+      ]
+    },
+    {
+      "roundNumber": 4,
+      "title": "Director's Vision",
+      "description": "Pairs focusing on the filmmakers and their 2025 projects.",
+      "questions": [
+        {
+          "question": "Which filmmaker directed the 2025 science fiction film 'Mickey 17'?",
+          "type": "multiple-choice",
+          "options": ["Bong Joon-ho", "Park Chan-wook", "Christopher Nolan", "Denis Villeneuve"],
+          "difficulty": "medium"
+        },
+        {
+          "question": "In Bong Joon-ho's 'Mickey 17', which actor plays the lead role of a 'replaceable' employee?",
+          "type": "multiple-choice",
+          "options": ["Robert Pattinson", "Steven Yeun", "Mark Ruffalo", "Toni Collette"],
+          "difficulty": "easy"
+        },
+        {
+          "question": "Which director returned to the '28 Days Later' franchise to helm the 2025 sequel '28 Years Later'?",
+          "type": "multiple-choice",
+          "options": ["Danny Boyle", "Alex Garland", "Juan Carlos Fresnadillo", "Zack Snyder"],
+          "difficulty": "medium"
+        },
+        {
+          "question": "Which Academy Award winner reprises his role as Jim in the 2025 film '28 Years Later'?",
+          "type": "multiple-choice",
+          "options": ["Cillian Murphy", "Aaron Taylor-Johnson", "Ralph Fiennes", "Jodie Comer"],
+          "difficulty": "easy"
+        },
+        {
+          "question": "Which director, known for 'Baby Driver', directed the 2025 adaptation of 'The Running Man'?",
+          "type": "multiple-choice",
+          "options": ["Edgar Wright", "Quentin Tarantino", "Matthew Vaughn", "Guy Ritchie"],
+          "difficulty": "medium"
+        },
+        {
+          "question": "Who stars as Ben Richards in the 2025 version of 'The Running Man', originally played by Arnold Schwarzenegger?",
+          "type": "multiple-choice",
+          "options": ["Glen Powell", "Austin Butler", "Jeremy Allen White", "Miles Teller"],
+          "difficulty": "easy"
+        },
+        {
+          "question": "Which director re-teamed with Michael B. Jordan for the 2025 supernatural horror film 'Sinners'?",
+          "type": "multiple-choice",
+          "options": ["Ryan Coogler", "Jordan Peele", "Steve McQueen", "Barry Jenkins"],
+          "difficulty": "medium"
+        },
+        {
+          "question": "In the 2025 film 'Sinners', which actor plays the dual roles of twin brothers?",
+          "type": "multiple-choice",
+          "options": ["Michael B. Jordan", "Yahya Abdul-Mateen II", "Delroy Lindo", "Jack O'Connell"],
+          "difficulty": "medium"
+        },
+        {
+          "question": "Which director, famous for 'The Sixth Sense', released the thriller 'Vicious' in 2025?",
+          "type": "multiple-choice",
+          "options": ["Bryan Bertino", "M. Night Shyamalan", "Ari Aster", "Robert Eggers"],
+          "difficulty": "hard"
+        },
+        {
+          "question": "The 2025 horror sequel 'The Black Phone 2' was directed by the filmmaker behind the 2012 film 'Sinister'. Who is he?",
+          "type": "multiple-choice",
+          "options": ["Scott Derrickson", "James Wan", "Leigh Whannell", "Mike Flanagan"],
+          "difficulty": "medium"
+        }
+      ]
+    },
+    {
+      "roundNumber": 5,
+      "title": "Genre Grab-bag",
+      "description": "A final look at the various hits and surprises of 2025.",
+      "questions": [
+        {
+          "question": "In the 2025 John Wick spin-off 'Ballerina', which actress portrays the lead character Eve Macarro?",
+          "type": "multiple-choice",
+          "options": ["Ana de Armas", "Florence Pugh", "Gal Gadot", "Riley Keough"],
+          "difficulty": "easy"
+        },
+        {
+          "question": "Which actor makes a cameo appearance as John Wick in the 2025 film 'Ballerina'?",
+          "type": "multiple-choice",
+          "options": ["Keanu Reeves", "Ian McShane", "Norman Reedus", "Lance Reddick"],
+          "difficulty": "easy"
+        },
+        {
+          "question": "Which actor returns to lead the cast of the 2025 action sequel 'Nobody 2'?",
+          "type": "multiple-choice",
+          "options": ["Bob Odenkirk", "Liam Neeson", "Keanu Reeves", "Mads Mikkelsen"],
+          "difficulty": "easy"
+        },
+        {
+          "question": "In 'Nobody 2', which actress joins the cast as a new antagonist?",
+          "type": "multiple-choice",
+          "options": ["Sharon Stone", "Connie Nielsen", "Michelle Yeoh", "Charlize Theron"],
+          "difficulty": "hard"
+        },
+        {
+          "question": "Which actor portrays Ares in the 2025 science fiction sequel 'Tron: Ares'?",
+          "type": "multiple-choice",
+          "options": ["Jared Leto", "Garrett Hedlund", "Jeff Bridges", "Evan Peters"],
+          "difficulty": "easy"
+        },
+        {
+          "question": "The 2025 film 'Tron: Ares' features which 'X-Men' actor in a leading role alongside Jared Leto?",
+          "type": "multiple-choice",
+          "options": ["Evan Peters", "Gillian Anderson", "Jodie Turner-Smith", "Greta Lee"],
+          "difficulty": "medium"
+        },
+        {
+          "question": "In the 2025 film 'Final Destination: Bloodlines', which series regular role is played by Brec Bassinger?",
+          "type": "multiple-choice",
+          "options": ["Stefani", "Clear Rivers", "Kimberly Corman", "Wendy Christensen"],
+          "difficulty": "hard"
+        },
+        {
+          "question": "Which horror franchise released its 11th installment, 'Saw XI', in 2025?",
+          "type": "multiple-choice",
+          "options": ["Saw", "Halloween", "Scream", "The Conjuring"],
+          "difficulty": "easy"
+        },
+        {
+          "question": "In 'The Conjuring: Last Rites', which actress reprises her role as Lorraine Warren?",
+          "type": "multiple-choice",
+          "options": ["Vera Farmiga", "Patrick Wilson", "Taissa Farmiga", "Madison Wolfe"],
+          "difficulty": "easy"
+        },
+        {
+          "question": "Which actor plays Ed Warren for the final time in the 2025 film 'The Conjuring: Last Rites'?",
+          "type": "multiple-choice",
+          "options": ["Patrick Wilson", "Ron Livingston", "Patrick Stewart", "Vera Farmiga"],
+          "difficulty": "easy"
+        }
+      ]
+    }
+  ]
+}

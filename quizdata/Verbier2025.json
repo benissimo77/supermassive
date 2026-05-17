@@ -1,0 +1,388 @@
+{
+  "title": "The Verbier 2024 End of Year Quiz!",
+  "description": "<p>How well have you been following the news, or TikTok, this year? Let's find out...!</p><p><br></p><p>VIDEOSWIPE.NET</p><p>Click 'Start Playing Now'</p><p>Room: SNOW</p>",
+  "owner": "67150d8c98c76cabc58b7160",
+  "public": true,
+  "rounds": [
+    {
+      "title": "Oh come on, there must be SOME good news?!",
+      "description": "Some questions about the happier events of the year",
+      "owner": "67150d8c98c76cabc58b7160",
+      "roundTimer": "0",
+      "showAnswer": "round",
+      "updateScores": "round",
+      "questions": [
+        {
+          "type": "ordering",
+          "text": "France hosted the Olympics this year - place these countries in order of total medals won",
+          "image": null,
+          "audio": "",
+          "items": [
+            "France",
+            "Australia",
+            "Netherlands",
+            "Germany"
+          ],
+          "pairs": [],
+          "extra": {
+            "startLabel": "Most medals",
+            "endLabel": "Least medals"
+          }
+        },
+        {
+          "type": "text",
+          "text": "This cute pygmy hippo became a viral sensation, what was her name?",
+          "image": "https://hips.hearstapps.com/hmg-prod/images/moo-deng-2-6747126194b8e.png?resize=980:*",
+          "audio": "",
+          "options": [],
+          "pairs": [],
+          "answer": "Moo Deng"
+        },
+        {
+          "type": "text",
+          "text": "According to Charli XCX, what kind of summer did we all have?",
+          "image": null,
+          "audio": "",
+          "options": [],
+          "pairs": [],
+          "answer": "Brat"
+        },
+        {
+          "type": "text",
+          "text": "Which country banned X (formerly known as Twitter) in August?",
+          "image": null,
+          "audio": "",
+          "options": [],
+          "pairs": [],
+          "answer": "Brazil"
+        },
+        {
+          "type": "hotspot",
+          "text": "Some of us went to an Olympic event in Nice this summer. One team was New Zealand, where was the other country?",
+          "image": "https://static.vecteezy.com/system/resources/previews/000/550/959/original/vector-detailed-map-of-africa-continent-in-black-silhouette.jpg",
+          "audio": "",
+          "options": [],
+          "pairs": [],
+          "answer": {
+            "x": 122,
+            "y": 390
+          }
+        },
+        {
+          "type": "multiple-choice",
+          "text": "Inside Out 2 became the summer's biggest hit, featuring a range of new emotions. Which emotions stole the show in the new movie?",
+          "image": null,
+          "audio": "",
+          "options": [
+            "Anxiety",
+            "Empathy",
+            "Disappointment",
+            "Excitement"
+          ],
+          "pairs": []
+        },
+        {
+          "type": "multiple-choice",
+          "text": "What was the Oxford English Dictionary Word of the Year?",
+          "image": null,
+          "audio": "",
+          "options": [
+            "Brain rot",
+            "Doomscroll",
+            "Enshittification",
+            "Rizz"
+          ],
+          "pairs": []
+        }
+      ],
+      "_id": "67560693b61f109aee961d9a"
+    },
+    {
+      "title": "This is the news",
+      "description": "Eight quick-fire questions to test your knowledge of the year's main talking points",
+      "owner": "67150d8c98c76cabc58b7160",
+      "roundTimer": "0",
+      "showAnswer": "round",
+      "updateScores": "round",
+      "questions": [
+        {
+          "type": "multiple-choice",
+          "text": "Which artist wrapped up a record-setting world tour in 2024?",
+          "image": null,
+          "audio": "",
+          "options": [
+            "Taylor Swift",
+            "Drake",
+            "Ed Sheeran",
+            "Bruce Springsteen"
+          ],
+          "pairs": []
+        },
+        {
+          "type": "multiple-choice",
+          "text": "Which country joined NATO this year?",
+          "image": null,
+          "audio": "",
+          "options": [
+            "Sweden",
+            "Denmark",
+            "Norway",
+            "Finland"
+          ],
+          "pairs": []
+        },
+        {
+          "type": "multiple-choice",
+          "text": "Which movie took home most of the Oscars, including Best Picture, Best Director, Best Actor and Best Supporting Actor?",
+          "image": null,
+          "audio": "",
+          "options": [
+            "Oppenheimer",
+            "Barbie",
+            "Poor Things",
+            "Zone of Interest"
+          ],
+          "pairs": []
+        },
+        {
+          "type": "number-closest",
+          "text": "Donald Trump became the 47th President of the US. According to CNN, how many people were fired or resigned from office during his first term?",
+          "image": null,
+          "audio": "",
+          "options": [],
+          "pairs": [],
+          "answer": "68"
+        },
+        {
+          "type": "number-closest",
+          "text": "Trump was also convicted in a Manhattan court of falsifying evidence related to a sex scandal. On how many separate felony counts was he found guilty?",
+          "image": "https://static01.nyt.com/images/2024/05/29/multimedia/00trump-verdict-ledeall1-wthp-LN/00trump-verdict-ledeall1-wthp-superJumbo.jpg",
+          "audio": "",
+          "options": [],
+          "pairs": [],
+          "answer": "34"
+        },
+        {
+          "type": "number-exact",
+          "text": "Meanwhile, in the UK, Kier Starmer became Prime-Minister. In what year were the Labour Party last in power?",
+          "image": null,
+          "audio": "",
+          "options": [],
+          "pairs": [],
+          "answer": "2010"
+        }
+      ],
+      "_id": "67560629b61f109aee961d6e"
+    },
+    {
+      "title": "Its not all bad news... just most of it",
+      "description": "Some questions relating to the events that sold the most newspapers",
+      "owner": "67150d8c98c76cabc58b7160",
+      "roundTimer": "0",
+      "showAnswer": "round",
+      "updateScores": "round",
+      "questions": [
+        {
+          "type": "multiple-choice",
+          "text": "Hurricane Helene carves out a devastating path through the Southeast, breaking new all-time highs in what?",
+          "image": null,
+          "audio": "",
+          "options": [
+            "Rise in sea level",
+            "Wind speed",
+            "Surface area of destruction",
+            "Volume of rainfall in one hour"
+          ],
+          "pairs": []
+        },
+        {
+          "type": "point-it-out",
+          "text": "After more than a year of civil war, the toll in this African country includes thousands killed, millions made homeless and cities destroyed across a nation three times as large as France. Where is it?",
+          "image": "https://static.vecteezy.com/system/resources/previews/000/550/959/original/vector-detailed-map-of-africa-continent-in-black-silhouette.jpg",
+          "audio": "",
+          "options": [],
+          "pairs": [],
+          "answer": {
+            "start": {
+              "x": 592,
+              "y": 258
+            },
+            "end": {
+              "x": 763,
+              "y": 406
+            }
+          }
+        },
+        {
+          "type": "multiple-choice",
+          "text": "United States Surgeon General calls for warning labels to be placed on what?",
+          "image": null,
+          "audio": "",
+          "options": [
+            "Social Media platforms",
+            "Processed meat",
+            "Fizzy drinks",
+            "Fast-food packaging"
+          ],
+          "pairs": []
+        },
+        {
+          "type": "multiple-choice",
+          "text": "Scorching Heat Ravages Hajj as more than 1300 pilgrims die. Highest death toll since 2015. Where?",
+          "image": null,
+          "audio": "",
+          "options": [
+            "Saudi Arabia",
+            "India",
+            "Pakistan",
+            "Indonesia"
+          ],
+          "pairs": []
+        },
+        {
+          "type": "point-it-out",
+          "text": "After 13 years of civil war, and over 500,000 citizens dead, rebels overtook the country's capital and caused the ruling family to flee to Russia. Where is it?",
+          "image": "https://static.wixstatic.com/media/0c86cb_9e6e504b5e2a40b4b050fb13f2b21b4b~mv2.png/v1/fill/w_600,h_482,al_c,q_85,usm_0.66_1.00_0.01,enc_auto/Map-01.png",
+          "audio": "",
+          "options": [],
+          "pairs": [],
+          "answer": {
+            "start": {
+              "x": 486,
+              "y": 177
+            },
+            "end": {
+              "x": 594,
+              "y": 315
+            }
+          }
+        }
+      ],
+      "_id": "675f68eef5ee1109d3288cc6"
+    },
+    {
+      "title": "Someone here knows the answer",
+      "description": "",
+      "owner": "67150d8c98c76cabc58b7160",
+      "roundTimer": "0",
+      "showAnswer": "round",
+      "updateScores": "round",
+      "questions": [
+        {
+          "type": "multiple-choice",
+          "text": "Which James Bond has killed the most people?",
+          "image": null,
+          "audio": "",
+          "options": [
+            "Daniel Craig ",
+            "Sean Connery",
+            "Roger Moore",
+            "Pierce Brosnan",
+            "George Lazenby"
+          ],
+          "pairs": []
+        },
+        {
+          "type": "multiple-choice",
+          "text": "Which 3 cities have the most Michelin star restaurants per capita",
+          "image": null,
+          "audio": "",
+          "options": [
+            "Kyoto, Paris, Washington DC",
+            "Tokyo, Paris, New York",
+            "Osaka, Paris, Tokyo",
+            "Paris, New York, Tokyo"
+          ],
+          "pairs": []
+        },
+        {
+          "type": "text",
+          "text": "What is the busiest train station in London",
+          "image": null,
+          "audio": "",
+          "options": [],
+          "pairs": [],
+          "answer": "Liverpool Street"
+        },
+        {
+          "type": "number-closest",
+          "text": "What is the most amount of money ($) paid for a piece of art at an auction?",
+          "image": null,
+          "audio": "",
+          "options": [],
+          "pairs": [],
+          "answer": "450300000"
+        },
+        {
+          "type": "multiple-choice",
+          "text": "What is the closest dish to a souffle?",
+          "image": null,
+          "audio": "",
+          "options": [
+            "mousse",
+            "creme brulee",
+            "ice cream"
+          ],
+          "pairs": []
+        },
+        {
+          "type": "multiple-choice",
+          "text": "Which country has won the third most Eurovisions ever?",
+          "image": null,
+          "audio": "",
+          "options": [
+            "France",
+            "Israel",
+            "The Netherlands",
+            "Sweden"
+          ],
+          "pairs": []
+        },
+        {
+          "type": "number-closest",
+          "text": "How many rides are there at Disneyworld?",
+          "image": null,
+          "audio": "",
+          "options": [],
+          "pairs": [],
+          "answer": "52"
+        },
+        {
+          "type": "multiple-choice",
+          "text": "What year did Louis Hamilton win his first F1 race",
+          "image": null,
+          "audio": "",
+          "options": [
+            "2007",
+            "2008",
+            "2006",
+            "2009"
+          ],
+          "pairs": []
+        },
+        {
+          "type": "number-closest",
+          "text": "How many ski lifts across the 4 valleys of Verbier?",
+          "image": null,
+          "audio": "",
+          "options": [],
+          "pairs": [],
+          "answer": "92"
+        },
+        {
+          "type": "number-closest",
+          "text": "How  many medals did The Netherlands win at the Paris Olympics?",
+          "image": null,
+          "audio": "",
+          "options": [],
+          "pairs": [],
+          "answer": "34"
+        }
+      ],
+      "_id": "6760991a4f17a262b21db0f0"
+    }
+  ],
+  "createdAt": "2024-12-08T20:47:59.510Z",
+  "updatedAt": "2024-12-19T14:29:13.287Z",
+  "__v": 1
+}

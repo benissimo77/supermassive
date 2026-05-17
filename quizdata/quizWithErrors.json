@@ -1,0 +1,148 @@
+{
+    "title": "Quiz with Deliberate Validation Errors",
+    "rounds": [
+        {
+            "title": "Multiple Choice Problems",
+            "questions": [
+                {
+                    "type": "multiple-choice",
+                    "text": "Missing options array",
+                    "image": "image1.jpg"
+                },
+                {
+                    "type": "multiple-choice",
+                    "text": "Too few options",
+                    "options": [
+                        "Only one option"
+                    ]
+                }
+            ]
+        },
+        {
+            "title": "True-False Issues",
+            "questions": [
+                {
+                    "type": "true-false",
+                    "text": "Wrong answer type - string instead of boolean",
+                    "answer": "true"
+                },
+                {
+                    "type": "true-false",
+                    "text": "Missing answer field"
+                }
+            ]
+        },
+        {
+            "title": "Number Fields",
+            "questions": [
+                {
+                    "type": "number-exact",
+                    "text": "String instead of number",
+                    "answer": "42"
+                },
+                {
+                    "type": "number-closest",
+                    "text": "Missing answer field"
+                }
+            ]
+        },
+        {
+            "title": "Complex Types",
+            "questions": [
+                {
+                    "type": "hotspot",
+                    "text": "Invalid hotspot format",
+                    "answer": {
+                        "x": "10",
+                        "y": 20
+                    }
+                },
+                {
+                    "type": "point-it-out",
+                    "text": "Missing end coordinates",
+                    "answer": {
+                        "start": {
+                            "x": 10,
+                            "y": 20
+                        }
+                    }
+                },
+                {
+                    "type": "ordering",
+                    "text": "Missing extra field",
+                    "items": [
+                        "Item 1",
+                        "Item 2",
+                        "Item 3"
+                    ]
+                },
+                {
+                    "type": "ordering",
+                    "text": "Missing endLabel",
+                    "items": [
+                        "Item 1",
+                        "Item 2",
+                        "Item 3"
+                    ],
+                    "extra": {
+                        "startLabel": "Start"
+                    }
+                },
+                {
+                    "type": "matching",
+                    "text": "Too few pairs",
+                    "pairs": [
+                        {
+                            "left": "Left item",
+                            "right": "Right item"
+                        }
+                    ]
+                },
+                {
+                    "type": "matching",
+                    "text": "Missing right side",
+                    "pairs": [
+                        {
+                            "left": "Left item 1",
+                            "right": "Right item 1"
+                        },
+                        {
+                            "left": "Left item 2"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "title": "Missing Required Fields",
+            "questions": [
+                {
+                    "type": "text"
+                },
+                {
+                    "text": "Missing type field"
+                },
+                {
+                    "type": "draw",
+                    "text": "Missing answer field"
+                }
+            ]
+        },
+        {
+            "title": "Invalid Enum Values",
+            "showAnswer": "immediately",
+            "updateScores": "never",
+            "questions": [
+                {
+                    "type": "invalid-type",
+                    "text": "This question type doesn't exist",
+                    "answer": "Something"
+                }
+            ]
+        },
+        {
+            "description": "Missing required title field",
+            "questions": []
+        }
+    ]
+}

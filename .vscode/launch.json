@@ -1,0 +1,59 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch via npm",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": [
+                "run",
+                "start"
+            ],
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen"
+        },
+        {
+            "name": "Launch Edge localhost",
+            "type": "msedge",
+            "request": "launch",
+            "url": "http://localhost:3000/hostdev.html",
+            "webRoot": "${workspaceFolder}",
+            "sourceMaps": true,
+            "runtimeExecutable": "stable",
+            "runtimeArgs": [
+                "--remote-debugging-port=9222",
+                "--profile-directory=Default",
+                "--no-first-run"
+            ],
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "internalConsoleOptions": "neverOpen"
+        },
+        {
+            "name": "Attach to Edge",
+            "type": "msedge",
+            "request": "attach",
+            "url": "http://localhost:3000",
+            "sourceMaps": true,
+            "port": 9222,,
+            "sourceMapPathOverrides": {
+                "src/*": "${workspaceFolder}/supermassive/src/*"
+            },
+            "preLaunchTask": "echo ${workspaceFolder}"
+        },
+        {
+            "type": "msedge",
+            "name": "localhost:3000/hostdev.html",
+            "request": "launch",
+            "url": "localhost:3000/hostdev.html"
+        }
+    ]
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "quizId": "698598af348e40f89d702a38",
+    "title": "New Quiz",
+    "errors": [
+      {
+        "instancePath": "/rounds/0/questions/3/answer",
+        "schemaPath": "#/definitions/question/allOf/1/then/properties/answer/minLength",
+        "keyword": "minLength",
+        "params": {
+          "limit": 1
+        },
+        "message": "must NOT have fewer than 1 characters"
+      },
+      {
+        "instancePath": "/rounds/0/questions/3",
+        "schemaPath": "#/definitions/question/allOf/1/if",
+        "keyword": "if",
+        "params": {
+          "failingKeyword": "then"
+        },
+        "message": "must match \"then\" schema"
+      }
+    ]
+  }
+]

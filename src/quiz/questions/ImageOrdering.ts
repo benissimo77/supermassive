@@ -152,10 +152,18 @@ export default class ImageOrderingQuestion extends OrderingQuestion {
         const localKeypressHandler = (event: KeyboardEvent) => {
             // Space or Enter to step through timeline, Escape to skip
             if (event.code === 'ArrowRight') {
-                tl.play();
+                this.scene.socket.emit('host:response', { action: 'nextRevealStep' });
             }
         };
-        this.scene.input.keyboard?.on('keydown', localKeypressHandler, this);
+        this.scene.registerGlobalKeypressHandler(localKeypressHandler);
+
+        // Listener for host events to trigger next reveal step
+        this.scene.events.on('server:hostaction', (data: any) => {
+            console.log('ImageOrderingQuestion:: Received server:hostaction:', data);
+            if (data && data.action === 'nextRevealStep') {
+                tl.play();
+            }
+        });
 
         tl.to(this.questionText, {
             y: this.scene.getY(-1080),
@@ -313,8 +321,8 @@ export default class ImageOrderingQuestion extends OrderingQuestion {
 
 
         tl.add(() => {
-            this.scene.input.keyboard?.off('keydown', localKeypressHandler, this);
-            this.scene.registerGlobalKeypressHandler(); // Re-register global keypress handler to allow skipping through the rest of the timeline as normal
+            this.scene.deregisterGlobalKeypressHandler();
+            this.scene.registerDefaultKeypressHandler(); // Re-register default keypress handler to allow skipping through the rest of the timeline as normal
         });
 
         // this.imageButtonsArray.forEach((ib, index) => {
@@ -326,6 +334,14 @@ export default class ImageOrderingQuestion extends OrderingQuestion {
     }
 
     public destroy(): void {
+        console.log('ImageOrderingQuestion::destroy');
+        // Clean up scene-level listeners BEFORE super.destroy() nullifies this.scene
+        if (this.scene) {
+            this.scene.events.off('server:hostaction');
+            // Re-enable global keys in case we were destroyed before timeline completed
+            this.scene.deregisterGlobalKeypressHandler();
+            this.scene.registerDefaultKeypressHandler();
+        }
         super.destroy();
     }
 }

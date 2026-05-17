@@ -1,0 +1,148 @@
+{
+  "title": "SuperMassive Sample Quiz",
+  "description": "A sample quiz covering a range of topics and question types.",
+  "rounds": [
+    {
+      "title": "Current Affairs",
+      "description": "Questions about recent events.",
+      "roundTimer": "120",
+      "showAnswer": "question",
+      "updateScores": "question",
+      "questions": [
+        {
+          "type": "multiple-choice",
+          "text": "Who is the current Secretary-General of the United Nations?",
+          "options": [
+            "António Guterres",
+            "Ban Ki-moon",
+            "Kofi Annan",
+            "Boutros Boutros-Ghali"
+          ],
+          "image": null,
+          "audio": null
+        },
+        {
+          "type": "true-false",
+          "text": "The 2024 Summer Olympics were held in Paris.",
+          "answer": "true",
+          "image": null,
+          "audio": null
+        }
+      ]
+    },
+    {
+      "title": "TV & Film",
+      "description": "Questions about television and movies.",
+      "roundTimer": "150",
+      "showAnswer": "round",
+      "updateScores": "round",
+      "questions": [
+        {
+          "type": "text",
+          "text": "Which actor played the character of Walter White in Breaking Bad?",
+          "answer": "Bryan Cranston",
+          "image": "https://upload.wikimedia.org/wikipedia/commons/6/6f/Bryan_Cranston_2018.jpg",
+          "audio": null
+        },
+        {
+          "type": "hotspot",
+          "text": "Click on the Hogwarts castle in this image from the Harry Potter films.",
+          "answer": { "x": 700, "y": 300 },
+          "image": "https://upload.wikimedia.org/wikipedia/commons/5/5e/Hogwarts_castle.jpg",
+          "audio": null
+        }
+      ]
+    },
+    {
+      "title": "Sport",
+      "description": "Questions about sports and athletes.",
+      "roundTimer": "90",
+      "showAnswer": "question",
+      "updateScores": "round",
+      "questions": [
+        {
+          "type": "number-exact",
+          "text": "How many players are there in a rugby union team?",
+          "answer": 15,
+          "image": null,
+          "audio": null
+        },
+        {
+          "type": "point-it-out",
+          "text": "Select the penalty spot on this football pitch image.",
+          "answer": {
+            "start": { "x": 480, "y": 520 },
+            "end": { "x": 520, "y": 560 }
+          },
+          "image": "https://upload.wikimedia.org/wikipedia/commons/6/6e/Football_pitch.png",
+          "audio": null
+        }
+      ]
+    },
+    {
+      "title": "History",
+      "description": "Questions about historical events and figures.",
+      "roundTimer": "120",
+      "showAnswer": "round",
+      "updateScores": "question",
+      "questions": [
+        {
+          "type": "ordering",
+          "text": "Put these historical events in chronological order.",
+          "items": [
+            "Signing of the Magna Carta",
+            "Discovery of America by Columbus",
+            "French Revolution",
+            "First Moon Landing"
+          ],
+          "extra": {
+            "startLabel": "Earliest",
+            "endLabel": "Latest"
+          },
+          "image": null,
+          "audio": null
+        },
+        {
+          "type": "matching",
+          "text": "Match the leader to their country.",
+          "pairs": [
+            { "left": "Nelson Mandela", "right": "South Africa" },
+            { "left": "Winston Churchill", "right": "United Kingdom" },
+            { "left": "Franklin D. Roosevelt", "right": "USA" }
+          ],
+          "image": null,
+          "audio": null
+        }
+      ]
+    },
+    {
+      "title": "Mathematics & General Knowledge",
+      "description": "A mix of math and general knowledge questions.",
+      "roundTimer": "100",
+      "showAnswer": "question",
+      "updateScores": "question",
+      "questions": [
+        {
+          "type": "number-closest",
+          "text": "What is the approximate value of Pi to two decimal places?",
+          "answer": 3.14,
+          "image": null,
+          "audio": null
+        },
+        {
+          "type": "number-average",
+          "text": "Guess the average number of steps a person takes in a day.",
+          "image": null,
+          "audio": null
+        },
+        {
+          "type": "draw",
+          "text": "Draw a right-angled triangle.",
+          "answer": "A triangle with one 90 degree angle.",
+          "image": null,
+          "audio": null
+        }
+      ]
+    }
+  ]
+}

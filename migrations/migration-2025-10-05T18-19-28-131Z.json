@@ -1,0 +1,148 @@
+{
+  "date": "2025-10-05T18:19:28.131Z",
+  "totalQuizzes": 6,
+  "updated": 3,
+  "unchanged": 0,
+  "validationFailed": 3,
+  "errors": 0,
+  "validationIssues": [
+    {
+      "quizId": "675333ecfed7cae312249e26",
+      "title": "Test quiz",
+      "errors": [
+        {
+          "instancePath": "/rounds/0/updateScores",
+          "schemaPath": "#/properties/updateScores/enum",
+          "keyword": "enum",
+          "params": {
+            "allowedValues": [
+              "question",
+              "round"
+            ]
+          },
+          "message": "must be equal to one of the allowed values"
+        },
+        {
+          "instancePath": "/rounds/0/questions/1/answer",
+          "schemaPath": "#/definitions/question/allOf/1/then/properties/answer/type",
+          "keyword": "type",
+          "params": {
+            "type": "boolean"
+          },
+          "message": "must be boolean"
+        },
+        {
+          "instancePath": "/rounds/0/questions/1",
+          "schemaPath": "#/definitions/question/allOf/1/if",
+          "keyword": "if",
+          "params": {
+            "failingKeyword": "then"
+          },
+          "message": "must match \"then\" schema"
+        },
+        {
+          "instancePath": "/rounds/1/questions",
+          "schemaPath": "#/properties/questions/minItems",
+          "keyword": "minItems",
+          "params": {
+            "limit": 1
+          },
+          "message": "must NOT have fewer than 1 items"
+        },
+        {
+          "instancePath": "/rounds/2/questions/2/answer",
+          "schemaPath": "#/definitions/question/allOf/1/then/properties/answer/type",
+          "keyword": "type",
+          "params": {
+            "type": "boolean"
+          },
+          "message": "must be boolean"
+        },
+        {
+          "instancePath": "/rounds/2/questions/2",
+          "schemaPath": "#/definitions/question/allOf/1/if",
+          "keyword": "if",
+          "params": {
+            "failingKeyword": "then"
+          },
+          "message": "must match \"then\" schema"
+        },
+        {
+          "instancePath": "/rounds/3/questions",
+          "schemaPath": "#/properties/questions/minItems",
+          "keyword": "minItems",
+          "params": {
+            "limit": 1
+          },
+          "message": "must NOT have fewer than 1 items"
+        }
+      ]
+    },
+    {
+      "quizId": "684356f33c0d1649fe12ddaa",
+      "title": "Sample Quiz",
+      "errors": [
+        {
+          "instancePath": "/rounds/1/questions/3/answer",
+          "schemaPath": "#/definitions/question/allOf/1/then/properties/answer/type",
+          "keyword": "type",
+          "params": {
+            "type": "boolean"
+          },
+          "message": "must be boolean"
+        },
+        {
+          "instancePath": "/rounds/1/questions/3",
+          "schemaPath": "#/definitions/question/allOf/1/if",
+          "keyword": "if",
+          "params": {
+            "failingKeyword": "then"
+          },
+          "message": "must match \"then\" schema"
+        },
+        {
+          "instancePath": "/rounds/1/questions/7/answer",
+          "schemaPath": "#/definitions/question/allOf/1/then/properties/answer/type",
+          "keyword": "type",
+          "params": {
+            "type": "boolean"
+          },
+          "message": "must be boolean"
+        },
+        {
+          "instancePath": "/rounds/1/questions/7",
+          "schemaPath": "#/definitions/question/allOf/1/if",
+          "keyword": "if",
+          "params": {
+            "failingKeyword": "then"
+          },
+          "message": "must match \"then\" schema"
+        }
+      ]
+    },
+    {
+      "quizId": "68e15768583c366bef88a35c",
+      "title": "The Veluwe 2025 Golf, Food, Wine and Poker Mega-Quiz!",
+      "errors": [
+        {
+          "instancePath": "/rounds/0/questions/6/answer",
+          "schemaPath": "#/definitions/question/allOf/1/then/properties/answer/type",
+          "keyword": "type",
+          "params": {
+            "type": "boolean"
+          },
+          "message": "must be boolean"
+        },
+        {
+          "instancePath": "/rounds/0/questions/6",
+          "schemaPath": "#/definitions/question/allOf/1/if",
+          "keyword": "if",
+          "params": {
+            "failingKeyword": "then"
+          },
+          "message": "must match \"then\" schema"
+        }
+      ]
+    }
+  ]
+}

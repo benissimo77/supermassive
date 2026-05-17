@@ -95,7 +95,7 @@ export class SimpleButton extends Phaser.GameObjects.Container {
     public setHighlight(): void {
         this.setAlpha(1);
         this.setScale(1.1);
-        this.postFX.addGlow(0xffff00, 2, 6);
+        this.postFX.addGlow(0xffff00, 1, 3);
     }
     protected adjustTextSize(targetHeight: number): void {
         if (targetHeight < 8) {

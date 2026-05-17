@@ -160,7 +160,8 @@ export class QuizHostScene extends BaseScene {
         this.backgroundContainer.add(this.backgroundOverlay);
 
         // Register global keypress handler for host controls (next question, previous question, toggle instructions, etc.)
-        this.registerGlobalKeypressHandler(this.handleKeyDown);
+        // Called via a separate function to allow question classes to restore it after they've finished using their own key handlers
+        this.registerDefaultKeypressHandler();
 
         // Create score racetrack but begin with it off-screen
         // TODO: factor this out into its own SCENE
@@ -370,9 +371,12 @@ export class QuizHostScene extends BaseScene {
                 this.globalNavbar?.toggle();
             }
             if (data.action === 'syncTimer') {
-                this.HUDCountdownSeconds = data.seconds;0
+                this.HUDCountdownSeconds = data.seconds;
                 this.updateTimerDisplay();
             }
+
+            // Emit to scene events so question presenters can listen for state updates
+            this.events.emit('server:hostaction', data);
         });
 
         // Listen for intro quiz message
@@ -549,6 +553,10 @@ export class QuizHostScene extends BaseScene {
         });
     }
 
+    public registerDefaultKeypressHandler(): void {
+        this.registerGlobalKeypressHandler(this.handleKeyDown);
+    }
+
     private handleKeyDown(event: KeyboardEvent): void {
 
         // Ignore modifier keys themselves to prevent them from triggering debouncing or server events
@@ -686,6 +694,8 @@ export class QuizHostScene extends BaseScene {
             return;
         }
 
+        // Define the parameters for the player tween
+        let duration = Phaser.Math.Between(2000, 4000);
         let targetX: number = Phaser.Math.Between(0, 1920);
         let targetY: number = Phaser.Math.Between(0, this.getY(1080));
         if (player.getPlayerState() === PhaserPlayerState.ANSWERING) {
@@ -693,6 +703,7 @@ export class QuizHostScene extends BaseScene {
         }
         // For HIDDEN we can get a bit clever and move them off the side they are closest to
         if (player.getPlayerState() === PhaserPlayerState.HIDDEN) {
+            duration = 1000;
             const fromLeft = player.x < 960;
             targetX = fromLeft ? Phaser.Math.Between(-1920, -960) : Phaser.Math.Between(1920, 1920 + 960);
             const fromTop = player.y < this.getY(540);
@@ -704,7 +715,7 @@ export class QuizHostScene extends BaseScene {
             scale: 1,
             x: targetX,
             y: targetY,
-            duration: Phaser.Math.Between(2000, 4000),
+            duration: duration,
             ease: 'Cubic.easeInOut',
             onComplete: () => {
                 if (player.getPlayerState() !== PhaserPlayerState.HIDDEN) {
@@ -1325,6 +1336,8 @@ export class QuizHostScene extends BaseScene {
         }
 
         // Prepare the players to be moved around to represent their choices
+        // They are given state HIDDEN which means they will exit the screen in exactly 500ms delay
+        // So we will wait for this delay before beginning the answer timeline
         for (const [sessionID, player] of this.players) {
             this.reparentObject(player, this.playerContainer);
             player.setPlayerState(PhaserPlayerState.HIDDEN);

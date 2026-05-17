@@ -28,7 +28,7 @@ export class QuizHostScene extends BaseScene {
     private currentRoundNumber: number = 0;
     private currentQuestionNumber: number = 0;
     private quizMap: QuizMap;
-    private players: Map<string, PhaserPlayer> = new Map();
+    public players: Map<string, PhaserPlayer> = new Map();
     private playerAnswers: Map<string, any> = new Map();
     private questionFactory: QuestionFactory;
 
@@ -52,8 +52,6 @@ export class QuizHostScene extends BaseScene {
 
     private spotlights: Phaser.GameObjects.Graphics[] = [];
     private podiums: Phaser.GameObjects.Graphics[] = [];
-
-    private introTimeline: gsap.core.Timeline | null = null;
 
     private background: Phaser.GameObjects.Image;
     private backgroundOverlay: Phaser.GameObjects.Graphics;
@@ -1093,7 +1091,7 @@ export class QuizHostScene extends BaseScene {
     private showOpeningCredits(title: string, description: string, samples: any[]): void {
         console.log('QuizHostScene:: showOpeningCredits:', title);
         this.clearUI();
-        
+
         // Minimize instructions automatically for the intro
         this.instructionState = 'minimized';
         this.showInstructions();
@@ -1106,13 +1104,13 @@ export class QuizHostScene extends BaseScene {
             this.HUDWaitingText = null;
         }
 
-        // Play intro music
+        // Play intro music — QuizHostScene stays alive during the overlay so controls audio.
         this.soundManager.playMusic('quiz-music-intro', { volume: 0.6, fadeIn: 1000 });
         const music = this.soundManager.getCurrentMusicTrack();
         if (music && music.sound) {
             this.beatManager.start(music.sound, 128);
-            
-            // Add a musical "Impact" cue (e.g., at 4.3s where the jingle hits a climax)
+
+            // Musical impact cue at ~4.3s where the jingle climaxes — runs in this scene's camera.
             this.beatManager.addCue(4.3, () => {
                 const flash = this.add.rectangle(960, 540, 1920, 1080, 0xffffff).setAlpha(0);
                 this.topContainer.add(flash);
@@ -1122,99 +1120,22 @@ export class QuizHostScene extends BaseScene {
             });
         }
 
-        if (this.introTimeline) {
-            this.introTimeline.kill();
-        }
-
-        this.introTimeline = gsap.timeline();
-        const tl = this.introTimeline;
-
-        // 3. Question "Flybys" - Horizontal fast flybys for juice
-        samples.forEach((sample, index) => {
-            const flyText = this.add.text(-200, this.getY(150 + (index * 70)), (sample.text || "").toUpperCase(), {
-                fontFamily: 'Titan One',
-                fontSize: this.getY(32),
-                color: '#ffffff'
-            }).setOrigin(0, 0.5).setAlpha(0.1);
-            this.backgroundContainer?.add(flyText);
-
-            tl.to(flyText, {
-                x: 2000,
-                duration: 4 + Math.random() * 4,
-                ease: 'none'
-            }, index * 0.5); // Stagger them
-        });
-
-        // 4. Dramatic Title Blast
-        const creditsTitle = this.add.text(960, this.getY(500), title.toUpperCase(), {
-            fontFamily: 'Titan One',
-            fontSize: this.getY(160),
-            color: '#ffffff',
-            stroke: '#000000',
-            strokeThickness: 20,
-            align: 'center',
-            wordWrap: { width: 1600 }
-        }).setOrigin(0.5).setAlpha(0).setScale(0.1);
-        this.UIContainer.add(creditsTitle);
-
-        tl.to(creditsTitle, {
-            duration: 1.2,
-            alpha: 1,
-            scale: 1,
-            ease: 'back.out(1.5)',
-        }, 1.0);
-
-        // 5. Presenter / Description Reveal
-        const cleanDescription = description.replace(/<\/?[^>]+(>|$)/g, "");
-        const descText = this.add.text(960, this.getY(750), cleanDescription.toUpperCase(), {
-            fontFamily: 'Titan One',
-            fontSize: this.getY(48),
-            color: '#FFFF00',
-            stroke: '#000000',
-            strokeThickness: 8,
-            align: 'center',
-            wordWrap: { width: 1400 }
-        }).setOrigin(0.5).setAlpha(0);
-        this.UIContainer.add(descText);
-
-        tl.to(descText, {
-            alpha: 1,
-            y: this.getY(700),
-            duration: 1.5,
-            ease: 'power4.out'
-        }, 3.0);
-
-        // 6. "Are you ready?" Blast
-        const readyText = this.add.text(960, this.getY(850), "GET READY!", {
-            fontFamily: 'Titan One',
-            fontSize: this.getY(100),
-            color: '#00ccff',
-            stroke: '#ffffff',
-            strokeThickness: 10
-        }).setOrigin(0.5).setAlpha(0).setScale(2);
-        this.UIContainer.add(readyText);
-
-        tl.to(readyText, {
-            alpha: 1,
-            scale: 1,
-            duration: 1,
-            ease: 'expo.out'
-        }, 12.0);
-
-        // 7. Loop a subtle shake on the title (Moved out of timeline so it doesn't block completion)
-        tl.to(creditsTitle, {
-            rotation: 0.02,
-            duration: 0.1,
-            delay: 1.2,
-            repeat: -1,
-            yoyo: true,
-            ease: 'sine.easeInOut'
-        });
-
-        tl.add( () => {
-            console.log('QuizHostScene:: showOpeningCredits: Intro timeline complete!');
+        // When QuizIntroScene finishes its animation it emits 'intro:complete' here.
+        // events.once ensures this fires at most once even if the intro is replayed.
+        this.events.once('intro:complete', () => {
+            console.log('QuizHostScene:: intro:complete received — advancing game state');
             this.socket?.emit('host:keypress', { key: 'ArrowRight' });
-        }, '+=1' );
+        });
+
+        // Launch the intro as a parallel overlay. QuizHostScene keeps running — socket
+        // listeners, music, and all game state remain intact.
+        // If the intro scene is already sleeping (replay case), wake it with fresh data.
+        const introScene = this.scene.get('QuizIntroScene');
+        if (introScene && this.scene.isSleeping('QuizIntroScene')) {
+            this.scene.wake('QuizIntroScene', { title, description, samples });
+        } else {
+            this.scene.launch('QuizIntroScene', { title, description, samples });
+        }
     }
 
     private showRoundIntro(roundNumber: number, title: string, description: string): void {
@@ -1980,11 +1901,6 @@ export class QuizHostScene extends BaseScene {
         // Clean up podiums
         this.podiums.forEach(p => p.destroy());
         this.podiums = [];
-
-        if (this.introTimeline) {
-            this.introTimeline.kill();
-            this.introTimeline = null;
-        }
 
         if (this.startingSoonHUD) {
             this.startingSoonHUD.destroy(true);

@@ -16,7 +16,8 @@ import { PlayerConfig, DOMPlayer } from 'src/play/DOMPlayer';
 
 export class LobbyPlayScene extends BaseScene {
 
-	private players: Map<string, DOMPlayer> = new Map<string, DOMPlayer>();
+	public players: Map<string, DOMPlayer> = new Map<string, DOMPlayer>();
+	private onLoadGame: (gameKey: string) => void;
 
 	constructor() {
 		super({ key: 'Lobby' });
@@ -145,7 +146,7 @@ export class LobbyPlayScene extends BaseScene {
 			console.log('LobbyPlayScene:: server:ping:', this.socket.connected, message);
 		});
 
-		this.socket.on('server:loadgame', (gameKey: string) => {
+		this.onLoadGame = (gameKey: string) => {
 			console.log('LobbyPlayScene:: server:loadgame:', gameKey);
 			const playSceneMap: Record<string, string> = {
 				'quiz': 'QuizPlayScene',
@@ -157,7 +158,8 @@ export class LobbyPlayScene extends BaseScene {
 			if (this.scene.get(sceneKey)) {
 				this.scene.start(sceneKey);
 			}
-		});
+		};
+		this.socket.on('server:loadgame', this.onLoadGame);
 	}
 
 	createButton(x: number, y: number, text: string, clickHandler: () => void): Phaser.GameObjects.Text {
@@ -284,7 +286,9 @@ export class LobbyPlayScene extends BaseScene {
 	}
 	sceneShutdown(): void {
 		console.log('Lobby:: sceneShutdown...');
-		// Remove any socket listeners or other cleanup tasks here
+		if (this.onLoadGame) {
+			this.socket.off('server:loadgame', this.onLoadGame);
+		}
 	}
 
 }

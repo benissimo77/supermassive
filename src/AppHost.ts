@@ -9,6 +9,7 @@ import RexPlugins from 'src/utils/rexUI';
 import { LobbyHUDScene } from 'src/lobby/LobbyHUDScene';
 import { LobbyHostScene } from 'src/lobby/LobbyHostScene';
 import { QuizHostScene } from 'src/quiz/QuizHostScene';
+import { QuizIntroScene } from 'src/quiz/QuizIntroScene';
 import { ThreeHostScene } from 'src/three/ThreeHostScene';
 
 // Parse URL parameters and path to determine initial scene
@@ -28,7 +29,7 @@ const gameKey = pathSegments[2];
 // Determine scene order - first scene in array starts automatically
 const scenes = [];
 if (gameKey === 'quiz' || gameKey === 'gauntlet') {
-    scenes.push(QuizHostScene, LobbyHostScene);
+    scenes.push(QuizHostScene, QuizIntroScene, LobbyHostScene);
 } else if (gameKey === 'three') {
     scenes.push(ThreeHostScene, LobbyHostScene);
 } else {

@@ -14,6 +14,12 @@ export abstract class BaseScene extends Phaser.Scene {
     private shutdownHandler: () => void;
     protected globalKeypressHandler: (event: KeyboardEvent) => void;
 
+    // Named socket handler references — stored so shutdown() can remove exactly these, not all listeners
+    private onPlayerConnect: (player: PlayerConfig) => void;
+    private onPlayerDisconnect: (sessionID: string) => void;
+    private onServerPlayers: (players: PlayerConfig[]) => void;
+    private onServerPing: (data: any, callback: Function) => void;
+
     // Containers for the different layers that make up the scene
     protected backgroundContainer: Phaser.GameObjects.Container;
     protected mainContainer: Phaser.GameObjects.Container;
@@ -108,15 +114,17 @@ export abstract class BaseScene extends Phaser.Scene {
         // Tempted to remove these and let only chil scenes handle them - risk of data getting out of sync
         // If ALL games had identical player configs and player objects then maybe BaseScene could centralise
         // But likely each game will have different player objects, design, style etc so just delegate to children
-        this.socket.on('playerconnect', (player: PlayerConfig) => this.handlePlayerConnect(player));
-        this.socket.on('playerdisconnect', (sessionID: string) => this.handlePlayerDisconnect(sessionID));
-
-        this.socket.on('server:players', (players: PlayerConfig[]) => {
+        this.onPlayerConnect = (player: PlayerConfig) => this.handlePlayerConnect(player);
+        this.onPlayerDisconnect = (sessionID: string) => this.handlePlayerDisconnect(sessionID);
+        this.onServerPlayers = (players: PlayerConfig[]) => {
             console.log('BaseScene:: server:players:', players);
-            // Clear the existing player configs
             this.playerConfigs.clear();
-            players.forEach((player: PlayerConfig) => this.handlePlayerConnect(player))
-        });
+            players.forEach((player: PlayerConfig) => this.handlePlayerConnect(player));
+        };
+
+        this.socket.on('playerconnect', this.onPlayerConnect);
+        this.socket.on('playerdisconnect', this.onPlayerDisconnect);
+        this.socket.on('server:players', this.onServerPlayers);
 
         // Initialize the ping test handler
         this.initPingTest();
@@ -216,18 +224,13 @@ export abstract class BaseScene extends Phaser.Scene {
         }
 
         console.log('SocketManager: initPingTest registering handler, socketId:', this.socket?.id);
-        this.socket.off('server:ping');
-        this.socket.on('server:ping', (data, callback) => {
-
+        this.onServerPing = (data: any, callback: Function) => {
             const device = this.getDeviceType();
-
-            // Send response with device info
             console.log('Responding to ping test from server, device:', device);
-            callback({
-                device,
-                received: Date.now()
-            });
-        });
+            callback({ device, received: Date.now() });
+        };
+        this.socket.off('server:ping', this.onServerPing);
+        this.socket.on('server:ping', this.onServerPing);
     }
 
     private getDeviceType(): string {
@@ -677,8 +680,14 @@ export abstract class BaseScene extends Phaser.Scene {
         this.scale.off('resize', this.resizeHandler);
         this.events.off('shutdown', this.shutdownHandler);
 
-        // Remove the socket listeners
-        this.socket.removeAllListeners();
+        // Remove only the listeners registered by BaseScene.
+        // The socket is a shared singleton — removeAllListeners() must never be called here.
+        if (this.socket) {
+            this.socket.off('playerconnect', this.onPlayerConnect);
+            this.socket.off('playerdisconnect', this.onPlayerDisconnect);
+            this.socket.off('server:players', this.onServerPlayers);
+            this.socket.off('server:ping', this.onServerPing);
+        }
 
         // Release wake lock if it exists
         if (BaseScene.wakeLock && typeof BaseScene.wakeLock.release === 'function') {

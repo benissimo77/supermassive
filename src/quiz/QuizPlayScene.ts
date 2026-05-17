@@ -11,6 +11,10 @@ export class QuizPlayScene extends BaseScene {
 
     static readonly KEY = 'QuizPlayScene';
 
+    // Required by BaseScene abstract contract — QuizPlayScene only has one local player,
+    // tracked separately via this.phaserPlayer.
+    public players: Map<string, Phaser.GameObjects.Container> = new Map();
+
     private currentQuestion: BaseQuestion;
     private currentQuestionNumber: number = -1;
     private questionFactory: QuestionFactory;
@@ -18,6 +22,9 @@ export class QuizPlayScene extends BaseScene {
     private quizFinished: boolean = false;
     private phaserPlayer: PhaserPlayer;
     private podiums: Phaser.GameObjects.Graphics[] = [];
+
+    // Stored handler references so sceneShutdown() can remove them cleanly.
+    private onConnectSendReady: () => void;
 
     // UI elements
     private waitingText: Phaser.GameObjects.Text;
@@ -106,7 +113,8 @@ export class QuizPlayScene extends BaseScene {
             });
         };
 
-        this.socket.on('connect', sendReady);
+        this.onConnectSendReady = sendReady;
+        this.socket.on('connect', this.onConnectSendReady);
         sendReady();
 
         // Setup socket listeners
@@ -929,7 +937,10 @@ export class QuizPlayScene extends BaseScene {
 
     sceneShutdown(): void {
         console.log('Quiz:: sceneShutdown...');
-        // Remove any socket listeners or other cleanup tasks here
+        if (this.onConnectSendReady) {
+            this.socket.off('connect', this.onConnectSendReady);
+        }
+        this.phaserPlayer = null as any;
     }
 
 }

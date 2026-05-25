@@ -9,3 +9,24 @@ server/scripts/seedMe.mjs
 public/modules/*.min.js
 public/modules/*.min.js.map
 
+# Media assets - images, audio, video
+src/assets/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.svg
+*.mp3
+*.m4a
+*.wav
+*.ogg
+*.mp4
+*.mkv
+*.mov
+*.avi
+*.woff
+*.woff2
+*.ttf
+*.eot
+

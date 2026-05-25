@@ -108,7 +108,6 @@ export class QuizHostScene extends BaseScene {
         this.load.image('crosshair', '/img/crosshair40.png');
 
         // Audio assets - theme music
-        this.load.audio('quiz-music-intro', '/assets/audio/quiz/music/modern-beat-jingle-intro-149598.mp3');
         this.load.audio('quiz-countdown', '/assets/audio/quiz/music/quiz-countdown-337785.mp3');
         this.load.audio('quiz-race', '/assets/audio/quiz/music/1-01 Title.m4a');
         this.load.audio('quiz-end', '/assets/audio/quiz/music/2-10 Koopa Cape (Final Lap).m4a');
@@ -170,12 +169,12 @@ export class QuizHostScene extends BaseScene {
         );
         this.racetrack.setPosition(0, this.getY(1200));
         this.add.existing(this.racetrack);
-        this.mainContainer.add(this.racetrack);
+        this.topContainer.add(this.racetrack);
         this.racetrack.flyOut().play();
 
         this.quizMap = new QuizMap(this, this.getY(20), this.getY(240));
         this.add.existing(this.quizMap);
-        this.mainContainer.add(this.quizMap);
+        this.topContainer.add(this.quizMap);
 
         // Create the containers for all UI elements (eg round intro)
         // Note: these are added to the 'base' containers set up in BaseScene: background, UI, main, top, overlay
@@ -288,7 +287,7 @@ export class QuizHostScene extends BaseScene {
         console.log('QuizHostScene:: Initializing Lobby Phase:', data.title);
         
         // Start lobby music
-        this.soundManager.playMusic('quiz-music-intro', { volume: 0.5 });
+        // this.soundManager.playMusic('quiz-music-intro', { volume: 0.5 });
         const music = this.soundManager.getCurrentMusicTrack();
         if (music && music.sound) {
             // "modern-beat-jingle-intro" sounds like ~128 BPM
@@ -304,6 +303,10 @@ export class QuizHostScene extends BaseScene {
         // Show the pulsing title and instructions
         this.showStartingSoonHUD(data.title);
         this.showInstructions();
+
+        // TEST: stream lobby music via YouTube iframe
+        const LOBBY_MUSIC_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+        YouTubePlayerUI.getInstance(this).loadVideo(LOBBY_MUSIC_URL);
     }
 
 
@@ -536,6 +539,16 @@ export class QuizHostScene extends BaseScene {
         // Start timer
         this.socket.on('server:starttimer', (data) => {
             this.startTimer(data.duration);
+        });
+
+        // streammode - sent by server when we are live-streaming
+        // For now all this does is remove the background to allow webcam to go behind questions
+        // OBS Studio has its own background that can be added beneath the webcam
+        this.socket.on('server:streammode', (data) => {
+            console.log('QuizHostScene:: server:streammode:', data);
+            if (data && data.enabled) {
+                this.backgroundContainer.setVisible(( data.enabled ? false : true ));
+            }
         });
 
         this.socket.on('server:waitingforstream', (data) => {
@@ -1092,6 +1105,12 @@ export class QuizHostScene extends BaseScene {
         console.log('QuizHostScene:: showOpeningCredits:', title);
         this.clearUI();
 
+        // If we have a current question (maybe due to rewinding back to this point) then destroy it
+        if (this.currentQuestion) {
+            this.currentQuestion.destroy();
+            this.currentQuestion = null;
+        }
+
         // Minimize instructions automatically for the intro
         this.instructionState = 'minimized';
         this.showInstructions();
@@ -1105,32 +1124,33 @@ export class QuizHostScene extends BaseScene {
         }
 
         // Play intro music — QuizHostScene stays alive during the overlay so controls audio.
-        this.soundManager.playMusic('quiz-music-intro', { volume: 0.6, fadeIn: 1000 });
-        const music = this.soundManager.getCurrentMusicTrack();
-        if (music && music.sound) {
-            this.beatManager.start(music.sound, 128);
+        // this.soundManager.playMusic('quiz-music-intro', { volume: 0.6, fadeIn: 1000 });
+        // const music = this.soundManager.getCurrentMusicTrack();
+        // if (music && music.sound) {
+        //     this.beatManager.start(music.sound, 128);
 
-            // Musical impact cue at ~4.3s where the jingle climaxes — runs in this scene's camera.
-            this.beatManager.addCue(4.3, () => {
-                const flash = this.add.rectangle(960, 540, 1920, 1080, 0xffffff).setAlpha(0);
-                this.topContainer.add(flash);
-                gsap.to(flash, { alpha: 1, duration: 0.05 });
-                gsap.to(flash, { alpha: 0, duration: 0.5, onComplete: () => flash.destroy() });
-                this.cameras.main.shake(150, 0.005);
-            });
-        }
+        //     // Musical impact cue at ~4.3s where the jingle climaxes — runs in this scene's camera.
+        //     this.beatManager.addCue(4.3, () => {
+        //         const flash = this.add.rectangle(960, 540, 1920, 1080, 0xffffff).setAlpha(0);
+        //         this.topContainer.add(flash);
+        //         gsap.to(flash, { alpha: 1, duration: 0.05 });
+        //         gsap.to(flash, { alpha: 0, duration: 0.5, onComplete: () => flash.destroy() });
+        //         this.cameras.main.shake(150, 0.005);
+        //     });
+        // }
 
         // When QuizIntroScene finishes its animation it emits 'intro:complete' here.
         // events.once ensures this fires at most once even if the intro is replayed.
         this.events.once('intro:complete', () => {
             console.log('QuizHostScene:: intro:complete received — advancing game state');
-            this.socket?.emit('host:keypress', { key: 'ArrowRight' });
+            // this.socket?.emit('host:keypress', { key: 'ArrowRight' });
         });
 
         // Launch the intro as a parallel overlay. QuizHostScene keeps running — socket
         // listeners, music, and all game state remain intact.
         // If the intro scene is already sleeping (replay case), wake it with fresh data.
         const introScene = this.scene.get('QuizIntroScene');
+        console.log('QuizHostScene:: showOpeningCredits: launching intro scene with data', introScene);
         if (introScene && this.scene.isSleeping('QuizIntroScene')) {
             this.scene.wake('QuizIntroScene', { title, description, samples });
         } else {
@@ -1776,7 +1796,7 @@ export class QuizHostScene extends BaseScene {
 
     private createSpotlight(x: number, targetY: number, intensity: number): void {
         const graphics = this.add.graphics();
-        this.backgroundContainer.add(graphics);
+        this.mainContainer.add(graphics);
         this.spotlights.push(graphics);
 
         const topY = -400; // Start even higher for better beam angle
@@ -1833,7 +1853,7 @@ export class QuizHostScene extends BaseScene {
 
     private createPodiumCylinder(x: number, y: number, width: number, height: number, color: number): void {
         const graphics = this.add.graphics();
-        this.backgroundContainer.add(graphics);
+        this.mainContainer.add(graphics);
         this.podiums.push(graphics);
 
         const depth = width / 4;
@@ -1893,6 +1913,9 @@ export class QuizHostScene extends BaseScene {
     private clearUI(): void {
 
         console.log('QuizHostScene:: clearUI...');
+
+        // Stop any lobby music streaming via YouTube
+        YouTubePlayerUI.getInstance(this).stopVideo();
 
         // Clean up spotlights
         this.spotlights.forEach(s => s.destroy());

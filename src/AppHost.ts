@@ -27,8 +27,13 @@ const roomID = pathSegments[1];
 const gameKey = pathSegments[2];
 
 // Determine scene order - first scene in array starts automatically
+const devScene = urlParams.get('dev');
 const scenes = [];
-if (gameKey === 'quiz' || gameKey === 'gauntlet') {
+if (devScene === 'intro') {
+    // Dev shortcut: load QuizIntroScene standalone with mock data, no server needed.
+    // Usage: /host/ROOM/quiz?dev=intro
+    scenes.push(QuizIntroScene);
+} else if (gameKey === 'quiz' || gameKey === 'gauntlet') {
     scenes.push(QuizHostScene, QuizIntroScene, LobbyHostScene);
 } else if (gameKey === 'three') {
     scenes.push(ThreeHostScene, LobbyHostScene);

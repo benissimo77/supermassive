@@ -10,9 +10,12 @@ const mongoDbURI = process.env.MONGODB_URI;
 let db;
 let mongod;
 
+const USE_LOCAL_DB_ONLY = true; // ← set false to re-enable remote MongoDB
+
 async function dbConnect() {
     if (!db) {
         try {
+            if (USE_LOCAL_DB_ONLY) throw new Error('Local DB only mode');
             // Shorten timeout to 3 seconds so we don't hang if IP is not whitelisted or offline
             await mongoose.connect(mongoDbURI, { serverSelectionTimeoutMS: 3000 });
             db = mongoose.connection;

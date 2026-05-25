@@ -682,18 +682,7 @@ export class QuizHostScene extends BaseScene {
         this.animatePlayer(phaserPlayer);
         // this.scoreRacetrack.addPlayersToTrack(this.getPlayerConfigsAsArray());
 
-        // Fun with FX!1
-        // Shine adds a nice flashy sliding light effect
-        const shine: Phaser.FX.Shine = phaserPlayer.postFX.addShine(1, 0.2, 5);
-        // Bloom adds a glow effect - but it seemed to make player darker...
-        const bloom: Phaser.FX.Bloom = phaserPlayer.postFX.addBloom(0xff0000, 1, 1, 0, 1.2);
-        // Circle makes the player appear in a circular mask
-        const circle: Phaser.FX.Circle = phaserPlayer.postFX.addCircle();
-        phaserPlayer.postFX.remove(shine);
-        phaserPlayer.postFX.remove(bloom);
-        phaserPlayer.postFX.remove(circle);
-
-        console.log('addPlayer:', phaserPlayer, shine);
+        console.log('addPlayer:', phaserPlayer);
         return phaserPlayer;
     }
 
@@ -853,9 +842,9 @@ export class QuizHostScene extends BaseScene {
         this.HUDTimerGraphics = this.add.graphics();
         this.startingSoonHUD.add(this.HUDTimerGraphics);
 
-        // Add Bloom effect to make the neon blue elements glow
-        // (color, offsetX, offsetY, blurStrength, strength)
-        this.HUDTimerGraphics.postFX.addBloom(0x00ccff, 1, 1, 2, 1.5);
+        // Glow effect on HUD timer (Phaser 4: enableFilters() must be called before accessing filters.internal)
+        this.HUDTimerGraphics.enableFilters();
+        this.HUDTimerGraphics.filters.internal.addGlow(0x00ccff, 4);
 
         // Pulsing Title (Branding)
         const title = this.add.text(0, -320, this.lobbyTitle.toUpperCase(), {

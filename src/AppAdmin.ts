@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import SocketManagerPlugin from './socketManager';
-import WebFontLoaderPlugin from 'phaser3-rex-plugins/plugins/webfontloader-plugin';
+import WebFontLoaderPlugin from 'phaser4-rex-plugins/plugins/webfontloader-plugin';
 import RexPlugins from 'src/utils/rexUI';
 
 import { QuizAdminScene } from 'src/quiz/QuizAdminScene';

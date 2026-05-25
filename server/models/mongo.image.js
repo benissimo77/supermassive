@@ -9,9 +9,8 @@ const ImageSchema = new mongoose.Schema({
   url: { type: String, required: true },
   folder: { type: String, default: '' },
   tags: [{ type: String }],
-  createdAt: { type: Date, default: Date.now },
   lastUsed: { type: Date }
-});
+}, { timestamps: true });
 
 
 const Image = mongoose.model('Image', ImageSchema);

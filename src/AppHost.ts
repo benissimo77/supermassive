@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import SocketManagerPlugin from './socketManager';
-import WebFontLoaderPlugin from 'phaser3-rex-plugins/plugins/webfontloader-plugin';
+import WebFontLoaderPlugin from 'phaser4-rex-plugins/plugins/webfontloader-plugin';
 
 // This is a bit of a weird way to import the plugin (downloaded from CDN then exported) but it works
 // When attempting to import from the node_modules directly, it didn't work

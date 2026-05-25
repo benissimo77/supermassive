@@ -31,7 +31,7 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 	private playerState: PhaserPlayerState = PhaserPlayerState.FLOATING;
 	private flameEmitter: Phaser.GameObjects.Particles.ParticleEmitter | null = null;
 	private leaderPulseTween: gsap.core.Tween | null = null;
-	private leaderGlow: Phaser.FX.Glow | null = null;
+	private leaderGlow: any = null;
 
 	constructor(scene: BaseScene, playerConfig: PlayerConfig) {
 		super(scene, 0, 0);
@@ -92,7 +92,7 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 			avatarImage.setDisplaySize(avatarWidth, avatarHeight);
 
 			// Add shadow effect
-			if (avatarImage.postFX) {
+			if ((avatarImage as any).postFX) {
 				// avatarImage.postFX.addShadow(-8, -6, 0.05, 2, 0x000000, 3, 0.6);
 			}
 
@@ -136,8 +136,13 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 			this.playerTexture.setOrigin(0, originY);
 			console.log(`Setting origin to: (0, ${originY})`);
 
-			// Use snapshot method to ensure all elements are properly rendered
+			// Queue the draw command, then immediately flush the command buffer.
+			// Phaser 4 RenderTexture uses a deferred command buffer — draw() queues
+			// the commands but render() is required to actually paint to the framebuffer.
+			// We must render() BEFORE destroying tempContainer because the buffer holds
+			// live references to the child game objects.
 			this.playerTexture.draw(tempContainer, 0, textureHeight - 60);
+			this.playerTexture.render();
 
 			// Clean up temporary objects
 			tempContainer.removeAll(true);
@@ -190,10 +195,11 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 
 	public addShine(): void {
 
-		if (this.playerTexture && this.playerTexture.postFX) {
-			const shine: Phaser.FX.Shine = this.playerTexture.postFX.addShine(1, 0.2, 5);
+		const rt = this.playerTexture as any;
+		if (rt && rt.postFX) {
+			const shine = rt.postFX.addShine(1, 0.2, 5);
 			this.scene.time.delayedCall(2000, () => {
-				this.playerTexture.postFX.remove(shine);
+				rt.postFX.remove(shine);
 			});
 		}
 	}
@@ -331,8 +337,9 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 		});
 
 		// Add a golden glow if supported
-		if (this.playerTexture.postFX && !this.leaderGlow) {
-			this.leaderGlow = this.playerTexture.postFX.addGlow(0xffff00, 2, 0);
+		const rt = this.playerTexture as any;
+		if (rt.postFX && !this.leaderGlow) {
+			this.leaderGlow = rt.postFX.addGlow(0xffff00, 2, 0);
 			this.scene.tweens.add({
 				targets: this.leaderGlow,
 				outerStrength: 4,
@@ -352,8 +359,9 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 		}
 
 		if (this.leaderGlow) {
-			if (this.playerTexture.postFX) {
-				this.playerTexture.postFX.remove(this.leaderGlow);
+			const rt = this.playerTexture as any;
+			if (rt.postFX) {
+				rt.postFX.remove(this.leaderGlow);
 			}
 			this.leaderGlow = null;
 		}

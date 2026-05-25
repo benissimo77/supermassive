@@ -17,16 +17,17 @@ const playerResultSchema = new mongoose.Schema({
     
     // Detailed responses for 'ghost playback' and granular analytics
     // e.g. [{ questionText: "...", answer: "...", time: 1.2, score: 100 }]
-    responses: [{
+    // _id: false — responses are analytics data, never individually addressed
+    responses: [new mongoose.Schema({
         questionText: String,
         answer: mongoose.Schema.Types.Mixed,
         time: Number,
         score: Number
-    }],
+    }, { _id: false })],
 
     // Feedback/Rating (optional)
     rating: { type: Number, min: 1, max: 5 },
     feedback: { type: String }
-}, { timestamps: false });
+}, { timestamps: true });
 
 export default mongoose.model('PlayerResult', playerResultSchema);

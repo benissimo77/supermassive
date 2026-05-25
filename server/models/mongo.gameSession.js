@@ -12,9 +12,8 @@ const gameSessionSchema = new mongoose.Schema({
     isLive: { type: Boolean, default: false },
     verificationLevel: { type: Number, default: 3 }, // 0: VideoSwipe, 1: Trusted, 2: Verified, 3: Everyone
     
-    // Netflix Model Hierarchy
-    showID: { type: mongoose.Schema.Types.ObjectId, ref: 'Show', index: true },
-    seasonID: { type: mongoose.Schema.Types.ObjectId, ref: 'Season', index: true },
+    // Optional season this game belongs to (null for standalone one-off quizzes)
+    seasonID: { type: mongoose.Schema.Types.ObjectId, ref: 'Season', index: true, default: null },
     
     // Flexible metadata for game-specific info (e.g. quiz title, total questions)
     metadata: { type: mongoose.Schema.Types.Mixed, default: {} }

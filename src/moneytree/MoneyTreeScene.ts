@@ -5,7 +5,7 @@ import MoneyTreeState from "./MoneyTreeState";
 import { StateDebuggerPanel } from "./StateDebugger";
 import MoneyTreeComponent from './moneytreecomponent';
 import SocketManagerPlugin from 'src/socketManager';
-import WebFontLoaderPlugin from 'phaser3-rex-plugins/plugins/webfontloader-plugin.js';
+import WebFontLoaderPlugin from 'phaser4-rex-plugins/plugins/webfontloader-plugin.js';
 
 
 class Question {
@@ -1366,7 +1366,7 @@ export default class MoneyTreeScene extends BaseScene {
 
         // This code taken straight from the function below to ensure that envelopes begin at the correct position
         envelopes.forEach((envelope, i) => {
-            const angle = (i / count) * Phaser.Math.PI2;
+            const angle = (i / count) * Phaser.Math.TAU;
 
             // Calculate the new position
             const x = Math.cos(angle) * 300;
@@ -1392,13 +1392,13 @@ export default class MoneyTreeScene extends BaseScene {
 
         // Store the initial angle for each envelope
         envelopes.forEach((envelope, index) => {
-            envelope.setData('angle', (index / totalEnvelopes) * Phaser.Math.PI2); // Evenly distribute angles
+            envelope.setData('angle', (index / totalEnvelopes) * Phaser.Math.TAU); // Evenly distribute angles
         });
 
         // Create a tween to rotate the envelopes
         this.tweens.addCounter({
             from: 0,
-            to: Phaser.Math.PI2, // Full circle (2π radians)
+            to: Phaser.Math.TAU, // Full circle (2π radians)
             duration: duration, // Duration of one full rotation
             repeat: -1, // Infinite loop
             onUpdate: (tween) => {

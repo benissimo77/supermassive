@@ -266,8 +266,11 @@ export class QuizIntroScene extends Phaser.Scene {
         // Then add the mask and it will be ready to start tweening the paint reveal to reveal the living room
         const livingRoomBG = this.add.image(0, 0, 'livingroom-background').setOrigin(0, 0).setAlpha(1);
         const maskGraphics = this.make.graphics();
-        const mask = new Phaser.Display.Masks.BitmapMask(this, maskGraphics);
-        livingRoomBG.setMask(mask);
+        livingRoomBG.enableFilters();
+        // Use external (screen-space) mask so brush strokes painted in world coords align correctly.
+        // filters.internal would apply the mask in the object's own local framebuffer (pre-transform),
+        // causing a scale mismatch when the parent container has effectiveScale != 1.
+        livingRoomBG.filters.external.addMask(maskGraphics);
         // livingRoomBG.setVisible(false);
 
         this.mainContainer.add(livingRoomBG);
@@ -764,7 +767,10 @@ export class QuizIntroScene extends Phaser.Scene {
         maskImage.setPosition(matrix.tx, matrix.ty);
         maskImage.setScale(matrix.scaleX, matrix.scaleY);
         maskImage.setAlpha(1);
-        maskImage.setVisible(false);
+        // Keep visible=true so DynamicTexture.capture can render it for the filter mask.
+        // maskImage is NOT on the display list (removed from container, never re-added),
+        // so it won't appear on screen — only the filter will use it.
+        // maskImage.setVisible(false);
 
         // Do the same for logo image - then we can ensure it scales/positions to exactly the right place with no join to next part of sequence
         this.mainContainer.remove(logoImage);
@@ -772,8 +778,12 @@ export class QuizIntroScene extends Phaser.Scene {
         logoImage.setPosition(matrix.tx, matrix.ty);
         logoImage.setScale( 1.1 * maskImage.displayWidth / 1920 );
 
-        const tvMask = maskImage.createBitmapMask();
-        logoImage.setMask(tvMask);
+        logoImage.enableFilters();
+        // Use maskImage (game object) as the mask source, not the texture key.
+        // The game object is rendered in world space (viewTransform='world' default),
+        // so it aligns correctly with logoImage's world position.
+        // external filter = screen/world space, matching maskImage's world transform.
+        logoImage.filters.external.addMask(maskImage);
 
         // Now that the logo imaage has been masked by we can make it visible
         logoImage.setVisible(true);
@@ -816,11 +826,9 @@ export class QuizIntroScene extends Phaser.Scene {
         }, "<");
         tl.add(() => {
 
-            // Remove the mask
-            logoImage.clearMask(true);
+            // Remove the mask (Phaser 4: clear the external filter list)
+            logoImage.filters.external.clear();
             maskImage.destroy();
-            tvMask.destroy();
-            // This could be risky but can we pull logo from mainContainer and remove everything, then begin a new timeline for the final zoom?
             this.doFinalZoom();
         }, ">+1");
 

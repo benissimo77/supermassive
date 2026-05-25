@@ -1,10 +1,11 @@
 import mongoose from 'mongoose';
 
 const seasonSchema = new mongoose.Schema({
-    showID: { type: mongoose.Schema.Types.ObjectId, ref: 'Show', required: true, index: true },
+    ownerID: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    seriesName: { type: String }, // Optional brand name e.g. "Pub Quiz @ Home", "The Gauntlet"
     name: { type: String, required: true }, // e.g. "Series 1", "Winter 2026"
     description: { type: String },
-    
+
     // Status
     isActive: { type: Boolean, default: true },
     startDate: { type: Date },
@@ -18,7 +19,7 @@ const seasonSchema = new mongoose.Schema({
     }]
 }, { timestamps: true });
 
-// Ensure we can quickly find the active season for a show
-seasonSchema.index({ showID: 1, isActive: 1 });
+// Quickly find active seasons for a given owner
+seasonSchema.index({ ownerID: 1, isActive: 1 });
 
 export default mongoose.model('Season', seasonSchema);

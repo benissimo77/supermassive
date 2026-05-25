@@ -57,7 +57,7 @@ const quizSchema = new mongoose.Schema({
     isDeleted: { type: Boolean, default: false },
     validation: [ {type: Object} ],
     rounds: [quizRoundSchema] // Array of rounds
-}, { timestamps: false }); // Automatically manage createdAt and updatedAt fields - OFF for now...
+}, { timestamps: true });
 
 
 // This is an experiment with adding methods to this model to include reading/writing to the DB

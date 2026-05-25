@@ -22,7 +22,7 @@ import apiQuiz from './api/api.quiz.js';
 import apiImage from './api/api.image.js';
 import apiLeague from './api/api.league.js';
 import apiLeaderboard from './api/api.leaderboard.js';
-import apiShows from './api/api.shows.js';
+import apiSeasons from './api/api.seasons.js';
 
 console.log('######  app.js is running  ######');
 
@@ -275,6 +275,6 @@ app.use('/api/quiz', apiQuiz);
 app.use('/api/image', apiImage);
 app.use('/api/league', apiLeague);
 app.use('/api/leaderboard', apiLeaderboard);
-app.use('/api/shows', apiShows);
+app.use('/api/seasons', apiSeasons);
 
 export { app, sessionMiddleware };

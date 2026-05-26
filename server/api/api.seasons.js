@@ -15,6 +15,19 @@ function checkAuth(req, res, next) {
     return res.status(401).json({ success: false, message: 'Unauthorized' });
 }
 
+/**
+ * GET /api/seasons/public
+ * List all seasons marked as public (any owner). No auth required — public data.
+ */
+router.get('/public', async (req, res) => {
+    try {
+        const seasons = await Season.find({ isPublic: true }).sort({ updatedAt: -1 });
+        res.json({ success: true, data: seasons });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 router.use(checkAuth);
 
 /**
@@ -58,11 +71,24 @@ router.post('/', async (req, res) => {
             description,
             startDate,
             endDate,
-            isActive: true
+            isPublic: false
         });
 
         await season.save();
         res.json({ success: true, data: season });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+/**
+ * GET /api/seasons/public
+ * List all seasons marked as public (any owner)
+ */
+router.get('/public', async (req, res) => {
+    try {
+        const seasons = await Season.find({ isPublic: true }).sort({ updatedAt: -1 });
+        res.json({ success: true, data: seasons });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
@@ -96,10 +122,6 @@ router.post('/:seasonId/episodes', async (req, res) => {
     try {
         const { quizID, label, airDate } = req.body;
 
-        if (!quizID) {
-            return res.status(400).json({ success: false, message: 'quizID is required' });
-        }
-
         // Get current episode count to generate a default label
         const existing = await Season.findById(req.params.seasonId, { episodes: 1 });
         if (!existing) {
@@ -132,7 +154,7 @@ router.post('/:seasonId/episodes', async (req, res) => {
  */
 router.patch('/:id', async (req, res) => {
     try {
-        const allowed = ['name', 'seriesName', 'description', 'startDate', 'endDate', 'isActive'];
+        const allowed = ['name', 'seriesName', 'description', 'startDate', 'endDate', 'isPublic'];
         const updates = {};
         for (const key of allowed) {
             if (req.body[key] !== undefined) {
@@ -159,10 +181,11 @@ router.patch('/:id', async (req, res) => {
  */
 router.patch('/:seasonId/episodes/:episodeId', async (req, res) => {
     try {
-        const { label, airDate } = req.body;
+        const { label, airDate, quizID } = req.body;
         const setFields = {};
         if (label !== undefined) setFields['episodes.$.label'] = label;
         if (airDate !== undefined) setFields['episodes.$.airDate'] = airDate || null;
+        if (quizID !== undefined) setFields['episodes.$.quizID'] = quizID || null;
 
         const season = await Season.findOneAndUpdate(
             { _id: req.params.seasonId, 'episodes._id': req.params.episodeId },

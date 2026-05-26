@@ -7,7 +7,7 @@ const seasonSchema = new mongoose.Schema({
     description: { type: String },
 
     // Status
-    isActive: { type: Boolean, default: true },
+    isPublic: { type: Boolean, default: false },
     startDate: { type: Date },
     endDate: { type: Date },
 
@@ -20,6 +20,6 @@ const seasonSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Quickly find active seasons for a given owner
-seasonSchema.index({ ownerID: 1, isActive: 1 });
+seasonSchema.index({ ownerID: 1, isPublic: 1 });
 
 export default mongoose.model('Season', seasonSchema);

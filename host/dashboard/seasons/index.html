@@ -1,10 +1,11 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Seasons - SuperMassive</title>
     <link rel="stylesheet" href="/css/dashboard.css">
+    <link rel="stylesheet" href="/css/quizbuilder.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script type="module" src="/modules/dashboard.min.js" defer></script>
@@ -16,7 +17,6 @@
             margin-top: 2rem;
         }
 
-        /* Season cards reuse .card but add a left accent bar and pointer */
         .season-card {
             cursor: pointer;
             border-left: 4px solid var(--clr-accent) !important;
@@ -47,7 +47,7 @@
             flex-wrap: wrap;
         }
 
-        .active-badge {
+        .public-badge {
             padding: 0.1rem 0.5rem;
             background: rgba(0, 200, 100, 0.15);
             color: #00c864;
@@ -55,40 +55,6 @@
             font-size: 0.7rem;
             font-weight: 700;
         }
-
-        .modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.8);
-            display: none;
-            place-items: center;
-            z-index: 1000;
-            backdrop-filter: blur(4px);
-        }
-
-        .modal-content {
-            background: var(--clr-surface);
-            padding: 2rem;
-            border-radius: 20px;
-            width: 100%;
-            max-width: 460px;
-            border: 1px solid var(--clr-border);
-        }
-
-        .form-group { margin-bottom: 1.25rem; }
-        .form-group label { display: block; margin-bottom: 0.4rem; font-weight: 700; font-size: 0.85rem; color: var(--clr-text-muted); }
-        .form-group input, .form-group textarea {
-            width: 100%;
-            padding: 0.7rem;
-            background: var(--clr-bg);
-            border: 1px solid var(--clr-border);
-            border-radius: 8px;
-            color: var(--clr-text);
-            font-family: inherit;
-            font-size: 0.9rem;
-        }
-        .form-hint { margin-top: 0.3rem; font-size: 0.75rem; color: var(--clr-text-muted); }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 
         .empty-state {
             grid-column: 1 / -1;
@@ -99,70 +65,57 @@
             border-radius: 20px;
             color: var(--clr-text-muted);
         }
+
+        .season-card:hover { border-color: var(--clr-accent) !important; }
     </style>
 </head>
 <body class="dashboard-body">
     <div id="sidebar" class="sidebar"></div>
 
     <main class="main-content">
-        <header class="dashboard-header">
-            <div class="header-left">
-                <h1>Seasons</h1>
-                <p>Organise your quizzes into seasons, track episode history and leaderboards.</p>
-            </div>
-            <div class="header-right">
-                <button class="btn btn-accent" onclick="document.getElementById('createModal').style.display='grid'">
+        <div class="editor-header">
+            <h1>Seasons</h1>
+            <div class="flex gap-md">
+                <button id="new-season-btn" class="btn btn-accent">
                     <i class="fa-solid fa-plus"></i>
                     New Season
                 </button>
             </div>
-        </header>
+        </div>
 
-        <section id="season-list" class="season-grid">
-            <div class="empty-state">Loading your seasons...</div>
-        </section>
+        <div class="card">
+            <div class="card-header">
+                <svg class="collapse-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                <h2>My Seasons</h2>
+            </div>
+            <div class="card-body">
+                <section id="season-list" class="season-grid">
+                    <div class="empty-state">Loading your seasons...</div>
+                </section>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 2.5rem;">
+            <div class="card-header">
+                <svg class="collapse-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                <h2>Public Seasons</h2>
+            </div>
+            <div class="card-body">
+                <section id="public-season-list" class="season-grid">
+                    <div class="empty-state">Loading public seasons...</div>
+                </section>
+            </div>
+        </div>
     </main>
 
-    <!-- Create Season Modal -->
-    <div id="createModal" class="modal-overlay" onclick="if(event.target === this) this.style.display='none'">
-        <div class="modal-content">
-            <h2 style="margin-bottom: 1.5rem;">New Season</h2>
-            <form id="createSeasonForm">
-                <div class="form-group">
-                    <label>Season Name <span style="color: var(--clr-accent)">*</span></label>
-                    <input type="text" name="name" placeholder="e.g. Winter 2026, Series 3" required autocomplete="off">
-                </div>
-                <div class="form-group">
-                    <label>Series Name <span style="font-weight: normal;">(Optional)</span></label>
-                    <input type="text" name="seriesName" placeholder="e.g. Pub Quiz @ Home, The Gauntlet" autocomplete="off">
-                    <p class="form-hint">Groups multiple seasons under one brand. Leave blank for a standalone season.</p>
-                </div>
-                <div class="form-group">
-                    <label>Description <span style="font-weight: normal;">(Optional)</span></label>
-                    <textarea name="description" rows="2" placeholder="What's this season about?"></textarea>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Start Date</label>
-                        <input type="date" name="startDate">
-                    </div>
-                    <div class="form-group">
-                        <label>End Date</label>
-                        <input type="date" name="endDate">
-                    </div>
-                </div>
-                <div style="display: flex; gap: 1rem; margin-top: 1rem;">
-                    <button type="button" class="btn btn-ghost" onclick="document.getElementById('createModal').style.display='none'" style="flex: 1;">Cancel</button>
-                    <button type="submit" class="btn btn-accent" style="flex: 1;">
-                        <i class="fa-solid fa-plus"></i>
-                        Create Season
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <script type="module">
+        // Card collapse (matches Quiz Dashboard behaviour)
+        document.querySelectorAll('.card-header').forEach(header => {
+            header.addEventListener('click', () => {
+                header.closest('.card').classList.toggle('collapsed');
+            });
+        });
+
         async function loadSeasons() {
             const container = document.getElementById('season-list');
             try {
@@ -183,7 +136,7 @@
                     const episodeCount = season.episodes?.length || 0;
                     const fmt = d => new Date(d).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
                     const dates = [season.startDate && fmt(season.startDate), season.endDate && fmt(season.endDate)]
-                        .filter(Boolean).join(' – ');
+                        .filter(Boolean).join(' \u2013 ');
 
                     return `
                         <div class="season-card card" onclick="location.href='/host/dashboard/seasons/detail?id=${season._id}'">
@@ -193,8 +146,7 @@
                                 <div class="season-meta">
                                     <span><i class="fa-solid fa-film" style="margin-right:3px; opacity:0.5;"></i>${episodeCount} Episode${episodeCount !== 1 ? 's' : ''}</span>
                                     ${dates ? `<span>&bull;</span><span>${dates}</span>` : ''}
-                                    <span>&bull;</span>
-                                    ${season.isActive ? '<span class="active-badge">Active</span>' : '<span>Ended</span>'}
+                                    ${season.isPublic ? `<span>&bull;</span><span class="public-badge">Public</span>` : ''}
                                 </div>
                             </div>
                         </div>
@@ -206,540 +158,72 @@
             }
         }
 
-        document.getElementById('createSeasonForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const body = Object.fromEntries(new FormData(e.target).entries());
-            // Strip empty optional fields rather than sending empty strings
-            ['seriesName', 'description', 'startDate', 'endDate'].forEach(k => {
-                if (!body[k]) delete body[k];
-            });
-
+        async function loadPublicSeasons() {
+            const container = document.getElementById('public-season-list');
             try {
-                const res = await fetch('/api/seasons', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
-                const result = await res.json();
-                if (result.success) {
-                    document.getElementById('createModal').style.display = 'none';
-                    e.target.reset();
-                    loadSeasons();
-                } else {
-                    alert(result.message || 'Failed to create season.');
-                }
-            } catch (err) {
-                console.error('Create season error:', err);
-                alert('Failed to create season. Please try again.');
-            }
-        });
-
-        loadSeasons();
-    </script>
-</body>
-</html>
-    <link rel="stylesheet" href="/css/dashboard.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
-    <script type="module" src="/modules/dashboard.min.js" defer></script>
-    <style>
-        .season-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 2rem;
-            margin-top: 2rem;
-        }
-
-        .season-card {
-            background: var(--clr-surface);
-            border: 1px solid var(--clr-border);
-            border-radius: 16px;
-            overflow: hidden;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            cursor: pointer;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            aspect-ratio: 16/10;
-        }
-
-        .season-card:hover {
-            transform: translateY(-8px);
-            border-color: var(--clr-accent);
-            box-shadow: 0 12px 32px rgba(0,0,0,0.3);
-        }
-
-        .season-visual {
-            flex: 1;
-            background: linear-gradient(135deg, var(--clr-accent), #1a1a1a);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            padding: 1rem;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .season-visual::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(0deg, rgba(0,0,0,0.4) 0%, transparent 60%);
-        }
-
-        .season-series-name {
-            font-size: 0.8rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: rgba(255,255,255,0.6);
-            position: relative;
-            z-index: 1;
-        }
-
-        .season-name-large {
-            font-size: 2rem;
-            font-weight: 800;
-            color: white;
-            text-align: center;
-            position: relative;
-            z-index: 1;
-        }
-
-        .season-info {
-            padding: 1.25rem;
-            background: var(--clr-surface);
-        }
-
-        .season-stats {
-            font-size: 0.85rem;
-            color: var(--clr-text-muted);
-            display: flex;
-            gap: 1rem;
-        }
-
-        .active-badge {
-            display: inline-block;
-            padding: 0.15rem 0.6rem;
-            background: rgba(0, 200, 100, 0.15);
-            color: #00c864;
-            border-radius: 999px;
-            font-size: 0.75rem;
-            font-weight: 700;
-        }
-
-        .btn-new-season {
-            background: var(--clr-accent);
-            color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 12px;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
-
-        .btn-new-season:hover { opacity: 0.9; }
-
-        .modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.8);
-            display: none;
-            place-items: center;
-            z-index: 1000;
-            backdrop-filter: blur(4px);
-        }
-
-        .modal-content {
-            background: var(--clr-surface);
-            padding: 2rem;
-            border-radius: 20px;
-            width: 100%;
-            max-width: 450px;
-            border: 1px solid var(--clr-border);
-        }
-
-        .form-group { margin-bottom: 1.5rem; }
-        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 700; font-size: 0.9rem; color: var(--clr-text-muted); }
-        .form-group input, .form-group textarea {
-            width: 100%;
-            padding: 0.75rem;
-            background: var(--clr-bg);
-            border: 1px solid var(--clr-border);
-            border-radius: 8px;
-            color: var(--clr-text);
-            font-family: inherit;
-        }
-
-        .empty-state {
-            grid-column: 1 / -1;
-            padding: 4rem;
-            text-align: center;
-            background: var(--clr-surface);
-            border: 2px dashed var(--clr-border);
-            border-radius: 20px;
-            color: var(--clr-text-muted);
-        }
-    </style>
-</head>
-<body class="dashboard-body">
-    <div id="sidebar" class="sidebar"></div>
-
-    <main class="main-content">
-        <header class="dashboard-header">
-            <div class="header-left">
-                <h1>Seasons</h1>
-                <p>Organise your quizzes into seasons. Track episode history and season leaderboards.</p>
-            </div>
-            <div class="header-right">
-                <button class="btn-new-season" onclick="document.getElementById('createModal').style.display='grid'">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                    New Season
-                </button>
-            </div>
-        </header>
-
-        <section id="season-list" class="season-grid">
-            <div class="empty-state">Loading your seasons...</div>
-        </section>
-    </main>
-
-    <!-- Create Season Modal -->
-    <div id="createModal" class="modal-overlay" onclick="if(event.target === this) this.style.display='none'">
-        <div class="modal-content">
-            <h2 style="margin-bottom: 1.5rem;">New Season</h2>
-            <form id="createSeasonForm">
-                <div class="form-group">
-                    <label>Season Name <span style="color: var(--clr-accent)">*</span></label>
-                    <input type="text" name="name" placeholder="e.g. Winter 2026, Series 3" required autocomplete="off">
-                </div>
-                <div class="form-group">
-                    <label>Series Name (Optional)</label>
-                    <input type="text" name="seriesName" placeholder="e.g. Pub Quiz @ Home, The Gauntlet" autocomplete="off">
-                    <small style="color: var(--clr-text-muted); font-size: 0.8rem; margin-top: 0.4rem; display: block;">Groups multiple seasons under one brand.</small>
-                </div>
-                <div class="form-group">
-                    <label>Description (Optional)</label>
-                    <textarea name="description" rows="2" placeholder="What's this season about?"></textarea>
-                </div>
-                <div style="display: flex; gap: 1rem; margin-top: 2rem;">
-                    <button type="button" class="btn-secondary" onclick="document.getElementById('createModal').style.display='none'" style="flex: 1;">Cancel</button>
-                    <button type="submit" class="btn-new-season" style="flex: 1; justify-content: center;">Create Season</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <script type="module">
-        async function loadSeasons() {
-            const container = document.getElementById('season-list');
-            try {
-                const res = await fetch('/api/seasons');
+                const res = await fetch('/api/seasons/public');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const { success, data } = await res.json();
 
                 if (!success || data.length === 0) {
                     container.innerHTML = `
                         <div class="empty-state">
-                            <h3>No Seasons Yet</h3>
-                            <p>Create a season to group quizzes into an episode run and track season leaderboards.</p>
+                            <h3>No Public Seasons</h3>
+                            <p>When creators mark their seasons as public they will appear here.</p>
                         </div>`;
                     return;
                 }
 
                 container.innerHTML = data.map(season => {
                     const episodeCount = season.episodes?.length || 0;
-                    const activeBadge = season.isActive ? '<span class="active-badge">Active</span>' : '';
+                    const fmt = d => new Date(d).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+                    const dates = [season.startDate && fmt(season.startDate), season.endDate && fmt(season.endDate)]
+                        .filter(Boolean).join(' \u2013 ');
                     return `
-                        <div class="season-card" onclick="location.href='/host/dashboard/seasons/detail?id=${season._id}'">
-                            <div class="season-visual">
-                                ${season.seriesName ? `<div class="season-series-name">${season.seriesName}</div>` : ''}
-                                <div class="season-name-large">${season.name}</div>
-                            </div>
-                            <div class="season-info">
-                                <div class="season-stats">
-                                    <span>${episodeCount} Episode${episodeCount !== 1 ? 's' : ''}</span>
-                                    <span>&bull;</span>
-                                    ${activeBadge || '<span>Ended</span>'}
+                        <div class="card" style="border-left: 4px solid var(--clr-accent); margin-bottom: 0;">
+                            <div class="card-body">
+                                ${season.seriesName ? `<div class="season-series-label">${season.seriesName}</div>` : ''}
+                                <h3 class="season-name">${season.name}</h3>
+                                <div class="season-meta">
+                                    <span><i class="fa-solid fa-film" style="margin-right:3px; opacity:0.5;"></i>${episodeCount} Episode${episodeCount !== 1 ? 's' : ''}</span>
+                                    ${dates ? `<span>&bull;</span><span>${dates}</span>` : ''}
                                 </div>
                             </div>
                         </div>
                     `;
                 }).join('');
             } catch (err) {
-                container.innerHTML = '<div class="empty-state">Failed to load seasons. Please try again.</div>';
+                console.error('Failed to load public seasons:', err);
+                container.innerHTML = '<div class="empty-state">Failed to load public seasons.</div>';
             }
         }
 
-        document.getElementById('createSeasonForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const body = Object.fromEntries(new FormData(e.target).entries());
-
+        async function createNewSeason() {
+            const btn = document.getElementById('new-season-btn');
+            btn.disabled = true;
             try {
                 const res = await fetch('/api/seasons', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
+                    body: JSON.stringify({ name: 'New Season' })
                 });
                 const result = await res.json();
                 if (result.success) {
-                    document.getElementById('createModal').style.display = 'none';
-                    e.target.reset();
-                    loadSeasons();
+                    location.href = `/host/dashboard/seasons/detail?id=${result.data._id}`;
                 } else {
-                    alert(result.message);
+                    alert(result.message || 'Failed to create season.');
+                    btn.disabled = false;
                 }
             } catch (err) {
-                alert('Failed to create season.');
+                console.error('Create season error:', err);
+                alert('Failed to create season. Please try again.');
+                btn.disabled = false;
             }
-        });
+        }
 
+        document.getElementById('new-season-btn').addEventListener('click', createNewSeason);
         loadSeasons();
-    </script>
-</body>
-</html>
-    <link rel="stylesheet" href="/css/dashboard.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
-    <script type="module" src="/modules/dashboard.min.js" defer></script>
-    <style>
-        .show-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 2rem;
-            margin-top: 2rem;
-        }
-
-        .show-card {
-            background: var(--clr-surface);
-            border: 1px solid var(--clr-border);
-            border-radius: 16px;
-            overflow: hidden;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            cursor: pointer;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            aspect-ratio: 16/10;
-        }
-
-        .show-card:hover {
-            transform: translateY(-8px);
-            border-color: var(--clr-accent);
-            box-shadow: 0 12px 32px rgba(0,0,0,0.3);
-        }
-
-        .show-visual {
-            flex: 1;
-            background: linear-gradient(135deg, var(--clr-accent), #ff9d00);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 4rem;
-            font-weight: 800;
-            color: rgba(255,255,255,0.9);
-            text-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .show-visual::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(0deg, rgba(0,0,0,0.4) 0%, transparent 60%);
-        }
-
-        .show-info {
-            padding: 1.25rem;
-            background: var(--clr-surface);
-        }
-
-        .show-title {
-            font-size: 1.25rem;
-            font-weight: 700;
-            margin-bottom: 0.25rem;
-            color: var(--clr-text);
-        }
-
-        .show-stats {
-            font-size: 0.85rem;
-            color: var(--clr-text-muted);
-            display: flex;
-            gap: 1rem;
-        }
-
-        .btn-new-show {
-            background: var(--clr-accent);
-            color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 12px;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
-
-        .btn-new-show:hover {
-            opacity: 0.9;
-        }
-
-        /* Modal simple styling */
-        .modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.8);
-            display: none;
-            place-items: center;
-            z-index: 1000;
-            backdrop-filter: blur(4px);
-        }
-
-        .modal-content {
-            background: var(--clr-surface);
-            padding: 2rem;
-            border-radius: 20px;
-            width: 100%;
-            max-width: 450px;
-            border: 1px solid var(--clr-border);
-        }
-
-        .form-group { margin-bottom: 1.5rem; }
-        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 700; }
-        .form-group input, .form-group textarea {
-            width: 100%;
-            padding: 0.75rem;
-            background: var(--clr-bg);
-            border: 1px solid var(--clr-border);
-            border-radius: 8px;
-            color: var(--clr-text);
-            font-family: inherit;
-        }
-
-        .empty-state {
-            grid-column: 1 / -1;
-            padding: 4rem;
-            text-align: center;
-            background: var(--clr-surface);
-            border: 2px dashed var(--clr-border);
-            border-radius: 20px;
-            color: var(--clr-text-muted);
-        }
-    </style>
-</head>
-<body class="dashboard-body">
-    <div id="sidebar" class="sidebar"></div>
-    
-    <main class="main-content">
-        <header class="dashboard-header">
-            <div class="header-left">
-                <h1>Shows</h1>
-                <p>Your content series and branded collections.</p>
-            </div>
-            <div class="header-right">
-                <button class="btn-new-show" onclick="document.getElementById('createModal').style.display='grid'">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                    Create Show
-                </button>
-            </div>
-        </header>
-
-        <section id="show-list" class="show-grid">
-            <div class="empty-state">Loading your shows...</div>
-        </section>
-    </main>
-
-    <!-- Create Show Modal -->
-    <div id="createModal" class="modal-overlay" onclick="if(event.target === this) this.style.display='none'">
-        <div class="modal-content">
-            <h2 style="margin-bottom: 1.5rem;">Create New Show</h2>
-            <form id="createShowForm">
-                <div class="form-group">
-                    <label>Title</label>
-                    <input type="text" name="title" placeholder="e.g. The Friday Night Brawl" required autocomplete="off">
-                </div>
-                <div class="form-group">
-                    <label>Description (Optional)</label>
-                    <textarea name="description" rows="3" placeholder="What is this show about?"></textarea>
-                </div>
-                <div style="display: flex; gap: 1rem; margin-top: 2rem;">
-                    <button type="button" class="btn-secondary" onclick="document.getElementById('createModal').style.display='none'" style="flex: 1;">Cancel</button>
-                    <button type="submit" class="btn-new-show" style="flex: 1; justify-content: center;">Create Brand</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <script type="module">
-        async function loadShows() {
-            const container = document.getElementById('show-list');
-            try {
-                const res = await fetch('/api/shows');
-                const { success, data } = await res.json();
-                
-                if (!success || data.length === 0) {
-                    container.innerHTML = `
-                        <div class="empty-state">
-                            <h3>No Shows Yet</h3>
-                            <p>Shows help you group seasons and track all-time leaderboards.</p>
-                        </div>`;
-                    return;
-                }
-
-                container.innerHTML = data.map(show => {
-                    const accent = show.visuals?.accentColor || 'var(--clr-accent)';
-                    return `
-                        <div class="show-card" onclick="location.href='/host/dashboard/shows/detail?id=${show._id}'">
-                            <div class="show-visual" style="background: linear-gradient(135deg, ${accent}, #1a1a1a)">
-                                ${show.title.charAt(0)}
-                            </div>
-                            <div class="show-info">
-                                <div class="show-title">${show.title}</div>
-                                <div class="show-stats">
-                                    <span>${show.seasons?.length || 1} Season${show.seasons?.length === 1 ? '' : 's'}</span>
-                                    <span>&bull;</span>
-                                    <span>Series</span>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            } catch (err) {
-                container.innerHTML = '<div class="empty-state">Failed to load shows. Please try again.</div>';
-            }
-        }
-
-        document.getElementById('createShowForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const body = Object.fromEntries(formData.entries());
-
-            try {
-                const res = await fetch('/api/shows', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
-                const result = await res.json();
-                if (result.success) {
-                    document.getElementById('createModal').style.display = 'none';
-                    loadShows();
-                } else {
-                    alert(result.message);
-                }
-            } catch (err) {
-                alert("Failed to create show.");
-            }
-        });
-
-        // Initialize
-        loadShows();
+        loadPublicSeasons();
     </script>
 </body>
 </html>

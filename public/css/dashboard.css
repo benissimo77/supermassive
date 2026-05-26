@@ -439,3 +439,155 @@ main {
     display: none;
   }
 }
+
+/* =========================================
+   PAGE HEADER
+   Standard heading block at the top of a
+   dashboard page (title + optional subtitle)
+   ========================================= */
+
+.page-header {
+  margin-bottom: var(--space-xl);
+}
+
+.page-header h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.8rem;
+}
+
+.page-header p {
+  margin: 0;
+  color: var(--clr-text-muted);
+  font-size: 0.95rem;
+}
+
+/* =========================================
+   LEADERBOARD COMPONENT
+   Table-based ranked list.
+   Pair with .card / .card-header / .card-body.
+   ========================================= */
+
+/* Responsive grid wrapper for multiple leaderboard cards side by side */
+.leaderboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 640px), 1fr));
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+/* Cards inside the grid don't need bottom margin — gap handles spacing */
+.leaderboard-grid > .card {
+  margin-bottom: 0;
+}
+
+/* Optional subtitle rendered below h2 inside a .card-header */
+.card-subtitle {
+  font-size: 0.78rem;
+  color: var(--clr-text-muted);
+  font-weight: 400;
+  margin: 0;
+}
+
+/* The leaderboard table — sits inside .card-body, fills full width */
+table.leaderboard {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+table.leaderboard thead th {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--clr-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 2px solid var(--clr-card-header-border);
+  white-space: nowrap;
+}
+
+table.leaderboard tbody tr {
+  border-bottom: 1px solid var(--clr-card-header-border);
+  transition: background 0.15s;
+}
+
+table.leaderboard tbody tr:last-child {
+  border-bottom: none;
+}
+
+table.leaderboard tbody tr:hover {
+  background: var(--clr-hover);
+}
+
+/* Gold / Silver / Bronze accent */
+table.leaderboard tbody tr[data-rank="1"] { border-left: 3px solid #ffd700; }
+table.leaderboard tbody tr[data-rank="2"] { border-left: 3px solid #c0c0c0; }
+table.leaderboard tbody tr[data-rank="3"] { border-left: 3px solid #cd7f32; }
+
+table.leaderboard td {
+  padding: 0.55rem 0.75rem;
+  vertical-align: middle;
+}
+
+/* Column helpers */
+.lb-rank {
+  width: 2.5rem;
+  text-align: center;
+  font-weight: 700;
+  color: var(--clr-text-muted);
+}
+.lb-rank-medal { font-size: 1.25rem; line-height: 1; }
+
+.lb-avatar {
+  width: 40px;
+  padding: 0.2rem 0.4rem;
+}
+.lb-avatar img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.lb-name {
+  font-weight: 600;
+  color: var(--clr-text);
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lb-player {
+  text-align: left;
+}
+
+.lb-num {
+  text-align: right;
+  font-family: monospace;
+  color: var(--clr-text-muted);
+  white-space: nowrap;
+}
+
+.lb-score {
+  text-align: right;
+  font-weight: 700;
+  color: var(--clr-accent);
+  white-space: nowrap;
+}
+
+.lb-best5 {
+  text-align: right;
+  font-weight: 700;
+  color: var(--clr-tertiary);
+  white-space: nowrap;
+}
+
+/* Empty / loading placeholder */
+.leaderboard-status {
+  padding: var(--space-lg) var(--space-md);
+  text-align: center;
+  color: var(--clr-text-muted);
+  font-size: 0.85rem;
+}

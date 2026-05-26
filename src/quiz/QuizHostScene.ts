@@ -24,7 +24,7 @@ export class QuizHostScene extends BaseScene {
     private socketDebugger: SocketDebugger;
     private beatManager: BeatManager;
 
-    private currentQuestion: BaseQuestion;
+    private currentQuestion: BaseQuestion | null = null;
     private currentRoundNumber: number = 0;
     private currentQuestionNumber: number = 0;
     private quizMap: QuizMap;
@@ -1131,19 +1131,28 @@ export class QuizHostScene extends BaseScene {
         // When QuizIntroScene finishes its animation it emits 'intro:complete' here.
         // events.once ensures this fires at most once even if the intro is replayed.
         this.events.once('intro:complete', () => {
-            console.log('QuizHostScene:: intro:complete received — advancing game state');
-            // this.socket?.emit('host:keypress', { key: 'ArrowRight' });
+            console.log('QuizHostScene:: intro:complete received — re-enabling keyboard input');
+            // Re-register keyboard handler now that the intro is done.
+            // We deliberately do NOT advance game state here; the host triggers the
+            // first round manually by pressing a key.
+            this.registerDefaultKeypressHandler();
         });
+
+        // Deregister keyboard input for the duration of the intro so the host can't
+        // accidentally emit host:keypress and advance the game while credits play.
+        // Re-registered above in intro:complete.
+        this.deregisterGlobalKeypressHandler();
 
         // Launch the intro as a parallel overlay. QuizHostScene keeps running — socket
         // listeners, music, and all game state remain intact.
-        // If the intro scene is already sleeping (replay case), wake it with fresh data.
         const introScene = this.scene.get('QuizIntroScene');
         console.log('QuizHostScene:: showOpeningCredits: launching intro scene with data', introScene);
-        if (introScene && this.scene.isSleeping('QuizIntroScene')) {
-            this.scene.wake('QuizIntroScene', { title, description, samples });
-        } else {
-            this.scene.launch('QuizIntroScene', { title, description, samples });
+        if (introScene) {
+            if (this.scene.isSleeping('QuizIntroScene')) {
+                this.scene.wake('QuizIntroScene', { title, description, samples });
+            } else {
+                this.scene.launch('QuizIntroScene', { title, description, samples });
+            }
         }
     }
 
@@ -1930,6 +1939,7 @@ export class QuizHostScene extends BaseScene {
         }
         if (this.currentQuestion) {
             this.currentQuestion.destroy();
+            this.currentQuestion = null;
             this.questionContainer.removeAll(true);
         }
     }

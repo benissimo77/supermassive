@@ -67,6 +67,64 @@ const leaderboardController = {
     },
 
     /**
+     * Get aggregated scores for a season (all game sessions tagged with seasonID)
+     * Groups by player across every episode, sums scores.
+     */
+    async getSeasonLeaderboard(req, res) {
+        try {
+            const { seasonId } = req.params;
+            const limit = parseInt(req.query.limit) || 10;
+
+            const sessions = await GameSession.find({ seasonID: seasonId }).select('_id');
+            const sessionIds = sessions.map(s => s._id);
+
+            if (sessionIds.length === 0) {
+                return res.status(200).json([]);
+            }
+
+            const leaderboard = await PlayerResult.aggregate([
+                { $match: { gameSessionID: { $in: sessionIds }, isBot: false } },
+                {
+                    $group: {
+                        _id:            { $ifNull: ['$userID', '$displayName'] },
+                        totalScore:     { $sum: '$totalScore' },
+                        totalQuestions: { $sum: '$totalQuestions' },
+                        totalCorrect:   { $sum: '$totalCorrect' },
+                        gameCount:      { $sum: 1 },
+                        playerName:     { $first: '$displayName' },
+                        avatar:         { $first: '$avatar' },
+                        // Collect each game's score so we can compute Best 5
+                        allScores:      { $push: '$totalScore' }
+                    }
+                },
+                {
+                    // Sort each player's scores descending, take top 5, sum them
+                    $addFields: {
+                        best5: {
+                            $sum: {
+                                $slice: [
+                                    { $sortArray: { input: '$allScores', sortBy: -1 } },
+                                    5
+                                ]
+                            }
+                        }
+                    }
+                },
+                // Rank by Best 5, not total points
+                { $sort: { best5: -1 } },
+                { $limit: limit },
+                // Drop the raw scores array — not needed by the client
+                { $project: { allScores: 0 } }
+            ]);
+
+            res.status(200).json(leaderboard);
+        } catch (err) {
+            console.error('Season leaderboard error:', err);
+            res.status(500).json({ error: 'Failed to retrieve season leaderboard' });
+        }
+    },
+
+    /**
      * Get top scores for a specific quiz
      */
     async getQuizLeaderboard(req, res) {

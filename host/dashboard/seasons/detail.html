@@ -5,43 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Season Details - SuperMassive</title>
     <link rel="stylesheet" href="/css/dashboard.css">
+    <link rel="stylesheet" href="/css/quizbuilder.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script type="module" src="/modules/dashboard.min.js" defer></script>
     <style>
-        .season-header-area {
-            background: var(--clr-surface);
-            padding: 2.5rem;
-            border-radius: 20px;
-            margin-bottom: 2rem;
-            border: 1px solid var(--clr-border);
-        }
-
-        .season-series-label {
-            font-size: 0.78rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: var(--clr-accent);
-            margin-bottom: 0.5rem;
-        }
-
-        .season-header-area h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
-        .season-header-area > p { color: var(--clr-text-muted); font-size: 1rem; max-width: 600px; }
-
-        .season-meta {
-            display: flex;
-            gap: 1.25rem;
+        /* Episode cards — purple/violet accent, complementary to the season amber */
+        .episode-card {
             margin-top: 0.75rem;
-            font-size: 0.9rem;
-            color: var(--clr-text-muted);
-            align-items: center;
-            flex-wrap: wrap;
+            border-left: 3px solid rgb(139, 92, 246) !important;
         }
+        .episode-card > .card-header {
+            background: rgba(139, 92, 246, 0.2);
+        }
+        /* Add Episode button matches episode colour */
+        .btn-episode {
+            background-color: rgba(139, 92, 246, 0.2) !important;
+            border: 1px solid rgba(139, 92, 246, 0.3) !important;
+            color: var(--clr-text) !important;
+        }
+        /* Calendar picker icon — visible in dark mode */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: brightness(0) invert(0.65);
+            cursor: pointer;
+        }
+        /* Compact date fields */
+        .date-field { flex: 0 0 auto; width: 190px; }
 
-        .header-actions { margin-top: 1.5rem; display: flex; gap: 0.75rem; }
-
-        .active-badge {
+        .public-badge {
             padding: 0.2rem 0.8rem;
             background: rgba(0, 200, 100, 0.15);
             color: #00c864;
@@ -49,96 +40,6 @@
             font-size: 0.8rem;
             font-weight: 700;
         }
-
-        .episode-list { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem; }
-
-        .episode-row {
-            background: var(--clr-surface);
-            border: 1px solid var(--clr-border);
-            padding: 1rem 1.5rem;
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            gap: 1.5rem;
-            transition: border-color 0.2s;
-            cursor: pointer;
-        }
-
-        .episode-row:hover { border-color: var(--clr-accent); }
-
-        .episode-num {
-            font-size: 1.5rem;
-            font-weight: 800;
-            color: var(--clr-text-muted);
-            opacity: 0.3;
-            width: 40px;
-        }
-
-        .episode-info { flex: 1; }
-        .episode-title { font-weight: 700; font-size: 1.1rem; }
-        .episode-quiz-name { font-size: 0.85rem; color: var(--clr-accent); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
-
-        .btn-add-episode {
-            border: 2px dashed var(--clr-border);
-            background: transparent;
-            color: var(--clr-text-muted);
-            padding: 1.5rem;
-            border-radius: 16px;
-            cursor: pointer;
-            width: 100%;
-            font-weight: 700;
-            font-size: 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            transition: all 0.2s;
-        }
-
-        .btn-add-episode:hover { border-color: var(--clr-accent); color: var(--clr-accent); }
-
-        .modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.85);
-            display: none;
-            place-items: center;
-            z-index: 1000;
-            backdrop-filter: blur(8px);
-        }
-
-        .modal-content {
-            background: var(--clr-surface);
-            padding: 2.5rem;
-            border-radius: 24px;
-            width: 100%;
-            max-width: 500px;
-            border: 1px solid var(--clr-border);
-        }
-
-        .form-group { margin-bottom: 1.5rem; }
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 700;
-            color: var(--clr-text-muted);
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .form-group label .opt { font-weight: normal; text-transform: none; letter-spacing: 0; }
-        .form-group select, .form-group input, .form-group textarea {
-            width: 100%;
-            padding: 0.85rem;
-            background: var(--clr-bg);
-            border: 1px solid var(--clr-border);
-            border-radius: 10px;
-            color: var(--clr-text);
-            font-family: inherit;
-            font-size: 0.9rem;
-        }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-
         .empty-state {
             padding: 4rem;
             text-align: center;
@@ -153,142 +54,89 @@
     <div id="sidebar" class="sidebar"></div>
 
     <main class="main-content">
-        <div class="season-header-area">
-            <div id="series-label" class="season-series-label" style="display: none;"></div>
-            <h1 id="season-name">Loading...</h1>
-            <p id="season-desc"></p>
-            <div class="season-meta">
-                <span id="season-status"></span>
-                <span id="season-dates"></span>
+        <div class="editor-header">
+            <div class="flex items-center gap-md">
+                <a href="/host/dashboard/seasons/" class="btn btn-ghost">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    Back
+                </a>
+                <h1>Season Editor</h1>
             </div>
-            <div class="header-actions">
-                <button class="btn btn-ghost" onclick="openEditSeasonModal()">
-                    <i class="fa-solid fa-pen"></i>
-                    Edit Season
+            <div class="flex gap-md">
+                <button id="save-season-btn" class="btn btn-primary btn-save-all">
+                    <i class="fa-solid fa-floppy-disk"></i>
+                    Save Season
                 </button>
             </div>
         </div>
 
-        <div id="episode-list" class="episode-list"></div>
-
-        <button class="btn-add-episode" onclick="openAddEpisodeModal()">
-            <i class="fa-solid fa-plus"></i>
-            Add Episode from Library
-        </button>
-    </main>
-
-    <!-- Modal: Add Episode -->
-    <div id="addEpisodeModal" class="modal-overlay" onclick="if(event.target === this) this.style.display='none'">
-        <div class="modal-content">
-            <h2 style="margin-bottom: 0.5rem;">Add Episode</h2>
-            <p style="color: var(--clr-text-muted); margin-bottom: 2rem; font-size: 0.95rem;">Attach a quiz from your library to this season.</p>
-            <form id="addEpisodeForm">
-                <div class="form-group">
-                    <label>Quiz</label>
-                    <select id="quiz-selector" required>
-                        <option value="">Select a Quiz...</option>
-                    </select>
+        <!-- Season Metadata (inline editable) -->
+        <details class="card quiz-card" open id="season-details">
+            <summary class="card-header">
+                <div class="flex items-center gap-sm">
+                    <span class="header-quiz-label">Season:</span>
+                    <span id="header-season-name" style="font-weight: 600;"></span>
                 </div>
-                <div class="form-group">
-                    <label>Episode Label <span class="opt">(Optional)</span></label>
-                    <input type="text" id="episode-label" placeholder="e.g. Episode 1: Movie Night">
+            </summary>
+            <div class="card-body">
+                <div class="form-two-column">
+                    <div class="form-left-column">
+                        <div class="form-grid">
+                            <label for="season-name-input">Name</label>
+                            <input type="text" id="season-name-input" placeholder="Season name">
+
+                            <label for="season-series-input">Series</label>
+                            <input type="text" id="season-series-input" placeholder="e.g. Pub Quiz @ Home (optional)">
+
+                            <label for="season-desc-input">Description</label>
+                            <textarea id="season-desc-input" rows="3" placeholder="What's this season about? (optional)"></textarea>
+                        </div>
+                    </div>
+                    <div class="form-right-column">
+                        <div class="form-grid">
+                            <label for="season-start-input">Start Date</label>
+                            <input type="date" id="season-start-input">
+
+                            <label for="season-end-input">End Date</label>
+                            <input type="date" id="season-end-input">
+
+                            <label for="season-public-input">Public</label>
+                            <div style="display: flex; align-items: center;">
+                                <input type="checkbox" id="season-public-input" style="width: auto; accent-color: var(--clr-accent); width: 1.1rem; height: 1.1rem;">
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div style="display: flex; gap: 1rem; margin-top: 2rem;">
-                    <button type="button" class="btn btn-ghost" onclick="document.getElementById('addEpisodeModal').style.display='none'" style="flex: 1;">Cancel</button>
-                    <button type="submit" class="btn btn-primary" style="flex: 1;">
+
+                <div id="episode-list" class="mt-md"></div>
+
+                <div class="flex justify-between mt-md">
+                    <button class="btn btn-episode" onclick="addEpisodeInline()">
                         <i class="fa-solid fa-plus"></i>
-                        Add to Season
+                        Add Episode
                     </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Modal: Edit Episode -->
-    <div id="editEpisodeModal" class="modal-overlay" onclick="if(event.target === this) this.style.display='none'">
-        <div class="modal-content">
-            <h2 style="margin-bottom: 0.4rem;">Edit Episode</h2>
-            <p id="edit-episode-quiz-name" style="color: var(--clr-accent); font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1.75rem;"></p>
-            <form id="editEpisodeForm">
-                <div class="form-group">
-                    <label>Episode Label</label>
-                    <input type="text" id="edit-episode-label" placeholder="e.g. Episode 1: Movie Night">
-                </div>
-                <div class="form-group">
-                    <label>Air Date <span class="opt">(Optional)</span></label>
-                    <input type="date" id="edit-episode-airdate">
-                </div>
-                <div style="display: flex; gap: 1rem; margin-top: 2rem; align-items: center;">
-                    <button type="button" class="btn btn-danger" onclick="deleteEpisode()">
-                        <i class="fa-solid fa-trash"></i>
-                        Remove
-                    </button>
-                    <div style="flex: 1;"></div>
-                    <button type="button" class="btn btn-ghost" onclick="document.getElementById('editEpisodeModal').style.display='none'">Cancel</button>
-                    <button type="submit" class="btn btn-primary">
+                    <button class="btn btn-primary btn-save-all" onclick="saveAll()">
                         <i class="fa-solid fa-floppy-disk"></i>
-                        Save
+                        Save Season
                     </button>
                 </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Modal: Edit Season -->
-    <div id="editSeasonModal" class="modal-overlay" onclick="if(event.target === this) this.style.display='none'">
-        <div class="modal-content">
-            <h2 style="margin-bottom: 1.5rem;">Edit Season</h2>
-            <form id="editSeasonForm">
-                <div class="form-group">
-                    <label>Season Name</label>
-                    <input type="text" id="edit-season-name" required>
-                </div>
-                <div class="form-group">
-                    <label>Series Name <span class="opt">(Optional)</span></label>
-                    <input type="text" id="edit-season-seriesname" placeholder="e.g. Pub Quiz @ Home">
-                </div>
-                <div class="form-group">
-                    <label>Description <span class="opt">(Optional)</span></label>
-                    <textarea id="edit-season-description" rows="2"></textarea>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Start Date</label>
-                        <input type="date" id="edit-season-startdate">
-                    </div>
-                    <div class="form-group">
-                        <label>End Date</label>
-                        <input type="date" id="edit-season-enddate">
-                    </div>
-                </div>
-                <div class="form-group" style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0;">
-                    <input type="checkbox" id="edit-season-active" style="width: auto; accent-color: var(--clr-accent); width: 1.1rem; height: 1.1rem;">
-                    <label for="edit-season-active" style="margin: 0; text-transform: none; letter-spacing: 0; color: var(--clr-text); font-size: 0.9rem;">Season is Active</label>
-                </div>
-                <div style="display: flex; gap: 1rem; margin-top: 2rem;">
-                    <button type="button" class="btn btn-ghost" onclick="document.getElementById('editSeasonModal').style.display='none'" style="flex: 1;">Cancel</button>
-                    <button type="submit" class="btn btn-primary" style="flex: 1;">
-                        <i class="fa-solid fa-floppy-disk"></i>
-                        Save Changes
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
+            </div>
+        </details>
+    </main>
 
     <script type="module">
         const urlParams = new URLSearchParams(window.location.search);
         const seasonId = urlParams.get('id');
         let currentSeasonData = null;
-        let selectedEpisodeId = null;
+        let quizList = [];
 
         async function init() {
             if (!seasonId) {
                 location.href = '/host/dashboard/seasons/';
                 return;
             }
+            await loadQuizLibrary(); // load quiz list before rendering episodes
             await loadSeasonData();
-            await loadQuizLibrary();
         }
 
         async function loadSeasonData() {
@@ -300,31 +148,19 @@
 
                 currentSeasonData = data;
 
-                const seriesLabelEl = document.getElementById('series-label');
-                if (data.seriesName) {
-                    seriesLabelEl.textContent = data.seriesName;
-                    seriesLabelEl.style.display = 'block';
-                } else {
-                    seriesLabelEl.style.display = 'none';
-                }
-
-                document.getElementById('season-name').textContent = data.name;
-                document.getElementById('season-desc').textContent = data.description || '';
-
-                document.getElementById('season-status').innerHTML = data.isActive
-                    ? '<span class="active-badge"><i class="fa-solid fa-circle" style="font-size:0.45rem; vertical-align:middle; margin-right:3px;"></i>Active</span>'
-                    : '<span style="color: var(--clr-text-muted)">Ended</span>';
-
-                const datesEl = document.getElementById('season-dates');
-                if (data.startDate || data.endDate) {
-                    const fmt = d => new Date(d).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
-                    datesEl.textContent = [data.startDate && fmt(data.startDate), data.endDate && fmt(data.endDate)]
-                        .filter(Boolean).join(' â€“ ');
-                } else {
-                    datesEl.textContent = '';
-                }
+                // Populate inline editor fields
+                document.getElementById('header-season-name').textContent = data.name || '';
+                document.getElementById('season-name-input').value = data.name || '';
+                document.getElementById('season-series-input').value = data.seriesName || '';
+                document.getElementById('season-desc-input').value = data.description || '';
+                document.getElementById('season-start-input').value = data.startDate
+                    ? new Date(data.startDate).toISOString().split('T')[0] : '';
+                document.getElementById('season-end-input').value = data.endDate
+                    ? new Date(data.endDate).toISOString().split('T')[0] : '';
+                document.getElementById('season-public-input').checked = !!data.isPublic;
 
                 renderEpisodes(data.episodes || []);
+
             } catch (err) {
                 console.error('Failed to load season:', err);
             }
@@ -333,82 +169,77 @@
         function renderEpisodes(episodes) {
             const list = document.getElementById('episode-list');
             if (episodes.length === 0) {
-                list.innerHTML = '<div class="empty-state"><h3>No Episodes Yet</h3><p>Add a quiz from your library to get started.</p></div>';
+                list.innerHTML = '<div class="empty-state" style="margin-top: 1rem;"><h3>No Episodes Yet</h3><p>Click \'Add Episode\' to attach a quiz to this season.</p></div>';
                 return;
             }
 
-            list.innerHTML = episodes.map((ep, i) => `
-                <div class="episode-row" onclick="openEditEpisodeModal('${ep._id}')">
-                    <div class="episode-num">${i + 1}</div>
-                    <div class="episode-info">
-                        <div class="episode-quiz-name">${ep.quizID?.title || 'Unknown Quiz'}</div>
-                        <div class="episode-title">${ep.label}</div>
+            list.innerHTML = episodes.map((ep, i) => {
+                const currentQuizId = ep.quizID?._id || '';
+                const quizTitle = ep.quizID?.title || 'No quiz selected';
+                const quizOptions = '<option value="">\u2014 select quiz \u2014</option>' +
+                    quizList.map(q =>
+                        `<option value="${q._id}" ${q._id === currentQuizId ? 'selected' : ''}>${q.title}</option>`
+                    ).join('');
+                const hostNowBtn = currentQuizId ? `
+                            <button class="btn btn-primary btn-sm" onclick="playEpisode('${currentQuizId}')">
+                                <i class="fa-solid fa-play"></i>
+                                Host Now
+                            </button>` : '';
+                return `
+                <details class="card episode-card" open data-episode-id="${ep._id}">
+                    <summary class="card-header">
+                        <div class="flex items-center gap-sm" style="flex: 1; min-width: 0;">
+                            <span style="font-size: 1.1rem; font-weight: 800; color: var(--clr-text-muted); opacity: 0.4; min-width: 1.8rem;">${i + 1}</span>
+                            <span class="ep-quiz-title" style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${quizTitle}</span>
+                            ${ep.label ? `<span style="color: var(--clr-text-muted); font-size: 0.85rem; white-space: nowrap;">&mdash; ${ep.label}</span>` : ''}
+                        </div>
+                        <div class="flex gap-sm" onclick="event.stopPropagation()">
+                            <button class="btn btn-xs btn-danger" onclick="deleteEpisode('${ep._id}')">
+                                <i class="fa-solid fa-trash"></i>
+                                Delete
+                            </button>
+                        </div>
+                    </summary>
+                    <div class="card-body">
+                        <div class="form-grid mb-md">
+                            <label>Quiz</label>
+                            <select class="ep-quiz-input" onchange="updateEpisodeTitle(this)">${quizOptions}</select>
+                            <label>Episode Label</label>
+                            <input type="text" class="ep-label-input" placeholder="e.g. Episode 1: Movie Night" value="${ep.label || ''}">
+                            <label>Air Date</label>
+                            <input type="date" class="ep-airdate-input" value="${ep.airDate ? new Date(ep.airDate).toISOString().split('T')[0] : ''}">
+                        </div>
+                        <div class="flex justify-end">
+                            ${hostNowBtn}
+                        </div>
                     </div>
-                    <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); playEpisode('${ep.quizID?._id}')">
-                        <i class="fa-solid fa-play"></i>
-                        Host Now
-                    </button>
-                </div>
-            `).join('');
+                </details>
+                `;
+            }).join('');
         }
 
         async function loadQuizLibrary() {
-            const selector = document.getElementById('quiz-selector');
             try {
                 const res = await fetch('/api/quiz');
                 const { success, data } = await res.json();
                 if (success) {
-                    selector.innerHTML = '<option value="">Select a Quiz...</option>' +
-                        data.map(q => `<option value="${q._id}">${q.title}</option>`).join('');
+                    quizList = data;
                 }
             } catch (err) {
                 console.error('Failed to load quiz library', err);
             }
         }
 
-        window.openAddEpisodeModal = () => {
-            document.getElementById('addEpisodeModal').style.display = 'grid';
-        };
-
-        window.openEditEpisodeModal = (episodeId) => {
-            selectedEpisodeId = episodeId;
-            const ep = currentSeasonData?.episodes?.find(e => e._id === episodeId);
-            if (!ep) return;
-
-            document.getElementById('edit-episode-quiz-name').textContent = ep.quizID?.title || 'Unknown Quiz';
-            document.getElementById('edit-episode-label').value = ep.label || '';
-            document.getElementById('edit-episode-airdate').value = ep.airDate
-                ? new Date(ep.airDate).toISOString().split('T')[0]
-                : '';
-            document.getElementById('editEpisodeModal').style.display = 'grid';
-        };
-
-        window.openEditSeasonModal = () => {
-            if (!currentSeasonData) return;
-            document.getElementById('edit-season-name').value = currentSeasonData.name || '';
-            document.getElementById('edit-season-seriesname').value = currentSeasonData.seriesName || '';
-            document.getElementById('edit-season-description').value = currentSeasonData.description || '';
-            document.getElementById('edit-season-startdate').value = currentSeasonData.startDate
-                ? new Date(currentSeasonData.startDate).toISOString().split('T')[0]
-                : '';
-            document.getElementById('edit-season-enddate').value = currentSeasonData.endDate
-                ? new Date(currentSeasonData.endDate).toISOString().split('T')[0]
-                : '';
-            document.getElementById('edit-season-active').checked = !!currentSeasonData.isActive;
-            document.getElementById('editSeasonModal').style.display = 'grid';
-        };
-
         window.playEpisode = (quizId) => {
-            location.href = `/host/lobby?quizId=${quizId}&seasonId=${seasonId}`;
+            location.href = `/host/quiz/start?q=${quizId}&seasonId=${seasonId}`;
         };
 
-        window.deleteEpisode = async () => {
-            if (!selectedEpisodeId || !confirm('Remove this episode from the season?')) return;
+        window.deleteEpisode = async (episodeId) => {
+            if (!confirm('Delete this episode?')) return;
             try {
-                const res = await fetch(`/api/seasons/${seasonId}/episodes/${selectedEpisodeId}`, { method: 'DELETE' });
+                const res = await fetch(`/api/seasons/${seasonId}/episodes/${episodeId}`, { method: 'DELETE' });
                 const result = await res.json();
                 if (result.success) {
-                    document.getElementById('editEpisodeModal').style.display = 'none';
                     await loadSeasonData();
                 } else {
                     alert(result.message || 'Failed to remove episode.');
@@ -419,26 +250,22 @@
             }
         };
 
-        // Add Episode
-        document.getElementById('addEpisodeForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const quizID = document.getElementById('quiz-selector').value;
-            const label = document.getElementById('episode-label').value;
-            if (!quizID) return;
-
-            const btn = e.target.querySelector('[type="submit"]');
+        // Add Episode inline — POST a blank episode, re-render with new card open
+        window.addEpisodeInline = async () => {
+            const btn = document.querySelector('.btn-episode');
             btn.disabled = true;
             try {
+                const epCount = document.querySelectorAll('.episode-card[data-episode-id]').length;
                 const res = await fetch(`/api/seasons/${seasonId}/episodes`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ quizID, label })
+                    body: JSON.stringify({ label: `Episode ${epCount + 1}` })
                 });
                 const result = await res.json();
                 if (result.success) {
-                    document.getElementById('addEpisodeModal').style.display = 'none';
-                    document.getElementById('addEpisodeForm').reset();
                     await loadSeasonData();
+                    const cards = document.querySelectorAll('.episode-card');
+                    if (cards.length) cards[cards.length - 1].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 } else {
                     alert(result.message || 'Failed to add episode.');
                 }
@@ -448,64 +275,77 @@
             } finally {
                 btn.disabled = false;
             }
-        });
+        };
 
-        // Edit Episode
-        document.getElementById('editEpisodeForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if (!selectedEpisodeId) return;
-            const label = document.getElementById('edit-episode-label').value;
-            const airDate = document.getElementById('edit-episode-airdate').value;
+        // Dirty tracking — red outline on Save buttons, matching Quiz Editor
+        function markDirty() {
+            document.querySelectorAll('.btn-save-all').forEach(b => b.classList.add('unsaved-changes'));
+        }
+        function clearDirty() {
+            document.querySelectorAll('.btn-save-all').forEach(b => b.classList.remove('unsaved-changes'));
+        }
+        // One delegated listener on the whole season panel handles all inputs (metadata + episodes)
+        document.getElementById('season-details').addEventListener('input', markDirty);
+        document.getElementById('season-details').addEventListener('change', markDirty);
 
+        // Update episode summary title when the quiz select changes
+        window.updateEpisodeTitle = (selectEl) => {
+            const titleSpan = selectEl.closest('.episode-card').querySelector('.ep-quiz-title');
+            const opt = selectEl.options[selectEl.selectedIndex];
+            if (titleSpan && opt) titleSpan.textContent = opt.text;
+        };
+
+        // Save All: season metadata + all episode fields in parallel
+        async function saveAll() {
+            const btn = document.getElementById('save-season-btn');
+            btn.disabled = true;
             try {
-                const res = await fetch(`/api/seasons/${seasonId}/episodes/${selectedEpisodeId}`, {
+                // 1. Season metadata
+                const seasonBody = {
+                    name: document.getElementById('season-name-input').value,
+                    seriesName: document.getElementById('season-series-input').value || null,
+                    description: document.getElementById('season-desc-input').value || null,
+                    startDate: document.getElementById('season-start-input').value || null,
+                    endDate: document.getElementById('season-end-input').value || null,
+                    isPublic: document.getElementById('season-public-input').checked
+                };
+                const seasonRes = await fetch(`/api/seasons/${seasonId}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ label, airDate: airDate || null })
+                    body: JSON.stringify(seasonBody)
                 });
-                const result = await res.json();
-                if (result.success) {
-                    document.getElementById('editEpisodeModal').style.display = 'none';
-                    await loadSeasonData();
-                } else {
-                    alert(result.message || 'Failed to save episode.');
+                const seasonResult = await seasonRes.json();
+                if (!seasonResult.success) {
+                    alert(seasonResult.message || 'Failed to save season.');
+                    return;
                 }
-            } catch (err) {
-                console.error('Edit episode error:', err);
-                alert('Network error. Please try again.');
-            }
-        });
+                document.getElementById('header-season-name').textContent = seasonBody.name;
+                currentSeasonData = { ...currentSeasonData, ...seasonBody };
 
-        // Edit Season
-        document.getElementById('editSeasonForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const body = {
-                name: document.getElementById('edit-season-name').value,
-                seriesName: document.getElementById('edit-season-seriesname').value || null,
-                description: document.getElementById('edit-season-description').value || null,
-                startDate: document.getElementById('edit-season-startdate').value || null,
-                endDate: document.getElementById('edit-season-enddate').value || null,
-                isActive: document.getElementById('edit-season-active').checked
-            };
-
-            try {
-                const res = await fetch(`/api/seasons/${seasonId}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
-                const result = await res.json();
-                if (result.success) {
-                    document.getElementById('editSeasonModal').style.display = 'none';
-                    await loadSeasonData();
-                } else {
-                    alert(result.message || 'Failed to save season.');
-                }
+                // 2. Episode inline fields — patch each in parallel
+                const episodeCards = document.querySelectorAll('.episode-card[data-episode-id]');
+                await Promise.all(Array.from(episodeCards).map(card => {
+                    const epId = card.dataset.episodeId;
+                    const quizID = card.querySelector('.ep-quiz-input')?.value || null;
+                    const label = card.querySelector('.ep-label-input').value;
+                    const airDate = card.querySelector('.ep-airdate-input').value;
+                    return fetch(`/api/seasons/${seasonId}/episodes/${epId}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ quizID, label, airDate: airDate || null })
+                    });
+                }));
+                clearDirty();
             } catch (err) {
-                console.error('Edit season error:', err);
+                console.error('Save error:', err);
                 alert('Network error. Please try again.');
+            } finally {
+                btn.disabled = false;
             }
-        });
+        }
+
+        window.saveAll = saveAll;
+        document.getElementById('save-season-btn').addEventListener('click', saveAll);
 
         init();
     </script>

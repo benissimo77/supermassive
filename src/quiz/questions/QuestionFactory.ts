@@ -10,6 +10,7 @@ import TextQuestion from "./Text";
 import PlayerTextQuestion from "./PlayerText";
 import PlayerNumberQuestion from "./PlayerNumber";
 import PlayerOrderingQuestion from "./PlayerOrdering";
+import PlayerImageOrderingQuestion from "./PlayerImageOrdering";
 import PlayerImageMatchingQuestion from "./PlayerImageMatching";
 import NumberQuestion from "./Number";
 import HotspotQuestion from "./Hotspot";
@@ -51,6 +52,11 @@ export class QuestionFactory {
                 return new PlayerNumberQuestion(this.scene, data as any);
             }
             if (type === 'ordering' || type === 'image-ordering') {
+                const hasImages = Array.isArray((data as any).itemImages) &&
+                    (data as any).itemImages.some((url: string) => url && url.trim().length > 0);
+                if (hasImages) {
+                    return new PlayerImageOrderingQuestion(this.scene, data as any);
+                }
                 return new PlayerOrderingQuestion(this.scene, data as any);
             }
             if (type === 'matching') {

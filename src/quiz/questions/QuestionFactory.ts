@@ -10,6 +10,7 @@ import TextQuestion from "./Text";
 import PlayerTextQuestion from "./PlayerText";
 import PlayerNumberQuestion from "./PlayerNumber";
 import PlayerOrderingQuestion from "./PlayerOrdering";
+import PlayerImageOrderingQuestion from "./PlayerImageOrdering";
 import NumberQuestion from "./Number";
 import HotspotQuestion from "./Hotspot";
 import DrawQuestion from "./Draw";

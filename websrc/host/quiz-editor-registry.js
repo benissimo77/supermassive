@@ -230,28 +230,57 @@ export const QuestionTypeRegistry = {
             let html = '<label>Matching Pairs (enter at least 2):</label><div class="flex flex-col gap-xs mt-xs">';
             for (let i = 1; i <= 5; i++) {
                 html += `
-                    <div class="flex gap-xs">
-                        <input class="w-half" type="text" data-field="left-${i}" placeholder="Left ${i}">
-                        <input class="w-half" type="text" data-field="right-${i}" placeholder="Right ${i}">
+                    <div style="display:flex; gap:0.25rem; align-items:center; margin-bottom:0.25rem;">
+                        <input style="flex:1; min-width:0;" type="text" data-field="left-${i}" placeholder="Left ${i}">
+                        <div style="flex:1; min-width:0; display:flex; gap:0.25rem; align-items:center;" class="order-image-container">
+                            <input style="flex:1; min-width:0;" type="text" data-field="order-image" placeholder="Image ${i} (optional)">
+                            <div data-field="order-image-preview" style="width:28px; height:28px; background-size:cover; background-position:center; border:1px solid #ccc; border-radius:4px; display:none; flex-shrink:0;"></div>
+                            <button type="button" class="btn btn-sm btn-ghost select-order-image-btn" title="Select Image from Library"><i class="fa-solid fa-image" style="pointer-events:none;"></i></button>
+                        </div>
+                        <input style="flex:1; min-width:0;" type="text" data-field="right-${i}" placeholder="Right ${i}">
                     </div>`;
             }
             html += '</div>';
             container.innerHTML = html;
         },
         serialize: (container) => {
+            const imgInputs = Array.from(container.querySelectorAll('[data-field="order-image"]'));
             const pairs = [];
+            const pairImages = [];
+            let hasImages = false;
+
             for (let i = 1; i <= 5; i++) {
                 const left = container.querySelector(`[data-field="left-${i}"]`).value.trim();
                 const right = container.querySelector(`[data-field="right-${i}"]`).value.trim();
-                if (left) pairs.push({ left, right });
+                const imgVal = imgInputs[i - 1] ? imgInputs[i - 1].value.trim() : '';
+                if (left) {
+                    pairs.push({ left, right });
+                    pairImages.push(imgVal);
+                    if (imgVal !== '') hasImages = true;
+                }
             }
-            return { pairs };
+
+            const data = { pairs };
+            if (hasImages) data.pairImages = pairImages;
+            return data;
         },
         deserialize: (container, data) => {
             const pairs = data.pairs || [];
+            const pairImages = data.pairImages || [];
+            const imgInputs = container.querySelectorAll('[data-field="order-image"]');
+
             for (let i = 1; i <= 5; i++) {
                 container.querySelector(`[data-field="left-${i}"]`).value = pairs[i - 1]?.left || '';
                 container.querySelector(`[data-field="right-${i}"]`).value = pairs[i - 1]?.right || '';
+                if (imgInputs[i - 1]) {
+                    const imgVal = pairImages[i - 1] || '';
+                    imgInputs[i - 1].value = imgVal;
+                    const preview = imgInputs[i - 1].parentElement.querySelector('[data-field="order-image-preview"]');
+                    if (preview) {
+                        preview.style.backgroundImage = imgVal ? `url(${imgVal})` : 'none';
+                        preview.style.display = imgVal ? 'block' : 'none';
+                    }
+                }
             }
         }
     },

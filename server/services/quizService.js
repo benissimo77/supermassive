@@ -28,8 +28,22 @@ const questionValidators = [
                 });
             }
         }
+    },
+    // 2. Matching Questions: All pairs must have images, or we must have no images
+    (q, rIndex, qIndex, errors) => {
+        if (q.type === 'matching' && q.pairImages && q.pairImages.length > 0) {
+            const allHaveImages = q.pairImages.every(url => typeof url === 'string' && url.trim().length > 0);
+            if (!q.pairs || q.pairImages.length !== q.pairs.length || !allHaveImages) {
+                errors.push({
+                    instancePath: `/rounds/${rIndex}/questions/${qIndex}/pairImages`,
+                    schemaPath: '#/custom/pairImagesMatch',
+                    keyword: 'customLengthMatch',
+                    params: {},
+                    message: 'All matching pairs must have images, or you must remove all images.'
+                });
+            }
+        }
     }
-    // Add additional question-level validation rule functions here in the future
 ];
 
 // Define custom error types

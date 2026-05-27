@@ -1157,6 +1157,7 @@ export default class Quiz extends Game {
 				playerQuestion.optionsShuffled = this.question.optionsShuffled;
 				playerQuestion.itemsShuffled = this.question.itemsShuffled;
 				playerQuestion.pairsShuffled = this.question.pairsShuffled;
+				playerQuestion.pairImagesShuffled = this.question.pairImagesShuffled;
 				playerQuestion.extra = this.question.extra;
 				if (playerQuestion.type == 'hotspot' || playerQuestion.type == 'point-it-out') {
 					playerQuestion.image = this.question.image;
@@ -1351,6 +1352,12 @@ export default class Quiz extends Game {
 				localQuestion.pairs.forEach((pair, index) => { pair.left = shuffledLeft[index] });
 				console.log('Matching:', question.answer, localQuestion.pairs);
 				question.pairsShuffled = localQuestion.pairs;
+				// Shuffle pair images to stay aligned with the shuffled left values
+				if (localQuestion.pairImages && localQuestion.pairImages.length > 0) {
+					const imageMap = {};
+					left.forEach((leftVal, i) => { imageMap[leftVal] = localQuestion.pairImages[i]; });
+					question.pairImagesShuffled = shuffledLeft.map(leftVal => imageMap[leftVal] || '');
+				}
 				break;
 
 			case 'ordering':
@@ -1486,6 +1493,7 @@ export default class Quiz extends Game {
 		playerQuestion.optionsShuffled = this.question.optionsShuffled;
 		playerQuestion.itemsShuffled = this.question.itemsShuffled;
 		playerQuestion.pairsShuffled = this.question.pairsShuffled;
+		playerQuestion.pairImagesShuffled = this.question.pairImagesShuffled;
 		playerQuestion.extra = this.question.extra;
 		// Include the image if it is required for the answer (hotspot, point-it-out)
 		if (playerQuestion.type == 'hotspot' || playerQuestion.type == 'point-it-out') {

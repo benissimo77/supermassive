@@ -27,6 +27,7 @@ const questionSchema = new mongoose.Schema({
         }
     },
     pairs: [matchingPairSchema], // Array of matching pairs without _id
+    pairImages: { type: [{ type: String }] }, // Optional image URLs mapped 1-to-1 with pairs (left item images)
     extra: { type: mongoose.Schema.Types.Mixed },   // Misc extra data eg labels for ordering
     answer: { type: mongoose.Schema.Types.Mixed },
 }, { _id: false }); // Prevent automatic _id generation for questions

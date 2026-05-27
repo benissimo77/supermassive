@@ -38,7 +38,8 @@ export interface TrueFalseQuestionData extends BaseQuestionData {
 export interface MatchingQuestionData extends BaseQuestionData {
     type: 'matching';
     pairsShuffled: { left: string; right: string }[];
-    itemImages?: string[];  // Image URLs indexed to match pairs[i].left (not pairsShuffled order)
+    pairImages?: string[];          // Original image URLs indexed same as pairs[] (stored in quiz data)
+    pairImagesShuffled?: string[];  // Image URLs aligned with pairsShuffled[] (used by player/host at runtime)
     answer?: number[];  // Array of indices, only when mode='answer'
 }
 

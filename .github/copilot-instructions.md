@@ -6,9 +6,9 @@
 
 - **SuperMassive** is a multi-game platform (quiz, drawing, trivia, etc.) with a focus on rapid game development and extensibility.
 - **Architecture:** Each game is self-contained. Shared infrastructure (scenes, utilities) lives in `/src/scenes/` and `/src/utils/`. Game-specific logic stays in `/src/games/[game]/`.
-- **Frontend:** Phaser (TypeScript/JS), modular scenes for Host/Player.
+- **Frontend:** Phaser 4 (TypeScript/JS), modular scenes for Host/Player/Admin.
 - **Backend:** Node.js/Express, game logic in `/server/games/`, MongoDB for storage.
-- **Data Flow:** Server manages rooms/game state, Host/Player screens connect via websockets.
+- **Data Flow:** Server manages rooms/game state, Host/Player/Admin screens connect via websockets.
 
 ## Developer Workflows
 

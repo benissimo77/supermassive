@@ -10,7 +10,7 @@ import TextQuestion from "./Text";
 import PlayerTextQuestion from "./PlayerText";
 import PlayerNumberQuestion from "./PlayerNumber";
 import PlayerOrderingQuestion from "./PlayerOrdering";
-import PlayerImageOrderingQuestion from "./PlayerImageOrdering";
+import PlayerImageMatchingQuestion from "./PlayerImageMatching";
 import NumberQuestion from "./Number";
 import HotspotQuestion from "./Hotspot";
 import DrawQuestion from "./Draw";
@@ -50,7 +50,15 @@ export class QuestionFactory {
             if (['number-exact', 'number-closest', 'number-average'].includes(type)) {
                 return new PlayerNumberQuestion(this.scene, data as any);
             }
-            if (['ordering', 'matching'].includes(type)) {
+            if (type === 'ordering' || type === 'image-ordering') {
+                return new PlayerOrderingQuestion(this.scene, data as any);
+            }
+            if (type === 'matching') {
+                const hasImages = Array.isArray((data as any).itemImages) &&
+                    (data as any).itemImages.some((url: string) => url && url.trim().length > 0);
+                if (hasImages) {
+                    return new PlayerImageMatchingQuestion(this.scene, data as any);
+                }
                 return new PlayerOrderingQuestion(this.scene, data as any);
             }
         }

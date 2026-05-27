@@ -432,6 +432,13 @@
 										}
 									}
 								}
+							},
+							"pairImages": {
+								"type": "array",
+								"items": {
+									"type": "string"
+								},
+								"description": "Optional array of image URLs mapped 1-to-1 with the pairs array (images for left items)"
 							}
 						}
 					}

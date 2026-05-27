@@ -1,6 +1,6 @@
 import { BaseScene } from "src/BaseScene";
 import { BaseQuestion } from "./BaseQuestion";
-import { BaseQuestionData, MultipleChoiceQuestionData } from "./QuestionTypes";
+import { BaseQuestionData, MatchingQuestionData, MultipleChoiceQuestionData } from "./QuestionTypes";
 
 import MultipleChoiceQuestion from "./MultipleChoice";
 import TrueFalseQuestion from "./TrueFalse";
@@ -10,6 +10,7 @@ import TextQuestion from "./Text";
 import PlayerTextQuestion from "./PlayerText";
 import PlayerNumberQuestion from "./PlayerNumber";
 import PlayerOrderingQuestion from "./PlayerOrdering";
+import PlayerImageMatchingQuestion from "./PlayerImageMatching";
 import NumberQuestion from "./Number";
 import HotspotQuestion from "./Hotspot";
 import DrawQuestion from "./Draw";
@@ -49,7 +50,15 @@ export class QuestionFactory {
             if (['number-exact', 'number-closest', 'number-average'].includes(type)) {
                 return new PlayerNumberQuestion(this.scene, data as any);
             }
-            if (['ordering', 'matching'].includes(type)) {
+            if (type === 'ordering') {
+                return new PlayerOrderingQuestion(this.scene, data as any);
+            }
+            if (type === 'matching') {
+                const matchingData = data as MatchingQuestionData;
+                const hasImages = matchingData.pairImagesShuffled?.some((url: string) => url.trim().length > 0);
+                if (hasImages) {
+                    return new PlayerImageMatchingQuestion(this.scene, matchingData);
+                }
                 return new PlayerOrderingQuestion(this.scene, data as any);
             }
         }

@@ -26,17 +26,30 @@ export default class PlayerImageMatchingQuestion extends PlayerBaseQuestion {
     }
 
     protected createAnswerUI(): void {
+        console.log('PlayerImageMatchingQuestion::createAnswerUI:', this.questionData);
+
         const questionData = this.questionData as MatchingQuestionData;
-
         const pairs = questionData.pairsShuffled || [];
-        this.items = pairs.map((pair: any) => pair.left);
-        this.labels = pairs.map((pair: any) => pair.right);
-        this.images = questionData.pairImagesShuffled || [];
 
-        // Create image buttons for left items
-        this.items.forEach((item: string, index: number) => {
-            const url = this.images[index] || '';
-            const button = new ImageButton(this.scene, item, url);
+        this.items = pairs.map(pair => pair.left);
+        this.labels = pairs.map(pair => pair.right);
+
+        // Create ImageButtons — look up URL via original (unshuffled) pairs index
+        const originalPairs = (questionData.pairs as { left: string; right: string }[] | undefined) || pairs;
+
+        this.items.forEach((item, index) => {
+            const originalIndex = originalPairs.findIndex(p => p.left === item);
+            let url: string = (originalIndex >= 0 && questionData.itemImages)
+                ? questionData.itemImages[originalIndex]
+                : '';
+
+            // Guard against non-string values stored in itemImages
+            if (url && typeof url === 'object') {
+                url = (url as any).url || (url as any).src || (url as any).href || '';
+            }
+            if (typeof url !== 'string') url = '';
+
+            const button = new ImageButton(this.scene, item, url || null);
             button.setData('index', index);
             button.setData('item', item);
             button.setData('dropzone', null);
@@ -55,8 +68,7 @@ export default class PlayerImageMatchingQuestion extends PlayerBaseQuestion {
             this.dropzones.set(index, dropzone);
             this.answerContainer.add(dropzone);
 
-            const labelText = this.scene.add.text(0, 0, label, this.scene.labelConfig)
-                .setOrigin(0.5);
+            const labelText = this.scene.add.text(0, 0, label, this.scene.labelConfig).setOrigin(0.5);
             this.dropzoneLabels.set(index, labelText);
             this.answerContainer.add(labelText);
         });
@@ -72,55 +84,78 @@ export default class PlayerImageMatchingQuestion extends PlayerBaseQuestion {
 
     protected showAnswerContent(answerHeight: number): void {
         const isPortrait = this.scene.isPortrait();
-        const scaleFactor: number = this.scene.getUIScaleFactor();
+        const scaleFactor = this.scene.getUIScaleFactor();
+        const totalH = this.scene.getY(answerHeight);
 
-        this.submitButton.setButtonSize(320 * scaleFactor, 80 * scaleFactor);
-        this.submitButton.setTextSize(46 * scaleFactor);
-        this.submitButton.setPosition(960 - 160 * scaleFactor - 20, this.scene.getY(answerHeight) - 40 * scaleFactor - 20);
+        // Square button size that fits a 2×2 grid on either orientation
+        const BTNSIZE = 380 * scaleFactor;
+        const GAP = 20 * scaleFactor;
+        const SECTION_GAP = 40 * scaleFactor;
+        const SUBMIT_H = 80 * scaleFactor;
+        const SUBMIT_PAD = 20 * scaleFactor;
 
-        answerHeight -= 80 * scaleFactor;
+        if (isPortrait) {
+            // Two 2×2 grids stacked vertically, full block vertically centred
+            const totalContent = 4 * BTNSIZE + 2 * GAP + SECTION_GAP + SUBMIT_PAD + SUBMIT_H;
+            const startY = Math.max(SUBMIT_PAD, (totalH - totalContent) / 2);
 
-        // Image buttons are square — use the shorter axis to determine size
-        const numItems = this.items.length;
-        const numElements = isPortrait ? numItems * 2 : numItems;
-        const slotSize = answerHeight / numElements;
-        // Square buttons sized to fit comfortably in their slot
-        const buttonSize = Math.min(slotSize * 0.9, 300 * scaleFactor);
+            const grid1CenterY = startY + BTNSIZE + GAP / 2;
+            const grid2CenterY = grid1CenterY + BTNSIZE + GAP / 2 + SECTION_GAP + BTNSIZE + GAP / 2;
+            const submitY = grid2CenterY + BTNSIZE + GAP / 2 + SUBMIT_PAD + SUBMIT_H / 2;
 
-        this.buttons.forEach((button, item) => {
-            const index = button.getData('index');
+            this.placeButtonGrid(0, grid1CenterY, BTNSIZE, GAP);
+            this.placeDropzoneGrid(0, grid2CenterY, BTNSIZE, GAP);
 
-            const x = isPortrait ? 0 : -480;
-            const y = index * slotSize + slotSize / 2;
+            this.submitButton.setButtonSize(BTNSIZE * 1.5, SUBMIT_H * 0.85);
+            this.submitButton.setTextSize(SUBMIT_H * 0.45);
+            this.submitButton.setPosition(0, submitY);
+        } else {
+            // Two 2×2 grids side by side, vertically centred with submit below
+            const gridCenterY = (totalH - SUBMIT_H - SUBMIT_PAD * 2) / 2;
+            const submitY = totalH - SUBMIT_PAD - SUBMIT_H / 2;
 
-            button.setButtonSize(buttonSize, buttonSize);
-            button.setTextSize(36 * scaleFactor);
-            button.setPosition(x, this.scene.getY(y));
+            this.placeButtonGrid(-480, gridCenterY, BTNSIZE, GAP);
+            this.placeDropzoneGrid(480, gridCenterY, BTNSIZE, GAP);
+
+            this.submitButton.setButtonSize(BTNSIZE * 1.5, SUBMIT_H * 0.85);
+            this.submitButton.setTextSize(SUBMIT_H * 0.45);
+            this.submitButton.setPosition(480, submitY);
+        }
+
+        this.submitButton.setVisible(false);
+    }
+
+    private placeButtonGrid(cx: number, cy: number, btnSize: number, gap: number): void {
+        this.buttons.forEach((button) => {
+            const index: number = button.getData('index');
+            const col = index % 2;
+            const row = Math.floor(index / 2);
+            const x = cx + (col - 0.5) * (btnSize + gap);
+            const y = cy + (row - 0.5) * (btnSize + gap);
+            button.setButtonSize(btnSize, btnSize);
+            button.setPosition(x, y);
             button.setData('OriginX', x);
-            button.setData('OriginY', this.scene.getY(y));
+            button.setData('OriginY', y);
             button.setData('dropzone', null);
         });
+    }
 
+    private placeDropzoneGrid(cx: number, cy: number, btnSize: number, gap: number): void {
         this.dropzones.forEach((dropzone, index) => {
-            const x = isPortrait ? 0 : 480;
-            const y = isPortrait
-                ? numItems * slotSize + slotSize / 2 + index * slotSize
-                : index * slotSize + slotSize / 2;
-
-            dropzone.setSize(800 * scaleFactor, 120 * scaleFactor);
-            dropzone.setPosition(x, this.scene.getY(y));
-
+            const col = index % 2;
+            const row = Math.floor(index / 2);
+            const x = cx + (col - 0.5) * (btnSize + gap);
+            const y = cy + (row - 0.5) * (btnSize + gap);
+            dropzone.setSize(btnSize, btnSize);
+            dropzone.setPosition(x, y);
             const label = this.dropzoneLabels.get(index);
             if (label) {
-                label.setPosition(x, this.scene.getY(y));
-                label.setFontSize(46 * scaleFactor);
+                label.setPosition(x, y);
+                label.setFontSize(Math.max(20, btnSize * 0.12));
             }
-
             dropzone.setData('dropped', '');
             dropzone.setTint(0x8080C0);
         });
-
-        this.submitButton.setVisible(false);
     }
 
     protected makeInteractive(): void {
@@ -134,23 +169,21 @@ export default class PlayerImageMatchingQuestion extends PlayerBaseQuestion {
             dropzone.setInteractive({ dropZone: true });
         });
 
-        this.submitButton.on('pointerup', () => { this.handleSubmit(); });
+        this.submitButton.on('pointerup', () => this.handleSubmit());
         this.submitButton.setInteractive({ useHandCursor: true });
     }
 
     protected makeNonInteractive(): void {
         this.removeSceneInputHandlers();
-
-        this.buttons.forEach((button) => {
-            button.disableInteractive();
-        });
-
-        this.dropzones.forEach((dropzone) => {
-            dropzone.disableInteractive();
-        });
-
+        this.buttons.forEach(button => button.disableInteractive());
+        this.dropzones.forEach(dropzone => dropzone.disableInteractive());
         this.submitButton.disableInteractive();
         this.submitButton.removeAllListeners();
+    }
+
+    public createRevealAnswerTimeline(): gsap.core.Timeline {
+        // Player screen does not self-reveal — host drives the reveal
+        return gsap.timeline();
     }
 
     private handleSubmit(): void {
@@ -158,8 +191,7 @@ export default class PlayerImageMatchingQuestion extends PlayerBaseQuestion {
 
         const answers: string[] = [];
         this.dropzones.forEach((dropzone) => {
-            const droppedItem = dropzone.getData('dropped');
-            answers.push(droppedItem || '');
+            answers.push(dropzone.getData('dropped') || '');
         });
 
         this.submitAnswer(answers);
@@ -172,16 +204,14 @@ export default class PlayerImageMatchingQuestion extends PlayerBaseQuestion {
         });
         tl.add(() => {
             this.scene.soundManager.playFX('submit-answer');
-        }, "<+0.25");
+        }, '<+0.25');
         tl.play();
     }
 
     private checkDropzonesFull(): boolean {
         let full = true;
         this.dropzones.forEach((dropzone) => {
-            if (!dropzone.getData('dropped')) {
-                full = false;
-            }
+            if (!dropzone.getData('dropped')) full = false;
         });
         return full;
     }
@@ -207,8 +237,9 @@ export default class PlayerImageMatchingQuestion extends PlayerBaseQuestion {
     private handleDragStart(pointer: Phaser.Input.Pointer, gameObject: any): void {
         this.answerContainer.bringToTop(gameObject);
 
+        // Free the dropzone the button was sitting in, if any
         if (gameObject.getData('dropzone') !== null) {
-            const dropzoneIndex = gameObject.getData('dropzone');
+            const dropzoneIndex: number = gameObject.getData('dropzone');
             const dropzone = this.dropzones.get(dropzoneIndex);
             if (dropzone) {
                 dropzone.setData('dropped', '');
@@ -219,6 +250,7 @@ export default class PlayerImageMatchingQuestion extends PlayerBaseQuestion {
     }
 
     private handleDragEnd(pointer: Phaser.Input.Pointer, gameObject: any): void {
+        // Snap back to origin if not successfully dropped
         if (gameObject.getData('dropzone') === null) {
             this.scene.tweens.add({
                 targets: gameObject,
@@ -234,8 +266,6 @@ export default class PlayerImageMatchingQuestion extends PlayerBaseQuestion {
     }
 
     private handleDrag(pointer: Phaser.Input.Pointer, gameObject: any, dragX: number, dragY: number): void {
-        dragX = Phaser.Math.Snap.To(dragX, 1);
-        dragY = Phaser.Math.Snap.To(dragY, 1);
         gameObject.setPosition(dragX, dragY);
     }
 

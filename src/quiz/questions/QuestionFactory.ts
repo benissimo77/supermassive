@@ -1,6 +1,6 @@
 import { BaseScene } from "src/BaseScene";
 import { BaseQuestion } from "./BaseQuestion";
-import { BaseQuestionData, MatchingQuestionData, MultipleChoiceQuestionData } from "./QuestionTypes";
+import { BaseQuestionData, MultipleChoiceQuestionData } from "./QuestionTypes";
 
 import MultipleChoiceQuestion from "./MultipleChoice";
 import TrueFalseQuestion from "./TrueFalse";
@@ -32,6 +32,7 @@ export class QuestionFactory {
             ['number-closest', NumberQuestion],
             ['number-average', NumberQuestion],
             ['ordering', OrderingQuestion],
+            ['image-ordering', ImageOrderingQuestion],
             ['matching', OrderingQuestion],
             ['hotspot', HotspotQuestion],
             ['point-it-out', HotspotQuestion],
@@ -50,14 +51,19 @@ export class QuestionFactory {
             if (['number-exact', 'number-closest', 'number-average'].includes(type)) {
                 return new PlayerNumberQuestion(this.scene, data as any);
             }
-            if (type === 'ordering') {
+            if (type === 'ordering' || type === 'image-ordering') {
+                const hasImages = Array.isArray((data as any).itemImages) &&
+                    (data as any).itemImages.some((url: string) => url && url.trim().length > 0);
+                if (hasImages) {
+                    return new PlayerImageOrderingQuestion(this.scene, data as any);
+                }
                 return new PlayerOrderingQuestion(this.scene, data as any);
             }
             if (type === 'matching') {
-                const matchingData = data as MatchingQuestionData;
-                const hasImages = matchingData.pairImagesShuffled?.some((url: string) => url.trim().length > 0);
+                const hasImages = Array.isArray((data as any).itemImages) &&
+                    (data as any).itemImages.some((url: string) => url && url.trim().length > 0);
                 if (hasImages) {
-                    return new PlayerImageMatchingQuestion(this.scene, matchingData);
+                    return new PlayerImageMatchingQuestion(this.scene, data as any);
                 }
                 return new PlayerOrderingQuestion(this.scene, data as any);
             }

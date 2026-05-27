@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaderboards - SuperMassive</title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script type="module" src="/modules/dashboard.min.js" defer></script>
+</head>
+<body class="dashboard-body">
+    <div id="sidebar" class="sidebar"></div>
+
+    <main>
+        <div class="page-header">
+            <h1>Leaderboards</h1>
+            <p>Season rankings and all-time high scores across SuperMassive.</p>
+        </div>
+
+        <!-- All-time Global Leaderboard (full width, above season cards) -->
+        <div class="card" style="margin-bottom: var(--space-lg);">
+            <div class="card-header" style="border-left: 3px solid var(--clr-primary);">
+                <div>
+                    <h2 style="margin: 0;">All-Time Global Leaderboard</h2>
+                    <p class="card-subtitle">Top scorers across all verified games</p>
+                </div>
+            </div>
+            <div class="card-body" id="lb-global">
+                <div class="leaderboard-status">Loading...</div>
+            </div>
+        </div>
+
+        <div class="leaderboard-grid" id="leaderboard-grid">
+
+            <!-- Sample: Winter Season (static, kept for aesthetics) -->
+            <div class="card">
+                <div class="card-header" style="border-left: 3px solid var(--clr-secondary);">
+                    <div>
+                        <h2 style="margin: 0;">Winter Season</h2>
+                        <p class="card-subtitle">Pub Quiz @ Home &mdash; Winter 2025</p>
+                    </div>
+                </div>
+                <div class="card-body leaderboard" id="lb-winter"></div>
+            </div>
+
+            <!-- Public season leaderboards are injected here -->
+
+        </div>
+    </main>
+
+    <script type="module">
+        const MEDALS = ['🥇', '🥈', '🥉'];
+
+        // ── Rendering helpers ─────────────────────────────────────────────
+
+        function avatarImg(avatar) {
+            const src = avatar
+                ? `/img/avatar-100/image-from-rawpixel-id-${avatar}-original.png`
+                : '/img/default-avatar.png';
+            return `<img src="${src}" alt="" onerror="this.onerror=null;this.src='/img/default-avatar.png'">`;
+        }
+
+        function rankCell(rank) {
+            return rank <= 3
+                ? `<span class="lb-rank-medal">${MEDALS[rank - 1]}</span>`
+                : rank;
+        }
+
+        function accuracy(e) {
+            return e.totalQuestions > 0
+                ? Math.round(e.totalCorrect / e.totalQuestions * 100) + '%'
+                : '—';
+        }
+
+        function renderGlobalTable(entries) {
+            if (!entries.length) return '<div class="leaderboard-status">No scores yet</div>';
+            const rows = entries.map((e, i) => {
+                const rank = i + 1;
+                return `<tr data-rank="${rank}">
+                    <td class="lb-rank">${rankCell(rank)}</td>
+                    <td class="lb-avatar">${avatarImg(e.avatar)}</td>
+                    <td class="lb-name">${e.playerName}</td>
+                    <td class="lb-num">${e.gameCount}</td>
+                    <td class="lb-num">${e.totalQuestions ?? '—'}</td>
+                    <td class="lb-num">${e.totalCorrect ?? '—'}</td>
+                    <td class="lb-num">${accuracy(e)}</td>
+                    <td class="lb-score">${(e.totalScore || 0).toLocaleString()}</td>
+                </tr>`;
+            }).join('');
+            return `<table class="leaderboard">
+                <thead><tr>
+                    <th class="lb-rank">#</th>
+                    <th class="lb-avatar"></th>
+                    <th class="lb-player">Player</th>
+                    <th class="lb-num">Games</th>
+                    <th class="lb-num">Qs</th>
+                    <th class="lb-num">Correct</th>
+                    <th class="lb-num">Accuracy</th>
+                    <th class="lb-score">Points</th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+            </table>`;
+        }
+
+        function renderSeasonTable(entries) {
+            if (!entries.length) return '<div class="leaderboard-status">No scores yet</div>';
+            const rows = entries.map((e, i) => {
+                const rank = i + 1;
+                return `<tr data-rank="${rank}">
+                    <td class="lb-rank">${rankCell(rank)}</td>
+                    <td class="lb-avatar">${avatarImg(e.avatar)}</td>
+                    <td class="lb-name">${e.playerName}</td>
+                    <td class="lb-num">${e.gameCount}</td>
+                    <td class="lb-num">${e.totalQuestions ?? '—'}</td>
+                    <td class="lb-num">${e.totalCorrect ?? '—'}</td>
+                    <td class="lb-num">${accuracy(e)}</td>
+                    <td class="lb-score">${(e.totalScore || 0).toLocaleString()}</td>
+                    <td class="lb-best5">${(e.best5 || 0).toLocaleString()}</td>
+                </tr>`;
+            }).join('');
+            return `<table class="leaderboard">
+                <thead><tr>
+                    <th class="lb-rank">#</th>
+                    <th class="lb-avatar"></th>
+                    <th class="lb-player">Player</th>
+                    <th class="lb-num">Games</th>
+                    <th class="lb-num">Qs</th>
+                    <th class="lb-num">Correct</th>
+                    <th class="lb-num">Accuracy</th>
+                    <th class="lb-score">Points</th>
+                    <th class="lb-best5" title="Sum of top 5 scores — determines rank">Best 5 ★</th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+            </table>`;
+        }
+
+        function setStatus(el, message) {
+            el.innerHTML = `<div class="leaderboard-status">${message}</div>`;
+        }
+
+        // ── Data fetching ─────────────────────────────────────────────────
+
+        async function loadLeaderboard(el, url) {
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                el.innerHTML = renderGlobalTable(Array.isArray(data) ? data : []);
+            } catch {
+                setStatus(el, 'Failed to load');
+            }
+        }
+
+        // ── Season card factory ───────────────────────────────────────────
+
+        function formatDateRange(start, end) {
+            const fmt = d => new Date(d).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+            if (start && end) return `${fmt(start)} \u2013 ${fmt(end)}`;
+            if (start) return `From ${fmt(start)}`;
+            return '';
+        }
+
+        function createSeasonCard(season, entries) {
+            const subtitle = [season.seriesName, formatDateRange(season.startDate, season.endDate)]
+                .filter(Boolean).join(' \u00b7 ');
+
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `
+                <div class="card-header" style="border-left: 3px solid var(--clr-tertiary);">
+                    <div>
+                        <h2 style="margin: 0;">${season.name}</h2>
+                        ${subtitle ? `<p class="card-subtitle">${subtitle}</p>` : ''}
+                    </div>
+                </div>
+                <div class="card-body">
+                    ${renderSeasonTable(entries)}
+                </div>`;
+            return card;
+        }
+
+        // ── Boot ──────────────────────────────────────────────────────────
+
+        (async () => {
+        // Static sample: Winter Season
+        const winterSample = [
+            { playerName: 'QuizMaster Ben',  totalScore: 12400, gameCount: 8, totalQuestions: 64, totalCorrect: 58, best5: 9800 },
+            { playerName: 'Speedy Gonzales', totalScore:  9800, gameCount: 7, totalQuestions: 56, totalCorrect: 50, best5: 8400 },
+            { playerName: 'Trivia Titan',    totalScore:  8500, gameCount: 6, totalQuestions: 48, totalCorrect: 41, best5: 7500 },
+            { playerName: 'Mystery Player',  totalScore:  7200, gameCount: 5, totalQuestions: 40, totalCorrect: 32, best5: 7200 },
+            { playerName: 'Noob King',       totalScore:  4500, gameCount: 3, totalQuestions: 24, totalCorrect:  8, best5: 4500 },
+        ];
+        document.getElementById('lb-winter').innerHTML = renderSeasonTable(winterSample);
+
+        // Global leaderboard
+        loadLeaderboard(document.getElementById('lb-global'), '/api/leaderboard/global');
+
+        // Public season leaderboards (fetched in parallel, appended in order)
+        const grid = document.getElementById('leaderboard-grid');
+        console.log('[LB] grid element:', grid);
+        try {
+            console.log('[LB] fetching /api/seasons/public...');
+            const res = await fetch('/api/seasons/public');
+            console.log('[LB] /api/seasons/public response status:', res.status);
+            const json = await res.json();
+            console.log('[LB] /api/seasons/public response body:', json);
+            if (!json.success) {
+                console.warn('[LB] Could not load public seasons:', json.message);
+                return;
+            }
+            const seasons = json.data || [];
+            console.log(`[LB] Found ${seasons.length} public season(s)`);
+
+            // Fetch all season leaderboards in parallel, then append in season order
+            const results = await Promise.all(
+                seasons.map(async season => {
+                    try {
+                        console.log(`[LB] fetching leaderboard for season: ${season.name} (${season._id})`);
+                        const lbRes = await fetch(`/api/leaderboard/season/${season._id}`);
+                        console.log(`[LB] season leaderboard status:`, lbRes.status);
+                        const entries = await lbRes.json();
+                        console.log(`[LB] season leaderboard entries:`, entries);
+                        return { season, entries: Array.isArray(entries) ? entries : [] };
+                    } catch (e) {
+                        console.error(`[LB] failed to fetch leaderboard for season ${season._id}:`, e);
+                        return { season, entries: [] };
+                    }
+                })
+            );
+
+            console.log('[LB] appending', results.length, 'season card(s) to grid');
+            results.forEach(({ season, entries }) => {
+                grid.appendChild(createSeasonCard(season, entries));
+            });
+        } catch (err) {
+            console.error('[LB] Failed to load public seasons:', err);
+        }
+        })();
+    </script>
+</body>
+</html>

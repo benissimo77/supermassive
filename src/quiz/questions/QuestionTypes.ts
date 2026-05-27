@@ -38,6 +38,7 @@ export interface TrueFalseQuestionData extends BaseQuestionData {
 export interface MatchingQuestionData extends BaseQuestionData {
     type: 'matching';
     pairsShuffled: { left: string; right: string }[];
+    itemImages?: string[];  // Image URLs indexed to match pairs[i].left (not pairsShuffled order)
     answer?: number[];  // Array of indices, only when mode='answer'
 }
 

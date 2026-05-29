@@ -836,7 +836,7 @@ export class QuizHostScene extends BaseScene {
         }
 
         // Center HUD higher and slightly smaller to avoid overlap
-        this.startingSoonHUD = this.add.container(960, 350).setScale(0.84);
+        this.startingSoonHUD = this.add.container(960, this.getY(350)).setScale(0.84);
 
         // Circular Timer Graphics
         this.HUDTimerGraphics = this.add.graphics();
@@ -1183,12 +1183,8 @@ export class QuizHostScene extends BaseScene {
         const descText = this.add.text(960, this.getY(350), cleanDescription, descriptionConfig)
             .setOrigin(0.5, 0);
 
-        // Next button
-        console.log('QuizHostScene:: showRoundIntro: creating next button');
-        const nextButton = this.createSimpleButton(960, descText.y + descText.height + this.getY(120), 'START ROUND');
-
         console.log('QuizHostScene:: showRoundIntro: adding elements to UIContainer');
-        this.UIContainer.add([roundTitle, descText, nextButton]);
+        this.UIContainer.add([roundTitle, descText]);
 
         // Animation
         console.log('QuizHostScene:: showRoundIntro: starting GSAP animation');
@@ -1416,19 +1412,7 @@ export class QuizHostScene extends BaseScene {
         const descText = this.add.text(960, this.getY(350), data.description, descTextConfig)
             .setOrigin(0.5);
 
-        // Next button
-        const nextButtonConfig = Object.assign({}, this.labelConfig, {
-            backgroundColor: '#0066cc',
-            padding: { x: 30, y: 15 }
-        });
-        const nextButton = this.add.text(960, this.getY(550), 'CONTINUE', nextButtonConfig)
-            .setOrigin(0.5)
-            .setInteractive({ useHandCursor: true })
-            .on('pointerdown', () => {
-                this.socket.emit('host:next');
-            });
-
-        this.UIContainer.add([titleText, descText, nextButton]);
+        this.UIContainer.add([titleText, descText]);
 
         // Animation
         gsap.fromTo(this.UIContainer,
@@ -1975,6 +1959,10 @@ export class QuizHostScene extends BaseScene {
         // if (this.racetrack) {
         //     this.racetrack.setPosition(0, this.getY(640));
         // }
+
+        if (this.startingSoonHUD) {
+            this.startingSoonHUD.setPosition(960, this.getY(350));
+        }
 
         if (this.currentQuestion) {
             this.currentQuestion.renderHost();

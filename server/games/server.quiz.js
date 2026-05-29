@@ -1157,7 +1157,7 @@ export default class Quiz extends Game {
 				playerQuestion.optionsShuffled = this.question.optionsShuffled;
 				playerQuestion.itemsShuffled = this.question.itemsShuffled;
 				playerQuestion.pairsShuffled = this.question.pairsShuffled;
-				playerQuestion.pairImagesShuffled = this.question.pairImagesShuffled;
+				playerQuestion.itemImagesShuffled = this.question.itemImagesShuffled;
 				playerQuestion.extra = this.question.extra;
 				if (playerQuestion.type == 'hotspot' || playerQuestion.type == 'point-it-out') {
 					playerQuestion.image = this.question.image;
@@ -1353,10 +1353,10 @@ export default class Quiz extends Game {
 				console.log('Matching:', question.answer, localQuestion.pairs);
 				question.pairsShuffled = localQuestion.pairs;
 				// Shuffle pair images to stay aligned with the shuffled left values
-				if (localQuestion.pairImages && localQuestion.pairImages.length > 0) {
+				if (localQuestion.itemImages && localQuestion.itemImages.length > 0) {
 					const imageMap = {};
-					left.forEach((leftVal, i) => { imageMap[leftVal] = localQuestion.pairImages[i]; });
-					question.pairImagesShuffled = shuffledLeft.map(leftVal => imageMap[leftVal] || '');
+					left.forEach((leftVal, i) => { imageMap[leftVal] = localQuestion.itemImages[i]; });
+					question.itemImagesShuffled = shuffledLeft.map(leftVal => imageMap[leftVal] || '');
 				}
 				break;
 
@@ -1427,6 +1427,7 @@ export default class Quiz extends Game {
 		this.room.emitToHosts('server:question', hostQuestion);
 
 		// In cases where we are live streaming we DON'T want to move to the next state automatically
+		// Moving to next state automatically would mean sending players the question - happens the moment host has completed displaying the question
 		// So only do this if we are NOT live streaming
 		// OR when answering the question - even live streaming we can still show the answer straight away
 		if (!this.liveStream || this.mode === 'answer') {
@@ -1493,7 +1494,7 @@ export default class Quiz extends Game {
 		playerQuestion.optionsShuffled = this.question.optionsShuffled;
 		playerQuestion.itemsShuffled = this.question.itemsShuffled;
 		playerQuestion.pairsShuffled = this.question.pairsShuffled;
-		playerQuestion.pairImagesShuffled = this.question.pairImagesShuffled;
+		playerQuestion.itemImagesShuffled = this.question.itemImagesShuffled;
 		playerQuestion.extra = this.question.extra;
 		// Include the image if it is required for the answer (hotspot, point-it-out)
 		if (playerQuestion.type == 'hotspot' || playerQuestion.type == 'point-it-out') {

@@ -433,7 +433,7 @@
 									}
 								}
 							},
-							"pairImages": {
+							"itemImages": {
 								"type": "array",
 								"items": {
 									"type": "string"

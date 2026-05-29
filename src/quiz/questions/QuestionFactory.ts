@@ -32,7 +32,6 @@ export class QuestionFactory {
             ['number-closest', NumberQuestion],
             ['number-average', NumberQuestion],
             ['ordering', OrderingQuestion],
-            ['image-ordering', ImageOrderingQuestion],
             ['matching', OrderingQuestion],
             ['hotspot', HotspotQuestion],
             ['point-it-out', HotspotQuestion],
@@ -51,7 +50,7 @@ export class QuestionFactory {
             if (['number-exact', 'number-closest', 'number-average'].includes(type)) {
                 return new PlayerNumberQuestion(this.scene, data as any);
             }
-            if (type === 'ordering' || type === 'image-ordering') {
+            if (type === 'ordering') {
                 const hasImages = Array.isArray((data as any).itemImages) &&
                     (data as any).itemImages.some((url: string) => url && url.trim().length > 0);
                 if (hasImages) {
@@ -60,8 +59,8 @@ export class QuestionFactory {
                 return new PlayerOrderingQuestion(this.scene, data as any);
             }
             if (type === 'matching') {
-                const hasImages = Array.isArray((data as any).itemImages) &&
-                    (data as any).itemImages.some((url: string) => url && url.trim().length > 0);
+                const hasImages = Array.isArray((data as any).itemImagesShuffled) &&
+                    (data as any).itemImagesShuffled.some((url: string) => url && url.trim().length > 0);
                 if (hasImages) {
                     return new PlayerImageMatchingQuestion(this.scene, data as any);
                 }
@@ -73,7 +72,7 @@ export class QuestionFactory {
         let QuestionClass = this.questionTypes.get(type);
 
         // If it's an ordering question and it has populated images, promote it to ImageOrdering
-        if (type === 'ordering') {
+        if (type === 'ordering' || type === 'matching') {
             const hasImages = data.itemImages && data.itemImages.length > 0 && data.itemImages.some((url: string) => url.trim().length > 0);
             if (hasImages) {
                 QuestionClass = ImageOrderingQuestion;

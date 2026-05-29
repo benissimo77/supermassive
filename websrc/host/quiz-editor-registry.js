@@ -246,7 +246,7 @@ export const QuestionTypeRegistry = {
         serialize: (container) => {
             const imgInputs = Array.from(container.querySelectorAll('[data-field="order-image"]'));
             const pairs = [];
-            const pairImages = [];
+            const itemImages = [];
             let hasImages = false;
 
             for (let i = 1; i <= 5; i++) {
@@ -255,25 +255,25 @@ export const QuestionTypeRegistry = {
                 const imgVal = imgInputs[i - 1] ? imgInputs[i - 1].value.trim() : '';
                 if (left) {
                     pairs.push({ left, right });
-                    pairImages.push(imgVal);
+                    itemImages.push(imgVal);
                     if (imgVal !== '') hasImages = true;
                 }
             }
 
             const data = { pairs };
-            if (hasImages) data.pairImages = pairImages;
+            if (hasImages) data.itemImages = itemImages;
             return data;
         },
         deserialize: (container, data) => {
             const pairs = data.pairs || [];
-            const pairImages = data.pairImages || [];
+            const itemImages = data.itemImages || [];
             const imgInputs = container.querySelectorAll('[data-field="order-image"]');
 
             for (let i = 1; i <= 5; i++) {
                 container.querySelector(`[data-field="left-${i}"]`).value = pairs[i - 1]?.left || '';
                 container.querySelector(`[data-field="right-${i}"]`).value = pairs[i - 1]?.right || '';
                 if (imgInputs[i - 1]) {
-                    const imgVal = pairImages[i - 1] || '';
+                    const imgVal = itemImages[i - 1] || '';
                     imgInputs[i - 1].value = imgVal;
                     const preview = imgInputs[i - 1].parentElement.querySelector('[data-field="order-image-preview"]');
                     if (preview) {

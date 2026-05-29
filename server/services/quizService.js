@@ -31,12 +31,12 @@ const questionValidators = [
     },
     // 2. Matching Questions: All pairs must have images, or we must have no images
     (q, rIndex, qIndex, errors) => {
-        if (q.type === 'matching' && q.pairImages && q.pairImages.length > 0) {
-            const allHaveImages = q.pairImages.every(url => typeof url === 'string' && url.trim().length > 0);
-            if (!q.pairs || q.pairImages.length !== q.pairs.length || !allHaveImages) {
+        if (q.type === 'matching' && q.itemImages && q.itemImages.length > 0) {
+            const allHaveImages = q.itemImages.every(url => typeof url === 'string' && url.trim().length > 0);
+            if (!q.pairs || q.itemImages.length !== q.pairs.length || !allHaveImages) {
                 errors.push({
-                    instancePath: `/rounds/${rIndex}/questions/${qIndex}/pairImages`,
-                    schemaPath: '#/custom/pairImagesMatch',
+                    instancePath: `/rounds/${rIndex}/questions/${qIndex}/itemImages`,
+                    schemaPath: '#/custom/itemImagesMatch',
                     keyword: 'customLengthMatch',
                     params: {},
                     message: 'All matching pairs must have images, or you must remove all images.'

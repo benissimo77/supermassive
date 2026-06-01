@@ -35,18 +35,31 @@ export default class ImageOrderingQuestion extends OrderingQuestion {
 
         // Extract items
         if (this.questionData.type === 'ordering') {
-            this.items = this.questionData.itemsShuffled || [];
+            this.items = ((this.questionData as any).itemsShuffled || []);
         } else {
-            const pairs = this.questionData.pairsShuffled || this.questionData.pairs || [];
-            this.items = pairs.map((pair: any) => pair.left);
+            // Matching question - prefer leftItems/rightItems model
+            const q: any = this.questionData;
+            let leftItems = q.leftItemsShuffled || q.leftItems;
+            if (!Array.isArray(leftItems)) {
+                const pairs = q.pairsShuffled || q.pairs || [];
+                leftItems = pairs.map((p: any, i: number) => ({ text: p.left, image: (q.itemImages && q.itemImages[i]) || undefined }));
+            }
+            this.items = (leftItems || []).map((li: any) => li && li.text ? li.text : '');
         }
 
         // Create buttons and allow ImageButton to handle its own loading completely!
         this.items.forEach((item: string, index: number) => {
-            const originalIndex = this.questionData.items?.indexOf(item) ?? -1;
-            let url = (originalIndex >= 0 && this.questionData.itemImages) ? this.questionData.itemImages[originalIndex] : '';
+            let url = '';
+            if (this.questionData.type === 'ordering') {
+                const originalIndex = (this.questionData as any).items?.indexOf(item) ?? -1;
+                url = (originalIndex >= 0 && (this.questionData as any).itemImages) ? (this.questionData as any).itemImages[originalIndex] : '';
+            } else {
+                const q: any = this.questionData;
+                const leftItems = q.leftItemsShuffled || q.leftItems || (q.pairsShuffled || q.pairs || []).map((p: any, i: number) => ({ text: p.left, image: (q.itemImages && q.itemImages[i]) || undefined }));
+                url = leftItems[index] && leftItems[index].image ? leftItems[index].image : '';
+            }
 
-            // Protection against malformed JSON structs if itemImages happens to contain objects instead of strings
+            // Protection against malformed JSON structs if url happens to be an object
             if (url && typeof url === 'object') {
                 url = (url as any).url || (url as any).src || (url as any).href || '';
             }
@@ -63,7 +76,7 @@ export default class ImageOrderingQuestion extends OrderingQuestion {
             this.answerContainer.add(button);
         });
 
-        this.labels = (this.questionData.itemsShuffled || []).map(() => ''); // Empty labels for middle dropzones
+        this.labels = (((this.questionData as any).itemsShuffled) || []).map(() => ''); // Empty labels for middle dropzones
         // For ordering questions, label first/last dropzones
         if (this.questionData.extra) {
             this.labels[0] = this.questionData.extra.startLabel || '';
@@ -222,7 +235,7 @@ export default class ImageOrderingQuestion extends OrderingQuestion {
         // Then create new ImageButtons for each of their answers aligned with the dropzones
         let playerIndex = 0;
         const playerAnswerButtons: ImageButton[][] = [];
-        for (const [sessionID, playerAnswer] of Object.entries(this.questionData.responses)) {
+        for (const [sessionID, playerAnswer] of (Object.entries((this.questionData as any).responses || {}) as any)) {
 
             const player = this.scene.getPlayerBySessionID(sessionID);
             if (player) {
@@ -250,7 +263,7 @@ export default class ImageOrderingQuestion extends OrderingQuestion {
                 for (let answerIndex = playerAnswerList.length - 1; answerIndex >= 0; answerIndex--) {
                     const playerAnswer = playerAnswerList[answerIndex];
                     const originalIndex = this.questionData.items?.indexOf(playerAnswer) ?? -1;
-                    let url = (originalIndex >= 0 && this.questionData.itemImages) ? this.questionData.itemImages[originalIndex] : '';
+                    let url = (originalIndex >= 0 && (this.questionData as any).itemImages) ? (this.questionData as any).itemImages[originalIndex] : '';
 
                     // Protection against malformed JSON structs if itemImages happens to contain objects instead of strings
                     if (url && typeof url === 'object') {
@@ -299,7 +312,7 @@ export default class ImageOrderingQuestion extends OrderingQuestion {
 
                     // Now we must loop through the players again adding a checkmark or a cross
                     playerIndex = 0;
-                    for (const [sessionID, playerAnswer] of Object.entries(this.questionData.responses)) {
+                    for (const [sessionID, playerAnswer] of (Object.entries(((this.questionData as any).responses) || {}) as any)) {
                         const player = this.scene.getPlayerBySessionID(sessionID);
                         if (player) {
                             const playerAnswerList = playerAnswer.answer;
@@ -322,7 +335,7 @@ export default class ImageOrderingQuestion extends OrderingQuestion {
 
         tl.add(() => {
             this.scene.deregisterGlobalKeypressHandler();
-            this.scene.registerDefaultKeypressHandler(); // Re-register default keypress handler to allow skipping through the rest of the timeline as normal
+            (this.scene as any).registerDefaultKeypressHandler(); // Re-register default keypress handler to allow skipping through the rest of the timeline as normal
         });
 
         // this.imageButtonsArray.forEach((ib, index) => {
@@ -340,7 +353,7 @@ export default class ImageOrderingQuestion extends OrderingQuestion {
             this.scene.events.off('server:hostaction');
             // Re-enable global keys in case we were destroyed before timeline completed
             this.scene.deregisterGlobalKeypressHandler();
-            this.scene.registerDefaultKeypressHandler();
+            (this.scene as any).registerDefaultKeypressHandler();
         }
         super.destroy();
     }

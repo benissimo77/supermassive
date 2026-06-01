@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leagues - Hosting Dashboard</title>
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/quizbuilder.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script type="module" src="/modules/dashboard.min.js" defer></script>
+</head>
+<body class="dashboard-body">
+  <div id="sidebar" class="sidebar"></div>
+
+  <main>
+    <div class="editor-header">
+      <h1>Leagues</h1>
+      <div class="flex gap-md items-center">
+        <button id="btn-create-league" class="btn btn-primary">
+          <i class="fa-solid fa-plus"></i>
+          Create League
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <svg class="collapse-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        <h2>My Leagues</h2>
+      </div>
+      <div class="card-body">
+        <section id="league-list">
+          <div class="empty-state">Loading your leagues...</div>
+        </section>
+      </div>
+    </div>
+
+    <div id="league-detail" class="hidden">
+      <!-- Filled dynamically -->
+    </div>
+  </main>
+
+  <script type="module">
+    async function fetchMyLeagues() {
+      const res = await fetch('/api/league/my-leagues');
+      if (!res.ok) throw new Error('Failed to load');
+      return res.json();
+    }
+
+    function renderLeagueCard(league) {
+      return `
+        <div class="card" style="margin-bottom:12px;">
+          <div class="card-body">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div style="flex:1;">
+                <h3 style="margin:0;">${league.name}</h3>
+                <div style="color:var(--clr-text-muted); font-size:0.9em; margin-top:6px;">${league.slogan || ''}</div>
+              </div>
+              <div style="display:flex; gap:8px;">
+                
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    async function boot() {
+      const container = document.getElementById('league-list');
+      try {
+        const leagues = await fetchMyLeagues();
+        if (!Array.isArray(leagues) || leagues.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <h3>No Leagues Yet</h3>
+              <p>Create a league to invite players and track scores.</p>
+            </div>`;
+          return;
+        }
+
+        container.innerHTML = leagues.map(l => `
+          <div class="card league-card" data-id="${l._id}">
+                <div class="card-header">
+                  <svg class="collapse-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                  <h3 style="margin:0;">${l.name}</h3>
+                  <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+                    <!-- header controls (kept empty) -->
+                  </div>
+                </div>
+                <div class="card-body league-body" style="display:none;">
+                  <div class="leaderboard-status">Loading members...</div>
+                  <div style="margin-top:12px; display:flex; justify-content:flex-end;">
+                    </div>
+                </div>
+          </div>
+        `).join('');
+
+        // Fetch current user once so we can apply client-side permission hiding
+        let currentUser = null;
+        try {
+          const ures = await fetch('/auth/me');
+          if (ures && ures.ok) {
+            const ujson = await ures.json();
+            currentUser = (ujson && ujson.success && ujson.data) ? ujson.data.user : null;
+          }
+        } catch (e) { currentUser = null; }
+
+        // Attach collapse behaviour via delegation so clicking anywhere in header toggles
+        container.addEventListener('click', async (ev) => {
+          const header = ev.target.closest('.card-header');
+          if (!header) return;
+          // Ignore clicks on interactive controls inside the header
+          if (ev.target.closest('button') || ev.target.closest('a')) return;
+          const card = header.closest('.card.league-card');
+          if (!card) return;
+          const body = card.querySelector('.league-body');
+          const leagueID = card.dataset.id;
+
+          const isCollapsed = card.classList.toggle('collapsed');
+          if (!isCollapsed) {
+            // expanded — load members
+            try {
+              const res = await fetch(`/api/league/${leagueID}`);
+              if (!res.ok) throw new Error('Failed to load');
+              const json = await res.json();
+              const league = json.league || json;
+              const members = league.members || [];
+                if (!members.length) {
+                body.innerHTML = `
+                  <div class="leaderboard-status">No members yet</div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+                    <div>
+                      <button class="btn btn-round btn-invite" data-id="${leagueID}"><i class="fa-solid fa-envelope"></i>&nbsp;Invite Players</button>
+                    </div>
+                    <div></div>
+                  </div>`;
+              } else {
+                  // Determine whether current user can remove members (owner or admin)
+                  const canRemove = currentUser && (String(currentUser.id) === String(league.ownerID) || currentUser.role === 'admin');
+                  body.innerHTML = `<table class="quiz-table" style="width:100%"><tbody>` +
+                    members.map(m => `
+                      <tr>
+                        <td style="width:48px"><img src="${m.avatar ? '/img/avatar-100/image-from-rawpixel-id-'+m.avatar+'-original.png' : '/img/default-avatar.png'}" style="width:40px;height:40px;border-radius:8px;" onerror="this.onerror=null;this.src='/img/default-avatar.png'"></td>
+                        <td>${m.displayName || 'Player'}</td>
+                        <td style="text-align:right;">${canRemove ? `<button class="btn btn-danger btn-remove" data-id="${m._id}" data-league="${leagueID}">Remove</button>` : ''}</td>
+                      </tr>`).join('') + '</tbody></table>' +
+                    `
+                      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+                        <div>
+                          <button class="btn btn-round btn-invite" data-id="${leagueID}"><i class="fa-solid fa-envelope"></i>&nbsp;Invite Players</button>
+                        </div>
+                        <div></div>
+                      </div>
+                    `;
+              }
+            } catch (err) {
+              console.error('Failed to load league detail:', err);
+              body.innerHTML = '<div class="leaderboard-status">Failed to load members</div>';
+            }
+            body.style.display = '';
+          } else {
+            body.style.display = 'none';
+          }
+        });
+
+        // Attach invite handlers — open modal instead of alert
+        async function openInviteModal(leagueID) {
+          const modal = document.getElementById('invite-modal');
+          modal.dataset.league = leagueID;
+          modal.querySelector('.invite-emails').value = '';
+          const urlInput = modal.querySelector('.invite-url');
+          if (urlInput) urlInput.value = '';
+          modal.classList.add('open');
+          // Pre-generate an invite token so the URL is available immediately
+          try {
+            if (window.ensureLeagueInviteToken) await window.ensureLeagueInviteToken();
+          } catch (e) { console.warn('Could not pre-generate invite token on open', e); }
+        }
+
+        // Delegate invite clicks so dynamically created buttons work
+        container.addEventListener('click', (ev) => {
+          const btn = ev.target.closest('.btn-invite');
+          if (!btn) return;
+          ev.stopPropagation();
+          openInviteModal(btn.dataset.id);
+        });
+
+        // Attach remove handlers (event delegation)
+        container.addEventListener('click', async (ev) => {
+          const rem = ev.target.closest('.btn-remove');
+          if (!rem) return;
+          ev.stopPropagation();
+          const pid = rem.dataset.id;
+          const lid = rem.dataset.league;
+          if (!confirm('Remove this member from the league?')) return;
+          try {
+            const res = await fetch(`/api/league/${lid}/remove/${pid}`, { method: 'POST' , headers: { 'Content-Type':'application/json' } });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Remove failed');
+            // Refresh the card
+            const card = document.querySelector(`.card.league-card[data-id="${lid}"]`);
+            if (card) card.querySelector('.card-header').click(); // collapse
+            setTimeout(() => { if (card) card.querySelector('.card-header').click(); }, 300); // reopen to refresh
+          } catch (err) {
+            console.error('Remove error:', err);
+            alert('Failed to remove member: ' + err.message);
+          }
+        });
+
+      } catch (err) {
+        console.error('Load leagues error:', err);
+        container.innerHTML = '<div class="leaderboard-status">Failed to load leagues</div>';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const btnCreate = document.getElementById('btn-create-league');
+      if (btnCreate) btnCreate.addEventListener('click', async () => {
+        const name = prompt('League name');
+        if (!name) return;
+        btnCreate.disabled = true;
+        try {
+          const res = await fetch('/api/league/create', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name, slogan: '' }) });
+          const json = await res.json();
+          if (!res.ok) throw new Error(json.error || json.message || 'Create failed');
+          alert('League created');
+          await boot();
+        } catch (err) {
+          console.error('Create league error:', err);
+          alert('Failed to create league: ' + err.message);
+        } finally { btnCreate.disabled = false; }
+      });
+
+      boot();
+    });
+  </script>
+
+  <!-- Invite Modal -->
+   <div id="invite-modal" class="modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel">
+      <header class="modal-header">
+        <h3>Invite Players</h3>
+        <button class="modal-close">&times;</button>
+      </header>
+      <div class="modal-body">
+        <label>Emails (comma or newline separated)</label>
+        <textarea class="invite-emails invite-textarea" rows="4" placeholder="alice@example.com, bob@example.com"></textarea>
+
+        <div class="invite-status" aria-live="polite"></div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-primary btn-send-email">Send Email Invite</button>
+        </div>
+
+        <div class="invite-or">Or copy invite link</div>
+        <div class="invite-url-wrap"><input class="invite-url" readonly /><button type="button" class="btn btn-outline btn-copy small"><i class="fa-regular fa-copy"></i>&nbsp;Copy</button></div>
+        <div class="modal-footer"><button type="button" class="btn btn-outline btn-close">Close</button></div>
+      </div>
+    </div>
+  </div>
+
+    <style>
+    /* Modal styles for leagues invite — theme aware */
+    #invite-modal { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:1200; }
+    #invite-modal .modal-backdrop { position:absolute; inset:0; background:rgba(0,0,0,0.35); }
+    #invite-modal .modal-panel { position:relative; width:560px; max-width:94%; background:var(--clr-surface, #ffffff); border-radius:10px; box-shadow:0 14px 40px rgba(0,0,0,0.45); padding:16px; color:var(--clr-text); max-height:calc(100vh - 48px); overflow:auto; }
+    #invite-modal .modal-header { display:flex; align-items:center; gap:12px; }
+    #invite-modal .modal-header h3 { margin:0; color:var(--clr-accent); }
+    #invite-modal .modal-close { position:absolute; top:8px; right:8px; background:none; border:none; font-size:26px; line-height:1; cursor:pointer; color:var(--clr-text); z-index:2; padding:6px; border-radius:6px; }
+    #invite-modal.open { display:flex; }
+    #invite-modal:not(.open) { display:none; }
+    #invite-modal .modal-body label { display:block; margin-bottom:6px; color:var(--clr-text); }
+    #invite-modal .modal-body textarea { min-height:84px; background:var(--clr-surface); border:1px solid var(--clr-line); color:var(--clr-text); padding:8px; border-radius:6px; width:100%; box-sizing:border-box; resize:vertical; max-width:100%; }
+    #invite-modal .modal-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
+    #invite-modal .modal-actions .btn { min-width:140px; }
+    #invite-modal .invite-url-wrap { margin-top:6px; display:flex; gap:8px; align-items:center; }
+    #invite-modal .invite-url { flex:1; }
+    #invite-modal .invite-status { margin-top:8px; color:var(--clr-text-muted); font-size:0.95em; }
+    #invite-modal .modal-footer { display:flex; justify-content:flex-end; margin-top:12px; }
+    #invite-modal .invite-or { margin-top:12px; color:var(--clr-text-muted); }
+    #invite-modal .invite-url-wrap { margin-top:6px; }
+    #invite-modal .invite-url { width:100%; box-sizing:border-box; padding:8px; border:1px solid var(--clr-line); border-radius:6px; background:var(--clr-surface); color:var(--clr-text); }
+    .hidden { display:none; }
+    @media (max-width:640px) {
+      #invite-modal .modal-panel { width:94%; padding:12px; }
+      #invite-modal .modal-actions { flex-direction:column-reverse; align-items:stretch; }
+      #invite-modal .modal-actions .btn { width:100%; }
+    }
+  </style>
+
+  <script>
+    // Invite modal behaviour
+    (function(){
+      const modal = document.getElementById('invite-modal');
+      if (!modal) return;
+      const close = modal.querySelector('.modal-close');
+      const backdrop = modal.querySelector('.modal-backdrop');
+      const btnSend = modal.querySelector('.btn-send-email');
+      const btnCopy = modal.querySelector('.btn-copy');
+      const btnClose = modal.querySelector('.btn-close');
+      const inputUrl = modal.querySelector('.invite-url');
+      const statusEl = modal.querySelector('.invite-status');
+
+      function hide() { modal.classList.remove('open'); }
+      function show() { modal.classList.add('open'); }
+
+      close.addEventListener('click', hide);
+      backdrop.addEventListener('click', hide);
+
+      async function ensureTokenAndUrl() {
+        const leagueID = modal.dataset.league;
+        if (!leagueID) return '';
+        // create invite token
+        const res = await fetch(`/api/league/${leagueID}/invite`, { method: 'POST', headers: { 'Content-Type':'application/json' } });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Invite failed');
+        const token = (json.invite && json.invite.token) || json.token || '';
+        const inviteURL = `${location.origin}/join-league?token=${encodeURIComponent(token)}`;
+        inputUrl.value = inviteURL;
+        return inviteURL;
+      }
+      // Expose helper so other scripts can pre-generate token when opening modal
+      window.ensureLeagueInviteToken = ensureTokenAndUrl;
+
+      // Close button in modal footer
+      if (btnClose) btnClose.addEventListener('click', hide);
+
+      // Close modal on Escape key
+      document.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Escape' && modal.classList.contains('open')) hide();
+      });
+
+      // Defensive z-index to avoid accidental overlap
+      const panel = modal.querySelector('.modal-panel');
+      if (panel) panel.style.zIndex = 2000;
+      if (close) close.style.zIndex = 2010;
+      if (btnSend) btnSend.style.zIndex = 2001;
+      if (btnCopy) btnCopy.style.zIndex = 2001;
+
+      // Use delegated click handler on the modal for Send/Copy to avoid accidental double-handling
+      modal.addEventListener('click', async (ev) => {
+        const sendBtn = ev.target.closest('.btn-send-email');
+        if (sendBtn) {
+          ev.stopPropagation(); ev.preventDefault();
+          sendBtn.disabled = true;
+          try {
+            const emailsRaw = modal.querySelector('.invite-emails').value.trim();
+            const recipients = emailsRaw ? emailsRaw.split(/[\s,;]+/).filter(Boolean) : [];
+            const leagueID = modal.dataset.league;
+
+            if (recipients.length === 0) {
+              // validation: require at least one email when using Send
+              if (statusEl) {
+                statusEl.textContent = 'Please enter at least one email address';
+                setTimeout(() => { statusEl.textContent = ''; }, 2000);
+              }
+              const emailField = modal.querySelector('.invite-emails');
+              if (emailField) { emailField.focus(); }
+              return;
+            }
+
+            const res = await fetch(`/api/league/${leagueID}/invite`, { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ emails: recipients }) });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Invite send failed');
+            if (statusEl) statusEl.textContent = 'Invite emails sent';
+            setTimeout(() => { if (statusEl) statusEl.textContent = ''; hide(); }, 900);
+          } catch (err) {
+            console.error('Send invite error', err);
+            alert('Failed to create/send invite: ' + err.message);
+          } finally { sendBtn.disabled = false; }
+          return;
+        }
+
+        const copyBtn = ev.target.closest('.btn-copy');
+        if (copyBtn) {
+          ev.stopPropagation(); ev.preventDefault();
+          try {
+            const input = modal.querySelector('.invite-url');
+            let url = input ? input.value : '';
+            if (!url) url = await ensureTokenAndUrl();
+            await navigator.clipboard.writeText(url);
+            copyBtn.textContent = 'Copied';
+            setTimeout(() => copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i>&nbsp;Copy', 1500);
+          } catch (err) {
+            console.error('Copy failed', err);
+            if (statusEl) { statusEl.textContent = 'Copy failed'; setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 1500); }
+          }
+          return;
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

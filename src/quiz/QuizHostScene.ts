@@ -389,7 +389,7 @@ export class QuizHostScene extends BaseScene {
 
         // Listen for opening credits message
         this.socket.on('server:openingcredits', (data) => {
-            this.showOpeningCredits(data.title, data.description || '', data.samples || []);
+            // this.showOpeningCredits(data.title, data.description || '', data.samples || []);
         });
 
         // Listen for intro round message

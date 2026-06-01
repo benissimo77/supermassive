@@ -2,6 +2,9 @@
 ---
 # SuperMassive AI Coding Agent Guide
 
+<!-- Agent discovery note: Agents should read the entire `.github/` folder on startup. -->
+<!-- See .github/DESIGN_DECISIONS/ for architecture and design decision documents. -->
+
 ## Big Picture
 
 - **SuperMassive** is a multi-game platform (quiz, drawing, trivia, etc.) with a focus on rapid game development and extensibility.

@@ -1,3 +1,117 @@
+/* Matching question item row layout */
+.matching-item-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+.matching-text {
+  flex: 2 1 0;
+  min-width: 0;
+  width: 100%;
+}
+.matching-image {
+  flex: 3 1 0;
+  min-width: 0;
+  width: 100%;
+}
+.image-thumb {
+  width: 36px;
+  height: 36px;
+  background: #eee;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-size: cover;
+  background-position: center;
+  flex-shrink: 0;
+}
+/* Order/matching row shared styles (mirror ordering layout) */
+.order-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.25rem;
+  width: 100%;
+  min-width: 0;
+  padding-right: 0.5rem; /* ensure right-side spacing inside narrow panels */
+}
+.order-item-text,
+.matching-text {
+  flex: 1 1 0;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.order-image-container {
+  flex: 1 1 0;
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+  min-width: 0;
+}
+.order-image-input {
+  flex: 1 1 0;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.order-image-preview {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  display: none;
+  background-size: cover;
+  background-position: center;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-right: 4px; /* small gap between thumb and button */
+}
+.ordering-items > div {
+  padding-right: 0.5rem; /* match .order-row padding for inline-ordering rows */
+  box-sizing: border-box;
+  min-width: 0;
+}
+.ordering-items .order-image-container {
+  min-width: 0;
+}
+.ordering-items .select-order-image-btn {
+  margin-left: 4px;
+}
+.select-order-image-btn {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+/* Ensure icon inside image button does not capture pointer events */
+.select-order-image-btn i { pointer-events: none; }
+/* Matching columns layout moved from inline styles */
+.matching-columns {
+  display: flex;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.matching-column {
+  flex: 1 1 0;
+  min-width: 0;
+}
+/* Separator used in multiple-choice options */
+.options-separator {
+  margin: 5px 0;
+  opacity: 0.3;
+  border: none;
+  border-top: 1px solid rgba(0,0,0,0.06);
+}
+/* Hidden file input used in image modal */
+.hidden-file-input { display: none; }
+/* Matching editor layout improvements */
+
+/* Utility for 1.5x flex column (right side wider) */
+.flex-1-5 {
+  flex: 1.5 1 0;
+}
 /* Quiz Editor Components */
 
 .quiz-container {
@@ -111,6 +225,15 @@
   color: var(--clr-text) !important;
 }
 
+/* Reusable round-style button for other places */
+.btn-round {
+  background-color: rgba(59, 130, 246, 0.2) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  color: var(--clr-text) !important;
+  padding: 8px 12px;
+  border-radius: 6px;
+}
+
 /* AI Generator Spinner */
 .spinner {
   display: inline-block;
@@ -128,10 +251,6 @@
   to { transform: rotate(360deg); }
 }
 
-  background-color: rgba(59, 130, 246, 0.1) !important;
-  border: 1px solid rgba(59, 130, 246, 0.2) !important;
-  color: var(--clr-text) !important;
-}
 
 /* Details/Summary specific */
 details.card summary {
@@ -326,7 +445,7 @@ details.card:not([open]) .card-header {
 }
 
 .form-right-column {
-    padding-left: var(--space-lg);
+  padding-left: var(--space-md);
 }
 
 @media (max-width: 992px) {

@@ -35,9 +35,9 @@ export class ImageLibrary {
         <div class="modal-footer">
             <div class="upload-container">
               <h3>Add a new image</h3>
-              <div class="dropzone" id="modal-dropzone">
+                <div class="dropzone" id="modal-dropzone">
                 <p>Drop image here or click to select</p>
-                <input type="file" style="display: none;" accept="image/*">
+                <input type="file" class="hidden-file-input" accept="image/*">
               </div>
             </div>
         </div>

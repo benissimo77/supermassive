@@ -11,7 +11,7 @@ import { SimpleButton } from "src/ui/SimpleButton";
 export default class OrderingQuestion extends BaseQuestion {
 
     protected buttons: Map<string, NineSliceButton> = new Map<string, NineSliceButton>();
-    protected dropzones: Map<number, SimpleButton> = new Map<number, SimpleButton>();
+    protected dropzones: Map<number, Phaser.GameObjects.NineSlice> = new Map<number, Phaser.GameObjects.NineSlice>();
     protected dropzoneLabels: Map<number, Phaser.GameObjects.Text> = new Map<number, Phaser.GameObjects.Text>();
     protected items: string[] = [];
     protected labels: string[] = [];
@@ -35,19 +35,28 @@ export default class OrderingQuestion extends BaseQuestion {
 
         // Extract items and labels based on question type
         if (this.questionData.type === 'ordering') {
-            this.items = this.questionData.itemsShuffled || [];
-            this.labels = (this.questionData.itemsShuffled || []).map(() => ''); // Empty labels for middle dropzones
+            const q: any = this.questionData;
+            this.items = q.itemsShuffled || [];
+            this.labels = (q.itemsShuffled || []).map(() => ''); // Empty labels for middle dropzones
 
             // For ordering questions, label first/last dropzones
-            if (this.questionData.extra) {
-                this.labels[0] = this.questionData.extra.startLabel || '';
-                this.labels[this.labels.length - 1] = this.questionData.extra.endLabel || '';
+            if ((this.questionData as any).extra) {
+                this.labels[0] = (this.questionData as any).extra.startLabel || '';
+                this.labels[this.labels.length - 1] = (this.questionData as any).extra.endLabel || '';
             }
         } else {
-            // Matching question
-            const pairs = this.questionData.pairsShuffled || this.questionData.pairs || [];
-            this.items = pairs.map((pair: any) => pair.left);
-            this.labels = pairs.map((pair: any) => pair.right);
+            // Matching question - prefer new leftItems/rightItems model (supports image+text), fall back to legacy pairs
+            const q: any = this.questionData;
+            let leftItems = q.leftItemsShuffled || q.leftItems;
+            let rightItems = q.rightItems;
+            if ((!Array.isArray(leftItems) || !Array.isArray(rightItems))) {
+                const pairs = q.pairsShuffled || q.pairs || [];
+                leftItems = pairs.map((p: any, i: number) => ({ text: p.left, image: (q.itemImages && q.itemImages[i]) || undefined }));
+                rightItems = pairs.map((p: any) => ({ text: p.right }));
+            }
+
+            this.items = (leftItems || []).map((li: any) => (li && li.text) ? li.text : '');
+            this.labels = (rightItems || []).map((ri: any) => (ri && ri.text) ? ri.text : '');
         }
 
         console.log('OrderingQuestion::createAnswerUI: Items:', this.items, 'Labels:', this.labels);
@@ -200,5 +209,14 @@ export default class OrderingQuestion extends BaseQuestion {
         this.dropzones.clear();
         this.dropzoneLabels.clear();
         super.destroy();
+    }
+
+    // Host ordering/matching does not need interactive handlers itself — provide stubs
+    protected makeInteractive(): void {
+        // Intentionally empty; host display controlled externally
+    }
+
+    protected makeNonInteractive(): void {
+        // Intentionally empty
     }
 }

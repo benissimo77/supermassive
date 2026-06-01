@@ -33,10 +33,18 @@ export default class PlayerOrderingQuestion extends PlayerBaseQuestion {
                 this.labels[this.labels.length - 1] = questionData.extra.endLabel || '';
             }
         } else {
-            // Matching question
-            const pairs = questionData.pairsShuffled || questionData.pairs || [];
-            this.items = pairs.map((pair: any) => pair.left);
-            this.labels = pairs.map((pair: any) => pair.right);
+            // Matching question - prefer leftItems/rightItems model
+            const q: any = questionData;
+            let leftItems = q.leftItemsShuffled || q.leftItems;
+            let rightItems = q.rightItems;
+            if ((!Array.isArray(leftItems) || !Array.isArray(rightItems))) {
+                const pairs = q.pairsShuffled || q.pairs || [];
+                leftItems = pairs.map((p: any, i: number) => ({ text: p.left, image: (q.itemImages && q.itemImages[i]) || undefined }));
+                rightItems = pairs.map((p: any) => ({ text: p.right }));
+            }
+
+            this.items = (leftItems || []).map((li: any) => (li && li.text) ? li.text : '');
+            this.labels = (rightItems || []).map((ri: any) => (ri && ri.text) ? ri.text : '');
         }
 
         // Create buttons
@@ -285,5 +293,10 @@ export default class PlayerOrderingQuestion extends PlayerBaseQuestion {
             this.removeSceneInputHandlers();
         }
         super.destroy(fromScene);
+    }
+
+    // Provide a simple reveal timeline for PlayerOrdering (player screen doesn't self-reveal)
+    public createRevealAnswerTimeline(): gsap.core.Timeline {
+        return gsap.timeline();
     }
 }

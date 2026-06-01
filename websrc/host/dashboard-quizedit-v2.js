@@ -611,7 +611,6 @@ export function initDashboardQuizEdit() {
 
         if (btn.classList.contains('select-order-image-btn')) {
             e.preventDefault();
-            console.log("Order image button clicked!");
             const container = btn.closest('.order-image-container');
             if (!container) console.warn("No .order-image-container found!");
             
@@ -620,11 +619,13 @@ export function initDashboardQuizEdit() {
 
             new ImageLibrary({
                 onSelect: (image) => {
-                    console.log("Image selected:", image);
                     if (imgInput) imgInput.value = image.url;
                     if (imgPreview) {
                         imgPreview.style.backgroundImage = `url(${image.url})`;
                         imgPreview.style.display = 'block';
+                        // Hide the select button to match ordering behaviour
+                        const selBtn = container.querySelector('.select-order-image-btn');
+                        if (selBtn) selBtn.style.display = 'none';
                     }
                     markAsChanged();
                 }
@@ -670,6 +671,8 @@ export function initDashboardQuizEdit() {
                     const url = e.target.value.trim();
                     imgPreview.style.backgroundImage = url ? `url(${url})` : 'none';
                     imgPreview.style.display = url ? 'block' : 'none';
+                    const selBtn = container.querySelector('.select-order-image-btn');
+                    if (selBtn) selBtn.style.display = url ? 'none' : 'inline-flex';
                 }
             }
         }

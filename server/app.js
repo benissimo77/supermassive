@@ -17,6 +17,7 @@ import indexRoutes from './routes/routes.public.js';
 import hostRoutes from './routes/routes.host.js';
 import adminRoutes from './routes/routes.admin.js';
 import loginRoutes from './routes/routes.auth.js';
+import devRoutes from './routes/routes.dev.js';
 
 import apiQuiz from './api/api.quiz.js';
 import apiImage from './api/api.image.js';
@@ -98,177 +99,18 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 
-// Direct cookie setting (works)
-app.get('/test-direct-cookie', (req, res) => {
-  console.log('Setting direct cookie...');
-  res.cookie('direct-test', 'direct-value', {
-    secure: true,
-    httpOnly: false,
-    maxAge: 3600000
-  });
-  res.send('Direct cookie set, check your Application tab');
-});
-
-// Session cookie setting (doesn't work)
-app.get('/test-session-cookie', (req, res) => {
-  console.log('Setting session cookie...');
-  // Set some value in session
-  req.session.testValue = 'session-value-' + Date.now();
-  
-  // Force session save
-  req.session.save((err) => {
-    if (err) {
-      console.error('Session save error:', err);
-      return res.send('Session save failed: ' + err.message);
-    }
-    console.log('Session saved, headers:', res.getHeaderNames());
-    res.send('Session cookie should be set, check your Application tab');
-  });
-});
-// Add this diagnostic route
-app.get('/session-internals', (req, res) => {
-  // Check key express-session variables
-  const session = req.session;
-  
-  const diagnostics = {
-    sessionID: req.sessionID,
-    sessionExists: !!session,
-    isNew: session?.isNew,
-    isSaved: !session?.isNew,
-    isModified: session?._isModified,
-    isPopulated: !!Object.keys(session || {}).length,
-    cookieOptions: session?.cookie,
-    saveMethod: !!session?.save,
-    resHasCookieMethod: !!res.cookie,
-    setHeaderMethod: !!res.setHeader
-  };
-  
-  console.log('Session internals:', diagnostics);
-  
-  res.json(diagnostics);
-});
-// Add this test route
-app.get('/test-session-save', (req, res) => {
-  // Set a session value
-  req.session.testTimestamp = Date.now();
-  
-  console.log('Before save:');
-  console.log('- Session ID:', req.sessionID);
-  console.log('- Session is new:', req.session.isNew);
-  console.log('- Session cookie:', req.session.cookie);
-  
-  // Save with detailed tracking
-  req.session.save((err) => {
-    if (err) {
-      console.error('Save error:', err);
-      return res.status(500).send('Save failed: ' + err.message);
-    }
-    
-    console.log('After save:');
-    console.log('- Session ID:', req.sessionID);
-    console.log('- Session is new:', req.session.isNew);
-    console.log('- Cookie in header:', res.getHeader('set-cookie'));
-    
-    // Try forcing a cookie directly after session save
-    res.cookie('post-session-test', 'value', {
-      secure: true,
-      httpOnly: false,
-      maxAge: 3600000
-    });
-    
-    console.log('After extra cookie:');
-    console.log('- Cookies in header:', res.getHeader('set-cookie'));
-    
-    res.send(`
-      <html>
-        <head><title>Session Save Test</title></head>
-        <body>
-          <h1>Session Save Test</h1>
-          <p>Session ID: ${req.sessionID}</p>
-          <p>Timestamp: ${req.session.testTimestamp}</p>
-          <p>Check console logs and Application tab</p>
-        </body>
-      </html>
-    `);
-  });
-});
-app.get('/test-auth-process', (req, res) => {
-  // Simulate a user object
-  const user = { id: '12345', email: 'test@example.com' };
-  
-  // This is basically what passport.logIn does
-  req.login(user, (err) => {
-    if (err) {
-      console.error('Login error:', err);
-      return res.status(500).send('Login failed: ' + err.message);
-    }
-    
-    console.log('After login:');
-    console.log('- User:', req.user);
-    console.log('- Session:', req.session);
-    console.log('- Authenticated:', req.isAuthenticated());
-    
-    // Explicitly save the session
-    req.session.save((err) => {
-      if (err) {
-        console.error('Session save error:', err);
-        return res.status(500).send('Session save failed: ' + err.message);
-      }
-      
-      console.log('After session save:');
-      console.log('- Cookie header:', res.getHeader('set-cookie'));
-      
-      res.send(`
-        <html>
-          <head><title>Auth Test</title></head>
-          <body>
-            <h1>Auth Test</h1>
-            <p>User: ${JSON.stringify(req.user)}</p>
-            <p>Authenticated: ${req.isAuthenticated()}</p>
-            <p>Check console logs and Application tab</p>
-          </body>
-        </html>
-      `);
-    });
-  });
-});
-app.get('/compare-headers', (req, res) => {
-  // First, set a direct cookie
-  res.cookie('direct-cookie', 'value', {
-    secure: true,
-    httpOnly: false,
-    maxAge: 3600000
-  });
-  
-  // Then set a session value and save
-  req.session.compareTest = Date.now();
-  req.session.save((err) => {
-    if (err) console.error('Session save error:', err);
-    
-    // Get all response headers
-    const headers = res.getHeaders();
-    
-    res.send(`
-      <html>
-        <head><title>Header Comparison</title></head>
-        <body>
-          <h1>Response Headers</h1>
-          <pre>${JSON.stringify(headers, null, 2)}</pre>
-          
-          <h2>Set-Cookie Header</h2>
-          <pre>${JSON.stringify(res.getHeader('set-cookie'), null, 2)}</pre>
-        </body>
-      </html>
-    `);
-  });
-});
-
-
 // ROUTES
 app.use('/', indexRoutes);
 app.use('/auth', loginRoutes);
 app.use('/host', hostRoutes);
 app.use('/admin', adminRoutes);
+
+// Dev routes: mount only in non-production (and can be disabled via ENABLE_DEV_ROUTES=false)
+if (!isProduction && process.env.ENABLE_DEV_ROUTES !== 'false') {
+  app.use('/dev', devRoutes);
+  console.log('Dev routes enabled at /dev');
+}
+
 
 // API ROUTES
 app.use('/api/quiz', apiQuiz);

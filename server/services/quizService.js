@@ -29,7 +29,7 @@ const questionValidators = [
             }
         }
     },
-    // 2. Matching Questions: All pairs must have images, or we must have no images
+    // 2. Matching Questions: Legacy image validation
     (q, rIndex, qIndex, errors) => {
         if (q.type === 'matching' && q.itemImages && q.itemImages.length > 0) {
             const allHaveImages = q.itemImages.every(url => typeof url === 'string' && url.trim().length > 0);
@@ -42,6 +42,54 @@ const questionValidators = [
                     message: 'All matching pairs must have images, or you must remove all images.'
                 });
             }
+        }
+    },
+    // 3. Matching Questions: New data model validation
+    (q, rIndex, qIndex, errors) => {
+        if (q.type === 'matching' && q.leftItems && q.rightItems) {
+            if (!Array.isArray(q.leftItems) || !Array.isArray(q.rightItems)) {
+                errors.push({
+                    instancePath: `/rounds/${rIndex}/questions/${qIndex}/leftItems`,
+                    schemaPath: '#/custom/leftRightItemsArray',
+                    keyword: 'customType',
+                    params: {},
+                    message: 'leftItems and rightItems must be arrays.'
+                });
+                return;
+            }
+            if (q.leftItems.length !== q.rightItems.length) {
+                errors.push({
+                    instancePath: `/rounds/${rIndex}/questions/${qIndex}/leftItems`,
+                    schemaPath: '#/custom/leftRightItemsLength',
+                    keyword: 'customLengthMatch',
+                    params: {},
+                    message: 'List of items to match must have the same length.'
+                });
+            }
+            // Each item must have at least text or image
+            const isValidItem = (item) => item && (typeof item.text === 'string' && item.text.trim().length > 0 || typeof item.image === 'string' && item.image.trim().length > 0);
+            q.leftItems.forEach((item, i) => {
+                if (!isValidItem(item)) {
+                    errors.push({
+                        instancePath: `/rounds/${rIndex}/questions/${qIndex}/leftItems/${i}`,
+                        schemaPath: '#/custom/imageLabelNotEmpty',
+                        keyword: 'customImageLabel',
+                        params: {},
+                        message: 'Items to match must have a text or image (or both).'
+                    });
+                }
+            });
+            q.rightItems.forEach((item, i) => {
+                if (!isValidItem(item)) {
+                    errors.push({
+                        instancePath: `/rounds/${rIndex}/questions/${qIndex}/rightItems/${i}`,
+                        schemaPath: '#/custom/imageLabelNotEmpty',
+                        keyword: 'customImageLabel',
+                        params: {},
+                        message: 'Items to match must have a text or image (or both).'
+                    });
+                }
+            });
         }
     }
 ];

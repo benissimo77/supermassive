@@ -160,6 +160,32 @@ class AuthController {
                         } catch (claimErr) {
                             console.error('Error claiming results during signup:', claimErr);
                         }
+                        // If there is a pending league invite in session, try to join
+                        try {
+                            const pendingToken = req.session.pendingLeagueInvite;
+                            if (pendingToken) {
+                                const LeagueInvite = (await import('../models/mongo.leagueInvite.js')).default;
+                                const League = (await import('../models/mongo.league.js')).default;
+                                const invite = await LeagueInvite.findOne({ token: pendingToken });
+                                if (invite && invite.status === 'pending' && invite.expiresAt > new Date()) {
+                                    const league = await League.findById(invite.leagueID);
+                                    if (league && !league.members.map(m => String(m)).includes(String(result.user._id))) {
+                                        league.members.push(result.user._id);
+                                        await league.save();
+                                    }
+                                    invite.status = 'accepted';
+                                    await invite.save();
+                                    // store message for dashboard redirect
+                                    req.session.joinedLeague = { id: String(league._id), name: league.name };
+                                }
+                                // cleanup
+                                delete req.session.pendingLeagueInvite;
+                                delete req.session.prefillEmail;
+                            }
+                        } catch (joinErr) {
+                            console.error('Error auto-joining league after signup:', joinErr);
+                        }
+
                         res.status(201).json(success());
                     }
                 });

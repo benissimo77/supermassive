@@ -3,7 +3,7 @@ import { BaseScene } from "src/BaseScene";
 import { PlayerBaseQuestion } from "./PlayerBaseQuestion";
 import { ImageButton } from "src/ui/ImageButton";
 import { NineSliceButton } from "src/ui/NineSliceButton";
-import { MatchingQuestionData } from "./QuestionTypes";
+import { MatchingQuestionDataV2 as MatchingQuestionData } from "./QuestionTypes";
 
 /**
  * PlayerImageMatchingQuestion
@@ -27,21 +27,44 @@ export default class PlayerImageMatchingQuestion extends PlayerBaseQuestion {
 
     protected createAnswerUI(): void {
         console.log('PlayerImageMatchingQuestion::createAnswerUI:', this.questionData);
+        try {
+            console.log('PlayerImageMatchingQuestion::createAnswerUI (json):', JSON.stringify(this.questionData));
+        } catch (e) {
+            console.warn('Could not stringify questionData for debug', e);
+        }
+
+        // Ensure answer container visible for debugging
+        try {
+            this.answerContainer.setVisible(true);
+            this.answerContainer.setAlpha(1);
+        } catch (e) {
+            console.warn('Could not set answerContainer visible:', e);
+        }
 
         const questionData = this.questionData as MatchingQuestionData;
-        const pairs = questionData.pairsShuffled || [];
 
-        this.items = pairs.map(pair => pair.left);
-        this.labels = pairs.map(pair => pair.right);
+        // Prefer leftItemsShuffled / leftItems + rightItems; fallback to legacy pairs
+        const q: any = questionData;
+        let leftItems = q.leftItemsShuffled || q.leftItems;
+        let rightItems = q.rightItems;
+        if ((!Array.isArray(leftItems) || !Array.isArray(rightItems))) {
+            const pairs = q.pairsShuffled || q.pairs || [];
+            leftItems = pairs.map((p: any, i: number) => ({ text: p.left, image: (q.itemImages && q.itemImages[i]) || undefined }));
+            rightItems = pairs.map((p: any) => ({ text: p.right }));
+        }
 
-        // Create ImageButtons — look up URL via original (unshuffled) pairs index
-        const originalPairs = (questionData.pairs as { left: string; right: string }[] | undefined) || pairs;
+        this.items = (leftItems || []).map((li: any) => li && li.text ? li.text : '');
+        this.labels = (rightItems || []).map((ri: any) => ri && ri.text ? ri.text : '');
+
+        console.log('PlayerImageMatchingQuestion::computed leftItems length:', (leftItems || []).length, 'rightItems length:', (rightItems || []).length);
+        console.log('PlayerImageMatchingQuestion::leftItems sample:', (leftItems || []).slice(0,10));
+        console.log('PlayerImageMatchingQuestion::rightItems sample:', (rightItems || []).slice(0,10));
+
+        // Create ImageButtons — use image field from leftItems where available
+        const originalLeftItems = leftItems || [];
 
         this.items.forEach((item, index) => {
-            const originalIndex = originalPairs.findIndex(p => p.left === item);
-            let url: string = (originalIndex >= 0 && questionData.itemImages)
-                ? questionData.itemImages[originalIndex]
-                : '';
+            let url: string = originalLeftItems[index] && originalLeftItems[index].image ? originalLeftItems[index].image : '';
 
             // Guard against non-string values stored in itemImages
             if (url && typeof url === 'object') {
@@ -56,6 +79,15 @@ export default class PlayerImageMatchingQuestion extends PlayerBaseQuestion {
             this.buttons.set(item, button);
             this.answerContainer.add(button);
         });
+
+        console.log('PlayerImageMatchingQuestion::createAnswerUI: created', this.items.length, 'image buttons and', this.labels.length, 'labels');
+
+        // If nothing created, add a visible debug marker so it's obvious on-screen
+        if (this.items.length === 0 || this.labels.length === 0) {
+            const debugText = this.scene.add.text(0, 0, 'No matching items', { fontSize: 36, color: '#ff0000' }).setOrigin(0.5);
+            this.answerContainer.add(debugText);
+            console.warn('PlayerImageMatchingQuestion: no items/labels to display');
+        }
 
         // Create dropzones with text labels (right side of each pair)
         this.labels.forEach((label, index) => {

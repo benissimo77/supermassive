@@ -1,10 +1,17 @@
 import mongoose from 'mongoose';
 
-// Define the schema for matching pairs
+
+// Generic image/label item for use in matching, ordering, multiple-choice, etc.
+const imageLabelSchema = new mongoose.Schema({
+    text: { type: String },
+    image: { type: String }
+}, { _id: false });
+
+// Legacy: Schema for matching pairs (left/right string)
 const matchingPairSchema = new mongoose.Schema({
     left: { type: String },
     right: { type: String }
-}, { _id: false }); // Prevent automatic _id generation for matching pairs
+}, { _id: false });
 
 // Define the Question schema
 const questionSchema = new mongoose.Schema({
@@ -26,8 +33,11 @@ const questionSchema = new mongoose.Schema({
             message: 'All items must have images, or you must remove all images.'
         }
     },
-    pairs: [matchingPairSchema], // Array of matching pairs without _id
-    itemImages: { type: [{ type: String }] }, // Optional image URLs mapped 1-to-1 with pairs (left item images)
+    pairs: [matchingPairSchema], // Legacy: Array of matching pairs without _id
+    itemImages: { type: [{ type: String }] }, // Legacy: Optional image URLs mapped 1-to-1 with pairs (left item images)
+    // New model for matching questions
+    leftItems: [imageLabelSchema],
+    rightItems: [imageLabelSchema],
     extra: { type: mongoose.Schema.Types.Mixed },   // Misc extra data eg labels for ordering
     answer: { type: mongoose.Schema.Types.Mixed },
 }, { _id: false }); // Prevent automatic _id generation for questions

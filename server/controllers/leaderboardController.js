@@ -1,5 +1,6 @@
 import PlayerResult from '../models/mongo.playerResult.js';
 import GameSession from '../models/mongo.gameSession.js';
+import League from '../models/mongo.league.js';
 import { success, error } from '../utils/responseHandler.js';
 
 const leaderboardController = {
@@ -74,6 +75,7 @@ const leaderboardController = {
         try {
             const { seasonId } = req.params;
             const limit = parseInt(req.query.limit) || 10;
+            const leagueID = req.query.leagueID;
 
             const sessions = await GameSession.find({ seasonID: seasonId }).select('_id');
             const sessionIds = sessions.map(s => s._id);
@@ -82,8 +84,19 @@ const leaderboardController = {
                 return res.status(200).json([]);
             }
 
+            // If a leagueID is provided, restrict results to members of that league
+            let memberIds = null;
+            if (leagueID) {
+                const league = await League.findById(leagueID).select('members');
+                if (!league) return res.status(404).json({ error: 'League not found' });
+                memberIds = league.members.map(m => m._id);
+            }
+
+            const matchStage = { gameSessionID: { $in: sessionIds }, isBot: false };
+            if (memberIds) matchStage.userID = { $in: memberIds };
+
             const leaderboard = await PlayerResult.aggregate([
-                { $match: { gameSessionID: { $in: sessionIds }, isBot: false } },
+                { $match: matchStage },
                 {
                     $group: {
                         _id:            { $ifNull: ['$userID', '$displayName'] },

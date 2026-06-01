@@ -7,6 +7,36 @@
  * To add a new question type, simply add an entry here.
  */
 
+// Helper to create an order/matching row. Placed in module scope so both
+// `render` and `deserialize` can reuse it.
+function addItemRow(listEl, side, item = {}, textFieldName = '') {
+    const textField = textFieldName || `${side}-text`;
+    const row = document.createElement('div');
+    row.className = 'order-row mb-xs';
+    row.innerHTML = `
+        <input class="order-item-text matching-text" type="text" data-field="${textField}" placeholder="Text" value="${item.text || ''}">
+        <div class="order-image-container">
+            <input class="order-image-input" type="text" data-field="order-image" placeholder="Image URL" value="${item.image || ''}">
+            <div data-field="order-image-preview" class="order-image-preview image-thumb"></div>
+            <button type="button" class="btn btn-sm btn-ghost select-order-image-btn" title="Select Image"><i class="fa-solid fa-image"></i></button>
+        </div>
+    `;
+    const imgInput = row.querySelector('[data-field="order-image"]');
+    const thumb = row.querySelector('[data-field="order-image-preview"]');
+    const btn = row.querySelector('.select-order-image-btn');
+    imgInput.addEventListener('input', () => {
+        thumb.style.backgroundImage = imgInput.value ? `url('${imgInput.value}')` : '';
+        const visible = imgInput.value ? 'block' : 'none';
+        thumb.style.display = visible;
+        if (btn) btn.style.display = imgInput.value ? 'none' : 'inline-flex';
+    });
+    // Initialize preview image and button visibility
+    thumb.style.backgroundImage = item.image ? `url('${item.image}')` : '';
+    thumb.style.display = item.image ? 'block' : 'none';
+    if (btn) btn.style.display = item.image ? 'none' : 'inline-flex';
+    listEl.appendChild(row);
+}
+
 export const QuestionTypeRegistry = {
     'text': {
         label: 'Basic question - players type the answer via an on-screen keyboard',
@@ -94,7 +124,7 @@ export const QuestionTypeRegistry = {
                         <input class="question-field" type="text" data-field="option-2" placeholder="Wrong option">
                         <input class="question-field" type="text" data-field="option-3" placeholder="Wrong option">
                         <input class="question-field" type="text" data-field="option-4" placeholder="Wrong option">
-                        <hr style="margin: 5px 0; opacity: 0.3;">
+                        <hr class="options-separator">
                         <input class="question-field" type="text" data-field="option-5" placeholder="Extra option (optional)">
                         <input class="question-field" type="text" data-field="option-6" placeholder="Extra option (optional)">
                         <input class="question-field" type="text" data-field="option-7" placeholder="Extra option (optional)">
@@ -154,19 +184,13 @@ export const QuestionTypeRegistry = {
                 </div>
                 <div class="form-group">
                     <label>Items to Order (enter in correct order):</label>
-                    <div class="ordering-items flex flex-col gap-xs mt-xs">
-                        ${Array.from({ length: 6 }).map((_, i) => `
-                        <div style="display:flex; gap:0.5rem; margin-bottom:0.25rem; align-items:center;">
-                            <input style="flex:1" type="text" data-field="order-item" placeholder="Item ${i + 1}">
-                            <div style="flex:1; display:flex; gap:0.25rem; align-items:center;" class="order-image-container">
-                                <input style="flex:1" type="text" data-field="order-image" placeholder="Image URL ${i + 1} (optional)">
-                                <div data-field="order-image-preview" style="width:28px; height:28px; background-size:cover; background-position:center; border:1px solid #ccc; border-radius:4px; display:none; flex-shrink:0;"></div>
-                                <button type="button" class="btn btn-sm btn-ghost select-order-image-btn" title="Select Image from Library"><i class="fa-solid fa-image" style="pointer-events:none;"></i></button>
-                            </div>
-                        </div>`).join('')}
-                    </div>
+                    <div class="ordering-items flex flex-col gap-xs mt-xs"></div>
                 </div>
             `;
+            const itemsContainer = container.querySelector('.ordering-items');
+            for (let i = 0; i < 6; i++) {
+                addItemRow(itemsContainer, 'order-item', {}, 'order-item');
+            }
         },
         serialize: (container) => {
             const itemInputs = Array.from(container.querySelectorAll('[data-field="order-item"]'));
@@ -227,60 +251,73 @@ export const QuestionTypeRegistry = {
     'matching': {
         label: 'Players drag items from the left to the matching option on the right',
         render: (container) => {
-            let html = '<label>Matching Pairs (enter at least 2):</label><div class="flex flex-col gap-xs mt-xs">';
-            for (let i = 1; i <= 5; i++) {
-                html += `
-                    <div style="display:flex; gap:0.25rem; align-items:center; margin-bottom:0.25rem;">
-                        <input style="flex:1; min-width:0;" type="text" data-field="left-${i}" placeholder="Left ${i}">
-                        <div style="flex:1; min-width:0; display:flex; gap:0.25rem; align-items:center;" class="order-image-container">
-                            <input style="flex:1; min-width:0;" type="text" data-field="order-image" placeholder="Image ${i} (optional)">
-                            <div data-field="order-image-preview" style="width:28px; height:28px; background-size:cover; background-position:center; border:1px solid #ccc; border-radius:4px; display:none; flex-shrink:0;"></div>
-                            <button type="button" class="btn btn-sm btn-ghost select-order-image-btn" title="Select Image from Library"><i class="fa-solid fa-image" style="pointer-events:none;"></i></button>
+            container.innerHTML = `
+                <label class="mb-xs">Matching Items (4 per side):</label>
+                <div class="matching-columns">
+                    <div class="matching-column">
+                        <div class="form-group">
+                            <label>Left Items</label>
+                            <div class="matching-left-list"></div>
                         </div>
-                        <input style="flex:1; min-width:0;" type="text" data-field="right-${i}" placeholder="Right ${i}">
-                    </div>`;
+                    </div>
+                    <div class="matching-column">
+                        <div class="form-group">
+                            <label>Right Items</label>
+                            <div class="matching-right-list"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            // Helper is defined at module scope so both render and deserialize can use it.
+            // Always 4 rows per side
+            const leftList = container.querySelector('.matching-left-list');
+            const rightList = container.querySelector('.matching-right-list');
+            for (let i = 0; i < 4; i++) {
+                addItemRow(leftList, 'left');
+                addItemRow(rightList, 'right');
             }
-            html += '</div>';
-            container.innerHTML = html;
         },
         serialize: (container) => {
-            const imgInputs = Array.from(container.querySelectorAll('[data-field="order-image"]'));
-            const pairs = [];
-            const itemImages = [];
-            let hasImages = false;
-
-            for (let i = 1; i <= 5; i++) {
-                const left = container.querySelector(`[data-field="left-${i}"]`).value.trim();
-                const right = container.querySelector(`[data-field="right-${i}"]`).value.trim();
-                const imgVal = imgInputs[i - 1] ? imgInputs[i - 1].value.trim() : '';
-                if (left) {
-                    pairs.push({ left, right });
-                    itemImages.push(imgVal);
-                    if (imgVal !== '') hasImages = true;
-                }
-            }
-
-            const data = { pairs };
-            if (hasImages) data.itemImages = itemImages;
-            return data;
+            // Gather leftItems/rightItems as arrays of ImageLabel (always 4)
+            const leftList = container.querySelectorAll('.matching-left-list > div');
+            const rightList = container.querySelectorAll('.matching-right-list > div');
+            const leftItems = [];
+            const rightItems = [];
+            leftList.forEach(row => {
+                const text = row.querySelector('[data-field="left-text"]').value.trim();
+                const image = (row.querySelector('[data-field="order-image"]') || { value: '' }).value.trim();
+                leftItems.push({ text: text || undefined, image: image || undefined });
+            });
+            rightList.forEach(row => {
+                const text = row.querySelector('[data-field="right-text"]').value.trim();
+                const image = (row.querySelector('[data-field="order-image"]') || { value: '' }).value.trim();
+                rightItems.push({ text: text || undefined, image: image || undefined });
+            });
+            return { leftItems, rightItems };
         },
         deserialize: (container, data) => {
-            const pairs = data.pairs || [];
-            const itemImages = data.itemImages || [];
-            const imgInputs = container.querySelectorAll('[data-field="order-image"]');
-
-            for (let i = 1; i <= 5; i++) {
-                container.querySelector(`[data-field="left-${i}"]`).value = pairs[i - 1]?.left || '';
-                container.querySelector(`[data-field="right-${i}"]`).value = pairs[i - 1]?.right || '';
-                if (imgInputs[i - 1]) {
-                    const imgVal = itemImages[i - 1] || '';
-                    imgInputs[i - 1].value = imgVal;
-                    const preview = imgInputs[i - 1].parentElement.querySelector('[data-field="order-image-preview"]');
-                    if (preview) {
-                        preview.style.backgroundImage = imgVal ? `url(${imgVal})` : 'none';
-                        preview.style.display = imgVal ? 'block' : 'none';
-                    }
-                }
+            // Prefer new model
+            let leftItems = data.leftItems;
+            let rightItems = data.rightItems;
+            // Fallback: convert legacy pairs/itemImages to new model
+            if ((!leftItems || !rightItems) && Array.isArray(data.pairs)) {
+                leftItems = data.pairs.map((p, i) => ({ text: p.left, image: (data.itemImages && data.itemImages[i]) || undefined }));
+                rightItems = data.pairs.map((p) => ({ text: p.right }));
+            }
+            // Always 4 rows per side
+            const leftList = container.querySelector('.matching-left-list');
+            const rightList = container.querySelector('.matching-right-list');
+            leftList.innerHTML = '';
+            rightList.innerHTML = '';
+            for (let i = 0; i < 4; i++) {
+                const lItem = (Array.isArray(leftItems) && leftItems[i]) || {};
+                const rItem = (Array.isArray(rightItems) && rightItems[i]) || {};
+                // Left
+                // Create left row using shared order-row structure
+                addItemRow(leftList, 'left', lItem);
+                // Right
+                // Create right row using shared order-row structure
+                addItemRow(rightList, 'right', rItem);
             }
         }
     },

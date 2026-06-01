@@ -26,6 +26,15 @@
 		}
 	},
 	"definitions": {
+		"ImageLabel": {
+			"type": "object",
+			"properties": {
+				"text": { "type": ["string", "null"] },
+				"image": { "type": ["string", "null"] }
+			},
+			"additionalProperties": false,
+			"description": "An item with optional text and/or image."
+		},
 		"round": {
 			"type": "object",
 			"required": [
@@ -410,37 +419,45 @@
 						}
 					},
 					"then": {
-						"required": [
-							"pairs"
-						],
-						"properties": {
-							"pairs": {
-								"type": "array",
-								"minItems": 2,
-								"items": {
-									"type": "object",
-									"required": [
-										"left",
-										"right"
-									],
-									"properties": {
-										"left": {
-											"type": "string"
-										},
-										"right": {
-											"type": "string"
-										}
+						"anyOf": [
+							{
+								"required": ["leftItems", "rightItems"],
+								"properties": {
+									"leftItems": {
+										"type": "array",
+										"minItems": 2,
+										"items": { "$ref": "#/definitions/ImageLabel" }
+									},
+									"rightItems": {
+										"type": "array",
+										"minItems": 2,
+										"items": { "$ref": "#/definitions/ImageLabel" }
 									}
 								}
 							},
-							"itemImages": {
-								"type": "array",
-								"items": {
-									"type": "string"
-								},
-								"description": "Optional array of image URLs mapped 1-to-1 with the pairs array (images for left items)"
+							{
+								"required": ["pairs"],
+								"properties": {
+									"pairs": {
+										"type": "array",
+										"minItems": 2,
+										"items": {
+											"type": "object",
+											"required": ["left", "right"],
+											"properties": {
+												"left": { "type": "string" },
+												"right": { "type": "string" }
+											}
+										}
+									},
+									"itemImages": {
+										"type": "array",
+										"items": { "type": "string" },
+										"description": "Optional array of image URLs mapped 1-to-1 with the pairs array (images for left items)"
+									}
+								}
 							}
-						}
+						]
 					}
 				},
 				{

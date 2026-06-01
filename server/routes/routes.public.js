@@ -112,4 +112,22 @@ router.get('/proxy-image', async (req, res) => {
 	}
 });
 
+
+// Public-friendly redirect to the league API invite landing handler
+router.get('/join-league', (req, res) => {
+	const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+	return res.redirect(`/api/league/join-league${qs}`);
+});
+
+// Expose session join message for dashboard to consume (clears after read)
+router.get('/api/session/joined-league', (req, res) => {
+	try {
+		const jl = req.session.joinedLeague;
+		if (jl) delete req.session.joinedLeague;
+		res.json({ joinedLeague: jl || null });
+	} catch (err) {
+		res.status(500).json({ error: 'Server error' });
+	}
+});
+
 export default router;

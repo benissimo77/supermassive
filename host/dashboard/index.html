@@ -18,6 +18,8 @@
   <nav id="sidebar"></nav>
 
   <main>
+    <div id="joined-league-banner" style="display:none; margin:16px 0;"></div>
+
     <div class="container" data-role="guest" data-role-max="guest">
       <h2>Welcome to VideoSwipe!</h2>
       <p>Thanks for signing up! You're currently in <strong>Guest Mode</strong>. Explore the hosting dashboard, check out the guides and try out the quiz editor. Verify your email to start hosting live games.</p>
@@ -100,6 +102,21 @@
       </div>
     </div>
   </main>
+  <script>
+    // Check session for joined league message and show banner
+    (async function(){
+      try {
+        const res = await fetch('/api/session/joined-league');
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json.joinedLeague) {
+          const banner = document.getElementById('joined-league-banner');
+          banner.style.display = '';
+          banner.innerHTML = `<div class="card" style="border-left:4px solid var(--clr-primary)"><div class="card-body"><strong>Welcome — you are now a member of ${json.joinedLeague.name}!</strong><p>Check the schedules for upcoming quiz events and join in to climb your league leaderboard!</p></div></div>`;
+        }
+      } catch (err) { console.warn('No joined league banner', err); }
+    })();
+  </script>
 </body>
 
 </html>

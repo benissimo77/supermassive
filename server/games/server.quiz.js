@@ -1156,9 +1156,15 @@ export default class Quiz extends Game {
 				playerQuestion.type = this.question.type;
 				playerQuestion.optionsShuffled = this.question.optionsShuffled;
 				playerQuestion.itemsShuffled = this.question.itemsShuffled;
-				playerQuestion.pairsShuffled = this.question.pairsShuffled;
+				playerQuestion.leftItemsShuffled = this.question.leftItemsShuffled;
 				playerQuestion.itemImagesShuffled = this.question.itemImagesShuffled;
 				playerQuestion.extra = this.question.extra;
+				// Ensure rightItems are sent to players (fallback to legacy pairs)
+				let rightItems = this.question.rightItems;
+				if ((!Array.isArray(rightItems)) && Array.isArray(this.question.pairs)) {
+					rightItems = this.question.pairs.map((p) => ({ text: p.right }));
+				}
+				playerQuestion.rightItems = rightItems;
 				if (playerQuestion.type == 'hotspot' || playerQuestion.type == 'point-it-out') {
 					playerQuestion.image = this.question.image;
 				}
@@ -1177,7 +1183,7 @@ export default class Quiz extends Game {
 				localQuestion.direction = this.stateMachine.direction;
 				localQuestion.optionsShuffled = this.question.optionsShuffled;
 				localQuestion.itemsShuffled = this.question.itemsShuffled;
-				localQuestion.pairsShuffled = this.question.pairsShuffled;
+				localQuestion.leftItemsShuffled = this.question.leftItemsShuffled;
 				localQuestion.responses = this.question.responses;
 
 				const scores = this.calculateQuestionScore(localQuestion, this.round);
@@ -1329,7 +1335,7 @@ export default class Quiz extends Game {
 	prepareMutatedQuestion(question) {
 
 		// If we've already prepared this question (eg by going back/forward) then don't do it again
-		if (question.optionsShuffled || question.pairsShuffled || question.itemsShuffled) {
+		if (question.optionsShuffled || question.pairsShuffled || question.leftItemsShuffled || question.itemsShuffled) {
 			return;
 		}
 
@@ -1346,17 +1352,31 @@ export default class Quiz extends Game {
 				break;
 
 			case 'matching':
-				var left = localQuestion.pairs.map((pair) => pair.left);
-				question.answer = [...left];
-				var shuffledLeft = shuffleArray(left);
-				localQuestion.pairs.forEach((pair, index) => { pair.left = shuffledLeft[index] });
-				console.log('Matching:', question.answer, localQuestion.pairs);
-				question.pairsShuffled = localQuestion.pairs;
-				// Shuffle pair images to stay aligned with the shuffled left values
+				// Support new data model: leftItems / rightItems (arrays of { text, image? })
+				let leftItems = localQuestion.leftItems;
+				let rightItems = localQuestion.rightItems;
+				// Fallback to legacy `pairs` model if necessary
+				if ((!Array.isArray(leftItems) || !Array.isArray(rightItems)) && Array.isArray(localQuestion.pairs)) {
+					leftItems = localQuestion.pairs.map((p, i) => ({ text: p.left, image: (localQuestion.itemImages && localQuestion.itemImages[i]) || undefined }));
+					rightItems = localQuestion.pairs.map((p) => ({ text: p.right }));
+				}
+				leftItems = leftItems || [];
+				rightItems = rightItems || [];
+
+				// The canonical 'answer' for matching remains the list of left item texts
+				const leftTexts = leftItems.map(li => li.text ?? '');
+				question.answer = [...leftTexts];
+
+				// Shuffle only the LEFT items and keep rightItems intact
+				const shuffledLeftItems = shuffleArray([...leftItems]);
+				// Expose shuffled left side for hosts/players
+				question.leftItemsShuffled = shuffledLeftItems;
+
+				// Maintain backward-compatible itemImagesShuffled if legacy itemImages present
 				if (localQuestion.itemImages && localQuestion.itemImages.length > 0) {
 					const imageMap = {};
-					left.forEach((leftVal, i) => { imageMap[leftVal] = localQuestion.itemImages[i]; });
-					question.itemImagesShuffled = shuffledLeft.map(leftVal => imageMap[leftVal] || '');
+					leftItems.forEach((li, i) => { imageMap[li.text] = localQuestion.itemImages[i]; });
+					question.itemImagesShuffled = shuffledLeftItems.map(li => imageMap[li.text] || '');
 				}
 				break;
 
@@ -1401,7 +1421,13 @@ export default class Quiz extends Game {
 		hostQuestion.roundNumber = this.roundNumber;
 		hostQuestion.optionsShuffled = this.question.optionsShuffled;
 		hostQuestion.itemsShuffled = this.question.itemsShuffled;
-		hostQuestion.pairsShuffled = this.question.pairsShuffled;
+		hostQuestion.leftItemsShuffled = this.question.leftItemsShuffled;
+		// Include rightItems for host display when using new matching schema
+		let hostRightItems = this.question.rightItems;
+		if ((!Array.isArray(hostRightItems)) && Array.isArray(this.question.pairs)) {
+			hostRightItems = this.question.pairs.map((p) => ({ text: p.right }));
+		}
+		hostQuestion.rightItems = hostRightItems;
 
 		// UPDATE: we DON'T delete hostQuestion.items and hostQuestion.pairs because they MIGHT have associated images
 		// and we need the original array to identify where in the original items array they are found...
@@ -1493,9 +1519,16 @@ export default class Quiz extends Game {
 		playerQuestion.type = this.question.type;
 		playerQuestion.optionsShuffled = this.question.optionsShuffled;
 		playerQuestion.itemsShuffled = this.question.itemsShuffled;
-		playerQuestion.pairsShuffled = this.question.pairsShuffled;
+		playerQuestion.leftItemsShuffled = this.question.leftItemsShuffled;
 		playerQuestion.itemImagesShuffled = this.question.itemImagesShuffled;
 		playerQuestion.extra = this.question.extra;
+
+		// Ensure rightItems are sent to players (fallback to legacy pairs)
+		let rightItems = this.question.rightItems;
+		if ((!Array.isArray(rightItems)) && Array.isArray(this.question.pairs)) {
+			rightItems = this.question.pairs.map((p) => ({ text: p.right }));
+		}
+		playerQuestion.rightItems = rightItems;
 		// Include the image if it is required for the answer (hotspot, point-it-out)
 		if (playerQuestion.type == 'hotspot' || playerQuestion.type == 'point-it-out') {
 			playerQuestion.image = this.question.image;
@@ -1556,8 +1589,14 @@ export default class Quiz extends Game {
 		localQuestion.optionsShuffled = this.question.optionsShuffled;
 		localQuestion.items = this.question.items;
 		localQuestion.itemsShuffled = this.question.itemsShuffled;
-		localQuestion.pairs = this.question.pairs;
-		localQuestion.pairsShuffled = this.question.pairsShuffled;
+		// Prefer new leftItems/rightItems model but fall back to legacy pairs
+		localQuestion.leftItems = this.question.leftItems;
+		localQuestion.rightItems = this.question.rightItems;
+		if ((!Array.isArray(localQuestion.leftItems) || !Array.isArray(localQuestion.rightItems)) && Array.isArray(this.question.pairs)) {
+			localQuestion.leftItems = this.question.pairs.map((p, i) => ({ text: p.left, image: (this.question.itemImages && this.question.itemImages[i]) || undefined }));
+			localQuestion.rightItems = this.question.pairs.map((p) => ({ text: p.right }));
+		}
+		localQuestion.leftItemsShuffled = this.question.leftItemsShuffled;
 
 		// Don't forget to include the question responses
 		localQuestion.responses = this.question.responses;

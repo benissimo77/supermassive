@@ -34,12 +34,19 @@ export interface TrueFalseQuestionData extends BaseQuestionData {
     answer?: boolean;  // Only present when mode='answer'
 }
 
-// MATCHING
-export interface MatchingQuestionData extends BaseQuestionData {
+// Generic image/label item for use in matching, ordering, multiple-choice, etc.
+export interface ImageLabel {
+    text?: string;
+    image?: string;
+}
+
+// MATCHING (V2)
+export interface MatchingQuestionDataV2 extends BaseQuestionData {
     type: 'matching';
-    pairsShuffled: { left: string; right: string }[];
-    itemImages?: string[];  // Image URLs indexed to match pairs[i].left (not pairsShuffled order)
-    answer?: number[];  // Array of indices, only when mode='answer'
+    leftItems: ImageLabel[];
+    rightItems: ImageLabel[];
+    leftItemsShuffled?: ImageLabel[];
+    answer?: number[]; // or whatever your answer format is
 }
 
 // ORDERING

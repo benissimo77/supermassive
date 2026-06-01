@@ -136,7 +136,7 @@
                   </div>`;
               } else {
                   // Determine whether current user can remove members (owner or admin)
-                  const canRemove = currentUser && (String(currentUser._id) === String(league.ownerID) || currentUser.role === 'admin');
+                  const canRemove = currentUser && (String(currentUser.id) === String(league.ownerID) || currentUser.role === 'admin');
                   body.innerHTML = `<table class="quiz-table" style="width:100%"><tbody>` +
                     members.map(m => `
                       <tr>

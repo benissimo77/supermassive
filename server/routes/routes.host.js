@@ -73,7 +73,13 @@ router.get('/', (req, res) => {
 // Generates a room and redirects to the Stage
 // Host is redirected to /host/:room/:game and their activeRoom is saved for the Producer to follow.
 router.get('/:game/start', async (req, res) => {
-	console.log('routes.host:: /:game/start - starting game:', req.params.game, req.session);
+	const { q } = req.query;
+	// Handle both seasonID and seasonId casing
+	const seasonID = req.query.seasonID || req.query.seasonId;
+	const game = req.params.game;
+
+	console.log('routes.host:: /:game/start - starting game:', game, 'Quiz:', q, 'Season:', seasonID);
+
 	if (!req.session || !req.session.room) {
 		const newRoom = generateNewRoomName();
 		req.session.room = newRoom;
@@ -88,10 +94,23 @@ router.get('/:game/start', async (req, res) => {
 			}
 		}
 	}
+
+	// Capture the 'Intent' in the session.
+	// This makes the season/quiz IDs persistent across redirects 
+	// without them needing to be in the URL bar.
+	req.session.pendingGame = {
+		quizID: q,
+		seasonID: seasonID,
+		gameType: game,
+		timestamp: Date.now()
+	};
+
 	const room = req.session.room;
-	const game = req.params.game;
-	const q = req.query.q ? `?q=${req.query.q}` : '';
-	res.redirect(`/host/${room}/${game}${q}`);
+	
+	// Clean redirect to the stage without leaking IDs in the URL
+	req.session.save(() => {
+		res.redirect(`/host/${room}/${game}`);
+	});
 });
 
 // Catch room-only URLs and default to the lobby

@@ -245,8 +245,13 @@ export class QuizHostScene extends BaseScene {
         console.log('QuizHostScene:: Starting sequential bootstrap...');
         this.socket?.emit('consolelog', 'QuizHostScene:: Starting sequential bootstrap...');
 
+        // Retrieve quizID from scene data or URL (fallback for backwards compatibility/debugging)
         const urlParams = new URLSearchParams(window.location.search);
         const quizID = (this.scene.settings.data as any)?.quizID || urlParams.get('q');
+        
+        if (!quizID) {
+            console.log('QuizHostScene:: No quizID in URL/SceneData. Relying on server session intent.');
+        }
 
         // 1. host:ready -> get roomID and show instructions
         this.socket.emit('host:ready', {}, (readyResponse: any) => {

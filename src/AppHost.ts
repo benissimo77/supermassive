@@ -14,6 +14,8 @@ import { ThreeHostScene } from 'src/three/ThreeHostScene';
 
 // Parse URL parameters and path to determine initial scene
 const urlParams = new URLSearchParams(window.location.search);
+// quizID is now primarily handled on the server via session intent, 
+// but we keep the 'q' parameter support for deep-linking or local testing.
 const quizID = urlParams.get('q');
 
 // Extract role, room and game from path: /:role/:room/:game

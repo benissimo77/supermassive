@@ -1051,6 +1051,7 @@ export default class Quiz extends Game {
 		this.startTime = null;
 		this.mode = "ask";	// ask or answer - whether we are collecting answers or showing them
 		this.liveStream = false; // whether we are in live stream mode or not (affects state machine - need to account for latency of the stream)
+		this.seasonID = config?.seasonID || null; // Capture the session ID if provided
 
 		// Config should pass a quiz ID to select the quiz to load
 		// We load the quiz from DB using the passed ID (see api.quiz.js)
@@ -2160,6 +2161,7 @@ export default class Quiz extends Game {
 			const session = await GameSession.create({
 				gameType: 'quiz',
 				gameID: this.quizData._id,
+				seasonID: this.seasonID, // Link this session to a specific competitive Season
 				hostID: hostID,
 				roomCode: this.room.id,
 				startTime: this.startTime || new Date(),

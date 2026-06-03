@@ -84,6 +84,45 @@ export default [
         ]
     },
 
+    // SEASONS management screen
+        {
+        input: "websrc/host/dashboard-seasons.js", // replace with path to your main JS file
+        output: [
+            {
+                file: "public/modules/dashboard-seasons.min.js", // replace with desired output file path
+                format: "esm",
+                sourcemap: true,
+                globals: {
+                    io: 'io'
+                }
+            }
+        ],
+        plugins: [
+            terser(terserOptions), 
+            resolve()
+        ]
+    },
+
+    // SEASON EDITOR
+        {
+        input: "websrc/host/dashboard-seasonedit.js", // replace with path to your main JS file
+        output: [
+            {
+                file: "public/modules/dashboard-seasonedit.min.js", // replace with desired output file path
+                format: "esm",
+                sourcemap: true,
+                globals: {
+                    io: 'io'
+                }
+            }
+        ],
+        plugins: [
+            terser(terserOptions), 
+            resolve()
+        ]
+    },
+
+
     // LOGIN screen
     {
         input: "websrc/login/login.js", // replace with path to your main JS file

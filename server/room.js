@@ -175,6 +175,23 @@ class Room {
 				config = {};
 			}
 
+			// Capture session "Intent" if it exists - this allows clean URLs
+			const session = socket.request.session;
+			if (session && session.pendingGame) {
+				// Only apply if the game type matches (safety check)
+				if (session.pendingGame.gameType === game) {
+					// Re-hydrate quizID and seasonID if they aren't already provided
+					if (!config.quizID && session.pendingGame.quizID) {
+						config.quizID = session.pendingGame.quizID;
+						console.log(`Room:: Re-hydrated quizID from session: ${config.quizID}`);
+					}
+					if (!config.seasonID && session.pendingGame.seasonID) {
+						config.seasonID = session.pendingGame.seasonID;
+						console.log(`Room:: Re-hydrated seasonID from session: ${config.seasonID}`);
+					}
+				}
+			}
+
 			// We might already be in this game - do nothing if this is the case...
 			// Update: If the game has ended, we can start a new one of the same type
 			const isEnded = this.game && typeof this.game.isEnded === 'function' ? this.game.isEnded() : false;

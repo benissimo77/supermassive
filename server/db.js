@@ -42,6 +42,7 @@ async function dbConnect() {
                 mongod = await MongoMemoryServer.create({
                     instance: {
                         dbPath: dbPath,
+                        port: 27017, // Default MongoDB port
                         storageEngine: 'wiredTiger', // Required for persistence
                         dbName: 'supermassive'
                     }
@@ -50,7 +51,7 @@ async function dbConnect() {
                 const localUri = mongod.getUri();
                 await mongoose.connect(localUri);
                 db = mongoose.connection;
-                console.log('MongoDB Local Fallback established at:', dbPath);
+                console.log('MongoDB Local Fallback established at:', localUri);
             } catch (localError) {
                 console.error('Failed to start local fallback DB:', localError.message);
                 db = mongoose.connection; 

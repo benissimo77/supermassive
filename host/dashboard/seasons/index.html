@@ -1,229 +1,69 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
+
+<!-- SEASONS -->
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Seasons - SuperMassive</title>
-    <link rel="stylesheet" href="/css/dashboard.css">
-    <link rel="stylesheet" href="/css/quizbuilder.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <script type="module" src="/modules/dashboard.min.js" defer></script>
-    <style>
-        .season-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 1.25rem;
-            margin-top: 2rem;
-        }
-
-        .season-card {
-            cursor: pointer;
-            border-left: 4px solid var(--clr-accent) !important;
-            margin-bottom: 0 !important;
-        }
-
-        .season-series-label {
-            font-size: 0.72rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: var(--clr-accent);
-            margin-bottom: 0.35rem;
-        }
-
-        .season-name {
-            font-size: 1.4rem;
-            font-weight: 800;
-            margin: 0 0 0.75rem 0;
-        }
-
-        .season-meta {
-            font-size: 0.8rem;
-            color: var(--clr-text-muted);
-            display: flex;
-            gap: 0.6rem;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .public-badge {
-            padding: 0.1rem 0.5rem;
-            background: rgba(0, 200, 100, 0.15);
-            color: #00c864;
-            border-radius: 999px;
-            font-size: 0.7rem;
-            font-weight: 700;
-        }
-
-        .empty-state {
-            grid-column: 1 / -1;
-            padding: 4rem;
-            text-align: center;
-            background: var(--clr-surface);
-            border: 2px dashed var(--clr-border);
-            border-radius: 20px;
-            color: var(--clr-text-muted);
-        }
-
-        .season-card:hover { border-color: var(--clr-accent) !important; }
-    </style>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Seasons - SuperMassive</title>
+	<link rel="stylesheet" href="/css/dashboard.css">
+	<link rel="stylesheet" href="/css/quizbuilder.css">
+	<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+	<script type="module" src="/modules/dashboard.min.js" defer></script>
 </head>
+
 <body class="dashboard-body">
-    <div id="sidebar" class="sidebar"></div>
+	<div id="sidebar" class="sidebar"></div>
 
-    <main class="main-content">
-        <div class="editor-header">
-            <h1>Seasons</h1>
-            <div class="flex gap-md">
-                <button id="new-season-btn" class="btn btn-accent">
-                    <i class="fa-solid fa-plus"></i>
-                    New Season
-                </button>
-            </div>
-        </div>
+	<main class="main-content">
+		<div class="editor-header">
+			<h1>Seasons:</h1>
+			<div class="flex gap-md">
+				<button id="new-season-btn" class="btn btn-accent">
+					<i class="fa-solid fa-plus"></i>
+					New Season
+				</button>
+			</div>
+		</div>
 
-        <div class="card">
-            <div class="card-header">
-                <svg class="collapse-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                <h2>My Seasons</h2>
-            </div>
-            <div class="card-body">
-                <section id="season-list" class="season-grid">
-                    <div class="empty-state">Loading your seasons...</div>
-                </section>
-            </div>
-        </div>
+		<div class="card">
+			<div class="card-header">
+				<svg class="collapse-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+					stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<polyline points="6 9 12 15 18 9"></polyline>
+				</svg>
+				<h2>My Seasons</h2>
+			</div>
+			<div class="card-body">
+				<section id="season-list" class="season-grid">
+					<div class="empty-state">Loading your seasons...</div>
+				</section>
+			</div>
+		</div>
 
-        <div class="card" style="margin-top: 2.5rem;">
-            <div class="card-header">
-                <svg class="collapse-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                <h2>Public Seasons</h2>
-            </div>
-            <div class="card-body">
-                <section id="public-season-list" class="season-grid">
-                    <div class="empty-state">Loading public seasons...</div>
-                </section>
-            </div>
-        </div>
-    </main>
+		<div class="card" style="margin-top: 2.5rem;">
+			<div class="card-header">
+				<svg class="collapse-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+					stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<polyline points="6 9 12 15 18 9"></polyline>
+				</svg>
+				<h2>Public Seasons</h2>
+			</div>
+			<div class="card-body">
+				<section id="public-season-list" class="season-grid">
+					<div class="empty-state">Loading public seasons...</div>
+				</section>
+			</div>
+		</div>
+	</main>
 
-    <script type="module">
-        // Card collapse (matches Quiz Dashboard behaviour)
-        document.querySelectorAll('.card-header').forEach(header => {
-            header.addEventListener('click', () => {
-                header.closest('.card').classList.toggle('collapsed');
-            });
-        });
+	<script type="module">
+		import { initDashboardSeasons } from '/modules/dashboard-seasons.min.js';
+		initDashboardSeasons();
+		console.log('Dashboard seasons module initialized');
+	</script>
 
-        async function loadSeasons() {
-            const container = document.getElementById('season-list');
-            try {
-                const res = await fetch('/api/seasons');
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const { success, data } = await res.json();
-
-                if (!success || data.length === 0) {
-                    container.innerHTML = `
-                        <div class="empty-state">
-                            <h3>No Seasons Yet</h3>
-                            <p>Create a season to group quizzes into an episode run and track season leaderboards.</p>
-                        </div>`;
-                    return;
-                }
-
-                container.innerHTML = data.map(season => {
-                    const episodeCount = season.episodes?.length || 0;
-                    const fmt = d => new Date(d).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
-                    const dates = [season.startDate && fmt(season.startDate), season.endDate && fmt(season.endDate)]
-                        .filter(Boolean).join(' \u2013 ');
-
-                    return `
-                        <div class="season-card card" onclick="location.href='/host/dashboard/seasons/detail?id=${season._id}'">
-                            <div class="card-body">
-                                ${season.seriesName ? `<div class="season-series-label">${season.seriesName}</div>` : ''}
-                                <h3 class="season-name">${season.name}</h3>
-                                <div class="season-meta">
-                                    <span><i class="fa-solid fa-film" style="margin-right:3px; opacity:0.5;"></i>${episodeCount} Episode${episodeCount !== 1 ? 's' : ''}</span>
-                                    ${dates ? `<span>&bull;</span><span>${dates}</span>` : ''}
-                                    ${season.isPublic ? `<span>&bull;</span><span class="public-badge">Public</span>` : ''}
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            } catch (err) {
-                console.error('Failed to load seasons:', err);
-                container.innerHTML = '<div class="empty-state">Failed to load seasons. Please try again.</div>';
-            }
-        }
-
-        async function loadPublicSeasons() {
-            const container = document.getElementById('public-season-list');
-            try {
-                const res = await fetch('/api/seasons/public');
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const { success, data } = await res.json();
-
-                if (!success || data.length === 0) {
-                    container.innerHTML = `
-                        <div class="empty-state">
-                            <h3>No Public Seasons</h3>
-                            <p>When creators mark their seasons as public they will appear here.</p>
-                        </div>`;
-                    return;
-                }
-
-                container.innerHTML = data.map(season => {
-                    const episodeCount = season.episodes?.length || 0;
-                    const fmt = d => new Date(d).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
-                    const dates = [season.startDate && fmt(season.startDate), season.endDate && fmt(season.endDate)]
-                        .filter(Boolean).join(' \u2013 ');
-                    return `
-                        <div class="card" style="border-left: 4px solid var(--clr-accent); margin-bottom: 0;">
-                            <div class="card-body">
-                                ${season.seriesName ? `<div class="season-series-label">${season.seriesName}</div>` : ''}
-                                <h3 class="season-name">${season.name}</h3>
-                                <div class="season-meta">
-                                    <span><i class="fa-solid fa-film" style="margin-right:3px; opacity:0.5;"></i>${episodeCount} Episode${episodeCount !== 1 ? 's' : ''}</span>
-                                    ${dates ? `<span>&bull;</span><span>${dates}</span>` : ''}
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            } catch (err) {
-                console.error('Failed to load public seasons:', err);
-                container.innerHTML = '<div class="empty-state">Failed to load public seasons.</div>';
-            }
-        }
-
-        async function createNewSeason() {
-            const btn = document.getElementById('new-season-btn');
-            btn.disabled = true;
-            try {
-                const res = await fetch('/api/seasons', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: 'New Season' })
-                });
-                const result = await res.json();
-                if (result.success) {
-                    location.href = `/host/dashboard/seasons/detail?id=${result.data._id}`;
-                } else {
-                    alert(result.message || 'Failed to create season.');
-                    btn.disabled = false;
-                }
-            } catch (err) {
-                console.error('Create season error:', err);
-                alert('Failed to create season. Please try again.');
-                btn.disabled = false;
-            }
-        }
-
-        document.getElementById('new-season-btn').addEventListener('click', createNewSeason);
-        loadSeasons();
-        loadPublicSeasons();
-    </script>
 </body>
+
 </html>

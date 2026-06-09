@@ -122,6 +122,24 @@ export default [
         ]
     },
 
+    // LEAGUES - management screen
+        {
+        input: "websrc/host/dashboard-leagues.js", // replace with path to your main JS file
+        output: [
+            {
+                file: "public/modules/dashboard-leagues.min.js", // replace with desired output file path
+                format: "esm",
+                sourcemap: true,
+                globals: {
+                    io: 'io'
+                }
+            }
+        ],
+        plugins: [
+            terser(terserOptions), 
+            resolve()
+        ]
+    },
 
     // LOGIN screen
     {

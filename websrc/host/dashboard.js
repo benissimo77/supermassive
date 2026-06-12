@@ -1,4 +1,29 @@
-import { Auth } from '../utils/auth.js';
+
+// Local helper to sync menu based on user role from /auth/me
+async function syncMenuRoles() {
+	try {
+		const res = await fetch('/auth/me');
+		if (!res.ok) return;
+		const json = await res.json();
+		const user = (json && json.success && json.data) ? json.data.user : null;
+		const role = user ? user.role : 'anonymous';
+		
+		const roleLevel = (r) => ({ 'anonymous': 0, 'guest': 1, 'host': 2, 'admin': 3 }[r] || 0);
+		const currentLevel = roleLevel(role);
+
+		document.querySelectorAll('[data-role], [data-role-max]').forEach(el => {
+			const minRole = el.getAttribute('data-role');
+			const maxRole = el.getAttribute('data-role-max');
+			
+			const minLvl = minRole ? roleLevel(minRole) : 0;
+			const maxLvl = maxRole ? roleLevel(maxRole) : 99;
+			
+			el.style.display = (currentLevel >= minLvl && currentLevel <= maxLvl) ? '' : 'none';
+		});
+	} catch (e) {
+		console.error('Menu sync failed:', e);
+	}
+}
 
 window.toggleSidebar = function() {
 	const sidebar = document.getElementById('sidebar')
@@ -69,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			sidebar.innerHTML = html;
 
 			// Sync UI based on role after menu is loaded
-			await Auth.syncUI();
+			await syncMenuRoles();
 
 			// Highlight the active menu item based on current URL
 			// We find the link with the longest href that matches the start of the current path

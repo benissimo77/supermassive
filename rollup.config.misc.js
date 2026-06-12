@@ -141,6 +141,25 @@ export default [
         ]
     },
 
+    // PROFILE - management screen
+        {
+        input: "websrc/host/dashboard-profile.js", // replace with path to your main JS file
+        output: [
+            {
+                file: "public/modules/dashboard-profile.min.js", // replace with desired output file path
+                format: "esm",
+                sourcemap: true,
+                globals: {
+                    io: 'io'
+                }
+            }
+        ],
+        plugins: [
+            terser(terserOptions), 
+            resolve()
+        ]
+    },
+
     // LOGIN screen
     {
         input: "websrc/login/login.js", // replace with path to your main JS file

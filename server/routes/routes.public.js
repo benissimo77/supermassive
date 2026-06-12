@@ -114,10 +114,10 @@ router.get('/proxy-image', async (req, res) => {
 
 
 // Public-friendly redirect to the league API invite landing handler
-router.get('/join-league', (req, res) => {
-	const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
-	return res.redirect(`/api/league/join-league${qs}`);
-});
+// router.get('/join-league', (req, res) => {
+// 	const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+// 	return res.redirect(`/api/league/join-league${qs}`);
+// });
 
 // Expose session join message for dashboard to consume (clears after read)
 router.get('/api/session/joined-league', (req, res) => {

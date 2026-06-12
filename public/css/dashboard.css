@@ -284,7 +284,7 @@ button:hover {
 	background-color: var(--clr-hover);
 }
 
-.rotate svg:last-child {
+.rotate i:last-child {
 	transform: rotate(180deg);
 }
 
@@ -293,9 +293,17 @@ button:hover {
 	color: var(--clr-accent);
 }
 
-#sidebar li.active>a svg,
-#sidebar li.active>.dropdown-btn svg {
-	fill: var(--clr-accent);
+#sidebar li.active>a i,
+#sidebar li.active>.dropdown-btn i {
+	color: var(--clr-accent);
+}
+
+#sidebar i {
+	width: 24px;
+	text-align: center;
+	flex-shrink: 0;
+	color: var(--clr-text);
+	transition: transform 0.3s ease, color 0.3s ease;
 }
 
 #sidebar svg {
@@ -776,4 +784,163 @@ table.leaderboard td {
 	text-align: center;
 	color: var(--clr-text-muted);
 	font-size: 0.85rem;
+}
+
+/* =========================================
+	LEAGUES COMPONENT
+	Modal styles for leagues — theme aware
+	========================================= */
+
+.modal {
+	position: fixed;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1200;
+}
+
+.modal .modal-backdrop {
+	position: absolute;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.35);
+}
+
+.modal .modal-panel {
+	position: relative;
+	width: 560px;
+	max-width: 94%;
+	background: var(--clr-surface, #ffffff);
+	border-radius: 10px;
+	box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+	padding: 16px;
+	color: var(--clr-text);
+	max-height: calc(100vh - 48px);
+	overflow: auto;
+}
+
+.modal .modal-header {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.modal .modal-header h3 {
+	margin: 0;
+	color: var(--clr-accent);
+}
+
+.modal .modal-close {
+	position: absolute;
+	top: 8px;
+	right: 8px;
+	background: none;
+	border: none;
+	font-size: 26px;
+	line-height: 1;
+	cursor: pointer;
+	color: var(--clr-text);
+	z-index: 2;
+	padding: 6px;
+	border-radius: 6px;
+}
+
+.modal.open {
+	display: flex;
+}
+
+.modal:not(.open) {
+	display: none;
+}
+
+.modal .modal-body label {
+	display: block;
+	margin-bottom: 6px;
+	color: var(--clr-text);
+}
+
+.modal .modal-body textarea {
+	min-height: 84px;
+	background: var(--clr-surface);
+	border: 1px solid var(--clr-line);
+	color: var(--clr-text);
+	padding: 8px;
+	border-radius: 6px;
+	width: 100%;
+	box-sizing: border-box;
+	resize: vertical;
+	max-width: 100%;
+}
+
+.modal .modal-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 12px;
+}
+
+.modal .modal-actions .btn {
+	min-width: 140px;
+}
+
+.modal .invite-url-wrap {
+	margin-top: 6px;
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.modal .invite-url {
+	flex: 1;
+}
+
+.modal .invite-status {
+	margin-top: 8px;
+	color: var(--clr-text-muted);
+	font-size: 0.95em;
+}
+
+.modal .modal-footer {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 12px;
+}
+
+.modal .invite-or {
+	margin-top: 12px;
+	color: var(--clr-text-muted);
+}
+
+.modal .invite-url-wrap {
+	margin-top: 6px;
+}
+
+.modal .invite-url {
+	width: 100%;
+	box-sizing: border-box;
+	padding: 8px;
+	border: 1px solid var(--clr-line);
+	border-radius: 6px;
+	background: var(--clr-surface);
+	color: var(--clr-text);
+}
+
+.hidden {
+	display: none;
+}
+
+@media (max-width:640px) {
+	#invite-modal .modal-panel {
+		width: 94%;
+		padding: 12px;
+	}
+
+	#invite-modal .modal-actions {
+		flex-direction: column-reverse;
+		align-items: stretch;
+	}
+
+	#invite-modal .modal-actions .btn {
+		width: 100%;
+	}
 }

@@ -10,6 +10,9 @@ router.post('/login', (req, res, next) => authController.login(req, res, next));
 // Get current user
 router.get('/me', (req, res) => authController.me(req, res));
 
+// Update profile
+router.post('/profile', (req, res) => authController.updateProfile(req, res));
+
 // Google authentication
 router.get('/google', (req, res, next) => {
     if (req.query.redirect) {

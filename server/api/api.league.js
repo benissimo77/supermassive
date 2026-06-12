@@ -18,7 +18,9 @@ router.get('/my-leagues', async (req, res) => {
                 { ownerID: req.user._id },
                 { members: req.user._id }
             ]
-        }).sort({ updatedAt: -1 });
+        })
+        .populate('members', 'displayname avatar email')
+        .sort({ updatedAt: -1 });
         
         res.json(leagues);
     } catch (error) {
@@ -71,7 +73,8 @@ router.post('/join/:id', async (req, res) => {
 
 /**
  * Create an invite token for a league (owner/admin only)
- * Body: { expiresDays?: number, targetPlayerID?: string }
+ * Body: { emails: [optional array of target emails for personalized invites] }
+ * If no emails are specified then it will create an 'anonymous' invite which can be shared on social media
  */
 router.post('/:id/invite', async (req, res) => {
     try {
@@ -80,10 +83,9 @@ router.post('/:id/invite', async (req, res) => {
         if (!league) return res.status(404).json({ error: 'League not found' });
         // Allow league owner OR admin users to create invites
         const isOwner = String(league.ownerID) === String(req.user._id);
-        const isAdmin = req.user && req.user.role === 'admin';
-        if (!isOwner && !isAdmin) return res.status(403).json({ error: 'Forbidden' });
+        if (!isOwner) return res.status(403).json({ error: 'Forbidden' });
 
-        const expiresDays = parseInt(req.body.expiresDays) || 7;
+        const expiresDays = 7;
         const token = crypto.randomBytes(6).toString('hex');
 
         // Support creating multiple invites when emails are provided
@@ -113,13 +115,14 @@ router.post('/:id/invite', async (req, res) => {
                 // Send server-side email using EmailService
                 try {
                     const baseUrl = (process.env.APP_URL && process.env.APP_URL.trim()) ? process.env.APP_URL.replace(/\/$/, '') : `${req.protocol}://${req.get('host')}`;
-                    const link = `${baseUrl}/join-league?token=${t}`;
+                    const link = `${baseUrl}/league/join?token=${t}`;
                     const html = `<p>You have been invited to join the league <strong>${league.name}</strong> on VideoSwipe.</p>
+                    <p>Compete in quizzes, track your scores and see how you stack up against your friends!</p>
                       <p><a href="${link}">Click here to join the league</a></p>`;
                     await EmailService.sendMail({
                         from: 'hello@videoswipe.net',
                         to: email,
-                        subject: `Invite to join ${league.name} on VideoSwipe`,
+                        subject: `${req.user.email} has invited you to join their league: ${league.name}`,
                         html
                     });
                 } catch (emailErr) {
@@ -130,19 +133,8 @@ router.post('/:id/invite', async (req, res) => {
             invite = created[0];
         }
 
-        // Optionally auto-accept if a targetPlayerID is provided
-        if (req.body.targetPlayerID) {
-            const pid = req.body.targetPlayerID;
-            if (!league.members.map(m => String(m)).includes(String(pid))) {
-                league.members.push(pid);
-                await league.save();
-                invite.status = 'accepted';
-                await invite.save();
-            }
-        }
-
         const baseUrl = (process.env.APP_URL && process.env.APP_URL.trim()) ? process.env.APP_URL.replace(/\/$/, '') : `${req.protocol}://${req.get('host')}`;
-        const link = `${baseUrl}/join-league?token=${token}`;
+        const link = `${baseUrl}/league/join?token=${token}`;
         res.json({ success: true, invite, link });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -202,7 +194,7 @@ router.post('/:id/remove/:playerID', async (req, res) => {
 });
 
 // Landing route for league invites (also accessible via /join-league redirect)
-router.get('/join-league', async (req, res) => {
+router.get('/join-leagueOriginal', async (req, res) => {
     try {
         const token = req.query.token;
         if (!token) return res.status(400).json({ error: 'Token required' });
@@ -242,7 +234,7 @@ router.get('/join-league', async (req, res) => {
  */
 router.get('/:id', async (req, res) => {
     try {
-        const league = await League.findById(req.params.id).populate('members', 'displayName avatar');
+        const league = await League.findById(req.params.id).populate('members', 'displayname avatar email');
         if (!league) return res.status(404).json({ error: 'League not found' });
 
         const invites = await LeagueInvite.find({ leagueID: league._id, status: 'pending' }).sort({ createdAt: -1 });

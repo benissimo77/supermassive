@@ -105,6 +105,16 @@ input {
     box-sizing: border-box;
 }
 
+/* Prevent browser autofill from changing background color */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px var(--clr-input-bg) inset !important;
+    -webkit-text-fill-color: var(--clr-text) !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
 /* Links */
 .link-accent {
     color: var(--clr-accent);
@@ -136,18 +146,19 @@ input {
 }
 
 /* Messages */
-.message {
+#message {
     min-height: 1.5rem;
     text-align: center;
     margin-bottom: var(--space-md);
     font-size: 0.9rem;
 }
 
-.message.error {
+#message.error {
     color: var(--clr-error);
+    font-weight: bold;
 }
 
-.message.success {
+#message.success {
     color: var(--clr-success);
 }
 

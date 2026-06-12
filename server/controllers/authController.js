@@ -159,11 +159,47 @@ class AuthController {
                     email: req.user.email,
                     displayname: req.user.displayname,
                     avatar: req.user.avatar,
-                    role: role
+                    role: role,
+                    registrationDate: req.user.registrationDate
                 }
             }));
         } else {
             res.status(401).json(error('Not authenticated'));
+        }
+    }
+
+    async updateProfile(req, res) {
+        if (!req.isAuthenticated() || !req.user) {
+            return res.status(401).json(error('Not authenticated'));
+        }
+
+        const { displayname, avatar } = req.body;
+
+        // Validation
+        if (displayname && typeof displayname === 'string') {
+            const trimmed = displayname.trim();
+            if (trimmed.length > 0 && trimmed.length <= 15) {
+                req.user.displayname = trimmed;
+            } else if (trimmed.length > 15) {
+                return res.status(400).json(error('Display name must be 15 characters or less'));
+            }
+        }
+
+        if (avatar && (typeof avatar === 'string' || typeof avatar === 'number')) {
+            req.user.avatar = String(avatar);
+        }
+
+        try {
+            await req.user.save();
+            res.status(200).json(success('Profile updated', {
+                user: {
+                    displayname: req.user.displayname,
+                    avatar: req.user.avatar
+                }
+            }));
+        } catch (err) {
+            console.error('Error saving profile:', err);
+            res.status(500).json(error('Failed to update profile'));
         }
     }
 
@@ -307,15 +343,16 @@ class AuthController {
 
             console.log(`authController: claimResults for session ${sessionID}, user ${userID}`);
             const result = await userService.claimGuestResults(sessionID, userID);
-            
+
             res.status(200).json(success('Results claimed successfully', result));
         } catch (err) {
             console.error('authController: claimResults catch:', err);
             res.status(500).json(error('Failed to claim results'));
         }
     }
-
-
 }
+
+
+
 
 export default new AuthController();

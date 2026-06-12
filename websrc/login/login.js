@@ -71,7 +71,7 @@ const layoutMode = () => {
             passwordInput.style.display = 'block';
             passwordInput.required = true;
         }
-        if (forgotPasswordLink) forgotPasswordLink.style.display = 'none';
+        // if (forgotPasswordLink) forgotPasswordLink.style.display = 'none';
     } else {
         if (formTitle) formTitle.textContent = 'Sign in to your account';
         if (submitButton) submitButton.textContent = 'Sign In';

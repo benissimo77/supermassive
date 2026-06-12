@@ -291,11 +291,6 @@ export abstract class BaseScene extends Phaser.Scene {
         const timeSinceLastResize = now - this.lastResizeTime;
         this.lastResizeTime = now;
 
-        console.log(`Resize event received (${timeSinceLastResize}ms since last)`);
-        if (this.socket) {
-            this.socket.emit('consolelog', `Resize event received (${timeSinceLastResize}ms since last)`);
-        }
-
         // Cancel any existing timer
         if (this.resizeDebounceTimer) {
             clearTimeout(this.resizeDebounceTimer);

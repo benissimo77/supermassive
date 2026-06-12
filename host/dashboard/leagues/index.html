@@ -26,32 +26,71 @@
 			</div>
 		</div>
 
-		<div class="card">
-			<div class="card-header">
+		<h2>Leagues I Own</h2>
+
+		<section id="league-list">
+			<div class="empty-state">You don't own any leagues...</div>
+		</section>
+
+		<h2>Leagues I'm In</h2>
+
+		<section id="member-league-list">
+			<div class="empty-state">You are not yet a member of any leagues...</div>
+		</section>
+		
+
+	</main>
+
+	<template id="league-template">
+		<details class="card league-card">
+			<summary class="card-header">
 				<svg class="collapse-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
 					stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 					<polyline points="6 9 12 15 18 9"></polyline>
 				</svg>
-				<h2>My Leagues</h2>
+				<h3 class="league-name" style="margin:0;"></h3>
+				<div class="league-slogan" style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+					<!-- header controls (kept empty) -->
+				</div>
+			</summary>
+			<div class="card-body league-body">
+				<div class="league-status" style="margin-bottom: 12px;">Loading members...</div>
+				<table class="quiz-table members-table" style="width:100%">
+					<tbody class="members-list">
+						<!-- Rows from league-member-row-template -->
+					</tbody>
+				</table>
+				<div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+					<div>
+						<button class="btn btn-round btn-invite"><i class="fa-solid fa-envelope"></i>&nbsp;Invite Players</button>
+					</div>
+				</div>
 			</div>
-			<div class="card-body">
-				<section id="league-list">
-					<div class="empty-state">Loading your leagues...</div>
-				</section>
-			</div>
-		</div>
+		</details>
+	</template>
 
-		<div id="league-detail" class="hidden">
-			<!-- Filled dynamically -->
-		</div>
-	</main>
+	<template id="league-member-row-template">
+		<tr class="member-row">
+			<td style="width:48px">
+				<img class="member-avatar" src="/img/default-avatar.png" 
+					 style="width:40px;height:40px;border-radius:8px;">
+			</td>
+			<td>
+				<div class="member-name">Player</div>
+				<div class="member-email" style="font-size:0.85em; color:var(--clr-text-muted)"></div>
+			</td>
+			<td style="text-align:right;">
+				<button class="btn btn-danger btn-remove">Remove</button>
+			</td>
+		</tr>
+	</template>
 
 	<!-- Invite Modal -->
 	<div id="invite-modal" class="modal">
 		<div class="modal-backdrop"></div>
 		<div class="modal-panel">
 			<header class="modal-header">
-				<h3>Invite Players</h3>
+				<h2>Invite Players</h2>
 				<button class="modal-close">&times;</button>
 			</header>
 			<div class="modal-body">
@@ -73,265 +112,32 @@
 		</div>
 	</div>
 
-	<style>
-		/* Modal styles for leagues invite — theme aware */
-		#invite-modal {
-			position: fixed;
-			inset: 0;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			z-index: 1200;
-		}
+	<!-- Create League Modal -->
+	<div id="create-league-modal" class="modal">
+		<div class="modal-backdrop"></div>
+		<div class="modal-panel">
+			<header class="modal-header">
+				<h2>Create New League</h2>
+				<button class="modal-close">&times;</button>
+			</header>
+			<div class="modal-body">
+				<div class="form-group">
+					<label for="league-name-input">League Name</label>
+					<input type="text" id="league-name-input" class="form-control" placeholder="Enter league name">
+				</div>
+				<div class="form-group" style="margin-top:12px;">
+					<label for="league-slogan-input">Slogan / Motto (Optional)</label>
+					<input type="text" id="league-slogan-input" class="form-control" placeholder="e.g. The Best of the Best">
+				</div>
 
-		#invite-modal .modal-backdrop {
-			position: absolute;
-			inset: 0;
-			background: rgba(0, 0, 0, 0.35);
-		}
+				<div class="modal-actions" style="margin-top:20px;">
+					<button type="button" class="btn btn-primary btn-save-league">Create League</button>
+				</div>
+				<div class="modal-footer"><button type="button" class="btn btn-outline btn-close">Cancel</button></div>
+			</div>
+		</div>
+	</div>
 
-		#invite-modal .modal-panel {
-			position: relative;
-			width: 560px;
-			max-width: 94%;
-			background: var(--clr-surface, #ffffff);
-			border-radius: 10px;
-			box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
-			padding: 16px;
-			color: var(--clr-text);
-			max-height: calc(100vh - 48px);
-			overflow: auto;
-		}
-
-		#invite-modal .modal-header {
-			display: flex;
-			align-items: center;
-			gap: 12px;
-		}
-
-		#invite-modal .modal-header h3 {
-			margin: 0;
-			color: var(--clr-accent);
-		}
-
-		#invite-modal .modal-close {
-			position: absolute;
-			top: 8px;
-			right: 8px;
-			background: none;
-			border: none;
-			font-size: 26px;
-			line-height: 1;
-			cursor: pointer;
-			color: var(--clr-text);
-			z-index: 2;
-			padding: 6px;
-			border-radius: 6px;
-		}
-
-		#invite-modal.open {
-			display: flex;
-		}
-
-		#invite-modal:not(.open) {
-			display: none;
-		}
-
-		#invite-modal .modal-body label {
-			display: block;
-			margin-bottom: 6px;
-			color: var(--clr-text);
-		}
-
-		#invite-modal .modal-body textarea {
-			min-height: 84px;
-			background: var(--clr-surface);
-			border: 1px solid var(--clr-line);
-			color: var(--clr-text);
-			padding: 8px;
-			border-radius: 6px;
-			width: 100%;
-			box-sizing: border-box;
-			resize: vertical;
-			max-width: 100%;
-		}
-
-		#invite-modal .modal-actions {
-			display: flex;
-			justify-content: flex-end;
-			gap: 8px;
-			margin-top: 12px;
-		}
-
-		#invite-modal .modal-actions .btn {
-			min-width: 140px;
-		}
-
-		#invite-modal .invite-url-wrap {
-			margin-top: 6px;
-			display: flex;
-			gap: 8px;
-			align-items: center;
-		}
-
-		#invite-modal .invite-url {
-			flex: 1;
-		}
-
-		#invite-modal .invite-status {
-			margin-top: 8px;
-			color: var(--clr-text-muted);
-			font-size: 0.95em;
-		}
-
-		#invite-modal .modal-footer {
-			display: flex;
-			justify-content: flex-end;
-			margin-top: 12px;
-		}
-
-		#invite-modal .invite-or {
-			margin-top: 12px;
-			color: var(--clr-text-muted);
-		}
-
-		#invite-modal .invite-url-wrap {
-			margin-top: 6px;
-		}
-
-		#invite-modal .invite-url {
-			width: 100%;
-			box-sizing: border-box;
-			padding: 8px;
-			border: 1px solid var(--clr-line);
-			border-radius: 6px;
-			background: var(--clr-surface);
-			color: var(--clr-text);
-		}
-
-		.hidden {
-			display: none;
-		}
-
-		@media (max-width:640px) {
-			#invite-modal .modal-panel {
-				width: 94%;
-				padding: 12px;
-			}
-
-			#invite-modal .modal-actions {
-				flex-direction: column-reverse;
-				align-items: stretch;
-			}
-
-			#invite-modal .modal-actions .btn {
-				width: 100%;
-			}
-		}
-	</style>
-
-	<script>
-		// Invite modal behaviour
-		(function () {
-			const modal = document.getElementById('invite-modal');
-			if (!modal) return;
-			const close = modal.querySelector('.modal-close');
-			const backdrop = modal.querySelector('.modal-backdrop');
-			const btnSend = modal.querySelector('.btn-send-email');
-			const btnCopy = modal.querySelector('.btn-copy');
-			const btnClose = modal.querySelector('.btn-close');
-			const inputUrl = modal.querySelector('.invite-url');
-			const statusEl = modal.querySelector('.invite-status');
-
-			function hide() { modal.classList.remove('open'); }
-			function show() { modal.classList.add('open'); }
-
-			close.addEventListener('click', hide);
-			backdrop.addEventListener('click', hide);
-
-			async function ensureTokenAndUrl() {
-				const leagueID = modal.dataset.league;
-				if (!leagueID) return '';
-				// create invite token
-				const res = await fetch(`/api/league/${leagueID}/invite`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
-				const json = await res.json();
-				if (!res.ok) throw new Error(json.error || 'Invite failed');
-				const token = (json.invite && json.invite.token) || json.token || '';
-				const inviteURL = `${location.origin}/join-league?token=${encodeURIComponent(token)}`;
-				inputUrl.value = inviteURL;
-				return inviteURL;
-			}
-			// Expose helper so other scripts can pre-generate token when opening modal
-			window.ensureLeagueInviteToken = ensureTokenAndUrl;
-
-			// Close button in modal footer
-			if (btnClose) btnClose.addEventListener('click', hide);
-
-			// Close modal on Escape key
-			document.addEventListener('keydown', (ev) => {
-				if (ev.key === 'Escape' && modal.classList.contains('open')) hide();
-			});
-
-			// Defensive z-index to avoid accidental overlap
-			const panel = modal.querySelector('.modal-panel');
-			if (panel) panel.style.zIndex = 2000;
-			if (close) close.style.zIndex = 2010;
-			if (btnSend) btnSend.style.zIndex = 2001;
-			if (btnCopy) btnCopy.style.zIndex = 2001;
-
-			// Use delegated click handler on the modal for Send/Copy to avoid accidental double-handling
-			modal.addEventListener('click', async (ev) => {
-				const sendBtn = ev.target.closest('.btn-send-email');
-				if (sendBtn) {
-					ev.stopPropagation(); ev.preventDefault();
-					sendBtn.disabled = true;
-					try {
-						const emailsRaw = modal.querySelector('.invite-emails').value.trim();
-						const recipients = emailsRaw ? emailsRaw.split(/[\s,;]+/).filter(Boolean) : [];
-						const leagueID = modal.dataset.league;
-
-						if (recipients.length === 0) {
-							// validation: require at least one email when using Send
-							if (statusEl) {
-								statusEl.textContent = 'Please enter at least one email address';
-								setTimeout(() => { statusEl.textContent = ''; }, 2000);
-							}
-							const emailField = modal.querySelector('.invite-emails');
-							if (emailField) { emailField.focus(); }
-							return;
-						}
-
-						const res = await fetch(`/api/league/${leagueID}/invite`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ emails: recipients }) });
-						const json = await res.json();
-						if (!res.ok) throw new Error(json.error || 'Invite send failed');
-						if (statusEl) statusEl.textContent = 'Invite emails sent';
-						setTimeout(() => { if (statusEl) statusEl.textContent = ''; hide(); }, 900);
-					} catch (err) {
-						console.error('Send invite error', err);
-						alert('Failed to create/send invite: ' + err.message);
-					} finally { sendBtn.disabled = false; }
-					return;
-				}
-
-				const copyBtn = ev.target.closest('.btn-copy');
-				if (copyBtn) {
-					ev.stopPropagation(); ev.preventDefault();
-					try {
-						const input = modal.querySelector('.invite-url');
-						let url = input ? input.value : '';
-						if (!url) url = await ensureTokenAndUrl();
-						await navigator.clipboard.writeText(url);
-						copyBtn.textContent = 'Copied';
-						setTimeout(() => copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i>&nbsp;Copy', 1500);
-					} catch (err) {
-						console.error('Copy failed', err);
-						if (statusEl) { statusEl.textContent = 'Copy failed'; setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 1500); }
-					}
-					return;
-				}
-			});
-		})();
-	</script>
 
 	<script type="module">
 		import { initDashboardLeagues } from '/modules/dashboard-leagues.min.js';

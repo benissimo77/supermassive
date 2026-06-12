@@ -1,5 +1,4 @@
 import { FileDropzone } from './FileDropzone.js';
-import { Auth } from '../utils/auth.js';
 
 export function initDashboardQuiz() {
 
@@ -32,16 +31,22 @@ export function initDashboardQuiz() {
 
 	async function fetchQuizzes() {
 		try {
-			const [quizResponse, user] = await Promise.all([
-				fetch('/api/quiz', {
-					method: 'GET',
-					headers: { 'Content-Type': 'application/json' }
-				}),
-				Auth.getUser()
-			]);
+			const quizResPromise = fetch('/api/quiz', {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' }
+			});
+			const userResPromise = fetch('/auth/me');
+
+			const [quizResponse, userResponse] = await Promise.all([quizResPromise, userResPromise]);
 
 			const result = await quizResponse.json();
 			if (!result.success) throw new Error(result.message || 'Failed to fetch quizzes');
+
+			let user = null;
+			if (userResponse.ok) {
+				const userData = await userResponse.json();
+				user = (userData && userData.success && userData.data) ? userData.data.user : null;
+			}
 			
 			createQuizList(result.data, user);
 		} catch (error) {

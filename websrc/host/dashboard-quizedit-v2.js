@@ -1,6 +1,5 @@
 import { FileDropzone } from './FileDropzone.js';
 import { ImageLibrary } from './ImageLibrary.js';
-import { Auth } from '../utils/auth.js';
 import '../utils/ImageSelector.js';
 import { QuestionTypeRegistry } from './quiz-editor-registry.js';
 
@@ -138,13 +137,22 @@ export function initDashboardQuizEdit() {
     }
 
     async function generateAIQuiz() {
-        // Optionally check for host role (remove if not needed)
-        if (typeof Auth?.checkRole === 'function') {
-            const isHost = await Auth.checkRole('host');
-            if (!isHost) {
-                alert('AI Generation is a Host feature. Please verify your email address to unlock this feature.');
-                return;
+        // Check for host role
+        let isHost = false;
+        try {
+            const res = await fetch('/auth/me');
+            if (res.ok) {
+                const json = await res.json();
+                const user = (json && json.success && json.data) ? json.data.user : null;
+                isHost = user && (user.role === 'host' || user.role === 'admin');
             }
+        } catch (e) {
+            console.error('Auth check failed', e);
+        }
+
+        if (!isHost) {
+            alert('AI Generation is a Host feature. Please verify your email address to unlock this feature.');
+            return;
         }
 
         const prompt = UI.aiPromptInput.value.trim();

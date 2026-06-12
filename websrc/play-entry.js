@@ -1,12 +1,4 @@
-import { Auth } from './utils/auth.js';
-
-// State
-const avatarlist = [
-    12138118, 12138231, 12138743, 12138846, 12139963, 12140600, 12143538, 12189343,
-    12214366, 12215207, 12232806, 12348050, 12358126, 12358607, 12359578, 12360465,
-    12370419, 12370830, 12391847, 12436639, 12454847, 12474909, 12502935, 12660677,
-    12789062, 12791500, 13003915, 13100182,
-];
+import { avatarList, getAvatarUrl } from './utils/avatars.js';
 
 // Functions
 function toggleFullScreen() {
@@ -64,7 +56,7 @@ function addAvatar(element) {
     const newAvatar = document.createElement('div');
     newAvatar.setAttribute('class', 'gallery');
     newAvatar.innerHTML = `
-        <img id='${element}' src="/img/avatar-100/image-from-rawpixel-id-${element}-original.png">
+        <img id='${element}' src="${getAvatarUrl(element)}">
     `;
     newAvatar.addEventListener("click", selectAvatar);
     gallery.appendChild(newAvatar);
@@ -138,7 +130,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Populate avatars
-    avatarlist.forEach(element => {
+    avatarList.forEach(element => {
         addAvatar(element);
     });
 
@@ -148,7 +140,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Auth Integration
-    const user = await Auth.getUser();
+    let user = null;
+    try {
+        const authRes = await fetch('/auth/me');
+        if (authRes.ok) {
+            const authJson = await authRes.json();
+            user = (authJson && authJson.success && authJson.data) ? authJson.data.user : null;
+        }
+    } catch (e) {
+        console.error('Auth load failed', e);
+    }
 
     const authStatus = document.getElementById('auth-status');
     

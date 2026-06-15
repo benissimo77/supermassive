@@ -10,7 +10,8 @@ const mongoDbURI = process.env.MONGODB_URI;
 let db;
 let mongod;
 
-const USE_LOCAL_DB_ONLY = true; // ← set false to re-enable remote MongoDB
+ // Development use a local DB - set to false to re-enable remote MongoDB
+const USE_LOCAL_DB_ONLY = process.env.NODE_ENV === 'development';
 
 async function dbConnect() {
     if (!db) {

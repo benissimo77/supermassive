@@ -105,7 +105,7 @@ class AuthController {
                             }
                             invite.status = 'accepted';
                             await invite.save();
-                            req.session.joinedLeague = { id: String(league._id), name: league.name };
+                            req.session.joinedLeague = { _id: String(league._id), name: league.name };
                         }
                         delete req.session.pendingLeagueInvite;
                         delete req.session.prefillEmail;
@@ -132,7 +132,7 @@ class AuthController {
 
                     res.status(200).json(success('Logged in successfully', {
                         user: {
-                            id: user._id,
+                            _id: user._id,
                             email: user.email,
                             displayname: user.displayname,
                             avatar: user.avatar,
@@ -155,7 +155,7 @@ class AuthController {
 
             res.status(200).json(success('User found', {
                 user: {
-                    id: req.user._id,
+                    _id: req.user._id,
                     email: req.user.email,
                     displayname: req.user.displayname,
                     avatar: req.user.avatar,
@@ -236,7 +236,7 @@ class AuthController {
                                     invite.status = 'accepted';
                                     await invite.save();
                                     // store message for dashboard redirect
-                                    req.session.joinedLeague = { id: String(league._id), name: league.name };
+                                    req.session.joinedLeague = { _id: String(league._id), name: league.name };
                                 }
                                 // cleanup
                                 delete req.session.pendingLeagueInvite;

@@ -11,13 +11,15 @@
 	<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 	<script type="module" src="/modules/dashboard.min.js" defer></script>
+	<script type="module" src="/modules/dashboard-seasons.min.js" defer></script>
+
 </head>
 
-<body class="dashboard-body">
-	<div id="sidebar" class="sidebar"></div>
+<body>
+	<nav id="sidebar"></nav>
 
-	<main class="main-content">
-		<div class="editor-header">
+	<main>
+		<div class="page-header">
 			<h1>Seasons</h1>
 			<div class="flex gap-md">
 				<button id="new-season-btn" class="btn btn-accent">
@@ -58,11 +60,11 @@
 		</div>
 	</main>
 
-	<script type="module">
+	<!-- <script type="module">
 		import { initDashboardSeasons } from '/modules/dashboard-seasons.min.js';
 		initDashboardSeasons();
 		console.log('Dashboard seasons module initialized');
-	</script>
+	</script> -->
 
 </body>
 

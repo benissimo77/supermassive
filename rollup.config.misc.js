@@ -160,6 +160,22 @@ export default [
         ]
     },
 
+    // LEADERBOARD
+    {
+        input: "websrc/host/dashboard-leaderboard.js",
+        output: [
+            {
+                file: "public/modules/dashboard-leaderboard.min.js",
+                format: "esm",
+                sourcemap: true
+            }
+        ],
+        plugins: [
+            terser(terserOptions), 
+            resolve()
+        ]
+    },
+
     // LOGIN screen
     {
         input: "websrc/login/login.js", // replace with path to your main JS file

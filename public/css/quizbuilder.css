@@ -139,44 +139,9 @@
   color: var(--clr-text);
 }
 
-/* Card Component (Rounds, Questions) */
-.card {
-  background: var(--clr-surface-alt);
-  border: 1px solid var(--clr-card-border);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--space-md);
-  overflow: hidden;
-  transition: all 0.2s ease;
-}
-
-.card:hover {
-  border-color: var(--clr-line);
-}
-
-.card-header {
-  background: var(--clr-card-header-bg);
-  padding: var(--space-sm) var(--space-md);
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  cursor: grab;
-  list-style: none; /* Remove default summary arrow */
-  border-bottom: 1px solid var(--clr-card-header-border);
-}
-
-.card-header::-webkit-details-marker {
-  display: none; /* Remove default summary arrow in Safari */
-}
-
-.card-header:active {
-  cursor: grabbing;
-}
-
-.card-body {
-  padding: var(--space-md);
-}
 
 /* Specific Card Types */
+/* These can modify global styles defined in dashboard.css */
 .quiz-card {
   border-left: 3px solid var(--clr-accent);
 }

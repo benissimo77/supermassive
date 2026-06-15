@@ -7,16 +7,16 @@ import EmailService from '../services/emailService.js';
 const router = express.Router();
 
 /**
- * Get all leagues for the current user
+ * Get all leagues owned by the current user or that current user is member of
  */
-router.get('/my-leagues', async (req, res) => {
+router.get('/list', async (req, res) => {
     try {
         if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
         
-        const leagues = await League.find({ 
+        const leagues = await League.find({
             $or: [
-                { ownerID: req.user._id },
-                { members: req.user._id }
+                { members: req.user._id }, 
+                { ownerID: req.user._id }
             ]
         })
         .populate('members', 'displayname avatar email')
@@ -27,6 +27,7 @@ router.get('/my-leagues', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
 
 /**
  * Create a new league
@@ -181,10 +182,13 @@ router.post('/:id/remove/:playerID', async (req, res) => {
         if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
         const league = await League.findById(req.params.id);
         if (!league) return res.status(404).json({ error: 'League not found' });
-        if (String(league.ownerID) !== String(req.user._id)) return res.status(403).json({ error: 'Forbidden' });
 
-        const pid = req.params.playerID;
-        league.members = league.members.filter(m => String(m) !== String(pid));
+        // User is either the league owner or is the person removing themselves (leaving the league)
+        if (String(league.ownerID) !== String(req.user._id) && String(req.params.playerID) !== String(req.user._id)) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+
+        league.members = league.members.filter(m => String(m) !== String(req.params.playerID));
         await league.save();
 
         res.json({ success: true, league });

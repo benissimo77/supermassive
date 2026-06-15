@@ -56,13 +56,12 @@ export function initDashboardQuiz() {
 
 	function createQuizList(quizzes, user) {
 		const quizItemTemplate = document.getElementById('quiz-item-template');
+		const personalSection = document.getElementById('personal-quiz-list');
+		const publicSection = document.getElementById('public-quiz-list');
 		const personalList = document.getElementById('personal-quiz-items');
 		const publicList = document.getElementById('public-quiz-items');
 		
-		personalList.innerHTML = '';
-		publicList.innerHTML = '';
-		
-		const currentUserId = (user && user.id) ? String(user.id) : null;
+		const currentUserId = (user && (user._id || user.id)) ? String(user._id || user.id) : null;
 
 		const personalQuizzes = quizzes.filter(q => {
 			const ownerId = q.ownerID || q.owner;
@@ -75,14 +74,16 @@ export function initDashboardQuiz() {
 		});
 
 		if (personalQuizzes.length === 0) {
-			personalList.innerHTML = '<tr><td colspan="3" class="no-quizzes">No quizzes found. Create one to get started!</td></tr>';
+			personalSection.querySelector('.quiz-table').remove();
 		} else {
+			personalSection.querySelector('.empty-state').remove();
 			renderQuizTable(personalQuizzes, personalList, true);
 		}
 
 		if (publicQuizzes.length === 0) {
-			publicList.innerHTML = '<tr><td colspan="3" class="no-quizzes">No public quizzes available.</td></tr>';
+			publicSection.querySelector('.quiz-table').remove();
 		} else {
+			publicSection.querySelector('.empty-state').remove();
 			renderQuizTable(publicQuizzes, publicList, false);
 		}
 
@@ -193,3 +194,5 @@ export function initDashboardQuiz() {
 		}
 	}
 }
+
+document.addEventListener('DOMContentLoaded', initDashboardQuiz);

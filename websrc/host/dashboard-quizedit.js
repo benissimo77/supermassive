@@ -2,7 +2,7 @@ import { FileDropzone } from './FileDropzone.js';
 import { ImageLibrary } from './ImageLibrary.js';
 import '../utils/ImageSelector.js';
 
-export function initDashboardQuizEdit() {
+function initDashboardQuizEdit() {
 
 	// Initialisation steps on page load...
 	const roundsContainer = document.getElementById('rounds-container');
@@ -1750,3 +1750,5 @@ export function initDashboardQuizEdit() {
 		window.location.href = '/host/dashboard/quiz/list';
 	}
 }
+
+document.addEventListener('DOMContentLoaded', initDashboardQuizEdit);

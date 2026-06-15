@@ -429,9 +429,9 @@ details.card:not([open]) .card-header {
 }
 
 button.unsaved-changes {
-  outline: 2px solid var(--clr-error);
+  outline: 4px solid var(--clr-error);
   outline-offset: 4px;
-  /* box-shadow: 0 0 10px rgba(217, 83, 79, 0.5); */
+  box-shadow: 0 0 10px rgba(217, 83, 79, 0.5);
 }
 
 .quiz-item {

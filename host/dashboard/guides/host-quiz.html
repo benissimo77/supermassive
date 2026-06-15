@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,65 +10,90 @@
     <script type="module" src="/modules/dashboard.min.js" defer></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
 </head>
+
 <body class="dark-theme">
     <nav id="sidebar"></nav>
     <main>
         <div class="container">
             <h1>Notes for Hosts</h1>
             <p>Hosting a quiz is easy! Follow these simple steps to get started:</p>
-            <img src="/img/videoswipe-instructions.png" alt="Quiz Hosting Instructions" class="mt-md mb-md" style="max-width: 90%;" />
+            <img src="/img/videoswipe-instructions.png" alt="Quiz Hosting Instructions" class="mt-md mb-md"
+                style="max-width: 90%;" />
             <p></p>
             <p>Now let's look at those steps in more detail...</p>
-            <ol>
-                <li><strong>Host a Game Room</strong>
-                    <p>
-                        Start by selecting a quiz from the <a href="/host/dashboard/quiz/list">Quiz Dashboard</a>. You can start a brand new quiz or select from the list of available quizzes. Selecting a quiz takes you to the Quiz Editor where you can adjust the quiz as much as you like. See the <a href="quiz-editor.html">separate guide</a> for details on how to use the quiz editor.
-                    </p>
-                    <p>
-                        After reviewing your quiz in the editor, you can save the quiz for later or start hosting immediately. When you are ready to host, click the "Host Quiz" button at the top of the Quiz Editor. You will then be LIVE and ready for teams to join!
-                    </p>
-                </li>
 
-                <li><strong>Invite your Friends</strong>
-                    <p>
-                        The most common set-up is that everybody is in the same physical space and your laptop is connected to a large central screen or projector so that everyone can see the questions and answers clearly. The initial quiz 'lobby' display shows a QR code for teams to scan and join.
-                    </p>
-                    <p>
-                        If you are live-streaming your quiz to a remote audience teams can still join in the same way. But be aware you need to allow for some delay due to streaming latency. We have a separate <a href="live-streaming.html">Twitch streaming guide</a> especially for this use-case.
-                    </p>
-                    <p>
-                        If teams can't join via the QR code then they can manually enter via videoswipe.net. Instructions for this are also shown in the quiz lobby display.
-                    </p>
-                    <p>
-                        Each time a new team joins they are shown on the host screen, so everyone can see who is currently about to play.
-                    </p>
-                </li>
+            <h2>1. Host a Game Room</h2>
+            <p>
+                Start by selecting a quiz from the <a href="/host/dashboard/quiz/list">Quiz Dashboard</a>. You can start
+                a brand new quiz or select from the list of available quizzes. Selecting a quiz takes you to the Quiz
+                Editor where you can adjust the quiz as much as you like. See the <a href="quiz-editor.html">separate
+                    guide</a> for details on how to use the quiz editor.
+            </p>
+            <p>
+                After reviewing your quiz in the editor, you can save the quiz for later or start hosting immediately.
+                When you are ready to host, click the "Host Quiz" button at the top of the Quiz Editor. You will then be
+                LIVE and ready for teams to join!
+            </p>
 
-                <li><strong>Everyone watches the host screen</strong>
-                    <p>
-                        So... the teams have all joined and you are ready to actually start the quiz! As host you control the flow of the quiz: use the arrow keys LEFT and RIGHT to step forward/backward through the quiz one question at a time.
-                    </p>
-                    <p>
-                        If teams want to repeat a question you can use the LEFT arrow key to step backward through the questions. Use SHIFT + arrow keys to step to the next or previous round.
-                    </p>
-                </li>
-                <li><strong>Teams use their devices to answer questions</strong>
-                    <p>
-                        After each question is displayed, teams can submit their answers via their device. Only one device is used per team. The host screen shows whenever a team has submitted their answer - as host you can see once ALL teams have submitted an answer, or call out the teams who haven't answered and hurry them along.
-                    </p>
-                    <p>
-                        Optionally, you can elect to use a countdown timer for questions, and teams have a limited amount of time to submit their answers. This option can be selected in the <a href="/host/dashboard/quiz/edit">Quiz Editor</a>. Each round has its own timer setting. If you're using a timer the host screen will show a countdown clock for each timed question.
-                    </p>
-                </li>
-            </ol>
+            <h2>2. Invite your Friends</h2>
+            <p>
+                The most common set-up is that everybody is in the same physical space and your laptop is connected to a
+                large central screen or projector so that everyone can see the questions and answers clearly. The
+                initial quiz 'lobby' display shows a QR code for teams to scan and join.
+            </p>
+            <p>
+                If you are live-streaming your quiz to a remote audience teams can still join in the same way. But be
+                aware you need to allow for some delay due to streaming latency. We have a separate <a
+                    href="live-streaming.html">Twitch streaming guide</a> especially for this use-case.
+            </p>
+            <p>
+                If teams can't join via the QR code then they can manually enter via videoswipe.net. Instructions for
+                this are also shown in the quiz lobby display.
+            </p>
+            <p>
+                Each time a new team joins they are shown on the host screen, so everyone can see who is currently about
+                to play.
+            </p>
+            <p>
+                The host lobby display includes a countdown timer which tells teams how long before the quiz will start. It starts counting from 15 minutes, but you can adjust this using the UP and DOWN arrow keys. Note that the countdown timer is provided only as a guide, when the timer reaches 0:00 nothing happens. You still ultimately decide when to begin.
+            </p>
+
+            <h2>3. Everyone watches the host screen</h2>
+            <p>
+                So... the teams have all joined and you are ready to actually start the quiz! As host you control the
+                flow of the quiz: use the arrow keys LEFT and RIGHT to step forward/backward through the quiz one
+                question at a time. Use SHIFT + arrow keys to step to the next or previous round (useful when teams want a question to be repeated).
+            </p>
+            <p>
+                The host screen also reveals the answers at the end of each question or round, and displays helpful animated graphics to show team answers. You can use these to add commentary on how teams are doing  and to build tension. The quiz also presents the results via an animated 'racetrack' that all teams watch together on the host screen.
+            </p>
+
+            <h2>4. Teams use their devices to answer questions</h2>
+            <p>
+                After each question is displayed, teams can submit their answers via their device. Only one device is
+                used per team. The host screen updates whenever a team has submitted their answer - as host you can call out the teams who haven't answered and hurry them
+                along, or move to the next question as soon as all teams have answered.
+            </p>
+            <p>
+                Optionally, you can elect to use a countdown timer for questions, and teams have a limited amount of
+                time to submit their answers. This option can be selected in the <a
+                    href="/host/dashboard/quiz/edit">Quiz Editor</a>. Each round has its own timer setting. If you're
+                using a timer the host screen will show a countdown clock for each timed question.
+            </p>
 
             <p>
-                That's it! You are now ready to host your own quiz. Here are a few pro tips that we've found can be useful when hosting:
+                That's it! You are now ready to host your own quiz. Here are a few pro tips that we've found can be
+                useful when hosting:
             </p>
             <ul>
-                <li>Make sure you have a good internet connection - the host screen and team devices need to be able to communicate with the server in real-time.</li>
-                <li>It's worth 'rehearsing' your quiz before hosting it for a large group. This will help you identify any issues and ensure that everything runs smoothly. We usually host the quiz and join using a phone to test the host and player experience at the same time.</li>
-                <li>For a high-impact dramatic ending you could try including a final 'quick-fire' round which shows answers and updates scores after every question. These settings are available from the Quiz Editor.</li>
+                <li>Make sure you have a good internet connection - the host screen and team devices need to be able to
+                    communicate with the server in real-time.</li>
+                <li>It's worth 'rehearsing' your quiz before hosting it for a large group. This will help you identify
+                    any issues and ensure that everything runs smoothly. We usually host the quiz and join using a phone
+                    to test the host and player experience at the same time.</li>
+                <li>For a high-impact dramatic ending you could try including a final 'quick-fire' round which shows
+                    answers and updates scores after every question. These settings are available from the Quiz Editor.
+                </li>
             </ul>
             <p>Good luck and have fun!</p>
 
@@ -77,4 +103,5 @@
         </div>
     </main>
 </body>
+
 </html>

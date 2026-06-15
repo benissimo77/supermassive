@@ -10,7 +10,7 @@ function checkHost(req, res, next) {
     if (req.isAuthenticated && req.isAuthenticated()) {
         // Allow hosts, admins, and guests (who are allowed to use the editor)
         const role = req.user.role;
-        if (['host', 'admin', 'guest'].includes(role)) {
+        if (['host', 'admin', 'guest', 'user'].includes(role)) {
             return next();
         }
     } else if (process.env.NODE_ENV === 'development') {

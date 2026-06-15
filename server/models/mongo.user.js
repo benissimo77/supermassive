@@ -8,7 +8,6 @@ import bcrypt from "bcrypt";
 // We try to get avatar from Facebook or Google if available
 // Other facebook/google data is stored in the user's profile as json for analysis later
 const userSchema = mongoose.Schema({
-    registrationDate: { type: Date, default: Date.now },
     email: { type: 'string', unique: true },
     password: { type: 'string' },
     displayname: { type: 'string' },
@@ -22,7 +21,7 @@ const userSchema = mongoose.Schema({
     tokenExpiry: { type: 'date', default: null },
     emailVerified: { type: Boolean, default: false },
     activeRoom: { type: 'string', default: null }
-});
+}, { timestamps: true });
 
 // hash the password
 userSchema.methods.generateHashedPassword = function (password) {

@@ -67,7 +67,7 @@ const quizV2Schema = new mongoose.Schema({
     isDeleted: { type: Boolean, default: false },
     collaborators: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     rounds: [quizRoundSchema],
-}, { _id: true, timestamps: false }); // Automatically manage createdAt and updatedAt fields - OFF for now...
+}, { _id: true, timestamps: true }); // Automatically manage createdAt and updatedAt fields
 
 
 // This is an experiment with adding methods to this model to include reading/writing to the DB

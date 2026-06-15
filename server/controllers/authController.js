@@ -160,7 +160,7 @@ class AuthController {
                     displayname: req.user.displayname,
                     avatar: req.user.avatar,
                     role: role,
-                    registrationDate: req.user.registrationDate
+                    createdAt: req.user.createdAt
                 }
             }));
         } else {

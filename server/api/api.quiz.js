@@ -99,6 +99,37 @@ router.post('/save', async (req, res) => {
     }
 });
 
+// Copy a quiz
+router.post('/:id/copy', async (req, res) => {
+    const { id } = req.params;
+    if (!id) {
+        return res.status(400).json(apiResponse(false, null, 'Quiz ID is required'));
+    }
+
+    try {
+        const quiz = await QuizService.getQuizById(id, req.user);
+        if (!quiz) {
+            return res.status(404).json(apiResponse(false, null, 'Quiz not found'));
+        }
+        if (quiz.title) quiz.title = 'Copy of ' + quiz.title;
+        const savedQuiz = await QuizService.saveQuiz(quiz, req.user);
+        return res.status(200).json(apiResponse(
+            true,
+            savedQuiz,
+            'Quiz copied successfully'
+        ));
+    } catch (error) {
+        console.error('Error copying quiz:', error);
+        const statusCode = mapErrorToStatusCode(error.name);
+        return res.status(statusCode).json(apiResponse(
+            false,
+            null,
+            error.message,  // Human-readable message for the user
+            error.details   // Technical details for debugging
+        ));
+    }
+});
+
 // Generate a quiz using AI
 router.post('/generate', async (req, res) => {
     const { prompt } = req.body;

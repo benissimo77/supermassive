@@ -404,7 +404,6 @@ export async function saveAsQuizV2(quizData, userID) {
 
     // getAllQuizzes
     // Returns all available quizzes for hosting
-    // NOTE: this should not be used by the quizbuilder as this allows anyone to edit a public quiz
     export async function getAllQuizzes(userID) {
 
         const userIDString = getUserIDString(userID);
@@ -418,9 +417,10 @@ export async function saveAsQuizV2(quizData, userID) {
             ]
         };
 
-        const quizzes = await Quiz.find(search).lean();
+        const quizzes = await Quiz.find(search).sort({ title: 1 }).lean();
 
         const v2quizzes = await QuizV2.find(search)
+            .sort({ title: 1 })
             .populate({
                 path: 'rounds.questions',
                 model: 'Question'

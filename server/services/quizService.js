@@ -174,7 +174,7 @@ export async function saveAsQuizV2(quizData, userID) {
         title: quizData.title,
         description: quizData.description,
         ownerID: userIDString,
-        public: true,
+        isPublic: true,
         rounds: [],
     };
 
@@ -414,7 +414,7 @@ export async function saveAsQuizV2(quizData, userID) {
             isDeleted: { $ne: true },
             $or: [
                 { ownerID: userIDString },
-                { public: true }
+                { isPublic: true }
             ]
         };
 

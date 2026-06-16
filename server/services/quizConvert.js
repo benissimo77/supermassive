@@ -80,7 +80,7 @@ export async function saveV1QuizToV2(v1Quiz, userID) {
         title: v1Quiz.title,
         description: v1Quiz.description,
         ownerID: v1Quiz.ownerID || userID,
-        public: v1Quiz.public !== undefined ? v1Quiz.public : true,
+        isPublic: v1Quiz.isPublic !== undefined ? v1Quiz.isPublic : (v1Quiz.public !== undefined ? v1Quiz.public : true),
         collaborators: v1Quiz.collaborators || [],
         rounds: v2Rounds,
         validation: v1Quiz.validation || []

@@ -39,4 +39,3 @@ userSchema.methods.verifyPassword = function (password) {
 
 // Export model
 export default mongoose.model('User', userSchema);
-

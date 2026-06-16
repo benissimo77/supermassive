@@ -1,5 +1,8 @@
 import { FileDropzone } from './FileDropzone.js';
 
+// Globals - scoped to this module
+let currentUser = null;
+
 function initDashboardQuiz() {
 
 	const createQuizButton = document.getElementById('create-quiz');
@@ -44,13 +47,12 @@ async function fetchQuizzes() {
 		const result = await quizResponse.json();
 		if (!result.success) throw new Error(result.message || 'Failed to fetch quizzes');
 
-		let user = null;
 		if (userResponse.ok) {
 			const userData = await userResponse.json();
-			user = (userData && userData.success && userData.data) ? userData.data.user : null;
+			currentUser = (userData && userData.success && userData.data) ? userData.data.user : null;
 		}
 
-		createQuizList(result.data, user);
+		createQuizList(result.data, currentUser);
 	} catch (error) {
 		console.error('Error fetching quizzes:', error);
 	}
@@ -65,14 +67,13 @@ function createQuizList(quizzes, user) {
 
 	const currentUserId = (user && (user._id)) ? String(user._id) : null;
 
-	const personalQuizzes = quizzes.filter(q => {
-		const ownerId = q.ownerID;
-		return ownerId && String(ownerId) === currentUserId;
+	const personalQuizzes = quizzes.filter(quiz => {
+		return quiz.ownerID && String(quiz.ownerID) === currentUserId;
 	});
 
-	const publicQuizzes = quizzes.filter(q => {
-		const ownerId = q.ownerID;
-		return q.public === true && String(ownerId) !== currentUserId;
+	const publicQuizzes = quizzes.filter(quiz => {
+		const isPublic = quiz.isPublic !== undefined ? quiz.isPublic : quiz.public;
+		return isPublic === true && quiz.ownerID && String(quiz.ownerID) !== currentUserId;
 	});
 
 	if (personalQuizzes.length === 0) {
@@ -117,6 +118,11 @@ function createQuizList(quizzes, user) {
 				starsContainer.appendChild(star);
 			}
 
+			// Set the title and (for admin only - ie me) show if it's public
+			if (isPersonal && currentUser.role === 'admin') {
+				const isPublic = quiz.isPublic !== undefined ? quiz.isPublic : quiz.public;
+				quizItemElement.querySelector('.public-quiz').textContent = isPublic ? 'PUBLIC' : 'PRIVATE';
+			}
 			quizItemElement.querySelector('.quiz-item-title').textContent = quiz.title;
 
 			const deleteBtn = quizItemElement.querySelector('.delete-quiz-item');

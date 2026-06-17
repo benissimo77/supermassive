@@ -75,7 +75,7 @@ const questionValidators = [
                         schemaPath: '#/custom/imageLabelNotEmpty',
                         keyword: 'customImageLabel',
                         params: {},
-                        message: 'Items to match must have a text or image (or both).'
+                        message: 'Items to match (left) must have a text or image (or both).'
                     });
                 }
             });
@@ -86,7 +86,7 @@ const questionValidators = [
                         schemaPath: '#/custom/imageLabelNotEmpty',
                         keyword: 'customImageLabel',
                         params: {},
-                        message: 'Items to match must have a text or image (or both).'
+                        message: 'Items to match (right) must have a text or image (or both).'
                     });
                 }
             });

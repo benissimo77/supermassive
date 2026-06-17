@@ -286,12 +286,16 @@ export const QuestionTypeRegistry = {
             leftList.forEach(row => {
                 const text = row.querySelector('[data-field="left-text"]').value.trim();
                 const image = (row.querySelector('[data-field="order-image"]') || { value: '' }).value.trim();
-                leftItems.push({ text: text || undefined, image: image || undefined });
+                if (text || image) {
+                    leftItems.push({ text: text || undefined, image: image || undefined });
+                }
             });
             rightList.forEach(row => {
                 const text = row.querySelector('[data-field="right-text"]').value.trim();
                 const image = (row.querySelector('[data-field="order-image"]') || { value: '' }).value.trim();
-                rightItems.push({ text: text || undefined, image: image || undefined });
+                if (text || image) {
+                    rightItems.push({ text: text || undefined, image: image || undefined });
+                }
             });
             return { leftItems, rightItems };
         },

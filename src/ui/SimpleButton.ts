@@ -4,8 +4,8 @@ export class SimpleButton extends Phaser.GameObjects.Container {
     declare public scene: BaseScene;
 
     // normalImge and hoverImage are declared as GameObjects to allow flexibility in subclasses (e.g. NineSliceButton)
-    protected normalImage: Phaser.GameObjects.GameObject;
-    protected hoverImage: Phaser.GameObjects.GameObject;
+    protected normalImage: Phaser.GameObjects.Image | Phaser.GameObjects.NineSlice;
+    protected hoverImage: Phaser.GameObjects.Image | Phaser.GameObjects.NineSlice;
     protected text: Phaser.GameObjects.Text;
     protected buttonScale: number = 1;
 
@@ -55,7 +55,7 @@ export class SimpleButton extends Phaser.GameObjects.Container {
         scene.add.existing(this);
     }
 
-    protected createButtonGraphic(textureKey: string, width: number, height: number, initiallyHidden: boolean): Phaser.GameObjects.GameObject {
+    protected createButtonGraphic(textureKey: string, width: number, height: number, initiallyHidden: boolean): Phaser.GameObjects.NineSlice | Phaser.GameObjects.Image {
         const img = this.scene.add.image(0, 0, textureKey).setOrigin(0.5).setDisplaySize(width, height);
         img.setVisible(!initiallyHidden);
         return img;
@@ -95,7 +95,7 @@ export class SimpleButton extends Phaser.GameObjects.Container {
     public setHighlight(): void {
         this.setAlpha(1);
         this.setScale(1.1);
-        this.postFX.addGlow(0xffff00, 1, 3);
+        const fx1 = (this.hoverImage as any).enableFilters()?.filters?.external?.addGlow?.(0xffff00, 1, 3);
     }
     protected adjustTextSize(targetHeight: number): void {
         if (targetHeight < 8) {

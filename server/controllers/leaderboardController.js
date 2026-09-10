@@ -10,7 +10,7 @@ const leaderboardController = {
      */
     async getGlobalLeaderboard(req, res) {
         try {
-            const limit = parseInt(req.query.limit) || 10;
+            const limit = parseInt(req.query.limit) || 20;
             
             // Get sessions that are verified (level 0 or 1)
             const verifiedSessions = await GameSession.find({

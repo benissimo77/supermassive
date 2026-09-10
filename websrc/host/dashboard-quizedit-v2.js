@@ -31,6 +31,7 @@ function initDashboardQuizEdit() {
 	UI.aiSubmitBtn = document.getElementById('ai-submit-btn');
 	UI.aiStatus = document.getElementById('ai-status');
 	UI.aiGenerateBtn = document.getElementById('ai-generate-btn');
+	UI.aiFactCheckBtn = document.getElementById('ai-fact-check-btn');
 
 	// Paste JSON Import
 	UI.pasteJsonBtn = document.getElementById('paste-json-btn');
@@ -63,6 +64,11 @@ function initDashboardQuizEdit() {
 		UI.aiPromptInput.addEventListener('keypress', (e) => {
 			if (e.key === 'Enter') generateAIQuiz();
 		});
+	}
+
+	// --- AI FACT CHECK INTEGRATION ---
+	if (UI.aiFactCheckBtn) {
+		UI.aiFactCheckBtn.addEventListener('click', runAiFactCheck);
 	}
 
 	// Event Delegation
@@ -119,11 +125,13 @@ function initDashboardQuizEdit() {
 		else alert('Save the quiz first!');
 	});
 
-	new Sortable(UI.roundsContainer, {
-		animation: 150,
-		handle: '.card-header',
-		onSort: () => { addRoundQuestionNumbers(); markAsChanged(); }
-	});
+	if (window.Sortable) {
+		new Sortable(UI.roundsContainer, {
+			animation: 150,
+			handle: '.card-header',
+			onSort: () => { addRoundQuestionNumbers(); markAsChanged(); }
+		});
+	}
 
 	loadQuiz();
 
@@ -227,6 +235,10 @@ async function generateAIQuiz() {
 	const prompt = UI.aiPromptInput.value.trim();
 	if (!prompt) return;
 
+	// Capture existing quiz data so AI can append/complement instead of overwrite
+	const existingData = readQuizFromUI();
+	console.log('Sending existing quiz data for merging:', existingData);
+
 	UI.aiSubmitBtn.disabled = true;
 	UI.aiStatus.style.display = 'flex';
 
@@ -234,12 +246,18 @@ async function generateAIQuiz() {
 		const response = await fetch('/api/quiz/generate', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ prompt })
+			body: JSON.stringify({ prompt, existingData })
 		});
 		const result = await response.json();
 		if (result.success) {
 			await writeQuizToUI(result.data);
 			markAsChanged();
+			
+			// If the AI returned validation/warnings, display them
+			if (result.data.validation && result.data.validation.length > 0) {
+				displayValidationErrors(result.data.validation);
+			}
+
 			UI.aiPanel.style.display = 'none';
 			UI.aiPromptInput.value = '';
 		} else {
@@ -251,6 +269,65 @@ async function generateAIQuiz() {
 	} finally {
 		UI.aiSubmitBtn.disabled = false;
 		UI.aiStatus.style.display = 'none';
+	}
+}
+
+async function runAiFactCheck() {
+	// Check for host role
+	let isHost = false;
+	try {
+		const res = await fetch('/auth/me');
+		if (res.ok) {
+			const json = await res.json();
+			const user = (json && json.success && json.data) ? json.data.user : null;
+			isHost = user && (user.role === 'host' || user.role === 'admin');
+		}
+	} catch (e) {
+		console.error('Auth check failed', e);
+	}
+
+	if (!isHost) {
+		alert('AI Fact-Checking is a Host feature. Please verify your email address to unlock this feature.');
+		return;
+	}
+
+	const data = readQuizFromUI();
+
+	UI.aiFactCheckBtn.disabled = true;
+	const originalContent = UI.aiFactCheckBtn.innerHTML;
+	UI.aiFactCheckBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking Facts...';
+
+	try {
+		const response = await fetch('/api/quiz/fact-check', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(data)
+		});
+		const result = await response.json();
+
+		if (result.success && result.data) {
+			displayValidationErrors(result.data.errors);
+
+			const statusEl = document.getElementById('validation-summary');
+			if (statusEl) {
+				if (result.data.valid) {
+					statusEl.textContent = 'AI Fact-Check: All facts verified! 🎉';
+					statusEl.className = 'alert alert-success mt-md';
+				} else {
+					statusEl.textContent = `AI Fact-Check: Found ${result.data.errors.length} potential issues. See ⚠️ icons below.`;
+					statusEl.className = 'alert alert-warning mt-md';
+				}
+				statusEl.style.display = 'block';
+			}
+		} else {
+			alert('AI Fact-Check failed: ' + result.message);
+		}
+	} catch (error) {
+		console.error('Error running AI fact-check:', error);
+		alert('Error communicating with Fact-Check service');
+	} finally {
+		UI.aiFactCheckBtn.disabled = false;
+		UI.aiFactCheckBtn.innerHTML = originalContent;
 	}
 }
 
@@ -404,6 +481,18 @@ function writeQuestionToUI(qEl, data) {
 		aiHelper.querySelector('.ai-search-query').textContent = `Search: ${data.searchQuery || ''}`;
 		aiHelper.querySelector('.ai-reasoning').textContent = data.reasoning || '';
 	}
+
+	// Validation Warning Icon
+	const warningIcon = qEl.querySelector('.validation-warning');
+	if (warningIcon) {
+		if (data.warning) {
+			warningIcon.style.display = 'inline-block';
+			warningIcon.title = data.warning;
+			warningIcon.setAttribute('data-tippy-content', data.warning);
+		} else {
+			warningIcon.style.display = 'none';
+		}
+	}
 }
 
 // --- 2. DOM & EVENT HELPERS ---
@@ -461,12 +550,14 @@ function addRoundToDOM() {
 	setupCollapsible(roundEl.querySelector('.card-header'));
 
 	// Sorting
-	new Sortable(roundEl.querySelector('.questions-container'), {
-		animation: 150,
-		handle: '.drag-handle',
-		group: 'questions',
-		onSort: () => { addRoundQuestionNumbers(); markAsChanged(); }
-	});
+	if (window.Sortable) {
+		new Sortable(roundEl.querySelector('.questions-container'), {
+			animation: 150,
+			handle: '.drag-handle',
+			group: 'questions',
+			onSort: () => { addRoundQuestionNumbers(); markAsChanged(); }
+		});
+	}
 
 	addRoundQuestionNumbers();
 	return roundEl;
@@ -812,18 +903,26 @@ function displayValidationErrors(validationResults) {
 		return;
 	}
 
-	// Create error tracking objects
-	const roundErrors = {};  // Store errors by round index
-	const questionErrors = {}; // Store errors by round and question indices
+	// Create tracking objects for errors and warnings
+	const roundErrors = {};
+	const roundWarnings = {};
+	const questionErrors = {};
+	const questionWarnings = {};
 
 	// Display summary of errors at the top
-	const errorCount = validationResults.length;
+	const errorCount = validationResults.filter(r => r.severity !== 'warning').length;
+	const warningCount = validationResults.filter(r => r.severity === 'warning').length;
 	const errorSummary = document.getElementById('validation-summary');
-	errorSummary.textContent = `Found ${errorCount} error${errorCount > 1 ? 's' : ''}. Please fix before saving.`;
+	
+	let summaryText = '';
+	if (errorCount > 0) summaryText += `Found ${errorCount} error${errorCount > 1 ? 's' : ''}. `;
+	if (warningCount > 0) summaryText += `Found ${warningCount} AI warning${warningCount > 1 ? 's' : ''}. `;
+	errorSummary.textContent = summaryText || 'Validation issues found.';
 	errorSummary.style.display = 'block';
 
 	// Process each error
 	validationResults.forEach(error => {
+		const isWarning = error.severity === 'warning';
 		// Parse the error path to determine where to display the error
 		const path = error.instancePath.split('/');
 
@@ -836,11 +935,14 @@ function displayValidationErrors(validationResults) {
 		} else if (path[0] === 'rounds') {
 			const roundIndex = parseInt(path[1]);
 
-			// Track round errors
-			if (!roundErrors[roundIndex]) {
-				roundErrors[roundIndex] = [];
+			// Track errors/warnings
+			if (isWarning) {
+				if (!roundWarnings[roundIndex]) roundWarnings[roundIndex] = [];
+				roundWarnings[roundIndex].push(error.message);
+			} else {
+				if (!roundErrors[roundIndex]) roundErrors[roundIndex] = [];
+				roundErrors[roundIndex].push(error.message);
 			}
-			roundErrors[roundIndex].push(error.message);
 
 			if (path.length === 2 || path.length === 3) {
 				// Error on the round itself
@@ -849,14 +951,16 @@ function displayValidationErrors(validationResults) {
 			} else if (path[2] === 'questions') {
 				const questionIndex = parseInt(path[3]);
 
-				// Track question errors
-				if (!questionErrors[roundIndex]) {
-					questionErrors[roundIndex] = {};
+				// Track question errors/warnings
+				if (isWarning) {
+					if (!questionWarnings[roundIndex]) questionWarnings[roundIndex] = {};
+					if (!questionWarnings[roundIndex][questionIndex]) questionWarnings[roundIndex][questionIndex] = [];
+					questionWarnings[roundIndex][questionIndex].push(error.message);
+				} else {
+					if (!questionErrors[roundIndex]) questionErrors[roundIndex] = {};
+					if (!questionErrors[roundIndex][questionIndex]) questionErrors[roundIndex][questionIndex] = [];
+					questionErrors[roundIndex][questionIndex].push(error.message);
 				}
-				if (!questionErrors[roundIndex][questionIndex]) {
-					questionErrors[roundIndex][questionIndex] = [];
-				}
-				questionErrors[roundIndex][questionIndex].push(error.message);
 
 				// Display error in the question
 				const field = path.length > 4 ? path[4] : null;
@@ -865,19 +969,19 @@ function displayValidationErrors(validationResults) {
 		}
 	});
 
-	// Add warning icons to rounds with errors
-	Object.keys(roundErrors).forEach(roundIndex => {
-		addRoundErrorIndicator(parseInt(roundIndex), roundErrors[roundIndex].length);
-	});
+	// Add indicators to rounds
+	Object.keys(roundErrors).forEach(roundIndex => addRoundErrorIndicator(parseInt(roundIndex), roundErrors[roundIndex].length));
+	Object.keys(roundWarnings).forEach(roundIndex => addRoundWarningIndicator(parseInt(roundIndex), roundWarnings[roundIndex].length));
 
-	// Add warning icons to questions with errors
+	// Add indicators to questions
 	Object.keys(questionErrors).forEach(roundIndex => {
 		Object.keys(questionErrors[roundIndex]).forEach(questionIndex => {
-			addQuestionErrorIndicator(
-				parseInt(roundIndex),
-				parseInt(questionIndex),
-				questionErrors[roundIndex][questionIndex].length
-			);
+			addQuestionErrorIndicator(parseInt(roundIndex), parseInt(questionIndex), questionErrors[roundIndex][questionIndex].length);
+		});
+	});
+	Object.keys(questionWarnings).forEach(roundIndex => {
+		Object.keys(questionWarnings[roundIndex]).forEach(questionIndex => {
+			addQuestionWarningIndicator(parseInt(roundIndex), parseInt(questionIndex), questionWarnings[roundIndex][questionIndex].join(', '));
 		});
 	});
 }

@@ -29,7 +29,7 @@ Your goal is to create a quiz that is engaging, challenging, and 100% factually 
 
 ### TECHNICAL SPECIFICATION:
 Your output MUST strictly adhere to the following JSON Schema. Pay close attention to required fields for each question type:
-\${JSON.stringify(quizSchemaFile, null, 2)}
+${JSON.stringify(quizSchemaFile, null, 2)}
 
 ### STRUCTURE & DEFAULTS:
 - Unless specified otherwise, generate **3 rounds** with **5-8 questions** per round.
@@ -186,7 +186,87 @@ const QUIZ_SCHEMA = {
     }
 };
 
-export async function generateQuizFromAI(userPrompt) {
+const AUDIT_SCHEMA = {
+    name: "quiz_audit",
+    strict: true,
+    schema: {
+        type: "object",
+        properties: {
+            corrections: {
+                type: "array",
+                items: {
+                    type: "object",
+                    properties: {
+                        roundIndex: { type: "number" },
+                        questionIndex: { type: "number" },
+                        action: { type: "string", enum: ["update", "remove", "warn"] },
+                        verification: { 
+                            type: "string", 
+                            description: "Step-by-step verification of the facts in this question. Prove why it is correct or incorrect." 
+                        },
+                        reason: { type: "string" },
+                        updatedQuestion: { 
+                            anyOf: [
+                                {
+                                    type: "object",
+                                    properties: {
+                                        type: { type: "string", enum: QUESTION_TYPE_ENUM },
+                                        text: { type: "string" },
+                                        options: { type: "array", items: { type: "string" } },
+                                        answer: { type: ["string", "number", "null"] },
+                                        searchQuery: { type: "string" },
+                                        imageDescription: { type: "string" },
+                                        reasoning: { type: "string" },
+                                        items: { type: "array", items: { type: "string" } },
+                                        extra: {
+                                            type: "object",
+                                            properties: {
+                                                startLabel: { type: "string" },
+                                                endLabel: { type: "string" }
+                                            },
+                                            required: ["startLabel", "endLabel"],
+                                            additionalProperties: false
+                                        },
+                                        pairs: {
+                                            type: "array",
+                                            items: {
+                                                type: "object",
+                                                properties: {
+                                                    left: { type: "string" },
+                                                    right: { type: "string" }
+                                                },
+                                                required: ["left", "right"],
+                                                additionalProperties: false
+                                            }
+                                        }
+                                    },
+                                    required: [
+                                        "type", "text", "options", "answer", "searchQuery", 
+                                        "imageDescription", "reasoning", "items", "extra", "pairs"
+                                    ],
+                                    additionalProperties: false
+                                },
+                                { type: "null" }
+                            ],
+                            description: "The full corrected question object. Only required if action is 'update'."
+                        }
+                    },
+                    required: ["roundIndex", "questionIndex", "action", "verification", "reason", "updatedQuestion"],
+                    additionalProperties: false
+                }
+            }
+        },
+        required: ["corrections"],
+        additionalProperties: false
+    }
+};
+
+export async function generateQuizFromAI(userPrompt, existingQuiz = null) {
+    console.log('generateQuizFromAI called with prompt:', userPrompt);
+    if (existingQuiz) {
+        console.log('Existing quiz received:', !!existingQuiz, 'Rounds:', existingQuiz.rounds?.length);
+    }
+    
     // Fallback for development if API key is missing or for testing UI
     if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY.startsWith('your-')) {
         console.warn("OpenAI API Key missing or invalid. Returning mock data.");
@@ -194,40 +274,57 @@ export async function generateQuizFromAI(userPrompt) {
     }
 
     try {
+        const messages = [
+            { role: "system", content: SYSTEM_PROMPT },
+            { role: "user", content: `Generate quiz content based on this request: ${userPrompt}. 
+            
+            CONTEXT: The user is in a quiz editor. 
+            - If they ask to "add a round", generate exactly one round. 
+            - If they don't specify counts, default to 1 round of 5 questions. 
+            - Always follow specific counts mentioned in their prompt (e.g. "3 questions" or "2 rounds") over the defaults.
+            - IMPORTANT: Generate 2 EXTRA questions per round as "spares". These will be used to filter out any low-quality or trivially easy questions.` }
+        ];
+
+        if (existingQuiz && (existingQuiz.rounds?.length > 0 || existingQuiz.title)) {
+            messages.push({
+                role: "assistant",
+                content: `The current quiz structure is:
+Title: ${existingQuiz.title}
+Description: ${existingQuiz.description}
+Rounds: ${existingQuiz.rounds?.map(r => `"${r.title}" (${r.questions?.length || 0} questions)`).join(', ')}
+
+Please ensure your new content COMPLEMENTS this existing data. 
+- If the user asks for new rounds, ensure they don't duplicate existing ones.
+- If the user asks for more questions, you can return a round with the SAME TITLE as an existing one, and I will merge the new questions into it.`
+            });
+        }
+
         const response = await openai.chat.completions.create({
-            model: "gpt-4o-mini", // Switched to mini: 20x cheaper and faster, usually avoids tier-1 rate limits
-            messages: [
-                { role: "system", content: SYSTEM_PROMPT },
-                { role: "user", content: `Generate quiz content based on this request: ${userPrompt}. 
-                
-                CONTEXT: The user is in a quiz editor. 
-                - If they ask to "add a round", generate exactly one round. 
-                - If they don't specify counts, default to 1 round of 5 questions. 
-                - Always follow specific counts mentioned in their prompt (e.g. "3 questions" or "2 rounds") over the defaults.
-                - IMPORTANT: Generate 2 EXTRA questions per round as "spares". These will be used to filter out any low-quality or trivially easy questions.` }
-            ],
+            model: "gpt-4o-mini", // Switched to mini: 20x cheaper and faster
+            messages: messages,
             response_format: { 
                 type: "json_schema",
                 json_schema: QUIZ_SCHEMA
             }
         });
 
-        const content = JSON.parse(response.choices[0].message.content);
+        const newContent = JSON.parse(response.choices[0].message.content);
 
         // --- DOUBLE-CHECK PIPELINE ---
-        const corrections = await validateQuizWithAI(content);
+        const validationResult = await validateQuizWithAI(newContent, { hasSpares: true });
+        const { corrections } = validationResult;
         
         // Apply corrections in reverse order to avoid index shifting if we remove items
         const toRemove = [];
         
         corrections.forEach(correction => {
             const { roundIndex, questionIndex, action, updatedQuestion, reason } = correction;
-            if (content.rounds[roundIndex] && content.rounds[roundIndex].questions[questionIndex]) {
-                const question = content.rounds[roundIndex].questions[questionIndex];
+            if (newContent.rounds[roundIndex] && newContent.rounds[roundIndex].questions[questionIndex]) {
+                const question = newContent.rounds[roundIndex].questions[questionIndex];
                 
                 if (action === 'update' && updatedQuestion) {
                     console.log(`AI Fact-Check: Updating question ${questionIndex} in round ${roundIndex}`);
-                    content.rounds[roundIndex].questions[questionIndex] = updatedQuestion;
+                    newContent.rounds[roundIndex].questions[questionIndex] = updatedQuestion;
                 } else if (action === 'remove') {
                     console.log(`AI Fact-Check: Flagging question ${questionIndex} in round ${roundIndex} for removal: ${reason}`);
                     toRemove.push({ roundIndex, questionIndex });
@@ -240,188 +337,182 @@ export async function generateQuizFromAI(userPrompt) {
 
         // Remove flagged questions
         toRemove.sort((a, b) => b.questionIndex - a.questionIndex).forEach(item => {
-            content.rounds[item.roundIndex].questions.splice(item.questionIndex, 1);
+            newContent.rounds[item.roundIndex].questions.splice(item.questionIndex, 1);
         });
 
         // Post-process to ensure schema compliance and add heuristic warnings
-        if (content.rounds) {
-            // Try to determine the "intended" question count to trim spares if they weren't removed
-            const countMatch = userPrompt.match(/(\d+)\s*questions?/i);
-            const targetCount = countMatch ? parseInt(countMatch[1]) : null;
+        if (newContent.rounds) {
+            newContent.rounds.forEach(round => {
+                if (!round.roundTimer) round.roundTimer = "0";
+                if (!round.showAnswer) round.showAnswer = "round";
+                if (!round.updateScores) round.updateScores = "round";
+                if (!round.questions) round.questions = [];
 
-            content.rounds.forEach(round => {
-                // Trim spares if we still have too many (and we have a clear target or we're over the default max)
-                if (targetCount && round.questions.length > targetCount) {
-                    round.questions = round.questions.slice(0, targetCount);
-                } else if (!targetCount && round.questions.length > 8) {
-                    // Default max is 8
-                    round.questions = round.questions.slice(0, 8);
-                }
-
-                // Ensure round defaults
-                round.roundTimer = String(round.roundTimer || "0");
-                round.showAnswer = round.showAnswer || "round";
-                round.updateScores = round.updateScores || "round";
-
-                if (round.questions) {
-                    round.questions.forEach(q => {
-                        // Ensure basic fields
-                        q.searchQuery = q.searchQuery || "";
-                        q.imageDescription = q.imageDescription || "";
-                        q.reasoning = q.reasoning || "";
-                        q.video = q.video || "";
-                        q.audio = q.audio || "";
-
-                        // --- HEURISTIC WARNINGS ---
-                        const warnings = [];
-                        if (q.warning) warnings.push(q.warning);
-
-                        // 1. Too many media types
-                        let mediaCount = 0;
-                        if (q.imageDescription || q.searchQuery) mediaCount++;
-                        if (q.video) mediaCount++;
-                        if (q.audio) mediaCount++;
-                        if (mediaCount > 2) {
-                            warnings.push("This question has multiple media types (Image, Video, Audio). This might be overwhelming for players.");
-                        }
-
-                        // 2. Long multiple choice options
-                        if (q.type === 'multiple-choice' && q.options) {
-                            const longOption = q.options.find(opt => opt.length > 50);
-                            if (longOption) {
-                                warnings.push("One or more multiple-choice options are very long (>50 chars). They might not display well on mobile.");
-                            }
-                        }
-
-                        // 3. Ambiguous text answers
-                        if (q.type === 'text' && q.answer && q.answer.length > 20) {
-                            warnings.push("The text answer is quite long. Consider changing to multiple-choice to avoid player frustration with typos.");
-                        }
-
-                        if (warnings.length > 0) {
-                            q.warning = warnings.join(" | ");
-                        }
-
-                        // Type-specific fixes and defaults
-                        switch (q.type) {
-                            case 'multiple-choice':
-                                if (q.options && q.options.length > 0) {
-                                    // If AI provided an answer string, try to find it in options
-                                    if (q.answer) {
-                                        const index = q.options.findIndex(opt => String(opt).toLowerCase() === String(q.answer).toLowerCase());
-                                        if (index !== -1) {
-                                            // Move the correct answer to the first slot if it's not already there
-                                            const correctOpt = q.options.splice(index, 1)[0];
-                                            q.options.unshift(correctOpt);
-                                        }
-                                    }
-                                    // Always set answer to the first option to match schema expectation
-                                    q.answer = q.options[0];
-                                }
-                                break;
-                            case 'true-false':
-                                q.answer = String(q.answer || "true").toLowerCase();
-                                if (q.answer !== 'true' && q.answer !== 'false') q.answer = 'true';
-                                break;
-                            case 'text':
-                                q.answer = String(q.answer || "");
-                                break;
-                            case 'number-exact':
-                            case 'number-closest':
-                            case 'number-average':
-                                q.answer = q.answer !== undefined ? Number(q.answer) : 0;
-                                break;
-                            case 'ordering':
-                                q.items = q.items || [];
-                                q.extra = q.extra || {};
-                                // Handle both 'start' and 'startLabel' just in case AI uses the wrong one
-                                q.extra.startLabel = q.extra.startLabel || q.extra.start || "Start";
-                                q.extra.endLabel = q.extra.endLabel || q.extra.end || "End";
-                                break;
-                            case 'matching':
-                                q.pairs = q.pairs || [];
-                                // If AI used different keys (e.g., "term"/"definition"), try to salvage them
-                                q.pairs = q.pairs.map(p => {
-                                    const keys = Object.keys(p);
-                                    return {
-                                        left: p.left || p[keys[0]] || "",
-                                        right: p.right || p[keys[1]] || ""
-                                    };
-                                });
-                                break;
-                            case 'hotspot':
-                                q.answer = q.answer || null;
-                                break;
-                            case 'point-it-out':
-                                q.answer = q.answer || null;
-                                break;
-                        }
-                    });
-                }
+                round.questions.forEach(question => {
+                    if (!question.options) question.options = [];
+                    if (question.answer === undefined) question.answer = null;
+                    if (!question.searchQuery) question.searchQuery = "";
+                    if (!question.imageDescription) question.imageDescription = "";
+                    if (!question.reasoning) question.reasoning = "";
+                    if (!question.items) question.items = [];
+                    if (!question.extra) {
+                        question.extra = { startLabel: "", endLabel: "" };
+                    }
+                    if (!question.pairs) question.pairs = [];
+                    
+                    if (question.type === 'multiple-choice' && question.options.length > 0 && !question.answer) {
+                        question.answer = question.options[0];
+                    }
+                });
             });
         }
 
-        return content;
-    } catch (error) {
-        console.error("Error generating quiz with AI:", error);
-        
-        // If it's a rate limit or quota error, and we are in dev, return mock data so the user can see the UI
-        if (error.status === 429 || error.message.includes('quota')) {
-            console.log("Returning mock data due to OpenAI Quota/Rate Limit.");
-            return getMockQuiz(userPrompt);
+        // --- MERGE LOGIC ---
+        let mergedQuiz = null;
+        if (existingQuiz) {
+            mergedQuiz = JSON.parse(JSON.stringify(existingQuiz));
+            if (!mergedQuiz.rounds) mergedQuiz.rounds = [];
+
+            if (newContent.rounds) {
+                newContent.rounds.forEach(newRound => {
+                    const existingRound = mergedQuiz.rounds.find(r => 
+                        r.title && newRound.title && r.title.trim().toLowerCase() === newRound.title.trim().toLowerCase()
+                    );
+
+                    if (existingRound) {
+                        if (!existingRound.questions) existingRound.questions = [];
+                        if (newRound.questions) {
+                            existingRound.questions.push(...newRound.questions);
+                        }
+                    } else {
+                        mergedQuiz.rounds.push(newRound);
+                    }
+                });
+            }
         }
         
+        // Final quiz data to return
+        const finalQuiz = !existingQuiz ? newContent : mergedQuiz;
+
+        // --- ATTACH VALIDATION INFO ---
+        // We need to re-validate the merged final quiz structure to provide accurate path-based messages
+        const finalValidation = await validateQuizWithAI(finalQuiz);
+        
+        // Convert paths for the frontend - since this is a new generation, we want the warnings to show
+        finalQuiz.validation = finalValidation.errors || [];
+        
+        // Also manually inject warning text into question objects for the ⚠️ icon logic in dashboard-quizedit-v2.js
+        finalValidation.errors.forEach(err => {
+            const path = err.instancePath.split('/');
+            if (path[1] === 'rounds' && path[3] === 'questions') {
+                const rIdx = parseInt(path[2]);
+                const qIdx = parseInt(path[4]);
+                if (finalQuiz.rounds[rIdx] && finalQuiz.rounds[rIdx].questions[qIdx]) {
+                    finalQuiz.rounds[rIdx].questions[qIdx].warning = err.message;
+                }
+            }
+        });
+        
+        return finalQuiz;
+    } catch (error) {
+        console.error('Error merging quiz data:', error);
         throw error;
     }
 }
 
 /**
  * Performs a second pass on the generated quiz to fact-check and validate questions.
+ * This can be used for any quiz, whether AI-generated or manually created.
  */
-async function validateQuizWithAI(quizData) {
+export async function validateQuizWithAI(quizData, options = {}) {
+    const { hasSpares = false } = options;
     console.log('AI Fact-Check: Starting validation pass...');
     
     const validationPrompt = `
-    You are a Fact-Checking Editor for a high-stakes trivia show. 
-    Your job is to review the following quiz questions and ensure they are 100% accurate and follow the rules.
+    You are a professional Fact-Checking Editor for a high-stakes television trivia show like "The Chase" or "Who Wants to Be a Millionaire?". 
+    Your goal is to ensure 100% factual accuracy and high quality. We cannot afford to have a wrong answer in a live game.
 
-    RULES:
-    1. If a question is factually incorrect, substitute the correct answer.
-    2. If a 'text' question has an answer that is too long or ambiguous, change it to a 'multiple-choice' question or simplify the answer.
-    3. If a question is nonsensical, cannot be verified, or is TRIVIALLY EASY (e.g. the answer is in the question, or it's common knowledge like "What color is the sky?"), mark it as 'remove'.
-    4. If a question is technically correct but might be confusing, subjective, or "clunky", mark it as 'warn' and provide a reason.
-    5. Ensure 'multiple-choice' options are plausible but that the first option is definitively the only correct one.
-    6. TAUTOLOGY CHECK: If a question contains the answer within itself (e.g. "What is the real name of the composer known as 'Beethoven'?"), it MUST be marked as 'remove'.
-    7. SPARE QUESTIONS: You have been provided with extra questions per round. If a question is weak, too easy, or redundant, prefer 'remove' over 'update'. The goal is to leave only the best, most high-quality questions.
+    ### MISSION:
+    Review the following quiz data for errors. Be strict, skeptical, and thorough.
+
+    ### CRITICAL RULES:
+    1. FACTUAL ACCURACY: Every question and answer must be 100% correct. If a date, name, or fact is wrong, you MUST fix it.
+    2. MULTIPLE-CHOICE: The first option (index 0) MUST be the correct answer. The "answer" field must also match this first option.
+    3. ORDERING: The "items" array MUST be provided in the CORRECT sequence.
+    4. MATCHING: The "pairs" array MUST contain correct matches (left matched to right).
+    5. COORDINATE BLINDNESS: For 'hotspot' and 'point-it-out', you cannot see the image. Do NOT attempt to 'fix' numerical coordinates (the "answer" field for these types). Focus only on whether the 'imageDescription' and 'text' create a logical, solvable task.
+    6. VISUAL CONSISTENCY: For questions that refer to an image (e.g., "Who is this?"), verify that the 'imageDescription' matches the 'answer'. If the description is of "Tom Hancock" but the answer is "Tom Cruise", fix the inconsistency.
+    7. TAUTOLOGY: Remove questions that contain the answer (e.g. "In which country is the French Riviera?"). Action='remove'.
+    8. AMBIGUITY: If a 'text' question has an answer that is too long or easily mis-spelt, change it to 'multiple-choice' with plausible distractors.
+    9. QUALITY: Identify questions that are too easy, poorly phrased, or boring. Use action='warn' or 'remove' depending on severity.
+    
+    ### VERIFICATION PROCESS:
+    For EVERY question, you must:
+    1. Independently verify the facts. Do not assume the provided answer is correct.
+    2. Check if the distractors (wrong options) are actually wrong.
+    3. Only suggest an 'update' if you can improve the factual accuracy or technical structure.
+    4. If the question is already 100% perfect, DO NOT include it in your output.
+
+    SPARES/FILTERING:
+    ${hasSpares ? "You have been provided with extra questions per round. Be ruthless and 'remove' any question that isn't excellent." : "This is an existing quiz. Only 'remove' if the question is unfixable or completely factually wrong. Prefer 'update' or 'warn' for fixable issues."}
 
     OUTPUT:
-    Return a JSON object with a "corrections" array. Each correction should have:
-    - "roundIndex": index of the round
-    - "questionIndex": index of the question
-    - "action": "update", "remove", or "warn"
-    - "updatedQuestion": (only if action is "update") the full question object with fixes.
-    - "reason": (required for "warn" or "remove") a short explanation of why this action was taken.
-
-    QUIZ DATA:
-    \${JSON.stringify(quizData)}
+    Return an array of 'corrections'. 
+    - action: 'update', 'remove', or 'warn'.
+    - verification: Describe your verification steps (e.g., "I checked the date of the Titanic sinking; it was April 15, 1912. The provided answer was correct.").
+    - reason: Explain exactly what was wrong if you are updating/removing.
+    - updatedQuestion: The FULL question object with your fixes (null if not updating).
     `;
 
     try {
         const response = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
+            model: "gpt-4o", // Upgraded to gpt-4o for superior fact-checking and reasoning
             messages: [
-                { role: "system", content: "You are a strict fact-checking editor. Output only valid JSON." },
-                { role: "user", content: validationPrompt }
+                { role: "system", content: "You are a strict fact-checking editor. You take pride in catching errors that others miss. Always output valid JSON." },
+                { role: "user", content: `${validationPrompt}\n\nQUIZ DATA:\n${JSON.stringify(quizData)}` }
             ],
-            response_format: { type: "json_object" }
+            response_format: { 
+                type: "json_schema", 
+                json_schema: AUDIT_SCHEMA 
+            }
         });
 
         const result = JSON.parse(response.choices[0].message.content);
-        console.log(`AI Fact-Check: Found \${result.corrections?.length || 0} potential issues.`);
-        return result.corrections || [];
+        const corrections = result.corrections || [];
+        
+        console.log(`AI Fact-Check: Found ${corrections.length} potential issues.`);
+        
+        corrections.forEach(c => {
+            console.log(`- Question [${c.roundIndex}:${c.questionIndex}] (${c.action.toUpperCase()}): ${c.reason}`);
+            console.log(`  Verification: ${c.verification}`);
+        });
+
+        // Map corrections to the frontend validation format (AJV style)
+        const validationResults = corrections.map(c => {
+            return {
+                instancePath: `/rounds/${c.roundIndex}/questions/${c.questionIndex}`,
+                message: `AI Fact Check (${c.action.toUpperCase()}): ${c.reason}`,
+                keyword: `ai-fact-check-${c.action}`,
+                params: { 
+                    action: c.action, 
+                    reason: c.reason,
+                    verification: c.verification,
+                    updatedQuestion: c.updatedQuestion 
+                },
+                // Add a custom property for the UI to distinguish severity
+                severity: c.action === 'remove' ? 'error' : 'warning'
+            };
+        });
+
+        return {
+            valid: validationResults.length === 0,
+            errors: validationResults, // Standard field for UI
+            corrections: corrections   // Raw field for generator
+        };
+
     } catch (error) {
         console.error("AI Fact-Check failed:", error);
-        return []; // Continue with original data if validation fails
+        return { valid: true, errors: [], corrections: [] }; 
     }
 }
 

@@ -38,6 +38,63 @@ function addItemRow(listEl, side, item = {}, textFieldName = '') {
 }
 
 export const QuestionTypeRegistry = {
+    'multiple-choice': {
+        label: 'Players select an answer from the provided options',
+        render: (container) => {
+            container.innerHTML = `
+                <div class="form-group mb-md">
+                    <label>Options (first option is the correct one):</label>
+                    <div class="flex flex-col gap-xs">
+                        <input class="question-field" type="text" data-field="option-1" placeholder="Correct answer">
+                        <input class="question-field" type="text" data-field="option-2" placeholder="Wrong option">
+                        <input class="question-field" type="text" data-field="option-3" placeholder="Wrong option">
+                        <input class="question-field" type="text" data-field="option-4" placeholder="Wrong option">
+                        <hr class="options-separator">
+                        <input class="question-field" type="text" data-field="option-5" placeholder="Extra option (optional)">
+                        <input class="question-field" type="text" data-field="option-6" placeholder="Extra option (optional)">
+                        <input class="question-field" type="text" data-field="option-7" placeholder="Extra option (optional)">
+                        <input class="question-field" type="text" data-field="option-8" placeholder="Extra option (optional)">
+                    </div>
+                </div>
+            `;
+        },
+        serialize: (container) => {
+            const options = [];
+            for (let i = 1; i <= 8; i++) {
+                const val = container.querySelector(`[data-field="option-${i}"]`).value.trim();
+                if (val) options.push(val);
+            }
+            return { options };
+        },
+        deserialize: (container, data) => {
+            const options = data.options || [];
+            for (let i = 1; i <= 8; i++) {
+                container.querySelector(`[data-field="option-${i}"]`).value = options[i - 1] || '';
+            }
+        }
+    },
+
+    'true-false': {
+        label: 'Only two possible answers here...',
+        render: (container) => {
+            container.innerHTML = `
+                <div class="form-group">
+                    <label>Answer:</label>
+                    <select data-field="answer">
+                        <option value="true">True</option>
+                        <option value="false">False</option>
+                    </select>
+                </div>
+            `;
+        },
+        serialize: (container) => ({
+            answer: container.querySelector('[data-field="answer"]').value
+        }),
+        deserialize: (container, data) => {
+            container.querySelector('[data-field="answer"]').value = String(data.answer);
+        }
+    },
+
     'text': {
         label: 'Basic question - players type the answer via an on-screen keyboard',
         render: (container) => {
@@ -113,62 +170,6 @@ export const QuestionTypeRegistry = {
         }
     },
 
-    'multiple-choice': {
-        label: 'Players select an answer from the provided options',
-        render: (container) => {
-            container.innerHTML = `
-                <div class="form-group mb-md">
-                    <label>Options (first option is the correct one):</label>
-                    <div class="flex flex-col gap-xs">
-                        <input class="question-field" type="text" data-field="option-1" placeholder="Correct answer">
-                        <input class="question-field" type="text" data-field="option-2" placeholder="Wrong option">
-                        <input class="question-field" type="text" data-field="option-3" placeholder="Wrong option">
-                        <input class="question-field" type="text" data-field="option-4" placeholder="Wrong option">
-                        <hr class="options-separator">
-                        <input class="question-field" type="text" data-field="option-5" placeholder="Extra option (optional)">
-                        <input class="question-field" type="text" data-field="option-6" placeholder="Extra option (optional)">
-                        <input class="question-field" type="text" data-field="option-7" placeholder="Extra option (optional)">
-                        <input class="question-field" type="text" data-field="option-8" placeholder="Extra option (optional)">
-                    </div>
-                </div>
-            `;
-        },
-        serialize: (container) => {
-            const options = [];
-            for (let i = 1; i <= 8; i++) {
-                const val = container.querySelector(`[data-field="option-${i}"]`).value.trim();
-                if (val) options.push(val);
-            }
-            return { options };
-        },
-        deserialize: (container, data) => {
-            const options = data.options || [];
-            for (let i = 1; i <= 8; i++) {
-                container.querySelector(`[data-field="option-${i}"]`).value = options[i - 1] || '';
-            }
-        }
-    },
-
-    'true-false': {
-        label: 'Only two possible answers here...',
-        render: (container) => {
-            container.innerHTML = `
-                <div class="form-group">
-                    <label>Answer:</label>
-                    <select data-field="answer">
-                        <option value="true">True</option>
-                        <option value="false">False</option>
-                    </select>
-                </div>
-            `;
-        },
-        serialize: (container) => ({
-            answer: container.querySelector('[data-field="answer"]').value
-        }),
-        deserialize: (container, data) => {
-            container.querySelector('[data-field="answer"]').value = String(data.answer);
-        }
-    },
 
     'ordering': {
         label: 'Players drag items into the correct order',

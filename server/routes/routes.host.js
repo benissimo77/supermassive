@@ -8,7 +8,7 @@ const router = express.Router({ strict: true });
 const isAuth = (req, res, next) => {
 	// console.log('isAuth:', req.user, req.session, req.isAuthenticated());
 	if (req.isAuthenticated()) {
-		console.log('routes.host.isAuth:: User is authenticated:', req.user);
+		console.log('routes.host.isAuth:: User is authenticated:', req.user.email);
 		next();
 	} else {
 		// res.status(401).json({ msg: 'You are not authorized to view this resource' });
@@ -73,9 +73,8 @@ router.get('/', (req, res) => {
 // Generates a room and redirects to the Stage
 // Host is redirected to /host/:room/:game and their activeRoom is saved for the Producer to follow.
 router.get('/:game/start', async (req, res) => {
-	const { q } = req.query;
-	// Handle both seasonID and seasonId casing
-	const seasonID = req.query.seasonID || req.query.seasonId;
+	const q = req.query.q;
+	const seasonID = req.query.s;
 	const game = req.params.game;
 
 	console.log('routes.host:: /:game/start - starting game:', game, 'Quiz:', q, 'Season:', seasonID);

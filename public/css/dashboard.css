@@ -418,7 +418,7 @@ main {
   border: 1px solid var(--clr-card-border);
   border-radius: var(--radius-md);
   margin: var(--space-xl) 0;
-  overflow: hidden;
+  /* overflow: hidden removed to allow leaderboard avatars to break out */
   transition: all 0.2s ease;
 }
 
@@ -435,6 +435,8 @@ main {
   cursor: grab;
   list-style: none; /* Remove default summary arrow */
   border-bottom: 1px solid var(--clr-card-header-border);
+  border-top-left-radius: var(--radius-md);
+  border-top-right-radius: var(--radius-md);
 }
 
 .card-header::-webkit-details-marker {
@@ -762,6 +764,7 @@ table.leaderboard thead th {
 }
 
 table.leaderboard tbody tr {
+	height: 48px;
 	border-bottom: 1px solid var(--clr-card-header-border);
 	transition: background 0.15s;
 }
@@ -790,6 +793,7 @@ table.leaderboard tbody tr[data-rank="3"] {
 table.leaderboard td {
 	padding: 0.55rem 0.75rem;
 	vertical-align: middle;
+	position: relative; /* Added relative here to allow children to anchor */
 }
 
 /* Column helpers */
@@ -812,10 +816,13 @@ table.leaderboard td {
 
 .lb-avatar img {
 	width: 32px;
-	height: 32px;
-	border-radius: 50%;
-	object-fit: cover;
+	height: auto;
 	display: block;
+	position: absolute;
+	bottom: 0;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 10; /* Ensure tall avatars overlap previous rows */
 }
 
 .lb-name {

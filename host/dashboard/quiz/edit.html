@@ -41,6 +41,11 @@
 						AI Generate
 						<span data-role="guest" data-role-max="guest" class="button-badge">HOST ONLY</span>
 					</button>
+					<button data-role="admin" id="ai-fact-check-btn" class="btn btn-secondary" style="background-color: #27ae60; color: white; border: none; position: relative;">
+						<i class="fa-solid fa-check-double"></i>
+						AI Fact-Check
+						<span data-role="guest" data-role-max="guest" class="button-badge">HOST ONLY</span>
+					</button>
 					<button id="host-quiz" class="btn btn-accent">
 						<i class="fa-solid fa-play"></i>
 						Host Quiz
@@ -61,7 +66,7 @@
 					<p class="mb-sm">Describe the quiz you want to create (e.g., "A 3-round quiz about 80s movies" or "Add a round about space").</p>
 					
 					<div class="flex gap-sm">
-						<input type="text" id="ai-prompt-input" placeholder="Enter your quiz idea..." style="flex-grow: 1;">
+						<textarea id="ai-prompt-input" placeholder="Enter your quiz idea..." style="flex-grow: 1;"></textarea>
 						<button id="ai-submit-btn" class="btn btn-primary" style="background-color: #8e44ad;">
 							<i class="fa-solid fa-wand-magic-sparkles"></i>
 							Generate

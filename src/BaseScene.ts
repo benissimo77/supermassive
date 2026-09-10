@@ -193,7 +193,10 @@ export abstract class BaseScene extends Phaser.Scene {
         } else {
             const enableWakeLock = () => {
                 this.requestWakeLock();
-                this.requestFullscreenPortrait();
+                // Playtesting going fullscreen not so useful
+                // If playing on a laptop user wants to be able to switch tabs easily
+                // On phones its only marginally useful - maybe just ignore...
+                // this.requestFullscreenPortrait();
                 this.game.canvas.removeEventListener('click', enableWakeLock);
                 this.game.canvas.removeEventListener('touchend', enableWakeLock);
             };
@@ -224,16 +227,15 @@ export abstract class BaseScene extends Phaser.Scene {
         }
 
         console.log('SocketManager: initPingTest registering handler, socketId:', this.socket?.id);
-        this.onServerPing = (data: any, callback: Function) => {
-            const device = this.getDeviceType();
-            console.log('Responding to ping test from server, device:', device);
-            callback({ device, received: Date.now() });
+        this.onServerPing = (data: any) => {
+            console.log('Responding to ping test from server');
+            this.socket.emit('client:pong', data.timestamp);
         };
         this.socket.off('server:ping', this.onServerPing);
         this.socket.on('server:ping', this.onServerPing);
     }
 
-    private getDeviceType(): string {
+    protected getDeviceType(): string {
         // Determine device type
         let device = 'unknown';
 

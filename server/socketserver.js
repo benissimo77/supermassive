@@ -2,6 +2,10 @@ import { Server } from 'socket.io';
 import { instrument } from '@socket.io/admin-ui';
 import { sessionMiddleware } from './app.js';
 import { Room } from './room.js';
+import eventLoopLag from 'event-loop-lag';
+
+// Set up event loop lag monitoring (used inside the ping interval to track server responsiveness)
+const lag = eventLoopLag(1000);
 
 export default function createSocketServer(server) {
 	// Initialize Socket.IO
@@ -22,8 +26,9 @@ export default function createSocketServer(server) {
 		sessionMiddleware(socket.request, {}, next);
 	});
 
-	// Used by the Admin UI
+	// Initialization for the Admin UI (note password must be encrypted)
 	instrument(io, {
+		mode: 'development',
 		auth: process.env.NODE_ENV === 'production' ? {
 			type: "basic",
 			username: process.env.ADMIN_USERNAME,
@@ -71,6 +76,12 @@ export default function createSocketServer(server) {
 			io.emit('connection', 'Caught results:', results);
 		});
 
+		// Experiment with tapping directly into socketIO pingpong system
+		// Doesn't work well - no way to get enough data to measure latency...
+		socket.conn.on("packet", (packet) => {
+			// console.log('Received packet:', packet);
+		});
+
 		// Identify the user and their room
 		const userObj = identifyUser(socket);
 
@@ -86,7 +97,7 @@ export default function createSocketServer(server) {
 			s.save();
 		}
 
-		console.log(`Socket connected [${socket.id}] as ${userObj.name} in room ${userObj.room} (${userObj.role})`);
+		console.log(`>>> Socket connected [${socket.id}] as ${userObj.name} in room ${userObj.room} (${userObj.role}) Transport: ${socket.conn.transport.name}`);
 
 		// Create or get the room
 		if (!rooms[userObj.room]) {
@@ -103,73 +114,27 @@ export default function createSocketServer(server) {
 		console.log('io.disconnect:', socket.id);
 	});
 
-	// Simple storage for ping results
-	const pingResults = [];
+	// Keeping the below code as a sample of how to integrate into admin UI
+	// try {
+	// 	const adminNs = io.of('/admin'); // admin namespace created by instrument()
+	// 	adminNs.emit('server:ping-result', {
+	// 		socketId: result.socketId,
+	// 		device: result.device,
+	// 		roundTripTime: result.roundTripTime,
+	// 		timestamp: result.timestamp,
+	// 		room: result.room
+	// 	});
+	// } catch (e) {
+	// 	console.warn('Could not emit to admin namespace:', e);
+	// }
 
-	// Ping all connected clients periodically
-	setInterval(async () => {
-		try {
-			// Get all connected sockets
-			const sockets = await io.fetchSockets();
-
-			// Only run if we have clients
-			if (sockets.length === 0) return;
-
-			console.log(`Pinging ${sockets.length} clients...`);
-
-			// Ping each client
-			sockets.forEach(socket => {
-				const startTime = Date.now();
-
-				// Send ping with timestamp and expect acknowledgment
-				socket.emit('server:ping', { timestamp: startTime }, (response) => {
-					const endTime = Date.now();
-					const roundTripTime = endTime - startTime;
-
-					// Extract device info from response
-					const device = response.device || 'unknown';
-					const room = socket.request?.session?.room || 'unknown';
-
-					// Store the result
-					const result = {
-						socketId: socket.id,
-						device,
-						roundTripTime,
-						timestamp: new Date().toISOString(),
-						room
-					};
-
-					// Add to results array (limiting size to prevent memory issues)
-					pingResults.push(result);
-					if (pingResults.length > 1000) {
-						pingResults.shift(); // Remove oldest entry if we have too many
-					}
-
-					// Log the result
-					console.log(`Ping response from ${socket.id} (${device}): ${roundTripTime}ms`);
-
-					// Broadcast the new result to any admin UI clients
-					try {
-						const adminNs = io.of('/admin'); // admin namespace created by instrument()
-						adminNs.emit('server:ping-result', {
-							socketId: result.socketId,
-							device: result.device,
-							roundTripTime: result.roundTripTime,
-							timestamp: result.timestamp,
-							room: result.room
-						});
-					} catch (e) {
-						console.warn('Could not emit to admin namespace:', e);
-					}
-				});
-			});
-		} catch (error) {
-			console.error("Error during ping test:", error);
-		}
-	}, 2 * 60 * 1000); // Every 3 minutes
+	// Finally, since we know we have at least one connection we can log the current event loop lag
+	// Monitor the server event loop
+	console.log('Current event loop lag:', lag());
 
 	return io;
 }
+
 
 /**
  * Extracts identity and placement info from the session and referer URL.

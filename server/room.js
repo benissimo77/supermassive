@@ -27,6 +27,42 @@ class Room {
 		if (process.env.NODE_ENV === 'production') {
 			this.generateQRCode(this.id);
 		}
+
+		// Initialize telemetry for the room
+		this.telemetry = {
+			playersConnected: 0,
+			hostsConnected: 0,
+			adminsConnected: 0,
+			clients: {}
+		}
+		/* Sample telemetry structure for a client
+		"socketID": {
+			latency: [
+				{ timestamp: Date.now(), latency: 34 },
+				{ timestamp: Date.now(), latency: 45 },
+			],
+			jitter: [
+				{ timestamp: Date.now(), jitter: 5 },
+				{ timestamp: Date.now(), jitter: 7 },
+			],
+			disconnects: [
+				{ timestamp: Date.now(), reason: 'unknown' },
+				{ timestamp: Date.now(), reason: 'network_error' }
+			],
+			transport: 'websocket',
+		}		
+		*/
+
+
+		// Initialize interval timer for ping/pong latency measurement
+		this.pingInterval = setInterval(() => {
+			this.pingAllClients();
+		}, 5000);
+
+	}
+
+	clearPingInterval() {
+		clearInterval(this.pingInterval);
 	}
 
 	// we say user because at this point we don't know if they are a player or a host/moderator/viewer etc...
@@ -36,6 +72,15 @@ class Room {
 
 		// Instantly add this user's socket to this room
 		socket.join(this.id);
+
+		// And instantiate a client object for storing telemetry data
+		this.telemetry.clients[socket.id] = {
+			latency: [],
+			jitter: [],
+			disconnects: [],
+			transport: socket.conn.transport.name,
+			device: userObj.device || 'unknown'
+		};
 
 		// host value in player object must evaluate to truth (eg = 1)
 		if (userObj.host) {
@@ -77,7 +122,14 @@ class Room {
 			}
 		}
 
-		// attach additional socket events used by both players and host
+		// Attach common socket events for both players and hosts
+		//
+		//
+		socket.conn.on('upgrade', () => {
+			console.log('>> socket connection upgraded to', socket.conn.transport.name);
+			this.telemetry.clients[socket.id].transport = socket.conn.transport.name;
+		});
+
 		socket.on('client:response', (response) => {
 			console.log('client:response :', socket.id, response);
 			if (this.clientResponseHandler) {
@@ -93,6 +145,11 @@ class Room {
 			}
 			// and send the player their player object for display on the play page
 			// this.#io.to(socket.id).emit('playerconnect', player);
+
+			// data should inclue the players device type so store in telemetry
+			if (data && data.device) {
+				this.telemetry.clients[socket.id].device = data.device;
+			}
 
 			// Notify game of player (re)connection - function should work for both new and reconnected players
 			if (this.game) {
@@ -128,6 +185,11 @@ class Room {
 			console.log('Message from:', socket.id);
 			console.dir(data);
 		})
+		socket.on('client:pong', (timestamp) => {
+			const latency = Date.now() - timestamp;
+			console.log('Received client:pong from socket:', socket.id, 'Timestamp:', timestamp, 'Latency:', latency);
+			this.telemetry.clients[socket.id].latency.push({ timestamp: timestamp, latency: latency });
+		});
 		// console.log('userJoinRoom ending: ', this.players);
 	}
 
@@ -372,6 +434,17 @@ class Room {
 	deregisterHostKeypressHandler() {
 		console.log('room:: deregisterHostKeypressHandler:');
 		this.hostKeypressHandler = null;
+	}
+
+	pingAllClients() {
+
+		// Check if we have any connected clients
+		if (this.#io.sockets.sockets.size > 0) {
+			console.log(`Pinging ${this.#io.sockets.sockets.size} clients in the room...`);
+
+			// Can just use this room ID to automatically call all connected clients of this room
+			this.#io.to(this.id).emit('server:ping', { timestamp: Date.now() } );
+		}
 	}
 
 	/**

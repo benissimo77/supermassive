@@ -19,7 +19,11 @@ const gameSessionSchema = new mongoose.Schema({
     seasonID: { type: mongoose.Schema.Types.ObjectId, ref: 'Season', index: true, default: null },
     
     // Flexible metadata for game-specific info (e.g. quiz title, total questions)
-    metadata: { type: mongoose.Schema.Types.Mixed, default: {} }
+    metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
+
+    // Telemetry data for the game session (e.g., server performance metrics, player connection stats)
+    telemetry: { type: mongoose.Schema.Types.Mixed, default: {} }
+    
 }, { timestamps: true });
 
 export default mongoose.model('GameSession', gameSessionSchema);

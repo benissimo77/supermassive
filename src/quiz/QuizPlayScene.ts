@@ -99,8 +99,9 @@ export class QuizPlayScene extends BaseScene {
         this.waitingPanel.setVisible(true);
 
         const sendReady = () => {
-            console.log('QuizPlayScene:: sending player:ready');
-            this.socket.emit('player:ready', {}, (playerConfig: PlayerConfig) => {
+            const device = this.getDeviceType();
+            console.log('QuizPlayScene:: sending player:ready with device type:', device);
+            this.socket.emit('player:ready', { device }, (playerConfig: PlayerConfig) => {
                 console.log('QuizPlayScene:: player:ready callback:', playerConfig);
                 this.mySessionID = playerConfig.sessionID;
                 if (!this.phaserPlayer) {

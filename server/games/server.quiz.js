@@ -2144,6 +2144,15 @@ export default class Quiz extends Game {
 	}
 
 	async endQuiz() {
+		
+		// We have ended this session so clear the ping interval for the room
+		// NOTE: what happens if we start another game? We might need to re-initialize the ping interval for the new game.
+		// Maybe the room should be responsible for managing its own ping lifecycle entirely and not the game...???
+		if (this.room && this.room.clearPingInterval) {
+			console.log('Clearing ping interval for the room');
+			this.room.clearPingInterval();
+		}
+
 		const scores = this.calculateCumulativeScore();
 		console.log('endQuiz:', this.quizData, this.roundNumber, this.questionNumber, scores);
 		console.log('Final quizData:', JSON.stringify(this.quizData));
@@ -2161,6 +2170,11 @@ export default class Quiz extends Game {
 				verificationLevel = 0; 
 			}
 
+			// Include the telemetry data from the room
+			const telemetry = this.room.telemetry || {};
+			console.log('Telemetry data for this room:');
+			console.dir(telemetry);
+
 			const session = await GameSession.create({
 				gameType: 'quiz',
 				gameID: this.quizData._id,
@@ -2175,7 +2189,8 @@ export default class Quiz extends Game {
 					title: this.quizData.title,
 					totalRounds: this.quizData.rounds.length,
 					totalQuestions: this.quizData.rounds.reduce((acc, r) => acc + r.questions.length, 0)
-				}
+				},
+				telemetry: telemetry
 			});
 
 			this.lastSessionID = session._id;

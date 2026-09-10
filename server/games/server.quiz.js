@@ -1096,10 +1096,11 @@ export default class Quiz extends Game {
 				this.doQuestion();
 			}
 			return;
-		} else {
-			this.started = true;
-			this.startTime = new Date();
 		}
+		
+		// Game NOT already started so start it now...
+		this.started = true;
+		this.startTime = new Date();
 
 		// Initialize player scores to 0
 		this.players.forEach(player => {
@@ -1304,6 +1305,8 @@ export default class Quiz extends Game {
 			this.questionNumber = round.questions.length;
 			return true;
 		}
+		this.roundNumber = 0;
+		this.questionNumber = 0;
 		return false;
 	}
 
@@ -2146,7 +2149,7 @@ export default class Quiz extends Game {
 		console.log('Final quizData:', JSON.stringify(this.quizData));
 		this.room.emitToHosts('server:endquiz', { title: this.quizData.title, scores: scores });
 
-		// Save results to database
+		// Save game session and player results to database
 		try {
 			const hostID = this.room.host ? this.room.host.userID : null;
 			const duration = this.startTime ? Math.floor((new Date() - this.startTime) / 1000) : 0;
@@ -2166,7 +2169,7 @@ export default class Quiz extends Game {
 				roomCode: this.room.id,
 				startTime: this.startTime || new Date(),
 				duration: duration,
-				isLive: true, // If it's being played in a room, it's a live session
+				isLive: true, // Need more logic here to decide if this was a live quiz or not
 				verificationLevel: verificationLevel,
 				metadata: {
 					title: this.quizData.title,

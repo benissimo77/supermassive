@@ -13,6 +13,7 @@ import { PlayerConfig, PhaserPlayerState, PhaserPlayer } from './PhaserPlayer';
 import { YouTubePlayerUI } from './YouTubePlayerUI';
 
 import { GlobalNavbar } from 'src/ui/GlobalNavbar';
+import { CountdownTimer } from 'src/ui/CountdownTimer';
 import { SoundSettingsPanel } from 'src/ui/SoundSettingsPanel';
 import { BeatManager } from 'src/utils/BeatManager';
 import { GameObjects } from 'phaser';
@@ -21,6 +22,8 @@ export class QuizHostScene extends BaseScene {
 
     static readonly KEY = 'QuizHostScene';
 
+    public players: Map<string, PhaserPlayer> = new Map();
+
     private socketDebugger: SocketDebugger;
     private beatManager: BeatManager;
 
@@ -28,7 +31,6 @@ export class QuizHostScene extends BaseScene {
     private currentRoundNumber: number = 0;
     private currentQuestionNumber: number = 0;
     private quizMap: QuizMap;
-    public players: Map<string, PhaserPlayer> = new Map();
     private playerAnswers: Map<string, any> = new Map();
     private questionFactory: QuestionFactory;
 
@@ -60,10 +62,10 @@ export class QuizHostScene extends BaseScene {
     private instructionState: 'hidden' | 'minimized' | 'maximized' = 'maximized';
 
     private startingSoonHUD: Phaser.GameObjects.Container | null = null;
-    private HUDTimerGraphics: Phaser.GameObjects.Graphics | null = null;
     private HUDWaitingText: Phaser.GameObjects.Text | null = null;
     private HUDCountdownSeconds: number = 900;
-    private lobbyTitle: string = 'THE GAUNTLET';
+    private HUDCountdownTimer: CountdownTimer;
+    private lobbyTitle: string = 'Welcome';
 
     // Add this constructor to set the scene key
     constructor() {
@@ -165,7 +167,7 @@ export class QuizHostScene extends BaseScene {
         this.racetrack = new Racetrack(
             this,
             1920,
-            this.getY(400)
+            this.getY(600)
         );
         this.racetrack.setPosition(0, this.getY(1200));
         this.add.existing(this.racetrack);
@@ -283,9 +285,6 @@ export class QuizHostScene extends BaseScene {
     }
     update(time: number, delta: number): void {
         this.beatManager.update();
-        if (this.startingSoonHUD && this.HUDTimerGraphics) {
-            this.drawHUDTimer();
-        }
     }
 
     private waitingToStart(data: any): void {
@@ -297,6 +296,12 @@ export class QuizHostScene extends BaseScene {
         if (music && music.sound) {
             // "modern-beat-jingle-intro" sounds like ~128 BPM
             this.beatManager.start(music.sound, 128);
+        } else {
+            // TEST: stream lobby music via YouTube iframe
+            // Start music at a random point within 2 hours (t=random between 0 and 120*60 seconds)
+            const startTime = Math.floor(Math.random() * 120 * 60); // random start time in seconds
+            const LOBBY_MUSIC_URL = 'https://www.youtube.com/watch?v=7j4WQ5qOBZY&t=' + startTime;
+            YouTubePlayerUI.getInstance(this).loadVideo(LOBBY_MUSIC_URL);
         }
 
         // Update Quiz Map if provided
@@ -309,9 +314,6 @@ export class QuizHostScene extends BaseScene {
         this.showStartingSoonHUD(data.title);
         this.showInstructions();
 
-        // TEST: stream lobby music via YouTube iframe
-        const LOBBY_MUSIC_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
-        YouTubePlayerUI.getInstance(this).loadVideo(LOBBY_MUSIC_URL);
     }
 
 
@@ -378,7 +380,7 @@ export class QuizHostScene extends BaseScene {
             }
             if (data.action === 'syncTimer') {
                 this.HUDCountdownSeconds = data.seconds;
-                this.updateTimerDisplay();
+                this.HUDCountdownTimer.setSeconds(this.HUDCountdownSeconds);
             }
 
             // Emit to scene events so question presenters can listen for state updates
@@ -608,7 +610,7 @@ export class QuizHostScene extends BaseScene {
             this.socket.emit('host:action', { action: 'syncTimer', seconds: nextMinute });
             // This time will get over-written as soon as the server responds but this provides an instant feedback to make the UI feel responsive
             this.HUDCountdownSeconds = nextMinute;
-            this.updateTimerDisplay();
+            this.HUDCountdownTimer.setSeconds(this.HUDCountdownSeconds);
             return;
         }
         if (event.code === 'ArrowDown') {
@@ -618,7 +620,7 @@ export class QuizHostScene extends BaseScene {
             this.socket.emit('host:action', { action: 'syncTimer', seconds: Math.max(0, prevMinute) });
             // This time will get over-written as soon as the server responds but this provides an instant feedback to make the UI feel responsive
             this.HUDCountdownSeconds = Math.max(0, prevMinute);
-            this.updateTimerDisplay();
+            this.HUDCountdownTimer.setSeconds(this.HUDCountdownSeconds);
             return;
         }
 
@@ -843,13 +845,9 @@ export class QuizHostScene extends BaseScene {
         // Center HUD higher and slightly smaller to avoid overlap
         this.startingSoonHUD = this.add.container(960, this.getY(350)).setScale(0.84);
 
-        // Circular Timer Graphics
-        this.HUDTimerGraphics = this.add.graphics();
-        this.startingSoonHUD.add(this.HUDTimerGraphics);
+        // This should replace all timer code
+        this.HUDCountdownTimer = new CountdownTimer(this, 0, this.getY(50), this.HUDCountdownSeconds);
 
-        // Glow effect on HUD timer (Phaser 4: enableFilters() must be called before accessing filters.internal)
-        this.HUDTimerGraphics.enableFilters();
-        this.HUDTimerGraphics.filters.internal.addGlow(0x00ccff, 4);
 
         // Pulsing Title (Branding)
         const title = this.add.text(0, -320, this.lobbyTitle.toUpperCase(), {
@@ -884,27 +882,6 @@ export class QuizHostScene extends BaseScene {
             ease: 'Sine.easeInOut'
         });
 
-        // Precise Timer Typography (Prevents jumping by positioning segments individually)
-        const mins = Math.floor(this.HUDCountdownSeconds / 60);
-        const secs = this.HUDCountdownSeconds % 60;
-        
-        const timerStyle = {
-            fontFamily: 'Titan One',
-            fontSize: '72px',
-            color: '#ffffff',
-            stroke: '#000000',
-            strokeThickness: 8
-        };
-
-        // We use fixed offsets from center to ensure stable positioning regardless of character width
-        const minText = this.add.text(-15, 0, mins.toString().padStart(2, '0'), timerStyle).setOrigin(1, 0.5);
-        const colon = this.add.text(0, -6, ":", timerStyle).setOrigin(0.5, 0.5);
-        const secText = this.add.text(15, 0, secs.toString().padStart(2, '0'), timerStyle).setOrigin(0, 0.5);
-
-        // Store references for external timer adjustment
-        this.data.set('HUDMinText', minText);
-        this.data.set('HUDSecText', secText);
-
         // "Starting Soon" - larger than 960 x since entire container is scaled down
         const startingText = this.add.text(1080, -320, "STARTING SOON!", {
             fontFamily: 'Titan One',
@@ -923,60 +900,13 @@ export class QuizHostScene extends BaseScene {
             strokeThickness: 4
         }).setOrigin(1,1);
 
-        this.startingSoonHUD.add([title, startingText, minText, colon, secText, this.HUDWaitingText]);
+        this.startingSoonHUD.add([title, startingText, this.HUDWaitingText, this.HUDCountdownTimer]);
 
-        // Start countdown only once
-        if (!this.data.get('timerStarted')) {
-            this.data.set('timerStarted', true);
-            this.time.addEvent({
-                delay: 1000,
-                callback: () => {
-                    if (this.HUDCountdownSeconds > 0) {
-                        this.HUDCountdownSeconds--;
-                        if (this.startingSoonHUD && minText.active) {
-                            const m = Math.floor(this.HUDCountdownSeconds / 60);
-                            const s = this.HUDCountdownSeconds % 60;
-                            minText.setText(`${m.toString().padStart(2, '0')}`);
-                            secText.setText(`${s.toString().padStart(2, '0')}`);
-                        }
-                    }
-                },
-                loop: true
-            });
-        }
-    }
-
-    private updateTimerDisplay(): void {
-        const minText = this.data.get('HUDMinText') as Phaser.GameObjects.Text;
-        const secText = this.data.get('HUDSecText') as Phaser.GameObjects.Text;
-        
-        if (minText && minText.active && secText && secText.active) {
-            const m = Math.floor(this.HUDCountdownSeconds / 60);
-            const s = Math.floor(this.HUDCountdownSeconds % 60);
-            minText.setText(`${m.toString().padStart(2, '0')}`);
-            secText.setText(`${s.toString().padStart(2, '0')}`);
-        }
     }
 
     private adjustHUDTimer(delta: number): void {
         this.HUDCountdownSeconds = Math.max(0, this.HUDCountdownSeconds + delta);
-        
-        // Update the display immediately
-        const minText = this.data.get('HUDMinText') as Phaser.GameObjects.Text;
-        const secText = this.data.get('HUDSecText') as Phaser.GameObjects.Text;
-        
-        if (minText && minText.active && secText && secText.active) {
-            this.updateTimerDisplay();
-            
-            // Visual feedback for the adjustment
-            this.tweens.add({
-                targets: [minText, secText],
-                scale: 1.2,
-                duration: 100,
-                yoyo: true,
-                ease: 'Quad.easeOut'
-            });
-        }
+        this.HUDCountdownTimer.setSeconds(this.HUDCountdownSeconds);            
     }
 
     private showInstructions(): void {
@@ -1115,6 +1045,7 @@ export class QuizHostScene extends BaseScene {
             this.startingSoonHUD = null;
             this.HUDTimerGraphics = null;
             this.HUDWaitingText = null;
+            this.HUDCountdownTimer.destroy();
         }
 
         // Play intro music — QuizHostScene stays alive during the overlay so controls audio.
@@ -1337,10 +1268,6 @@ export class QuizHostScene extends BaseScene {
                 this.timerText.setText(`${secondsLeft}`);
             }
         });
-    }
-
-    private updateTimer(delta: number): void {
-        // Additional timer update logic if needed
     }
 
     private updatePlayerAnswer(playerID: string, answer: any): void {
@@ -1915,7 +1842,7 @@ export class QuizHostScene extends BaseScene {
         if (this.startingSoonHUD) {
             this.startingSoonHUD.destroy(true);
             this.startingSoonHUD = null;
-            this.HUDTimerGraphics = null;
+            this.HUDCountdownTimer.destroy();
             this.HUDWaitingText = null;
         }
 

@@ -100,6 +100,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 
+
 // ROUTES
 app.use('/', indexRoutes);
 app.use('/auth', loginRoutes);

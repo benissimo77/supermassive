@@ -53,11 +53,11 @@ router.get('/', async (req, res) => {
 /**
  * POST /api/seasons
  * Create a new season.
- * Body: { name, seriesName?, description?, startDate?, endDate? }
+ * Body: { name, seriesName?, description?, startDate?, endDate?, defaultTime? }
  */
 router.post('/', async (req, res) => {
     try {
-        const { name, seriesName, description, startDate, endDate } = req.body;
+        const { name, seriesName, description, startDate, endDate, defaultTime, timezone } = req.body;
         const ownerID = req.user?._id;
 
         if (!name) {
@@ -71,6 +71,8 @@ router.post('/', async (req, res) => {
             description,
             startDate,
             endDate,
+            defaultTime,
+            timezone,
             isPublic: false
         });
 
@@ -116,11 +118,11 @@ router.get('/:id', async (req, res) => {
 /**
  * POST /api/seasons/:seasonId/episodes
  * Add a quiz to a season.
- * Body: { quizID, label?, airDate? }
+ * Body: { quizID, label?, airDate?, airTime? }
  */
 router.post('/:seasonId/episodes', async (req, res) => {
     try {
-        const { quizID, label, airDate } = req.body;
+        const { quizID, label, airDate, airTime } = req.body;
 
         // Get current episode count to generate a default label
         const existing = await Season.findById(req.params.seasonId, { episodes: 1 });
@@ -131,7 +133,8 @@ router.post('/:seasonId/episodes', async (req, res) => {
         const newEpisode = {
             quizID,
             label: label || `Episode ${existing.episodes.length + 1}`,
-            airDate: airDate || new Date()
+            airDate: airDate || new Date(),
+            airTime: airTime || null
         };
 
         // Use $push via findByIdAndUpdate to bypass document-level validation
@@ -150,11 +153,11 @@ router.post('/:seasonId/episodes', async (req, res) => {
 
 /**
  * PATCH /api/seasons/:id
- * Update season metadata (name, seriesName, description, startDate, endDate, isActive)
+ * Update season metadata (name, seriesName, description, startDate, endDate, defaultTime, isActive)
  */
 router.patch('/:id', async (req, res) => {
     try {
-        const allowed = ['name', 'seriesName', 'description', 'startDate', 'endDate', 'isPublic'];
+        const allowed = ['name', 'seriesName', 'description', 'startDate', 'endDate', 'defaultTime', 'timezone', 'isPublic'];
         const updates = {};
         for (const key of allowed) {
             if (req.body[key] !== undefined) {
@@ -177,14 +180,15 @@ router.patch('/:id', async (req, res) => {
 
 /**
  * PATCH /api/seasons/:seasonId/episodes/:episodeId
- * Update an episode's label or airDate
+ * Update an episode's label, airDate, or airTime
  */
 router.patch('/:seasonId/episodes/:episodeId', async (req, res) => {
     try {
-        const { label, airDate, quizID } = req.body;
+        const { label, airDate, airTime, quizID } = req.body;
         const setFields = {};
         if (label !== undefined) setFields['episodes.$.label'] = label;
         if (airDate !== undefined) setFields['episodes.$.airDate'] = airDate || null;
+        if (airTime !== undefined) setFields['episodes.$.airTime'] = airTime || null;
         if (quizID !== undefined) setFields['episodes.$.quizID'] = quizID || null;
 
         const season = await Season.findOneAndUpdate(

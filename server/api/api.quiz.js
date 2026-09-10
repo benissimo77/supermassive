@@ -1,6 +1,6 @@
 import express from 'express';
 import * as QuizService from '../services/quizService.js';
-import { generateQuizFromAI } from '../services/aiQuizService.js';
+import { generateQuizFromAI, validateQuizWithAI } from '../services/aiQuizService.js';
 
 
 const router = express.Router();
@@ -75,9 +75,27 @@ router.post('/validate', async (req, res) => {
     }
 });
 
+// Perform AI fact-checking and quality audit
+router.post('/fact-check', async (req, res) => {
+    try {
+        const result = await validateQuizWithAI(req.body);
+
+        // result contains { valid, errors, corrections }
+        // result.errors matches the AJV format expected by the frontend UI
+        return res.status(200).json(apiResponse(
+            true,
+            result,
+            result.valid ? 'AI Fact-Check: No issues found' : `AI Fact-Check: Found ${result.errors.length} potential issues`
+        ));
+    } catch (error) {
+        console.error('Error in AI Fact-Check:', error);
+        return res.status(500).json(apiResponse(false, null, 'Fact-check service failed', error.message));
+    }
+});
+
 // Create or update a quiz
 router.post('/save', async (req, res) => {
-    console.log('api.quiz /save:', req.body.title, req.user, req.session.user);
+    console.log('api.quiz /save:', req.body.title, req.user.email);
     
     try {
         const savedQuiz = await QuizService.saveQuiz(req.body, req.user);
@@ -132,13 +150,13 @@ router.post('/:id/copy', async (req, res) => {
 
 // Generate a quiz using AI
 router.post('/generate', async (req, res) => {
-    const { prompt } = req.body;
+    const { prompt, existingData } = req.body;
     if (!prompt) {
         return res.status(400).json(apiResponse(false, null, 'Prompt is required'));
     }
 
     try {
-        const quizData = await generateQuizFromAI(prompt);
+        const quizData = await generateQuizFromAI(prompt, existingData);
         return res.status(200).json(apiResponse(true, quizData, 'Quiz generated successfully'));
     } catch (error) {
         console.error('Error generating quiz:', error);

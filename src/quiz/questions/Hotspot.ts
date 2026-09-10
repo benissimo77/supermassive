@@ -161,7 +161,9 @@ export default class HotspotQuestion extends BaseQuestion {
 
 		// Position crosshair (if visible, convert normalized → screen coords)
 		if (this.crosshairPos) {
-			this.crosshair.destroy();
+			if (this.crosshair) {
+				this.crosshair.destroy();
+			}
 			this.crosshair = this.addCrosshairAtNormalizedPosition(this.answerImage, this.crosshairPos?.x, this.crosshairPos?.y);
 			this.crosshair.setTint(0xFF0000);
 		}

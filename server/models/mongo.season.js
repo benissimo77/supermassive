@@ -10,11 +10,14 @@ const seasonSchema = new mongoose.Schema({
     isPublic: { type: Boolean, default: false },
     startDate: { type: Date },
     endDate: { type: Date },
+    defaultTime: { type: String, default: '18:00' }, // "HH:MM" fallback air time for episodes that don't override it
+    timezone: { type: String, default: 'UTC' }, // IANA name (e.g. "America/New_York") the host's times were entered in
 
     // The "Episodes" - ordered list of quizzes in this season
     episodes: [{
         quizID: { type: mongoose.Schema.Types.ObjectId, ref: 'Quiz' },
         airDate: { type: Date },
+        airTime: { type: String, default: null }, // "HH:MM" override; null means use the season's defaultTime
         label: { type: String } // e.g. "Episode 1", "The Grand Finale"
     }]
 }, { timestamps: true });

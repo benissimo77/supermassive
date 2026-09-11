@@ -1,6 +1,4 @@
 import Game from './server.game.js';
-import GameSession from '../models/mongo.gameSession.js';
-import PlayerResult from '../models/mongo.playerResult.js';
 import QuizRating from '../models/mongo.quizRating.js';
 
 // For V2 QUIZ :
@@ -342,6 +340,9 @@ class QuizStateMachine {
 export default class Quiz extends Game {
 
 	constructor(room) {
+
+		// Call the parent class constructor with the room instance
+		// One thing the parent does is define this.room to the instance of room
 		super(room);
 
 		// Initialize other game-specific properties here
@@ -1051,7 +1052,6 @@ export default class Quiz extends Game {
 		this.startTime = null;
 		this.mode = "ask";	// ask or answer - whether we are collecting answers or showing them
 		this.liveStream = false; // whether we are in live stream mode or not (affects state machine - need to account for latency of the stream)
-		this.seasonID = config?.seasonID || null; // Capture the session ID if provided
 
 		// Config should pass a quiz ID to select the quiz to load
 		// We load the quiz from DB using the passed ID (see api.quiz.js)
@@ -1067,7 +1067,7 @@ export default class Quiz extends Game {
 			}
 		}
 
-		// Return metadata for the "Lobby Phase"
+		// Return metadata for the "Waiting to Start Phase"
 		return {
 			title: this.quizData?.title || 'Untitled Quiz',
 			description: this.quizData?.description || '',
@@ -1116,6 +1116,14 @@ export default class Quiz extends Game {
 		console.log('Quiz::endGame: clean up here...');
 
 		// Not much to do here - we rely on room.js for all the heavy-lifting, game itself is pretty lightweight
+		// Clear game state - null out large objects
+		this.quizData = null;
+		this.question = null;
+		this.stateMachine = null;
+		this.players = [];
+		this.room = null;
+		// Any other clear up here...
+		
 	}
 
 	isEnded() {
@@ -1305,6 +1313,7 @@ export default class Quiz extends Game {
 			this.questionNumber = round.questions.length;
 			return true;
 		}
+		console.log('No previous round - resetting round/question numbers...');
 		this.roundNumber = 0;
 		this.questionNumber = 0;
 		return false;
@@ -2143,146 +2152,101 @@ export default class Quiz extends Game {
 		console.log('====================================\n');
 	}
 
-	async endQuiz() {
+	// endQuiz
+	// Quite a lot to do here - must prepare all final results and perform clean up
+	// Quiz collects up data and room will request it from quiz and store to DB when game finally ends
+	endQuiz() {
 		
-		// We have ended this session so clear the ping interval for the room
-		// NOTE: what happens if we start another game? We might need to re-initialize the ping interval for the new game.
-		// Maybe the room should be responsible for managing its own ping lifecycle entirely and not the game...???
-		if (this.room && this.room.clearPingInterval) {
-			console.log('Clearing ping interval for the room');
-			this.room.clearPingInterval();
-		}
-
 		const scores = this.calculateCumulativeScore();
-		console.log('endQuiz:', this.quizData, this.roundNumber, this.questionNumber, scores);
-		console.log('Final quizData:', JSON.stringify(this.quizData));
+		console.log('endQuiz:', this.roundNumber, this.questionNumber, scores);
 		this.room.emitToHosts('server:endquiz', { title: this.quizData.title, scores: scores });
 
-		// Save game session and player results to database
-		try {
-			const hostID = this.room.host ? this.room.host.userID : null;
-			const duration = this.startTime ? Math.floor((new Date() - this.startTime) / 1000) : 0;
+
+		// Sort scores to determine rank
+		const sortedScores = Object.entries(scores)
+			.sort(([, a], [, b]) => b - a);
+
+		const playerResults = sortedScores.map(([sessionID, score], index) => {
+			const player = this.players.find(p => p.sessionID === sessionID);
 			
-			// Determine verification level based on host's role or specific official IDs
-			// For now, 0 = Official, 1 = Trusted, 2 = Verified, 3 = Everyone (Default)
-			let verificationLevel = 3;
-			if (this.room.host && this.room.host.role === 'admin') {
-				verificationLevel = 0; 
-			}
+			// NOTE: When calculating global question difficulty or aggregate stats, 
+			// always filter out results where isBot is true to avoid polluting data.
+			
+			// Extract granular stats for this player
+			const playerStats = {
+				correctCount: 0,
+				totalQuestions: 0,
+				avgResponseTime: 0,
+				responses: []
+			};
 
-			// Include the telemetry data from the room
-			const telemetry = this.room.telemetry || {};
-			console.log('Telemetry data for this room:');
-			console.dir(telemetry);
+			let totalTime = 0;
+			let answeredCount = 0;
 
-			const session = await GameSession.create({
-				gameType: 'quiz',
-				gameID: this.quizData._id,
-				seasonID: this.seasonID, // Link this session to a specific competitive Season
-				hostID: hostID,
-				roomCode: this.room.id,
-				startTime: this.startTime || new Date(),
-				duration: duration,
-				isLive: true, // Need more logic here to decide if this was a live quiz or not
-				verificationLevel: verificationLevel,
-				metadata: {
-					title: this.quizData.title,
-					totalRounds: this.quizData.rounds.length,
-					totalQuestions: this.quizData.rounds.reduce((acc, r) => acc + r.questions.length, 0)
-				},
-				telemetry: telemetry
-			});
+			this.quizData.rounds.forEach(round => {
+				round.questions.forEach(question => {
+					playerStats.totalQuestions++;
+					const response = question.responses ? question.responses[sessionID] : null;
+					
+					if (response) {
+						answeredCount++;
+						if (response.time) totalTime += response.time;
+						if (response.score > 0) playerStats.correctCount++;
 
-			this.lastSessionID = session._id;
-
-			// Sort scores to determine rank
-			const sortedScores = Object.entries(scores)
-				.sort(([, a], [, b]) => b - a);
-
-			const playerResults = sortedScores.map(([sessionID, score], index) => {
-				const player = this.players.find(p => p.sessionID === sessionID);
-				
-				// NOTE: When calculating global question difficulty or aggregate stats, 
-				// always filter out results where isBot is true to avoid polluting data.
-				
-				// Extract granular stats for this player
-				const playerStats = {
-					correctCount: 0,
-					totalQuestions: 0,
-					avgResponseTime: 0,
-					responses: []
-				};
-
-				let totalTime = 0;
-				let answeredCount = 0;
-
-				this.quizData.rounds.forEach(round => {
-					round.questions.forEach(question => {
-						playerStats.totalQuestions++;
-						const response = question.responses ? question.responses[sessionID] : null;
-						
-						if (response) {
-							answeredCount++;
-							if (response.time) totalTime += response.time;
-							if (response.score > 0) playerStats.correctCount++;
-
-							playerStats.responses.push({
-								questionText: question.text,
-								answer: response.answer,
-								time: response.time,
-								score: response.score || 0
-							});
-						}
-					});
-				});
-
-				if (answeredCount > 0) {
-					playerStats.avgResponseTime = totalTime / answeredCount;
-				}
-
-				return {
-					gameSessionID: session._id,
-					sessionID: sessionID, // This is the player's transient session ID
-					userID: player ? player.userID : null,
-					displayName: player ? player.name : 'Unknown',
-					avatar: player ? player.avatar : null,
-					isBot: player ? player.isBot : false,
-					rank: index + 1,
-					totalQuestions: playerStats.totalQuestions,
-					totalCorrect: playerStats.correctCount,
-					totalScore: score,
-					responses: playerStats.responses
-				};
-			});
-
-			if (playerResults.length > 0) {
-				await PlayerResult.insertMany(playerResults);
-				console.log(`Successfully saved ${playerResults.length} player results for session ${session._id}`);
-
-				// Notify each player of their final rank and the top 3
-				const top3 = playerResults.slice(0, 3).map(r => ({
-					displayName: r.displayName,
-					avatar: r.avatar,
-					score: r.score,
-					rank: r.rank
-				}));
-
-				playerResults.forEach(result => {
-					console.log('playerResults:', result);
-					const player = this.players.find(p => p.sessionID === result.sessionID);
-					if (player && player.socketID) {
-						console.log(`Notifying player ${player.name} of final rank ${result.rank}`);
-						this.room.emitToPlayers([player.socketID], 'server:endquiz', {
-							rank: result.rank,
-							score: result.totalScore,
-							totalPlayers: playerResults.length
+						playerStats.responses.push({
+							questionText: question.text,
+							answer: response.answer,
+							time: response.time,
+							score: response.score || 0
 						});
 					}
 				});
+			});
+
+			if (answeredCount > 0) {
+				playerStats.avgResponseTime = totalTime / answeredCount;
 			}
-		} catch (err) {
-			console.error('Error saving quiz results:', err);
+
+			return {
+				userID: player ? player.userID : null,
+				displayName: player ? player.name : 'Unknown',
+				avatar: player ? player.avatar : null,
+				isBot: player ? player.isBot : false,
+				rank: index + 1,
+				totalQuestions: playerStats.totalQuestions,
+				totalCorrect: playerStats.correctCount,
+				totalScore: score,
+				responses: playerStats.responses
+			};
+		});
+
+		if (playerResults.length > 0) {
+
+			// Notify each player of their final rank and the top 3
+			const top3 = playerResults.slice(0, 3).map(r => ({
+				displayName: r.displayName,
+				avatar: r.avatar,
+				score: r.score,
+				rank: r.rank
+			}));
+
+			playerResults.forEach(result => {
+				console.log('playerResults:', result);
+				const player = this.players.find(p => p.sessionID === result.sessionID);
+				if (player && player.socketID) {
+					console.log(`Notifying player ${player.name} of final rank ${result.rank}`);
+					this.room.emitToPlayers([player.socketID], 'server:endquiz', {
+						rank: result.rank,
+						score: result.totalScore,
+						totalPlayers: playerResults.length
+					});
+				}
+			});
+
 		}
+
+		// Finally store the playerResults object for storage later in DB
+		this.playerResults = playerResults;
 	}
 
 	closingCredits() {
@@ -2293,9 +2257,13 @@ export default class Quiz extends Game {
 		this.room.emitToAllPlayers('server:closingcredits', {
 			title: this.quizData.title
 		});
+
+		// Since we have a closing credits sequence as part of the quiz then this would be the best point to trigger the endgame
+		// Since we have sent the final socket events to hosts and players we can safely run the endGame routine which closes everything and cleans up
+		this.room.triggerEndGame();
 	}
 
-async onPlayerRating(player, rating) {
+	async onPlayerRating(player, rating) {
 		console.log('onPlayerRating:', player.name, rating);
 
 		if (!this.lastSessionID) {

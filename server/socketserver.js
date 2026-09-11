@@ -60,13 +60,6 @@ export default function createSocketServer(server) {
 		return stats;
 	};
 
-	const listSocketConnections = async () => {
-		const sockets = await io.fetchSockets();
-		console.log('listSocketConnections:', sockets.length);
-		sockets.forEach((socket) => {
-			console.log(socket.rooms, [...socket.rooms].length);
-		});
-	};
 
 	io.on('connection', (socket) => {
 
@@ -101,7 +94,10 @@ export default function createSocketServer(server) {
 
 		// Create or get the room
 		if (!rooms[userObj.room]) {
-			rooms[userObj.room] = new Room(io, userObj.room);
+			rooms[userObj.room] = new Room(io, userObj.room, () => {
+				delete rooms[userObj.room];
+				console.log('Deleted room:', userObj.room);
+			});
 			console.log('Created new room:', userObj.room);
 		}
 		const thisRoom = rooms[userObj.room];

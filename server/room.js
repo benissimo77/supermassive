@@ -1,6 +1,8 @@
 // Models - note this should be placed into the werewolves file since it is game-specific
 import { Player, Phases, Roles } from './models/allModels.js';
 import { mongoose } from './db.js';
+import GameSession from './models/mongo.gameSession.js';
+import PlayerResult from './models/mongo.playerResult.js';
 import { GhostManager } from './services/GhostManager.js';
 
 
@@ -9,9 +11,10 @@ class Room {
 	// We keep a copy of the IO socker server and use this to emit all our events
 	#io;
 
-	constructor(io, id) {
+	constructor(io, id, onDestroyCallback) {
 		this.#io = io;
 		this.id = id;
+		this.onDestroy = onDestroyCallback;
 		this.host = undefined;
 		this.hosts = [];
 		this.admins = [];
@@ -35,15 +38,12 @@ class Room {
 			adminsConnected: 0,
 			clients: {}
 		}
+
 		/* Sample telemetry structure for a client
 		"socketID": {
 			latency: [
 				{ timestamp: Date.now(), latency: 34 },
 				{ timestamp: Date.now(), latency: 45 },
-			],
-			jitter: [
-				{ timestamp: Date.now(), jitter: 5 },
-				{ timestamp: Date.now(), jitter: 7 },
 			],
 			disconnects: [
 				{ timestamp: Date.now(), reason: 'unknown' },
@@ -76,10 +76,8 @@ class Room {
 		// And instantiate a client object for storing telemetry data
 		this.telemetry.clients[socket.id] = {
 			latency: [],
-			jitter: [],
 			disconnects: [],
-			transport: socket.conn.transport.name,
-			device: userObj.device || 'unknown'
+			transport: socket.conn.transport.name
 		};
 
 		// host value in player object must evaluate to truth (eg = 1)
@@ -137,6 +135,7 @@ class Room {
 			}
 		})
 
+		// player:ready
 		socket.on('player:ready', (data, callback) => {
 			console.log('player:ready from socket:', socket.id, data, callback);
 			const player = this.getPlayerBySocketID(socket.id);
@@ -162,6 +161,7 @@ class Room {
 		})
 
 		// player:rating - sent by player at the end of a game/quiz
+		// Find a way to store this without needing to call game - should be agnostic of game type
 		socket.on('player:rating', (data) => {
 			console.log('Room:: player:rating:', socket.id, data);
 			const player = this.getPlayerBySocketID(socket.id);
@@ -179,6 +179,11 @@ class Room {
 		})
 		socket.on('disconnect', (reason) => {
 			console.log('socket.disconnect:', socket.id, reason);
+
+			// Add this disconnect event to the telemetry
+			if (this.telemetry.clients[socket.id]) {
+				this.telemetry.clients[socket.id].disconnects.push( { timestamp: Date.now(), reason: reason } );
+			}
 			this.removePlayer(socket.id);
 		})
 		socket.on('consolelog', (data) => {
@@ -226,8 +231,18 @@ class Room {
 			}
 			console.log('host:ready:: sending connected players:', this.getConnectedPlayers());
 			socket.emit('server:players', this.getConnectedPlayers());
+
+			// data sent by host should inclue the hosts device type so store in telemetry
+			if (data && data.device) {
+				this.telemetry.clients[socket.id].device = data.device;
+			}
+
+
 		});
 
+		// host:requestgame
+		// Host has initialised itself and is now requesting that the server loads a new game
+		// This function feels a bit too complex - look for ways to simplify... configs? callbacks? pendingGame? initData?
 		socket.on('host:requestgame', async (game, config, callback) => {
 			console.log('host:requestgame:', game, config);
 
@@ -238,17 +253,20 @@ class Room {
 			}
 
 			// Capture session "Intent" if it exists - this allows clean URLs
-			const session = socket.request.session;
-			if (session && session.pendingGame) {
+			this.session = socket.request.session;
+			console.log('host:ready event - socket.request.session:');
+			console.dir(this.session);
+
+			if (this.session && this.session.pendingGame) {
 				// Only apply if the game type matches (safety check)
-				if (session.pendingGame.gameType === game) {
+				if (this.session.pendingGame.gameType === game) {
 					// Re-hydrate quizID and seasonID if they aren't already provided
-					if (!config.quizID && session.pendingGame.quizID) {
-						config.quizID = session.pendingGame.quizID;
+					if (!config.quizID && this.session.pendingGame.quizID) {
+						config.quizID = this.session.pendingGame.quizID;
 						console.log(`Room:: Re-hydrated quizID from session: ${config.quizID}`);
 					}
-					if (!config.seasonID && session.pendingGame.seasonID) {
-						config.seasonID = session.pendingGame.seasonID;
+					if (!config.seasonID && this.session.pendingGame.seasonID) {
+						config.seasonID = this.session.pendingGame.seasonID;
 						console.log(`Room:: Re-hydrated seasonID from session: ${config.seasonID}`);
 					}
 				}
@@ -264,7 +282,7 @@ class Room {
 			if (this.game && this.game.name == game && !isEnded && isSame) {
 				console.log('Already running this game - ignore:', this.game.name);
 
-				// If the game has not actually started yet (is in the lobby phase), we should allow it to re-initialize
+				// If the game has not actually started yet (is in the waiting to start phase), we should allow it to re-initialize
 				// to pick up any changes made to the quiz data in the database.
 				// if (this.game.started === false && this.game.init && typeof this.game.init === 'function') {
 				// 	console.log('Game not started yet - re-initializing to pick up any data changes...');
@@ -341,13 +359,6 @@ class Room {
 			}
 		})
 
-		socket.on('host:requestend', () => {
-			console.log('host:requestend:', socket.id, this.game, this.getPlayerBySocketID(socket.id));
-			if (this.game) {
-				this.game.endGame();
-			}
-			this.endGame();
-		})
 
 		socket.on('host:response', (response) => {
 			console.log('host:response :', socket.id, response);
@@ -398,14 +409,8 @@ class Room {
 			this.ghostManager.removeAllGhosts();
 		});
 
-		// General purpose test event - can be used as a scratch to quickly check some functionality server-side
-		socket.on('buttontest', (data) => {
-			console.log('Host:: buttontest:', data);
-			// this.#io.to(socket.id).emit('nightkill', [ this.players[0].socketID, this.players[1].socketID ] );
-			this.emitToAllPlayers('server:loadgame', 'werewolves');
-		})
-		// Similar to above - can be used to simulate a socket event from the server
-		// Simply echoes directly back to the host whatever event was passed
+		// triggersocketevent - can be used to simulate a socket event from the server
+		// Simply echoes directly back to the hosts and players whatever event was passed
 		socket.on('triggersocketevent', (data) => {
 			console.log('triggersocketevent:', data.event, data.payload);
 			this.emitToHosts(data.event, data.payload)
@@ -439,7 +444,8 @@ class Room {
 	pingAllClients() {
 
 		// Check if we have any connected clients
-		if (this.#io.sockets.sockets.size > 0) {
+		// We check for >1 because we assume 1 client equals just a host - nothing much to collect at this point
+		if (this.#io.sockets.sockets.size > 1) {
 			console.log(`Pinging ${this.#io.sockets.sockets.size} clients in the room...`);
 
 			// Can just use this room ID to automatically call all connected clients of this room
@@ -464,11 +470,114 @@ class Room {
 		return null;
 	}
 
+	// host:requestend
+	// Called by host when they want to end the current game session
+	// This feels like the best place to perform all teardown, store final results and clean up
+	async triggerEndGame() {
+
+		try {
+			await this.saveGameResults();
+		} catch (error) {
+			console.error('Error saving game results:', error);
+		}
+
+		if (this.game) {
+			this.game.endGame();
+		}
+
+		this.endGame();
+	}
+
+	// saveGameResults
+	// Store all results to DB for later analysis
+	async saveGameResults() {
+
+		const hostID = this.host ? this.host.userID : null;
+		const duration = this.game.startTime ? Math.floor((new Date() - this.game.startTime) / 1000) : 0;
+
+		// Determine verification level based on host's role or specific official IDs
+		// For now, 0 = Official, 1 = Trusted, 2 = Verified, 3 = Everyone (Default)
+		let verificationLevel = 3;
+		if (this.host && this.host.role === 'admin') {
+			verificationLevel = 0;
+		}
+
+		const seasonID = this.session.pendingGame ? this.session.pendingGame.seasonID : null;
+
+		try {
+
+			const session = await GameSession.create({
+				gameType: this.game.name,
+				gameID: this.game.quizData._id,
+				seasonID: seasonID, // Link this session to a specific competitive Season
+				hostID: hostID,
+				roomCode: this.id,
+				startTime: this.game.startTime || new Date(),
+				duration: duration,
+				isLive: true, // Need more logic here to decide if this was a live quiz or not
+				verificationLevel: verificationLevel,
+				metadata: {
+					title: this.game.quizData.title,
+					totalRounds: this.game.quizData.rounds.length,
+					totalQuestions: this.game.quizData.rounds.reduce((acc, r) => acc + r.questions.length, 0)
+				},
+				telemetry: this.telemetry,
+			});
+			console.log('Game session saved:', session);
+
+			const playerResults = this.game.playerResults;
+
+			if (playerResults) {
+
+				// Inject the sessonID into each result so they can be associated with the correct game session
+				// This will be important when generating season leaderboard as only certain gameSessions will be used
+				playerResults.forEach(result => {
+					result.gameSessionID = session._id;
+				});
+
+				await PlayerResult.insertMany(playerResults);
+				console.log(`Successfully saved ${playerResults.length} player results for session ${session._id}`);
+			}	
+		} catch (error) {
+			console.error('Error saving game session and/or player results:', error);
+		}
+	}
+
+	// endGame
+	// Called by the loaded game when it should be terminated
+	// Responsible for cleaning up game state and notifying all clients
+	// NOTE: in the event that we return to a lobby then this room must be re-entrant (I think this should be possible)
+	// We still want to store all results for this game even if we intend to play another immediately
 	endGame() {
 		console.log('room.endGame: game has ended - clear up');
+
+		// Clear the ping interval for the room
+		// NOTE: what happens if we start another game? We might need to re-initialize the ping interval for the new game.
+		// Maybe the room should be responsible for managing its own ping lifecycle entirely and not the game...???
+		console.log('Clearing ping interval for the room');
+		this.clearPingInterval();
+
 		this.game = null;
-		this.emitToHosts('server:loadgame', 'lobby');
-		this.emitToAllPlayers('server:loadgame', 'lobby');
+
+		// Clear all socket event listeners
+		const allSessions = [...this.hosts, ...this.admins, ...this.players];
+		allSessions.forEach(user => {
+			const socket = this.getSocket(user.socketID);
+			if (socket) {
+				socket.removeAllListeners();
+				// Force fully leaving this room in Socket.io
+				socket.leave(this.id);
+			}
+		});
+
+		// Call the onDestroy callback if it exists
+		if (typeof this.onDestroy === 'function') {
+			this.onDestroy();
+		}
+
+		// Don't bother doing this right now - see how it looks and find a better 'end-game' solution
+		// this.emitToHosts('server:loadgame', 'lobby');
+		// this.emitToAllPlayers('server:loadgame', 'lobby');
 	}
 
 	// Fixed version using socket.emit

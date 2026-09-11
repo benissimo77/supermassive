@@ -167,17 +167,11 @@ router.post('/generate', async (req, res) => {
 
 // Get all quizzes (public and personal)
 router.get('/', async (req, res) => {
-    console.log('api.quiz.js: GET /', req.user);
-
-    if (process.env.NODE_ENV == 'development') {
-        if (!req.user) {
-            req.user = '67150d8c98c76cabc58b7160';
-        }
-    }
+    console.log('api.quiz.js: GET /');
 
     try {
         const quizzes = await QuizService.getAllQuizzes(req.user);
-        console.log('Quizzes found:', quizzes.length, req.user);
+        console.log('Quizzes found:', quizzes.length);
 
         res.status(200).json(apiResponse(
             true,

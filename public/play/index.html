@@ -45,7 +45,19 @@
 <body>
     <div class="entry-container">
         <div id="auth-status" class="auth-status-container">
-            <!-- Auth status will be injected here -->
+            <!-- Logged In Panel -->
+            <div id="auth-logged-in" class="auth-logged-in hidden">
+                <div class="auth-logged-in-dot"></div>
+                <span class="auth-logged-in-text">Playing as <strong id="username-display"></strong></span>
+            </div>
+
+            <!-- Anonymous / Sign Up Panel -->
+            <div id="auth-anonymous" class="auth-anonymous hidden">
+                <span class="auth-anonymous-text">Save your scores?</span>
+                <a id="auth-login-link" href="/login" class="auth-link auth-login-link">Login</a>
+                <span class="auth-divider">|</span>
+                <a id="auth-signup-link" href="/login?mode=signup" class="auth-link">Sign Up</a>
+            </div>
         </div>
 
         <div class="card">

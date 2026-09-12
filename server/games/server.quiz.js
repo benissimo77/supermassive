@@ -8,7 +8,7 @@ import QuizModel from '../models/mongo.quiz.js';
 
 const QuizState = {
 	INIT: 'INIT',
-	INTRO_QUIZ: 'INTRO_QUIZ',
+	START_QUIZ: 'START_QUIZ',
 	OPENING_CREDITS: 'OPENING_CREDITS',
 	NEXT_ROUND: 'NEXT_ROUND',
 	PREVIOUS_ROUND: 'PREVIOUS_ROUND',
@@ -35,10 +35,6 @@ class QuizStateMachine {
 		this.transitionTo(QuizState.INIT);
 	}
 
-	start() {
-		this.transitionTo(QuizState.OPENING_CREDITS);
-	}
-
 	// General purpose function which advamces the state machine to the next state
 	// Next state is determined by the current state
 	nextState() {
@@ -49,7 +45,10 @@ class QuizStateMachine {
 		switch (this.state) {
 
 			case QuizState.INIT:
-			case QuizState.INTRO_QUIZ:
+				this.transitionTo(QuizState.START_QUIZ);
+				break;
+
+			case QuizState.START_QUIZ:
 				this.transitionTo(QuizState.OPENING_CREDITS);
 				break;
 
@@ -242,8 +241,8 @@ class QuizStateMachine {
 				this.quiz.init();
 				break;
 
-			case QuizState.INTRO_QUIZ:
-				this.quiz.introQuiz()
+			case QuizState.START_QUIZ:
+				this.quiz.startGame()
 				break;
 
 			case QuizState.OPENING_CREDITS:
@@ -264,7 +263,7 @@ class QuizStateMachine {
 				if (this.quiz.moveToPreviousRound()) {
 					this.transitionTo(QuizState.INTRO_ROUND);
 				} else {
-					this.transitionTo(QuizState.INTRO_QUIZ);
+					this.transitionTo(QuizState.START_QUIZ);
 				}
 				break;
 
@@ -1081,16 +1080,15 @@ export default class Quiz extends Game {
 	}
 
 	// startGame is a required function for a class that extends Game
-	// Called by room when it receives a host:requeststart from the host - this is the entry point to the game
 	// Update: store a flag when started so that if host refreshes we can resume the game
-	async startGame() {
+	// UPDATE: simplified it is not required but a useful state to represent the quiz truly starting
+	startGame() {
 		// Game start logic for game 1
 		console.log('Quiz: startGame:', this.players, this.started);
 
 		if (this.started) {
 			console.log('Quiz::startGame: game already started, resuming...');
-			// Resend intro quiz data so host can rebuild the quiz map
-			this.introQuiz();
+
 			// Resend current question if we are in a question state
 			if (this.roundNumber > 0 && this.questionNumber > 0) {
 				this.doQuestion();
@@ -1107,8 +1105,8 @@ export default class Quiz extends Game {
 			player.score = 0;
 		});
 
-		// For now, just start the state machine
-		this.stateMachine.start();
+		// Since there is nothing to do immediately after starting, we can transition to the opening credits state
+		this.stateMachine.nextState();
 	}
 
 	// endGame is a required function for a class that extends Game
@@ -1230,26 +1228,6 @@ export default class Quiz extends Game {
 		}
 	}
 
-	// introQuiz
-	// Run introductory animation, plus run any set up data tasks
-	introQuiz() {
-		console.log('introQuiz:');
-
-		// Create a map of the quiz structure for the host display
-		const quizMap = this.quizData.rounds.map((round) => ({
-			title: round.title,
-			questionCount: round.questions.length,
-			showAnswer: round.showAnswer,
-			updateScores: round.updateScores
-		}));
-
-		this.room.emitToHosts('server:introquiz', {
-			title: this.quizData.title,
-			description: this.quizData.description,
-			quizMap: quizMap
-		}, true)
-	}
-
 	openingCredits() {
 		console.log('openingCredits:');
 		
@@ -1271,11 +1249,15 @@ export default class Quiz extends Game {
 		// Shuffle and pick 10
 		const shuffledSamples = samples.sort(() => 0.5 - Math.random()).slice(0, 10);
 
-		this.room.emitToHosts('server:openingcredits', {
-			title: this.quizData.title,
-			description: this.quizData.description,
-			samples: shuffledSamples
-		}, true);
+		// UPDATE: for now we are not showing the opening credits on the host...
+		// this.room.emitToHosts('server:openingcredits', {
+		// 	title: this.quizData.title,
+		// 	description: this.quizData.description,
+		// 	samples: shuffledSamples
+		// }, true);
+
+		// So immediately move to next state
+		this.stateMachine.nextState();
 	}
 
 	// introRound
@@ -2208,6 +2190,7 @@ export default class Quiz extends Game {
 			}
 
 			return {
+				sessionID: sessionID,
 				userID: player ? player.userID : null,
 				displayName: player ? player.name : 'Unknown',
 				avatar: player ? player.avatar : null,

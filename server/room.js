@@ -222,113 +222,55 @@ class Room {
 
 		// host:ready
 		// Sent by host when they have loaded the host page and are ready to start receiving messages
-		socket.on('host:ready', (data, callback) => {
+		// Consolidates initialization directly in a single handshake using URL parameters (q/s/gameType)
+		socket.on('host:ready', async (data, callback) => {
 
-			console.log('Received host:ready from client:', socket.id, data);
-			// Send acknowledgment back
-			if (callback && typeof callback === 'function') {
-				callback({ received: true, roomID: this.id });
-			}
-			console.log('host:ready:: sending connected players:', this.getConnectedPlayers());
-			socket.emit('server:players', this.getConnectedPlayers());
+			const userObj = this.getPlayerBySocketID(socket.id) || this.host;
+			const gameType = userObj?.gameType;
+			const quizID = userObj?.quizID;
+			const seasonID = userObj?.seasonID;
 
-			// data sent by host should inclue the hosts device type so store in telemetry
+			console.log(`Received host:ready: socketID=${socket.id}, roomID=${this.id}, gameType=${gameType}, quizID=${quizID}, seasonID=${seasonID}`);
+
+			// Telemetry reporting
 			if (data && data.device) {
 				this.telemetry.clients[socket.id].device = data.device;
 			}
 
+			let initData = {};
 
-		});
-
-		// host:requestgame
-		// Host has initialised itself and is now requesting that the server loads a new game
-		// This function feels a bit too complex - look for ways to simplify... configs? callbacks? pendingGame? initData?
-		socket.on('host:requestgame', async (game, config, callback) => {
-			console.log('host:requestgame:', game, config);
-
-			// Support both (game, callback) and (game, config, callback)
-			if (typeof config === 'function') {
-				callback = config;
-				config = {};
-			}
-
-			// Capture session "Intent" if it exists - this allows clean URLs
-			this.session = socket.request.session;
-			console.log('host:ready event - socket.request.session:');
-			console.dir(this.session);
-
-			if (this.session && this.session.pendingGame) {
-				// Only apply if the game type matches (safety check)
-				if (this.session.pendingGame.gameType === game) {
-					// Re-hydrate quizID and seasonID if they aren't already provided
-					if (!config.quizID && this.session.pendingGame.quizID) {
-						config.quizID = this.session.pendingGame.quizID;
-						console.log(`Room:: Re-hydrated quizID from session: ${config.quizID}`);
-					}
-					if (!config.seasonID && this.session.pendingGame.seasonID) {
-						config.seasonID = this.session.pendingGame.seasonID;
-						console.log(`Room:: Re-hydrated seasonID from session: ${config.seasonID}`);
-					}
-				}
-			}
-
-			// We might already be in this game - do nothing if this is the case...
-			// Update: If the game has ended, we can start a new one of the same type
-			const isEnded = this.game && typeof this.game.isEnded === 'function' ? this.game.isEnded() : false;
-			const isSame = this.game && typeof this.game.isSameGame === 'function' ? this.game.isSameGame(config) : true;
-
-			console.log('Current game:', this.game ? this.game.name : 'no game', 'isEnded:', isEnded, 'isSame:', isSame);
-			
-			if (this.game && this.game.name == game && !isEnded && isSame) {
-				console.log('Already running this game - ignore:', this.game.name);
-
-				// If the game has not actually started yet (is in the waiting to start phase), we should allow it to re-initialize
-				// to pick up any changes made to the quiz data in the database.
-				// if (this.game.started === false && this.game.init && typeof this.game.init === 'function') {
-				// 	console.log('Game not started yet - re-initializing to pick up any data changes...');
-				// 	const initData = await this.game.init(config) || {};
-				// 	if (callback) callback({ success: true, ...initData });
-				// 	return;
-				// }
-
-				if (callback) callback({ success: true, alreadyRunning: true });
-			} else {
-
+			if (gameType && gameType !== 'lobby' && gameType !== 'dashboard') {
+				// Secure auto-initialization of game state on the server at start-up!
 				try {
-					const gameModule = await import(`./games/server.${game}.js`);
-					// Use the default export if your game modules use default export
+					console.log(`ROOM.js:: Auto-bootstrapping game '${gameType}' directly during ready handshake...`);
+					const gameModule = await import(`./games/server.${gameType}.js`);
 					const NewGame = gameModule.default;
-					// If your game modules use named exports instead, use: const { GameClass } = gameModule;
 
 					this.game = new NewGame(this);
-					this.game.name = game;
+					this.game.name = gameType;
 
-					// If the game has an init method, call it with the config
-					// We await this so that the game can perform async setup (like loading data)
-					// before we acknowledge the host:requestgame event.
-					let initData = {};
+					const config = { quizID };
 					if (this.game.init && typeof this.game.init === 'function') {
 						initData = await this.game.init(config) || {};
 					}
 
-					this.emitToAllPlayers('server:loadgame', game);
-					// Note: the next line is not needed since we pass data via the callback function below
-					// BUT it could be useful in future when we navigate via the lobby, THEN the host needs to load the quiz game
-					// this.emitToHosts('server:loadgame', { game, ...initData });
-
-					if (callback) callback({ success: true, ...initData });
-
+					this.emitToAllPlayers('server:loadgame', gameType);
 				} catch (error) {
-					console.error(`Error loading game '${game}':`, error);
-					if (callback) callback({ success: false, error: error.message });
-
-					// Notify host about the error
-					socket.emit('server:error', {
-						message: `Could not load game '${game}'`,
-						details: error.message
-					});
+					console.error(`ROOM.js:: Auto-bootstrap failed for game '${gameType}':`, error);
 				}
 			}
+
+			// Send richer consolidated response back to the client
+			if (callback && typeof callback === 'function') {
+				callback({
+					success: true,
+					roomID: this.id,
+					...initData
+				});
+			}
+
+			console.log('host:ready:: sending connected players:', this.getConnectedPlayers());
+			socket.emit('server:players', this.getConnectedPlayers());
 		});
 
 		// requeststart
@@ -502,7 +444,7 @@ class Room {
 			verificationLevel = 0;
 		}
 
-		const seasonID = this.session.pendingGame ? this.session.pendingGame.seasonID : null;
+		const seasonID = this.host ? this.host.seasonID : null;
 
 		try {
 
@@ -523,7 +465,8 @@ class Room {
 				},
 				telemetry: this.telemetry,
 			});
-			console.log('Game session saved:', session);
+			console.log('Game session saved:');
+			console.dir(session);
 
 			const playerResults = this.game.playerResults;
 
@@ -537,6 +480,7 @@ class Room {
 
 				await PlayerResult.insertMany(playerResults);
 				console.log(`Successfully saved ${playerResults.length} player results for session ${session._id}`);
+				console.dir(playerResults);
 			}	
 		} catch (error) {
 			console.error('Error saving game session and/or player results:', error);

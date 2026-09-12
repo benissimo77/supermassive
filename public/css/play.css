@@ -248,6 +248,65 @@ input::placeholder {
   height:1px;
   background-color: black;
 }
+
+.hidden {
+  display: none !important;
+}
+
+.auth-logged-in {
+    background: rgba(16, 185, 129, 0.15);
+    padding: 12px 20px;
+    border-radius: 16px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.auth-logged-in-dot {
+    width: 8px;
+    height: 8px;
+    background: #10b981;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #10b981;
+}
+
+.auth-logged-in-text {
+    color: #fff;
+    font-size: 0.9rem;
+}
+
+.auth-anonymous {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 10px 15px;
+    border-radius: 16px;
+    display: inline-block;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    white-space: nowrap;
+}
+
+.auth-anonymous-text {
+    color: var(--clr-text-muted);
+    font-size: 0.85rem;
+}
+
+.auth-link {
+    color: var(--clr-accent);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+.auth-login-link {
+    margin-left: 6px;
+}
+
+.auth-divider {
+    margin: 0 6px;
+    color: rgba(255,255,255,0.2);
+}
 .avatar {
   position: absolute;
   bottom:-60px;

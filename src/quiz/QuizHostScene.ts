@@ -239,50 +239,41 @@ export class QuizHostScene extends BaseScene {
         // Setup socket listeners
         this.setupSocketListeners();
 
-        // SEQUENTIAL BOOTSTRAP:
-        // 1. host:ready -> server returns roomID
-        // 2. host:requestgame -> server loads game module returns quiz data (pre-game waiting state) 
-        // 3. host:requeststart -> start game logic (opening credits and into first round)
+        // CONSOLIDATED BOOTSTRAP:
+        // We trigger a single `host:ready` handshake.
+        // Host passes device info for storage on the server
+        // Server extracts the desired game parameters (q / s / gameType) from URL
+        // Server responds with game data so host can initialize and show waiting state
+        console.log('QuizHostScene:: Starting consolidated bootstrap...');
+        this.socket?.emit('consolelog', 'QuizHostScene:: Starting consolidated bootstrap...');
 
-        console.log('QuizHostScene:: Starting sequential bootstrap...');
-        this.socket?.emit('consolelog', 'QuizHostScene:: Starting sequential bootstrap...');
-
-        // Retrieve quizID from scene data or URL (fallback for backwards compatibility/debugging)
-        const urlParams = new URLSearchParams(window.location.search);
-        const quizID = (this.scene.settings.data as any)?.quizID || urlParams.get('q');
-        
-        if (!quizID) {
-            console.log('QuizHostScene:: No quizID in URL/SceneData. Relying on server session intent.');
-        }
-
-        // 1. host:ready -> get roomID and show instructions
+        // 1. Single unified host:ready handshake returns:
+        // roomID (needed to generate the room QR code)
+        // game metadata (title, description, quizMap) - displayed while waiting to start
         this.socket.emit('host:ready', {}, (readyResponse: any) => {
             console.log('QuizHostScene:: host:ready ack received:', readyResponse);
             this.socket?.emit('consolelog', `QuizHostScene:: host:ready ack received: ${JSON.stringify(readyResponse)}`);
-            if (readyResponse && readyResponse.roomID) {
+            
+            if (readyResponse && readyResponse.success && readyResponse.roomID) {
                 this.roomID = readyResponse.roomID;
+                
+                // Show rich lobby waiting sequence immediately using returning consolidated data
+                this.waitingToStart(readyResponse);
+
+                // Queue QR loading
                 this.load.image('roomQR', `/assets/qr/${this.roomID}.png`);
                 this.load.once('complete', () => {
                     console.log('QuizHostScene:: Room QR code image loaded');
                     this.showInstructions();
                 });
                 this.load.start();
-            }
-        });
-
-        // 2. Request the game module and pass the quizID config
-        console.log('QuizHostScene:: Requesting game "quiz" from server...');
-        this.socket.emit('host:requestgame', 'quiz', { quizID }, (gameResponse: any) => {
-            console.log('QuizHostScene:: host:requestgame ack received:', gameResponse);
-
-            if (gameResponse && gameResponse.success) {
-                // Initialize the Waiting to Start display with the rich data returned from the server
-                this.waitingToStart(gameResponse);
             } else {
-                console.error('QuizHostScene:: Failed to load game "quiz":', gameResponse ? gameResponse.error : 'No response');
+                console.error('QuizHostScene:: Consolidated bootstrap failed:', readyResponse);
+                this.socket?.emit('consolelog', `QuizHostScene:: Consolidated bootstrap failed: ${readyResponse ? readyResponse.error : 'Unknown'}`);
             }
         });
     }
+
     update(time: number, delta: number): void {
         this.beatManager.update();
     }
@@ -387,16 +378,11 @@ export class QuizHostScene extends BaseScene {
             this.events.emit('server:hostaction', data);
         });
 
-        // Listen for intro quiz message
-        this.socket.on('server:introquiz', (data) => {
-            if (data.quizMap) {
-                this.quizMap.setMapData(data.quizMap);
-            }
-        });
 
         // Listen for opening credits message
+        // For now we are not using this - but this is done on the server
         this.socket.on('server:openingcredits', (data) => {
-            // this.showOpeningCredits(data.title, data.description || '', data.samples || []);
+            this.showOpeningCredits(data.title, data.description || '', data.samples || []);
         });
 
         // Listen for intro round message

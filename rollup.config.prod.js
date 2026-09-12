@@ -34,9 +34,9 @@ const playTypescriptOptions = {
 
 export default [
     {
-        input: 'src/AppHost.ts',
+        input: 'src/AppQuizHost.ts',
         output: {
-            file: 'public/modules/phaser.host.min.js',
+            file: 'public/modules/quiz-host.min.js',
             format: 'iife',
             sourcemap: true,
             globals: {
@@ -62,8 +62,40 @@ export default [
             terser({
                 compress: {
                     passes: 2,
-                    // UPDATE: while still developing just leave console logs... no-one is going to look
-                    // drop_console: true
+                }
+            })
+        ]
+    },
+
+    {
+        input: 'src/AppThreeHost.ts',
+        output: {
+            file: 'public/modules/three-host.min.js',
+            format: 'iife',
+            sourcemap: true,
+            globals: {
+                phaser: 'Phaser',
+                io: 'io'
+            }
+        },
+        external: ['phaser', 'io'],
+        plugins: [
+            replace({
+                '__DEV__': 'false'
+            }),
+            typescript({
+                ...hostTypescriptOptions,
+                tsconfig: './tsconfig.json'
+            }),
+            nodeResolve({
+                browser: true,
+                preferBuiltins: false,
+                extensions: ['.js', '.ts']
+            }),
+            commonjs(),
+            terser({
+                compress: {
+                    passes: 2,
                 }
             })
         ]

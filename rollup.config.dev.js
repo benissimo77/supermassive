@@ -28,11 +28,10 @@ const playTypescriptOptions = {
 
 export default [
     {
-        input: 'src/AppHost.ts',
+        input: 'src/AppQuizHost.ts',
         treeshake: true,
         output: {
-            // Change the output file path here
-            file: 'public/modules/phaser.host.min.js',
+            file: 'public/modules/quiz-host.min.js',
             format: 'iife',
             sourcemap: true,
             globals: {
@@ -48,7 +47,41 @@ export default [
             }),
             typescript({
                 ...hostTypescriptOptions,
-                // Use include/exclude pattern instead of filterRoot
+                include: ['src/**/*.ts'],
+                exclude: [
+                    'src/ui/SoundSettingsPanel-orig.ts',
+                    'src/vector/VectorGameScene.ts'
+                ]
+            }),
+            nodeResolve({
+                browser: true,
+                preferBuiltins: false,
+                extensions: ['.js', '.ts']
+            }),
+            commonjs()
+        ]
+    },
+
+    {
+        input: 'src/AppThreeHost.ts',
+        treeshake: true,
+        output: {
+            file: 'public/modules/three-host.min.js',
+            format: 'iife',
+            sourcemap: true,
+            globals: {
+                phaser: 'Phaser',
+                io: 'io'
+            }
+        },
+        external: ['phaser', 'io'],
+        plugins: [
+            replace({
+                preventAssignment: true,
+                '__DEV__': 'true'
+            }),
+            typescript({
+                ...hostTypescriptOptions,
                 include: ['src/**/*.ts'],
                 exclude: [
                     'src/ui/SoundSettingsPanel-orig.ts',

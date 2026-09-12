@@ -94,27 +94,25 @@ router.get('/:game/start', async (req, res) => {
 		}
 	}
 
-	// Capture the 'Intent' in the session.
-	// This makes the season/quiz IDs persistent across redirects 
-	// without them needing to be in the URL bar.
-	req.session.pendingGame = {
-		quizID: q,
-		seasonID: seasonID,
-		gameType: game,
-		timestamp: Date.now()
-	};
-
 	const room = req.session.room;
 	
-	// Clean redirect to the stage without leaking IDs in the URL
+	// Clean redirect to the stage using the URL as source of truth for q (quizID) and s (seasonID)
+	// No session pendingGame object needed
 	req.session.save(() => {
-		res.redirect(`/host/${room}/${game}`);
+		let redirectUrl = `/host/${room}/${game}`;
+		const queryParams = [];
+		if (q) queryParams.push(`q=${encodeURIComponent(q)}`);
+		if (seasonID) queryParams.push(`s=${encodeURIComponent(seasonID)}`);
+		if (queryParams.length > 0) {
+			redirectUrl += '?' + queryParams.join('&');
+		}
+		res.redirect(redirectUrl);
 	});
 });
 
-// Catch room-only URLs and default to the lobby
+// Catch room-only URLs and redirect to the dashboard
 router.get('/:room([A-Z]{4})', (req, res) => {
-	res.redirect(`/host/${req.params.room}/lobby`);
+	res.redirect('/host/dashboard');
 });
 
 // End / Retire a room

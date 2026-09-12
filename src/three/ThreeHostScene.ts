@@ -216,34 +216,28 @@ export class ThreeHostScene extends BaseScene {
         this.lobbyHUD.updateHUDTimerGraphics();
     }
 
-    // SEQUENTIAL BOOTSTRAP:
-    // 1. host:ready -> server returns roomID
-    // 2. host:requestgame -> server loads game module returns quiz data (pre-game waiting state) 
-    // 3. host:requeststart -> start game logic (opening credits and into first round)
+    // CONSOLIDATED BOOTSTRAP:
+    // We trigger a single `host:ready` handshake. The server extracts the desired game parameters (q / s / gameType)
+    // directly from the handshake's Referer URL and returns the fully resolved configuration.
     private initServerHandshake(): void {
         console.log('ThreeHostScene:: Handshaking with server...');
 
-        // Step 1: host:ready. Returns the Room ID.
+        // Step 1: Single unified host:ready handshake -> receives roomID, active players, and game metadata in a single round-trip
         this.socket.emit('host:ready', {}, (readyResponse: any) => {
-            console.log('ThreeHostScene:: host:ready ack:', readyResponse);
-            if (readyResponse && readyResponse.roomID) {
+            console.log('ThreeHostScene:: host:ready ack received:', readyResponse);
+            if (readyResponse && readyResponse.success && readyResponse.roomID) {
                 this.roomID = readyResponse.roomID;
                 this.lobbyHUD.showInstructionPanel(this.roomID);
 
-                // Step 2: Request the specific game logic ('three')
-                const urlParams = new URLSearchParams(window.location.search);
-                const quizID = (this.scene.settings.data as any)?.quizID || urlParams.get('q');
-                this.socket.emit('host:requestgame', 'three', { quizID }, (gameResponse: any) => {
-                    console.log('ThreeHostScene:: host:requestgame ack:', gameResponse);
-                    if (gameResponse && gameResponse.success) {
-                        // The server is now running 'three' logic for this room.
-                        // We can now safely request to start and begin the stateMachine flow on the server
-                        this.changeState(ThreeState.LOBBY, gameResponse);
-                        this.socket.emit('host:requeststart', {}, (startResponse: any) => {
-                            console.log('ThreeHostScene:: host:requeststart ack:', startResponse);
-                        });
-                    }
+                // Initialize Lobby displays with the rich game configuration object returned inside the handshake fallback response
+                this.changeState(ThreeState.LOBBY, readyResponse);
+
+                // Safe to request starting state machine directly
+                this.socket.emit('host:requeststart', {}, (startResponse: any) => {
+                    console.log('ThreeHostScene:: host:requeststart ack:', startResponse);
                 });
+            } else {
+                console.error('ThreeHostScene:: Consolidated bootstrap failed for Three For All:', readyResponse);
             }
         });
     }

@@ -178,6 +178,13 @@ function identifyUser(socket) {
 					userObj.host = false;
 					userObj.role = 'player'; // Downgrade to player if unauthorized
 				}
+
+				// Capture gameType, quizID, and seasonID from URL parameters for clean bootstrapping
+				const urlParams = url.searchParams;
+				userObj.gameType = pathSegments[2] || null; // e.g. /host/ROOM1/quiz -> pathSegments is ["host", "ROOM1", "quiz"]
+				userObj.quizID = urlParams.get('q') || null;
+				userObj.seasonID = urlParams.get('s') || null;
+				console.log(`SocketServer.identifyUser:: Host URL Parsed: gameType=${userObj.gameType}, quizID=${userObj.quizID}, seasonID=${userObj.seasonID}`);
 			} else if (type === 'admin') {
 				// Defense-in-depth: only grant admin socket role if the session already has admin privileges
 				if (session.role === 'admin' || session.role === 'producer') {
@@ -205,6 +212,10 @@ function identifyUser(socket) {
 					if (userObj.host) userObj.role = 'host';
 					else if (userObj.role === 'host') userObj.role = 'player';
 				}
+				// Support dev overrides for gameType/quizID/seasonID
+				if (urlParams.get('gameType')) userObj.gameType = urlParams.get('gameType');
+				if (urlParams.get('q')) userObj.quizID = urlParams.get('q');
+				if (urlParams.get('s')) userObj.seasonID = urlParams.get('s');
 			}
 
 		} catch (e) {

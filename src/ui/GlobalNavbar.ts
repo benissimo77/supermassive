@@ -28,9 +28,9 @@ export class GlobalNavbar extends Phaser.GameObjects.Container {
         })
             .setOrigin(0, 0.5)
             .setInteractive({ useHandCursor: true });
-        // default no-op; consumers can override
+        // Clean exit: Redirect completely back to HTML host dashboard instead of doing heavy Phaser scene switches
         returnText.on('pointerup', () => {
-            this.scene.socket?.emit('host:requestgame', 'Lobby');
+            window.location.href = '/host/dashboard';
         });
 
         this.container.add([bg, returnText, this.iconsContainer]);

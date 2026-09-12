@@ -87,6 +87,7 @@ async function checkForm(event) {
 
     // Save to localStorage for quick return
     localStorage.setItem('sm_last_room', room);
+    localStorage.setItem('sm_last_room_time', Date.now().toString());
     localStorage.setItem('sm_last_name', name);
     localStorage.setItem('sm_last_avatar', avatar);
 
@@ -114,10 +115,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (roomID && document.getElementById('room')) {
         document.getElementById('room').value = roomID;
     } else {
-        // Fallback to localStorage
+        // Fallback to localStorage if last room is recent (4 hours maximum)
         const lastRoom = localStorage.getItem('sm_last_room');
+        const lastRoomTimeStr = localStorage.getItem('sm_last_room_time');
+        
         if (lastRoom && document.getElementById('room')) {
-            document.getElementById('room').value = lastRoom;
+            if (lastRoomTimeStr) {
+                const lastRoomTime = parseInt(lastRoomTimeStr, 10);
+                const maxAge = 4 * 60 * 60 * 1000; // 4 hours threshold
+                if (Date.now() - lastRoomTime < maxAge) {
+                    document.getElementById('room').value = lastRoom;
+                } else {
+                    // Stale, clear storage entry so it doesn't linger
+                    localStorage.removeItem('sm_last_room');
+                    localStorage.removeItem('sm_last_room_time');
+                }
+            } else {
+                // If timestamp didn't exist (from past versions), let's pre-fill but clear it so we establish standard going forward
+                document.getElementById('room').value = lastRoom;
+            }
         }
     }
 
@@ -145,44 +161,54 @@ document.addEventListener('DOMContentLoaded', async () => {
         const authRes = await fetch('/auth/me');
         if (authRes.ok) {
             const authJson = await authRes.json();
-            user = (authJson && authJson.success && authJson.data) ? authJson.data.user : null;
+            if (authJson && authJson.success && authJson.data) {
+                user = authJson.data.user || null;
+            }
         }
     } catch (e) {
         console.error('Auth load failed', e);
     }
 
-    const authStatus = document.getElementById('auth-status');
-    
-    if (authStatus) {
-        if (user) {
-            authStatus.innerHTML = `
-                <div style="background: rgba(16, 185, 129, 0.15); padding: 12px 20px; border-radius: 16px; display: inline-flex; align-items: center; gap: 10px; border: 1px solid rgba(16, 185, 129, 0.2);">
-                    <div style="width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 10px #10b981;"></div>
-                    <span style="color: #fff; font-size: 0.9rem;">Playing as <strong>${user.displayname || user.email}</strong></span>
-                </div>
-            `;
-            
-            if (user.displayname && document.getElementById('name')) {
-                document.getElementById('name').value = user.displayname;
-            }
+    const currentPath = window.location.pathname + window.location.search;
+    const loggedInPanel = document.getElementById('auth-logged-in');
+    const anonymousPanel = document.getElementById('auth-anonymous');
+    const usernameDisplay = document.getElementById('username-display');
+    const loginLink = document.getElementById('auth-login-link');
+    const signupLink = document.getElementById('auth-signup-link');
 
-            if (user.avatar) {
-                const avatarImg = document.getElementById(user.avatar);
-                if (avatarImg) {
-                    avatarImg.click();
-                }
+    if (user) {
+        if (usernameDisplay) {
+            usernameDisplay.textContent = user.displayname || user.email;
+        }
+        if (loggedInPanel) {
+            loggedInPanel.classList.remove('hidden');
+        }
+        if (anonymousPanel) {
+            anonymousPanel.classList.add('hidden');
+        }
+
+        if (user.displayname && document.getElementById('name')) {
+            document.getElementById('name').value = user.displayname;
+        }
+
+        if (user.avatar) {
+            const avatarImg = document.getElementById(user.avatar);
+            if (avatarImg) {
+                avatarImg.click();
             }
-            updateButtonState();
-        } else {
-            const currentPath = window.location.pathname + window.location.search;
-            authStatus.innerHTML = `
-                <div style="background: rgba(255, 255, 255, 0.05); padding: 10px 15px; border-radius: 16px; display: inline-block; border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); white-space: nowrap;">
-                    <span style="color: var(--clr-text-muted); font-size: 0.85rem;">Save your scores?</span>
-                    <a href="/login?redirect=${encodeURIComponent(currentPath)}" style="color: var(--clr-accent); text-decoration: none; font-weight: 700; margin-left: 6px; font-size: 0.85rem;">Login</a>
-                    <span style="margin: 0 6px; color: rgba(255,255,255,0.2);">|</span>
-                    <a href="/login?mode=signup&redirect=${encodeURIComponent(currentPath)}" style="color: var(--clr-accent); text-decoration: none; font-weight: 700; font-size: 0.85rem;">Sign Up</a>
-                </div>
-            `;
+        }
+    } else {
+        if (loggedInPanel) {
+            loggedInPanel.classList.add('hidden');
+        }
+        if (anonymousPanel) {
+            anonymousPanel.classList.remove('hidden');
+        }
+        if (loginLink) {
+            loginLink.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
+        }
+        if (signupLink) {
+            signupLink.href = `/login?mode=signup&redirect=${encodeURIComponent(currentPath)}`;
         }
     }
     updateButtonState();

@@ -1,15 +1,19 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Season Details - SuperMassive</title>
     <link rel="stylesheet" href="/css/dashboard.css">
     <link rel="stylesheet" href="/css/quizbuilder.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script type="module" src="/modules/dashboard.min.js" defer></script>
     <script type="module" src="/modules/dashboard-seasonedit.min.js" defer></script>
+
+    <!-- External links -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <style>
         /* Episode cards — purple/violet accent, complementary to the season amber */
@@ -17,25 +21,38 @@
             margin-top: 0.75rem;
             border-left: 3px solid rgb(139, 92, 246) !important;
         }
-        .episode-card > .card-header {
+
+        .episode-card>.card-header {
             background: rgba(139, 92, 246, 0.2);
         }
+
+        .episode-card .episode-number {
+            font-weight: 800;
+            min-width: 1.8rem;
+        }
+        .episode-card .episode-title {
+            font-weight: 600;
+        }
+
         /* Add Episode button matches episode colour */
         .btn-episode {
             background-color: rgba(139, 92, 246, 0.2) !important;
             border: 1px solid rgba(139, 92, 246, 0.3) !important;
             color: var(--clr-text) !important;
         }
+
         /* Calendar picker icon — visible in dark mode */
         input[type="date"]::-webkit-calendar-picker-indicator,
         input[type="time"]::-webkit-calendar-picker-indicator {
             filter: brightness(0) invert(0.65);
             cursor: pointer;
         }
+
         /* Concise width for date and time pickers so the icons are close to the text values */
         input[type="date"] {
             width: 150px;
         }
+
         input[type="time"] {
             width: 110px;
         }
@@ -48,6 +65,7 @@
             font-size: 0.8rem;
             font-weight: 700;
         }
+
         .empty-state {
             padding: 4rem;
             text-align: center;
@@ -72,7 +90,7 @@
                 <h1>Season Editor</h1>
             </div>
             <div class="flex gap-md">
-                <button id="save-season-btn" class="btn btn-primary btn-save-all">
+                <button class="save-season-btn btn btn-primary btn-save-all">
                     <i class="fa-solid fa-floppy-disk"></i>
                     Save Season
                 </button>
@@ -94,11 +112,9 @@
                             <label for="season-name-input">Name</label>
                             <input type="text" id="season-name-input" placeholder="Season name">
 
-                            <label for="season-series-input">Series</label>
-                            <input type="text" id="season-series-input" placeholder="e.g. Pub Quiz @ Home (optional)">
-
                             <label for="season-desc-input">Description</label>
-                            <textarea id="season-desc-input" rows="3" placeholder="What's this season about? (optional)"></textarea>
+                            <textarea id="season-desc-input" rows="3"
+                                placeholder="What's this season about? (optional)"></textarea>
                         </div>
                     </div>
                     <div class="form-right-column">
@@ -114,20 +130,28 @@
 
                             <label for="season-public-input">Public</label>
                             <div style="display: flex; align-items: center;">
-                                <input type="checkbox" id="season-public-input" style="width: auto; accent-color: var(--clr-accent); width: 1.1rem; height: 1.1rem;">
+                                <input type="checkbox" id="season-public-input"
+                                    style="width: auto; accent-color: var(--clr-accent); width: 1.1rem; height: 1.1rem;">
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div id="episode-list" class="mt-md"></div>
+                <div id="episode-list" class="mt-md">
+                    <div class="empty-state" style="margin-top: 1rem;">
+                        <h3>No Episodes Yet</h3>
+                        <p>Click 'Add Episode' to attach a quiz to this season.</p>
+                    </div>
+                    <!-- Episodes added here by JS module -->
+
+                </div>
 
                 <div class="flex justify-between mt-md">
                     <button class="btn btn-episode" onclick="addEpisodeInline()">
                         <i class="fa-solid fa-plus"></i>
                         Add Episode
                     </button>
-                    <button class="btn btn-primary btn-save-all" onclick="saveAll()">
+                    <button class="save-season-btn btn btn-primary btn-save-all" onclick="saveAll()">
                         <i class="fa-solid fa-floppy-disk"></i>
                         Save Season
                     </button>
@@ -136,11 +160,46 @@
         </details>
     </main>
 
-    <!-- <script type="module">
-        import { initDashboardSeasonEdit } from '/modules/dashboard-seasonedit.min.js';
-		initDashboardSeasonEdit();
-		console.log('Dashboard season edit module initialized');
-    </script> -->
-    
+    <template id="episode-template">
+        <details class="card episode-card" open>
+            <summary class="card-header">
+                <div class="flex items-center gap-sm" style="flex: 1; min-width: 0;">
+                    <span class="episode-number"></span>
+                    <span class="episode-title"></span>
+                </div>
+                <div class="flex gap-sm" onclick="event.stopPropagation()">
+                    <button class="btn btn-xs btn-danger">
+                        <i class="fa-solid fa-trash"></i>
+                        Delete
+                    </button>
+                </div>
+            </summary>
+            <div class="card-body">
+                <div class="form-grid mb-md">
+                    <label>Quiz</label>
+                    <select onChange="updateEpisodeTitle(this)">
+                        <!-- Quiz list injected here by JS module -->
+                    </select>
+
+                    <label>Air Date</label>
+                    <input type="date" class="ep-airdate-input">
+                    <label>Air Time</label>
+                    <input type="time" class="ep-airtime-input" value="${ep.airTime || ''}" placeholder="Default: ${defaultTime}" title="Leave blank to use the season default time (${defaultTime})" step="300">
+                </div>
+
+                <div class="flex justify-end">
+                    <button class="btn btn-accent btn-sm">
+                        <i class="fa-solid fa-play"></i>
+                        Host Quiz
+                    </button>
+                </div>
+
+            </div>
+        </details>
+    </template>
+
+
+
 </body>
+
 </html>

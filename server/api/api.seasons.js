@@ -152,12 +152,12 @@ router.post('/:seasonId/episodes', async (req, res) => {
 });
 
 /**
- * PATCH /api/seasons/:id
+ * POST /api/seasons/:id
  * Update season metadata (name, seriesName, description, startDate, endDate, defaultTime, isActive)
  */
-router.patch('/:id', async (req, res) => {
+router.post('/:id', async (req, res) => {
     try {
-        const allowed = ['name', 'seriesName', 'description', 'startDate', 'endDate', 'defaultTime', 'timezone', 'isPublic'];
+        const allowed = ['name', 'description', 'startDate', 'endDate', 'defaultTime', 'timezone', 'isPublic', 'episodes'];
         const updates = {};
         for (const key of allowed) {
             if (req.body[key] !== undefined) {
@@ -178,48 +178,5 @@ router.patch('/:id', async (req, res) => {
     }
 });
 
-/**
- * PATCH /api/seasons/:seasonId/episodes/:episodeId
- * Update an episode's label, airDate, or airTime
- */
-router.patch('/:seasonId/episodes/:episodeId', async (req, res) => {
-    try {
-        const { label, airDate, airTime, quizID } = req.body;
-        const setFields = {};
-        if (label !== undefined) setFields['episodes.$.label'] = label;
-        if (airDate !== undefined) setFields['episodes.$.airDate'] = airDate || null;
-        if (airTime !== undefined) setFields['episodes.$.airTime'] = airTime || null;
-        if (quizID !== undefined) setFields['episodes.$.quizID'] = quizID || null;
-
-        const season = await Season.findOneAndUpdate(
-            { _id: req.params.seasonId, 'episodes._id': req.params.episodeId },
-            { $set: setFields },
-            { new: true }
-        ).populate('episodes.quizID', 'title');
-
-        if (!season) return res.status(404).json({ success: false, message: 'Episode not found' });
-        res.json({ success: true, data: season });
-    } catch (err) {
-        res.status(500).json({ success: false, message: err.message });
-    }
-});
-
-/**
- * DELETE /api/seasons/:seasonId/episodes/:episodeId
- * Remove an episode from a season
- */
-router.delete('/:seasonId/episodes/:episodeId', async (req, res) => {
-    try {
-        const season = await Season.findByIdAndUpdate(
-            req.params.seasonId,
-            { $pull: { episodes: { _id: req.params.episodeId } } },
-            { new: true }
-        );
-        if (!season) return res.status(404).json({ success: false, message: 'Season not found' });
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ success: false, message: err.message });
-    }
-});
 
 export default router;

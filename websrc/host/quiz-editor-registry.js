@@ -1,3 +1,5 @@
+import { escapeHtml } from '../utils/sanitize.js';
+
 /**
  * QuestionTypeRegistry
  * 
@@ -14,9 +16,9 @@ function addItemRow(listEl, side, item = {}, textFieldName = '') {
     const row = document.createElement('div');
     row.className = 'order-row mb-xs';
     row.innerHTML = `
-        <input class="order-item-text matching-text" type="text" data-field="${textField}" placeholder="Text" value="${item.text || ''}">
+        <input class="order-item-text matching-text" type="text" data-field="${textField}" placeholder="Text" value="${escapeHtml(item.text || '')}">
         <div class="order-image-container">
-            <input class="order-image-input" type="text" data-field="order-image" placeholder="Image URL" value="${item.image || ''}">
+            <input class="order-image-input" type="text" data-field="order-image" placeholder="Image URL" value="${escapeHtml(item.image || '')}">
             <div data-field="order-image-preview" class="order-image-preview image-thumb"></div>
             <button type="button" class="btn btn-sm btn-ghost select-order-image-btn" title="Select Image"><i class="fa-solid fa-image"></i></button>
         </div>

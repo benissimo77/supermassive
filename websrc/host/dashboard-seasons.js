@@ -1,3 +1,44 @@
+import { initCollapsibles } from '../utils/Collapsible.js';
+import { runSave } from '../utils/saveButton.js';
+
+const template = document.getElementById('season-card-template');
+
+function renderSeasonCard(season, { clickable = false, showPublicBadge = false } = {}) {
+	const clone = template.content.cloneNode(true);
+	const card = clone.querySelector('.season-card');
+
+	if (clickable) {
+		card.addEventListener('click', () => location.href = `/host/dashboard/seasons/edit?id=${season._id}`);
+	}
+
+	if (season.seriesName) {
+		const label = clone.querySelector('.season-series-label');
+		label.textContent = season.seriesName;
+		label.hidden = false;
+	}
+
+	clone.querySelector('.season-name').textContent = season.name;
+
+	const episodeCount = season.episodes?.length || 0;
+	clone.querySelector('.season-episode-count').textContent = `${episodeCount} Episode${episodeCount !== 1 ? 's' : ''}`;
+
+	const fmt = d => new Date(d).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+	const dates = [season.startDate && fmt(season.startDate), season.endDate && fmt(season.endDate)]
+		.filter(Boolean).join(' – ');
+	if (dates) {
+		clone.querySelector('.season-dates-sep').hidden = false;
+		const datesEl = clone.querySelector('.season-dates');
+		datesEl.textContent = dates;
+		datesEl.hidden = false;
+	}
+
+	if (showPublicBadge && season.isPublic) {
+		clone.querySelector('.season-public-sep').hidden = false;
+		clone.querySelector('.public-badge').hidden = false;
+	}
+
+	return clone;
+}
 
 async function loadSeasons() {
 
@@ -16,26 +57,8 @@ async function loadSeasons() {
 			return;
 		}
 
-		container.innerHTML = data.map(season => {
-			const episodeCount = season.episodes?.length || 0;
-			const fmt = d => new Date(d).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
-			const dates = [season.startDate && fmt(season.startDate), season.endDate && fmt(season.endDate)]
-				.filter(Boolean).join(' \u2013 ');
-
-			return `
-	<div class="season-card card" onclick="location.href='/host/dashboard/seasons/edit?id=${season._id}'">
-		<div class="card-body">
-			${season.seriesName ? `<div class="season-series-label">${season.seriesName}</div>` : ''}
-			<h3 class="season-name">${season.name}</h3>
-			<div class="season-meta">
-				<span><i class="fa-solid fa-film" style="margin-right:3px; opacity:0.5;"></i>${episodeCount} Episode${episodeCount !== 1 ? 's' : ''}</span>
-				${dates ? `<span>&bull;</span><span>${dates}</span>` : ''}
-				${season.isPublic ? `<span>&bull;</span><span class="public-badge">Public</span>` : ''}
-			</div>
-		</div>
-	</div>
-	`;
-		}).join('');
+		container.innerHTML = '';
+		data.forEach(season => container.appendChild(renderSeasonCard(season, { clickable: true, showPublicBadge: true })));
 	} catch (err) {
 		console.error('Failed to load seasons:', err);
 		container.innerHTML = '<div class="empty-state">Failed to load seasons. Please try again.</div>';
@@ -58,24 +81,8 @@ async function loadPublicSeasons() {
 			return;
 		}
 
-		container.innerHTML = data.map(season => {
-			const episodeCount = season.episodes?.length || 0;
-			const fmt = d => new Date(d).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
-			const dates = [season.startDate && fmt(season.startDate), season.endDate && fmt(season.endDate)]
-				.filter(Boolean).join(' \u2013 ');
-			return `
-	<div class="card" style="border-left: 4px solid var(--clr-accent); margin-bottom: 0;">
-		<div class="card-body">
-			${season.seriesName ? `<div class="season-series-label">${season.seriesName}</div>` : ''}
-			<h3 class="season-name">${season.name}</h3>
-			<div class="season-meta">
-				<span><i class="fa-solid fa-film" style="margin-right:3px; opacity:0.5;"></i>${episodeCount} Episode${episodeCount !== 1 ? 's' : ''}</span>
-				${dates ? `<span>&bull;</span><span>${dates}</span>` : ''}
-			</div>
-		</div>
-	</div>
-	`;
-		}).join('');
+		container.innerHTML = '';
+		data.forEach(season => container.appendChild(renderSeasonCard(season)));
 	} catch (err) {
 		console.error('Failed to load public seasons:', err);
 		container.innerHTML = '<div class="empty-state">Failed to load public seasons.</div>';
@@ -84,25 +91,17 @@ async function loadPublicSeasons() {
 
 async function createNewSeason() {
 	const btn = document.getElementById('new-season-btn');
-	btn.disabled = true;
-	try {
+	const result = await runSave(btn, async () => {
 		const res = await fetch('/api/seasons', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ name: 'New Season' })
 		});
-		const result = await res.json();
-		if (result.success) {
-			location.href = `/host/dashboard/seasons/edit?id=${result.data._id}`;
-		} else {
-			alert(result.message || 'Failed to create season.');
-			btn.disabled = false;
-		}
-	} catch (err) {
-		console.error('Create season error:', err);
-		alert('Failed to create season. Please try again.');
-		btn.disabled = false;
-	}
+		return res.json();
+	}, {
+		onError: (err) => alert(err.message || 'Failed to create season. Please try again.')
+	});
+	if (result) location.href = `/host/dashboard/seasons/edit?id=${result.data._id}`;
 }
 
 function initDashboardSeasons() {
@@ -112,12 +111,7 @@ function initDashboardSeasons() {
 	loadSeasons();
 	loadPublicSeasons();
 
-	// Card collapse (matches Quiz Dashboard behaviour)
-	document.querySelectorAll('.card-header').forEach(header => {
-		header.addEventListener('click', () => {
-			header.closest('.card').classList.toggle('collapsed');
-		});
-	});
+	initCollapsibles(document);
 }
 
 document.addEventListener('DOMContentLoaded', initDashboardSeasons);

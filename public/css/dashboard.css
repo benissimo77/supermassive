@@ -456,21 +456,29 @@ main {
   padding: var(--space-md);
 }
 
-.collapse-icon {
-	transition: transform 0.2s ease;
-	color: var(--clr-text-muted);
-}
-
-.card.collapsed .collapse-icon {
-	transform: rotate(-90deg);
-}
-
-.card.collapsed .card-body {
-	display: none;
-}
-
-.card.collapsed .card-header {
+/* Collapsible cards use native <details>/<summary> — no chevron icon, the whole
+   header row is the click target. (The rotating chevron elsewhere in the dashboard
+   belongs only to the sidebar's sub-menu toggle, a separate component.) */
+details.card:not([open]) .card-header {
 	border-bottom: none;
+}
+
+/* Header accent modifiers — put on the <details class="card"> element, e.g.
+   <details class="card card-header--violet">, to color-code a card's header
+   without a page-specific <style> block. */
+.card-header--violet { border-left: 3px solid var(--clr-tertiary) !important; }
+.card-header--violet > .card-header { background: rgba(139, 92, 246, 0.2); }
+.card-header--amber { border-left: 3px solid var(--clr-accent) !important; }
+.card-header--amber > .card-header { background: rgba(245, 158, 11, 0.2); }
+.card-header--teal { border-left: 3px solid var(--clr-primary) !important; }
+.card-header--teal > .card-header { background: rgba(16, 185, 129, 0.2); }
+
+/* Action buttons (e.g. Delete) inside a card-header, pinned right; wrap with
+   onclick="event.stopPropagation()" so clicking them doesn't toggle the card. */
+.card-header-actions {
+	margin-left: auto;
+	display: flex;
+	gap: var(--space-sm);
 }
 
 

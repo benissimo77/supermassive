@@ -79,7 +79,13 @@ router.get('/:game/start', async (req, res) => {
 
 	console.log('routes.host:: /:game/start - starting game:', game, 'Quiz:', q, 'Season:', seasonID);
 
-	if (!req.session || !req.session.room) {
+	// A session room code only means something if that room is still alive server-side - otherwise
+	// (host abandoned it, it idle-reaped, or the server restarted) treat it the same as having none.
+	const io = req.app.get('io');
+	const roomStats = io ? io.getRoomStats() : {};
+	const sessionRoomIsLive = req.session?.room && roomStats[req.session.room];
+
+	if (!req.session || !sessionRoomIsLive) {
 		const newRoom = generateNewRoomName();
 		req.session.room = newRoom;
 

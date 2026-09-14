@@ -1,4 +1,5 @@
 import { FileDropzone } from './FileDropzone.js';
+import { runSave } from '../utils/saveButton.js';
 
 // Globals - scoped to this module
 let currentUser = null;
@@ -7,14 +8,6 @@ function initDashboardQuiz() {
 
 	const createQuizButton = document.getElementById('create-quiz');
 	createQuizButton.addEventListener('click', createQuiz);
-
-	// Add collapse/expand functionality to card headers
-	document.querySelectorAll('.card-header').forEach(header => {
-		header.addEventListener('click', () => {
-			const card = header.closest('.card');
-			card.classList.toggle('collapsed');
-		});
-	});
 
 	// Initialize import quiz dropzone
 	const importQuizDropzone = new FileDropzone({
@@ -131,14 +124,14 @@ function createQuizList(quizzes, user) {
 				deleteBtn.addEventListener('click', (e) => {
 					e.stopPropagation();
 					if (confirm(`Are you sure you want to delete "${quiz.title}"?`)) {
-						deleteQuiz(quiz._id);
+						deleteQuiz(quiz._id, deleteBtn);
 					}
 				});
 				copyBtn.style.display = 'none';
 			} else {
 				copyBtn.addEventListener('click', (e) => {
 					e.stopPropagation();
-					copyQuiz(quiz._id);
+					copyQuiz(quiz._id, copyBtn);
 				});
 				deleteBtn.style.display = 'none';
 			}
@@ -164,35 +157,32 @@ function createQuiz() {
 	gotoQuizEdit({ title: 'New Quiz', description: '', rounds: [] });
 }
 
-async function deleteQuiz(quizId) {
-	try {
+async function deleteQuiz(quizId, btn) {
+	const result = await runSave(btn, async () => {
 		const response = await fetch(`/api/quiz/${quizId}`, {
 			method: 'DELETE',
 			headers: { 'Content-Type': 'application/json' }
 		});
-		const result = await response.json();
-		if (!result.success) throw new Error(result.message || 'Failed to delete quiz');
-		fetchQuizzes();
-	} catch (error) {
-		console.error('Error deleting quiz:', error);
-		alert('Error deleting quiz: ' + error.message);
-	}
+		return response.json();
+	}, {
+		savingText: 'Deleting...',
+		onError: (err) => alert('Error deleting quiz: ' + err.message)
+	});
+	if (result) fetchQuizzes();
 }
 
-async function copyQuiz(quizId) {
-	try {
+async function copyQuiz(quizId, btn) {
+	const result = await runSave(btn, async () => {
 		const response = await fetch(`/api/quiz/${quizId}/copy`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' }
 		});
-		const result = await response.json();
-		if (!result.success) throw new Error(result.message || 'Failed to copy quiz');
-		console.log('Quiz copied successfully:', result.data);
-		fetchQuizzes();
-	} catch (error) {
-		console.error('Error copying quiz:', error);
-		alert('Error copying quiz: ' + error.message);
-	}
+		return response.json();
+	}, {
+		savingText: 'Copying...',
+		onError: (err) => alert('Error copying quiz: ' + err.message)
+	});
+	if (result) fetchQuizzes();
 }
 
 function gotoQuizEdit(quiz) {

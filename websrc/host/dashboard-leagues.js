@@ -1,4 +1,7 @@
 import { Modal } from '../utils/Modal.js';
+import { getAvatarUrl } from '../utils/avatars.js';
+import { initCollapsibles } from '../utils/Collapsible.js';
+import { runSave } from '../utils/saveButton.js';
 
 let currentUser = null;
 let inviteModal = null;
@@ -98,7 +101,7 @@ function renderLeague(league, container) {
 		console.log('Rendering member', member.displayname, member.email, member.avatar, typeof member.avatar);
 
 		// If avatar img is an absolute URL use it directrly, otherwise treat it as an ID and attempt to load from our image route (with fallback to default avatar on error)
-		img.src = member.avatar ? (typeof member.avatar === 'string' && member.avatar.startsWith('http') ? member.avatar : `/img/avatar-100/image-from-rawpixel-id-${member.avatar}-original.png`) : '/img/avatar-100/image-from-rawpixel-id-default-original.png';
+		img.src = member.avatar ? (typeof member.avatar === 'string' && member.avatar.startsWith('http') ? member.avatar : getAvatarUrl(member.avatar)) : getAvatarUrl('default');
 		// img.onerror = () => {
 		// 	console.log('Avatar load error for member', member.displayname, 'with avatar', member.avatar);
 		// 	img.onerror = null;
@@ -161,6 +164,8 @@ async function renderLeagues() {
 				}
 			}
 		}
+
+		initCollapsibles(document);
 
 	} catch (err) {
 		console.error('Load leagues error:', err);
@@ -249,9 +254,8 @@ function initInviteModal() {
 				return;
 			}
 
-			sendBtn.disabled = true;
 			if (statusEl) statusEl.textContent = 'Sending invites...';
-			try {
+			const result = await runSave(sendBtn, async () => {
 				const res = await fetch(`/api/league/${leagueID}/invite`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
@@ -259,15 +263,15 @@ function initInviteModal() {
 				});
 				const json = await res.json();
 				if (!res.ok) throw new Error(json.error || 'Invite send failed');
+				return json;
+			}, {
+				savingText: 'Sending...',
+				onError: (err) => { if (statusEl) statusEl.textContent = 'Failed to send invite: ' + err.message; }
+			});
 
+			if (result) {
 				if (statusEl) statusEl.textContent = 'Invite emails sent';
-				setTimeout(() => {
-					inviteModal.hide();
-				}, 1500);
-			} catch (err) {
-				if (statusEl) statusEl.textContent = 'Failed to send invite: ' + err.message;
-			} finally {
-				sendBtn.disabled = false;
+				setTimeout(() => inviteModal.hide(), 1500);
 			}
 		}
 
@@ -320,8 +324,7 @@ function initCreateModal() {
 			return;
 		}
 
-		saveBtn.disabled = true;
-		try {
+		const result = await runSave(saveBtn, async () => {
 			const res = await fetch('/api/league/create', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -329,12 +332,14 @@ function initCreateModal() {
 			});
 			const json = await res.json();
 			if (!res.ok) throw new Error(json.error || json.message || 'Create failed');
+			return json;
+		}, {
+			onError: (err) => alert('Failed to create league: ' + err.message)
+		});
+
+		if (result) {
 			createModal.hide();
 			await renderLeagues();
-		} catch (err) {
-			alert('Failed to create league: ' + err.message);
-		} finally {
-			saveBtn.disabled = false;
 		}
 	});
 

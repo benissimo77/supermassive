@@ -29,36 +29,44 @@
 			</div>
 		</div>
 
-		<div class="card">
-			<div class="card-header">
-				<svg class="collapse-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-					stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-					<polyline points="6 9 12 15 18 9"></polyline>
-				</svg>
+		<details class="card" open>
+			<summary class="card-header">
 				<h2>My Seasons</h2>
-			</div>
+			</summary>
 			<div class="card-body">
 				<section id="season-list" class="season-grid">
 					<div class="empty-state">Loading your seasons...</div>
 				</section>
 			</div>
-		</div>
+		</details>
 
-		<div class="card" style="margin-top: 2.5rem;">
-			<div class="card-header">
-				<svg class="collapse-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-					stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-					<polyline points="6 9 12 15 18 9"></polyline>
-				</svg>
+		<details class="card" open style="margin-top: 2.5rem;">
+			<summary class="card-header">
 				<h2>Public Seasons</h2>
-			</div>
+			</summary>
 			<div class="card-body">
 				<section id="public-season-list" class="season-grid">
 					<div class="empty-state">Loading public seasons...</div>
 				</section>
 			</div>
-		</div>
+		</details>
 	</main>
+
+	<template id="season-card-template">
+		<div class="card season-card">
+			<div class="card-body">
+				<div class="season-series-label" hidden></div>
+				<h3 class="season-name"></h3>
+				<div class="season-meta">
+					<span><i class="fa-solid fa-film" style="margin-right:3px; opacity:0.5;"></i><span class="season-episode-count"></span></span>
+					<span class="season-dates-sep" hidden>&bull;</span>
+					<span class="season-dates" hidden></span>
+					<span class="season-public-sep" hidden>&bull;</span>
+					<span class="public-badge" hidden>Public</span>
+				</div>
+			</div>
+		</div>
+	</template>
 
 </body>
 

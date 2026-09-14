@@ -2,6 +2,8 @@ import { FileDropzone } from './FileDropzone.js';
 import { ImageLibrary } from './ImageLibrary.js';
 import '../utils/ImageSelector.js';
 import { QuestionTypeRegistry } from './quiz-editor-registry.js';
+import { initCollapsibles } from '../utils/Collapsible.js';
+import { runSave } from '../utils/saveButton.js';
 
 // Global state variables
 const UI = {};
@@ -133,6 +135,7 @@ function initDashboardQuizEdit() {
 		});
 	}
 
+	initCollapsibles(document);
 	loadQuiz();
 
 }
@@ -547,7 +550,7 @@ function addRoundToDOM() {
 	// Events
 	roundEl.querySelector('.round-title').addEventListener('blur', updateHeaderWithTitle);
 	roundEl.querySelector('.question-btn').addEventListener('click', () => addQuestionToDOM(roundEl.querySelector('.questions-container')));
-	setupCollapsible(roundEl.querySelector('.card-header'));
+	initCollapsibles(roundEl);
 
 	// Sorting
 	if (window.Sortable) {
@@ -577,7 +580,7 @@ function addQuestionToDOM(container) {
 		if (e.target.value) setImageSelectorSrc(qEl, e.target.value);
 	});
 
-	setupCollapsible(qEl.querySelector('.card-header'));
+	initCollapsibles(qEl);
 	applyQuestionTypeChange(qEl); // Initial render
 	addRoundQuestionNumbers();
 	return qEl;
@@ -632,19 +635,14 @@ async function saveQuiz(e) {
 
 	const data = readQuizFromUI();
 
-	const saveButtonText = '<i class="fa-solid fa-floppy-disk"></i> Save Quiz';
-	UI.saveButtons.forEach(btn => btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...');
+	await runSave(Array.from(UI.saveButtons), async () => {
+		const validation = await validateQuizSchema(data);
+		if (!validation.valid) {
+			displayValidationErrors(validation.errors);
+			const errStr = validation.errors.map(err => ' - ' + err.message).join('\n');
+			throw new Error('Please correct the errors before saving:\n\n' + errStr);
+		}
 
-	const validation = await validateQuizSchema(data);
-	if (!validation.valid) {
-		displayValidationErrors(validation.errors);
-		const errStr = validation.errors.map(err => ' - ' + err.message).join('\n');
-		alert('Save failed: Please correct the errors before saving:\n\n' + errStr);
-		UI.saveButtons.forEach(btn => btn.innerHTML = saveButtonText);
-		return;
-	}
-
-	try {
 		const res = await fetch('/api/quiz/save', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
@@ -652,24 +650,22 @@ async function saveQuiz(e) {
 		});
 		const result = await res.json();
 
-		if (result.success) {
-			UI.saveButtons.forEach(btn => btn.innerHTML = '<i class="fa-solid fa-check"></i> Saved');
-			setTimeout(() => UI.saveButtons.forEach(btn => btn.innerHTML = saveButtonText), 2000);
-			await writeQuizToUI(result.data);
-		} else {
+		if (!result.success) {
 			let errStr = result.message;
 			const validationErrors = result.error; // apiResponse maps 'details' directly to 'error'
 			if (validationErrors && Array.isArray(validationErrors) && validationErrors.length > 0) {
 				displayValidationErrors(validationErrors);
 				errStr += '\n' + validationErrors.map(err => ' - ' + err.message).join('\n');
 			}
-			alert('Save failed:\\n' + errStr);
-			UI.saveButtons.forEach(btn => btn.innerHTML = saveButtonText);
+			throw new Error(errStr);
 		}
-	} catch (err) {
-		console.error(err);
-		UI.saveButtons.forEach(btn => btn.innerHTML = saveButtonText);
-	}
+
+		await writeQuizToUI(result.data);
+		return result;
+	}, {
+		savedText: 'Saved',
+		onError: (err) => alert('Save failed:\n' + err.message)
+	});
 }
 
 // --- 4. UTILITIES (Kept from original for stability) ---
@@ -705,19 +701,6 @@ function setImageSelectorSrc(qEl, url) {
 	if (hotspotPvw) hotspotPvw.setAttribute('src', url);
 
 	markAsChanged();
-}
-
-function setupCollapsible(summary) {
-	summary.addEventListener('click', (e) => {
-		if (e.target.closest('button')) {
-			e.preventDefault();
-			return;
-		}
-		const details = summary.parentNode;
-		if (details.hasAttribute('open')) {
-			details.querySelectorAll('details').forEach(d => d.removeAttribute('open'));
-		}
-	});
 }
 
 function collapseAll() {

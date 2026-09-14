@@ -1,7 +1,12 @@
+import { initCollapsibles } from '../utils/Collapsible.js';
+import { runSave } from '../utils/saveButton.js';
+import { escapeHtml } from '../utils/sanitize.js';
+
 const urlParams = new URLSearchParams(window.location.search);
 const seasonID = urlParams.get('id');
 let currentSeasonData = null;
 let quizList = [];
+let hasUnsavedChanges = false;
 
 // Local (not UTC) YYYY-MM-DD, so hosts outside UTC see the day they actually picked
 function toDateInputValue(dateLike) {
@@ -20,6 +25,9 @@ export async function initDashboardSeasonEdit() {
 	}
 
 	document.querySelectorAll('.save-season-btn').forEach(btn => btn.addEventListener('click', saveAll));
+
+	// Collapsing the season card collapses all episode cards inside it, matching the Quiz Editor's round/question behaviour
+	initCollapsibles(document);
 
 	// One delegated listener on the whole season panel handles all inputs (metadata + episodes)
 	document.getElementById('season-details').addEventListener('input', markDirty);
@@ -81,62 +89,62 @@ async function loadSeasonData() {
 	}
 }
 
+// Builds one episode card from an episode object \u2014 {_id, quizID, airDate, airTime}. quizID may be
+// either a populated {_id, title} (from the server) or absent (a not-yet-saved blank episode).
+function createEpisodeCard(ep) {
+	const currentQuizId = ep.quizID?._id || '';
+	const template = document.getElementById('episode-template');
+	const clone = template.content.cloneNode(true);
+
+	// data-episode-id is the episode's own subdocument ID (not the linked quiz's ID) so delete targets the right episode.
+	// A not-yet-saved episode has no id yet, hence the '' fallback.
+	clone.querySelector('.episode-card').setAttribute('data-episode-id', ep._id || '');
+
+	const summary = clone.querySelector('summary');
+	summary.querySelector('.episode-title').textContent = ep.quizID?.title || 'No quiz selected';
+
+	// Provide a drop-down with all the quizzes for selection
+	const select = clone.querySelector('select');
+	select.innerHTML = '<option value="">\u2014 Select quiz \u2014</option>' +
+		quizList.map(q =>
+			`<option value="${q._id}" ${q._id === currentQuizId ? 'selected' : ''}>${escapeHtml(q.title)}</option>`
+		).join('');
+
+	// Add click handlers for the buttons
+	const playBtn = clone.querySelector('.btn-accent');
+	playBtn.addEventListener('click', () => {
+		window.playEpisode(currentQuizId);
+	});
+
+	const deleteBtn = clone.querySelector('.btn-danger');
+	deleteBtn.addEventListener('click', () => {
+		window.deleteEpisode(ep._id || '');
+	});
+
+	// Add air date and time inputs
+	clone.querySelector('.ep-airdate-input').value = ep.airDate ? toDateInputValue(ep.airDate) : '';
+	clone.querySelector('.ep-airtime-input').value = ep.airTime || '';
+
+	return clone.querySelector('.episode-card');
+}
+
 function renderEpisodes(episodes) {
 
 	if (episodes.length === 0) {
 		return;
 	}
 
-	const list = document.getElementById('episode-list');	
+	const list = document.getElementById('episode-list');
 	const emptyState = list.querySelector('.empty-state');
 	if (emptyState) {
 		emptyState.style.display = 'none';
 	}
-	const defaultTime = currentSeasonData?.defaultTime || '18:00';
 	list.innerHTML = '';
 
-	// Use the episode template defined in edit.html to render each episode
-	episodes.forEach((ep, i) => {
+	episodes.forEach(ep => list.appendChild(createEpisodeCard(ep)));
 
-		const currentQuizId = ep.quizID?._id || '';
-		const template = document.getElementById('episode-template');
-		const clone = template.content.cloneNode(true);
-
-		// Populate the template with episode data
-		clone.querySelector('.episode-card').setAttribute('data-episode-id', currentQuizId);
-
-		// Set the episode index number
-		clone.querySelector('summary span').textContent = i + 1;
-
-		const summary = clone.querySelector('summary');
-		summary.querySelector('.episode-title').textContent = ep.quizID?.title || 'No quiz selected';
-
-		// Provide a drop-down with all the quizzes for selection
-		const select = clone.querySelector('select');
-		select.innerHTML = '<option value="">\u2014 Select quiz \u2014</option>' +
-			quizList.map(q =>
-				`<option value="${q._id}" ${q._id === currentQuizId ? 'selected' : ''}>${q.title}</option>`
-			).join('');
-
-		// Add click handlers for the buttons
-		const playBtn = clone.querySelector('.btn-accent');
-		playBtn.addEventListener('click', () => {
-			window.playEpisode(currentQuizId);
-		});
-
-		const deleteBtn = clone.querySelector('.btn-danger');
-		deleteBtn.addEventListener('click', () => {
-			window.deleteEpisode(currentQuizId);
-		});
-
-
-		// Add air date and time inputs
-		clone.querySelector('.ep-airdate-input').value = ep.airDate ? toDateInputValue(ep.airDate) : '';
-		clone.querySelector('.ep-airtime-input').value = ep.airTime || '';
-
-
-		list.appendChild(clone);
-	});
+	addEpisodeNumbers();
+	initCollapsibles(list);
 }
 
 
@@ -156,44 +164,40 @@ window.playEpisode = (quizID) => {
 	location.href = `/host/quiz/start?q=${quizID}&s=${seasonID}`;
 };
 
+// Seasons are now saved as a whole object (see saveAll), so deleting an episode just means
+// removing it from the DOM and re-saving the entire season via the same POST used for Save.
 window.deleteEpisode = async (episodeId) => {
 	if (!confirm('Delete this episode?')) return;
-	try {
-		const res = await fetch(`/api/seasons/${seasonID}/episodes/${episodeId}`, { method: 'DELETE' });
-		const result = await res.json();
-		if (result.success) {
-			await loadSeasonData();
-		} else {
-			alert(result.message || 'Failed to remove episode.');
-		}
-	} catch (err) {
-		console.error('Delete episode error:', err);
-		alert('Network error. Please try again.');
-	}
+	markDirty();
+	const card = document.querySelector(`.episode-card[data-episode-id="${episodeId}"]`);
+	if (card) card.remove();
+	addEpisodeNumbers();
+	await saveAll();
+	await loadSeasonData();
 };
 
-// Add Episode inline — POST a blank episode, re-render with new card open
+// Add Episode inline — an episode is never created on its own; add a blank card to the DOM
+// and save the whole season in one go, the same single POST every other change goes through.
 window.addEpisodeInline = async () => {
 	const btn = document.querySelector('.btn-episode');
 	btn.disabled = true;
 	try {
-		const epCount = document.querySelectorAll('.episode-card[data-episode-id]').length;
-		const res = await fetch(`/api/seasons/${seasonID}/episodes`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ label: `Episode ${epCount + 1}` })
-		});
-		const result = await res.json();
-		if (result.success) {
+		const list = document.getElementById('episode-list');
+		const emptyState = list.querySelector('.empty-state');
+		if (emptyState) emptyState.style.display = 'none';
+
+		list.appendChild(createEpisodeCard({ _id: '', quizID: null, airDate: null, airTime: null }));
+		addEpisodeNumbers();
+		initCollapsibles(list);
+		markDirty();
+
+		const saved = await saveAll();
+		if (saved) {
 			await loadSeasonData();
 			const cards = document.querySelectorAll('.episode-card');
 			if (cards.length) cards[cards.length - 1].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-		} else {
-			alert(result.message || 'Failed to add episode.');
 		}
-	} catch (err) {
-		console.error('Add episode error:', err);
-		alert('Network error. Please try again.');
+		// If the save failed, leave the new blank card and dirty state in place so the user can retry via Save Season.
 	} finally {
 		btn.disabled = false;
 	}
@@ -201,12 +205,18 @@ window.addEpisodeInline = async () => {
 
 // Dirty tracking — red outline on Save buttons, matching Quiz Editor
 function markDirty() {
+	hasUnsavedChanges = true;
 	document.querySelectorAll('.btn-save-all').forEach(b => b.classList.add('unsaved-changes'));
 }
 
 function clearDirty() {
+	hasUnsavedChanges = false;
 	document.querySelectorAll('.btn-save-all').forEach(b => b.classList.remove('unsaved-changes'));
 }
+
+window.addEventListener('beforeunload', (e) => {
+	if (hasUnsavedChanges) e.returnValue = 'Unsaved changes!';
+});
 
 // Update episode summary title when the quiz select changes
 window.updateEpisodeTitle = (selectEl) => {
@@ -218,10 +228,7 @@ window.updateEpisodeTitle = (selectEl) => {
 // Save All: season metadata + all episode fields in parallel
 async function saveAll() {
 
-	const saveButtonText = '<i class="fa-solid fa-floppy-disk"></i> Save Season';
-
-	const btn = document.querySelectorAll('.save-season-btn');
-	btn.forEach(btn => btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...');
+	const buttons = Array.from(document.querySelectorAll('.save-season-btn'));
 
 	// 1. Season metadata
 	const seasonBody = {
@@ -248,23 +255,21 @@ async function saveAll() {
 		};
 	});
 
-	try {
-		seasonBody.episodes = episodes;
-		console.log('Prepared season body for saving:', seasonBody);
+	seasonBody.episodes = episodes;
 
-		await fetch(`/api/seasons/${seasonID}`, {
+	const result = await runSave(buttons, async () => {
+		const res = await fetch(`/api/seasons/${seasonID}`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(seasonBody)
 		});
-		clearDirty();
+		return res.json();
+	}, {
+		onError: (err) => alert(err.message || 'Network error. Please try again.')
+	});
 
-	} catch (err) {
-		console.error('Save error:', err);
-		alert('Network error. Please try again.');
-	} finally {
-		btn.forEach(btn => btn.innerHTML = saveButtonText);
-	}
+	if (result) clearDirty();
+	return result;
 }
 
 document.addEventListener('DOMContentLoaded', initDashboardSeasonEdit);

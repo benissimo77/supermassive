@@ -16,14 +16,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <style>
-        /* Episode cards — purple/violet accent, complementary to the season amber */
+        /* Episode cards use the shared .card-header--violet accent (dashboard.css); only the spacing and typography here are page-specific. */
         .episode-card {
             margin-top: 0.75rem;
-            border-left: 3px solid rgb(139, 92, 246) !important;
-        }
-
-        .episode-card>.card-header {
-            background: rgba(139, 92, 246, 0.2);
         }
 
         .episode-card .episode-number {
@@ -161,13 +156,13 @@
     </main>
 
     <template id="episode-template">
-        <details class="card episode-card" open>
+        <details class="card episode-card card-header--violet" open>
             <summary class="card-header">
                 <div class="flex items-center gap-sm" style="flex: 1; min-width: 0;">
                     <span class="episode-number"></span>
                     <span class="episode-title"></span>
                 </div>
-                <div class="flex gap-sm" onclick="event.stopPropagation()">
+                <div class="card-header-actions" onclick="event.stopPropagation()">
                     <button class="btn btn-xs btn-danger">
                         <i class="fa-solid fa-trash"></i>
                         Delete

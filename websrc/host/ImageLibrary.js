@@ -1,4 +1,5 @@
 import { FileDropzone } from "./FileDropzone.js";
+import { escapeHtml } from "../utils/sanitize.js";
 
 export class ImageLibrary {
   constructor(options = {}) {
@@ -144,11 +145,11 @@ renderImages(images) {
 
     item.innerHTML = `
       <div class="image-preview">
-        <img src="${image.url}" alt="${image.originalName || 'Image'}">
+        <img src="${escapeHtml(image.url)}" alt="${escapeHtml(image.originalName || 'Image')}">
         <button class="delete-image-btn" title="Delete image">&times;</button>
       </div>
       <div class="image-info">
-        <span class="image-name">${image.originalName || 'Image'}</span>
+        <span class="image-name">${escapeHtml(image.originalName || 'Image')}</span>
       </div>
     `;
 
@@ -171,7 +172,7 @@ async handleImageDelete(imageId) {
   }
   
   try {
-    const response = await fetch(`/api/images/${imageId}`, {
+    const response = await fetch(`/api/image/${imageId}`, {
       method: 'DELETE'
     });
     

@@ -4,7 +4,13 @@ import { mongoose } from './db.js';
 import GameSession from './models/mongo.gameSession.js';
 import PlayerResult from './models/mongo.playerResult.js';
 import { GhostManager } from './services/GhostManager.js';
+import { createRateLimiter } from './utils/rateLimiter.js';
 
+// A room with no one connected for this long is considered abandoned and torn down (see Room.checkIdle)
+const ROOM_IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+
+// Pragmatic spam guard for the 'consolelog' debug event - shared across all rooms, keyed by socket ID
+const consoleLogLimiter = createRateLimiter(20, 10_000); // 20 messages / 10s per socket
 
 class Room {
 
@@ -20,6 +26,10 @@ class Room {
 		this.admins = [];
 		this.game = undefined;
 		this.players = [];
+
+		// Set the moment the room becomes empty (no hosts/admins/connected players); cleared the moment anyone joins.
+		// Checked on every ping tick (see below) so an idle room can tear itself down without a separate timer.
+		this.emptyAt = null;
 
 		this.ghostManager = new GhostManager(this);
 
@@ -54,9 +64,12 @@ class Room {
 		*/
 
 
-		// Initialize interval timer for ping/pong latency measurement
+		// Initialize interval timer for ping/pong latency measurement.
+		// Also doubles as the room's own idle check (see checkIdle) so an abandoned room can
+		// tear itself down without a separate server-wide scanner.
 		this.pingInterval = setInterval(() => {
 			this.pingAllClients();
+			this.checkIdle();
 		}, 5000);
 
 	}
@@ -69,6 +82,9 @@ class Room {
 	addUserToRoom(socket, userObj) {
 
 		console.log('Room::addUserToRoom:', this.id, userObj.name, userObj.host, userObj.sessionID, this.game ? this.game.name : 'no game');
+
+		// Someone is here - cancel any idle countdown (see checkIdle)
+		this.emptyAt = null;
 
 		// Instantly add this user's socket to this room
 		socket.join(this.id);
@@ -85,11 +101,20 @@ class Room {
 			// perform host initialisation...
 			console.log('User is host:', socket.id, userObj);
 			this.host = userObj;
-			this.hosts.push(userObj);
 
 			// Workaround - in case we will end up in SOLO player mode intialise the host fields for a player
 			this.host.name = 'HOST';
 			this.host.avatar = '13100182';
+
+			// Replace any existing connection for this session (eg a reconnect or second tab/device) instead of
+			// duplicating it - unlike players, nothing accumulates on this object across a host's connections,
+			// so it's safe (and keeps this.hosts in sync with this.host above) to just swap it in outright.
+			const existingHostIndex = this.hosts.findIndex(h => h.sessionID === userObj.sessionID);
+			if (existingHostIndex !== -1) {
+				this.hosts[existingHostIndex] = userObj;
+			} else {
+				this.hosts.push(userObj);
+			}
 
 			// I've removed this line from here and instead made the host responsible for contacting the server when its ready
 			// this.#io.to(socket.id).emit('hostconnect', { room: this.id, players: this.getConnectedPlayers() });
@@ -97,7 +122,15 @@ class Room {
 		} else if (userObj.role === 'admin') {
 			// Admin role - can see host view and control game
 			console.log('User is admin:', socket.id, userObj);
-			this.admins.push(userObj);
+
+			// Same reasoning as hosts above - replace rather than duplicate a reconnecting session
+			const existingAdminIndex = this.admins.findIndex(a => a.sessionID === userObj.sessionID);
+			if (existingAdminIndex !== -1) {
+				this.admins[existingAdminIndex] = userObj;
+			} else {
+				this.admins.push(userObj);
+			}
+
 			this.attachHostEvents(socket);
 		} else {
 
@@ -184,9 +217,11 @@ class Room {
 			if (this.telemetry.clients[socket.id]) {
 				this.telemetry.clients[socket.id].disconnects.push( { timestamp: Date.now(), reason: reason } );
 			}
+			consoleLogLimiter.reset(socket.id);
 			this.removePlayer(socket.id);
 		})
 		socket.on('consolelog', (data) => {
+			if (!consoleLogLimiter.allow(socket.id)) return;
 			console.log('Message from:', socket.id);
 			console.dir(data);
 		})
@@ -353,7 +388,9 @@ class Room {
 
 		// triggersocketevent - can be used to simulate a socket event from the server
 		// Simply echoes directly back to the hosts and players whatever event was passed
+		// Dev/test tool only - disabled in production so it can't be used to spoof server messages
 		socket.on('triggersocketevent', (data) => {
+			if (process.env.NODE_ENV === 'production') return;
 			console.log('triggersocketevent:', data.event, data.payload);
 			this.emitToHosts(data.event, data.payload)
 			this.emitToAllPlayers(data.event, data.payload);
@@ -392,6 +429,31 @@ class Room {
 
 			// Can just use this room ID to automatically call all connected clients of this room
 			this.#io.to(this.id).emit('server:ping', { timestamp: Date.now() } );
+		}
+	}
+
+	// isEmpty
+	// True once no hosts, admins, or connected players remain in the room
+	isEmpty() {
+		return this.hosts.length === 0 && this.admins.length === 0 && this.getConnectedPlayers().length === 0;
+	}
+
+	// checkIdle
+	// Called on every ping tick. If the room has been empty for longer than the idle timeout,
+	// tear it down - saving any in-progress game results first, same as a host explicitly ending the game.
+	async checkIdle() {
+		if (!this.emptyAt) return;
+		if (Date.now() - this.emptyAt < ROOM_IDLE_TIMEOUT_MS) return;
+
+		console.log(`Room::checkIdle: room ${this.id} has been empty for over ${ROOM_IDLE_TIMEOUT_MS}ms - tearing down`);
+		try {
+			if (this.game) {
+				await this.triggerEndGame();
+			} else {
+				this.endGame();
+			}
+		} catch (error) {
+			console.error(`Room::checkIdle: error tearing down room ${this.id}:`, error);
 		}
 	}
 
@@ -661,6 +723,11 @@ class Room {
 		if (player) {
 			console.log('Host:: sending playerdisconnect:', player);
 			this.emitToHosts('playerdisconnect', player.sessionID);
+		}
+
+		// Start (or keep) the idle clock the moment no one is left connected; see checkIdle
+		if (this.isEmpty() && !this.emptyAt) {
+			this.emptyAt = Date.now();
 		}
 	}
 	getPlayerBySocketID(socketID) {

@@ -83,22 +83,11 @@ router.post('/', async (req, res) => {
     }
 });
 
-/**
- * GET /api/seasons/public
- * List all seasons marked as public (any owner)
- */
-router.get('/public', async (req, res) => {
-    try {
-        const seasons = await Season.find({ isPublic: true }).sort({ updatedAt: -1 });
-        res.json({ success: true, data: seasons });
-    } catch (err) {
-        res.status(500).json({ success: false, message: err.message });
-    }
-});
 
 /**
  * GET /api/seasons/:id
- * Get a season with its episodes populated
+ * Get a season with its episode titles populated from the quiz collection.
+ * Only the owner can view a private season; anyone authenticated can view a public one.
  */
 router.get('/:id', async (req, res) => {
     try {
@@ -109,41 +98,11 @@ router.get('/:id', async (req, res) => {
             return res.status(404).json({ success: false, message: 'Season not found' });
         }
 
-        res.json({ success: true, data: season });
-    } catch (err) {
-        res.status(500).json({ success: false, message: err.message });
-    }
-});
-
-/**
- * POST /api/seasons/:seasonId/episodes
- * Add a quiz to a season.
- * Body: { quizID, label?, airDate?, airTime? }
- */
-router.post('/:seasonId/episodes', async (req, res) => {
-    try {
-        const { quizID, label, airDate, airTime } = req.body;
-
-        // Get current episode count to generate a default label
-        const existing = await Season.findById(req.params.seasonId, { episodes: 1 });
-        if (!existing) {
+        const isOwner = String(season.ownerID) === String(req.user?._id);
+        if (!isOwner && !season.isPublic) {
+            // Same 404 as a missing season — don't reveal that a private season with this id exists
             return res.status(404).json({ success: false, message: 'Season not found' });
         }
-
-        const newEpisode = {
-            quizID,
-            label: label || `Episode ${existing.episodes.length + 1}`,
-            airDate: airDate || new Date(),
-            airTime: airTime || null
-        };
-
-        // Use $push via findByIdAndUpdate to bypass document-level validation
-        // (avoids issues with legacy seasons that pre-date schema changes)
-        const season = await Season.findByIdAndUpdate(
-            req.params.seasonId,
-            { $push: { episodes: newEpisode } },
-            { new: true, runValidators: false }
-        ).populate('episodes.quizID', 'title');
 
         res.json({ success: true, data: season });
     } catch (err) {
@@ -153,10 +112,19 @@ router.post('/:seasonId/episodes', async (req, res) => {
 
 /**
  * POST /api/seasons/:id
- * Update season metadata (name, seriesName, description, startDate, endDate, defaultTime, isActive)
+ * Update season metadata (name, seriesName, description, startDate, endDate, defaultTime, isActive).
+ * Owner only — being public makes a season readable, not writable, by other hosts.
  */
 router.post('/:id', async (req, res) => {
     try {
+        const existing = await Season.findById(req.params.id, { ownerID: 1 });
+        if (!existing) {
+            return res.status(404).json({ success: false, message: 'Season not found' });
+        }
+        if (String(existing.ownerID) !== String(req.user?._id)) {
+            return res.status(403).json({ success: false, message: 'You do not have permission to edit this season' });
+        }
+
         const allowed = ['name', 'description', 'startDate', 'endDate', 'defaultTime', 'timezone', 'isPublic', 'episodes'];
         const updates = {};
         for (const key of allowed) {
@@ -170,7 +138,6 @@ router.post('/:id', async (req, res) => {
             { $set: updates },
             { new: true, runValidators: false }
         );
-        if (!season) return res.status(404).json({ success: false, message: 'Season not found' });
 
         res.json({ success: true, data: season });
     } catch (err) {

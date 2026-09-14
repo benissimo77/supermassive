@@ -2,6 +2,7 @@ import Game from './server.game.js';
 import GameSession from '../models/mongo.gameSession.js';
 import PlayerResult from '../models/mongo.playerResult.js';
 import QuizRating from '../models/mongo.quizRating.js';
+import { escapeHtml } from '../utils/sanitize.js';
 
 // For V2 QUIZ :
 // import { QuizV2 as QuizModel} from '../models/mongo.quizv2.js';
@@ -851,12 +852,15 @@ export default class Gauntlet extends Game {
 			console.log('gauntlet.responseHandler:', socket.id, response);
 			const player = this.room.getPlayerBySocketID(socket.id);
 			if (player) {
+				// Clean once, at the point of entry, so every later use (host display, player-facing broadcasts,
+				// stored PlayerResult analysis) inherits safe data. Non-string answers (numbers/booleans/coords) pass through untouched.
+				const cleanAnswer = typeof response.answer === 'string' ? escapeHtml(response.answer) : response.answer;
 				this.question.responses[player.sessionID] = {
-					answer: response.answer,
+					answer: cleanAnswer,
 					time: response.answerTime,
 					score: 0
 				};
-				this.room.emitToHosts('server:questionanswered', { sessionID: player.sessionID, response: response });
+				this.room.emitToHosts('server:questionanswered', { sessionID: player.sessionID, response: { ...response, answer: cleanAnswer } });
 			}
 		}
 		const strategy = {

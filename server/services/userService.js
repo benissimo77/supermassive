@@ -135,10 +135,9 @@ class UserService {
 
   // As far as I can tell this is not used.... wrong, used when user attempts to login
   async authenticateUser(email, password) {
-    console.log('userService: authenticateUser :', email, password);
+    console.log('userService: authenticateUser :', email);
     try {
       const user = await this.findUserByEmail(email);
-      console.log('userService: authenticateUser :', user);
       if (user && await user.verifyPassword(password)) {
         return user;
       }
@@ -165,7 +164,7 @@ class UserService {
   }
 
   async storeTokenWithUser(userID, token) {
-    console.log('userService: storeTokenWithUser :', userID, token);
+    console.log('userService: storeTokenWithUser :', userID);
     const tokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
     return this.userModel.findByIdAndUpdate(userID, { token: token, tokenExpiry: tokenExpiry });
   }
@@ -185,7 +184,7 @@ class UserService {
 
   // Function called by /reset-password route to update user's password
   async resetPassword(token, newPassword) {
-    console.log('userService: resetPassword :', token, newPassword);
+    console.log('userService: resetPassword called');
     const user = await this.findUserByToken(token);
     if (user) {
       const hashedPassword = user.generateHashedPassword(newPassword);

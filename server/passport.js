@@ -28,10 +28,9 @@ passport.use(new LocalStrategy(
     passwordField: 'password'
   },
   async (email, password, done) => {
-    console.log('passport.use.LocalStrategy:', email, password);
+    console.log('passport.use.LocalStrategy: attempting login for', email);
     try {
       const user = await userService.authenticateUser(email, password);
-      console.log('passport.use.LocalStrategy:', user);
       return done(null, user);
     } catch (error) {
       return done(error);

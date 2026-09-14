@@ -683,12 +683,25 @@ class Room {
 		const fs = await import('fs');
 		const https = await import('https');
 		const file = fs.createWriteStream(`./public/assets/qr/${roomID}.png`);
-		https.get(qrURL, (response) => {
+		file.on('error', (err) => {
+			console.error('QR code file write error for room:', roomID, err.message);
+		});
+		const request = https.get(qrURL, (response) => {
+			if (response.statusCode !== 200) {
+				console.error('QR code request failed for room:', roomID, 'status:', response.statusCode);
+				response.resume();
+				file.close();
+				return;
+			}
 			response.pipe(file);
 			file.on('finish', () => {
 				file.close();
 				console.log('QR code generated for room:', roomID);
 			});
+		});
+		request.on('error', (err) => {
+			console.error('QR code request error for room:', roomID, err.message);
+			file.close();
 		});
 	}
 }

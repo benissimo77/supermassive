@@ -169,7 +169,10 @@ async function renderLeagues() {
 
 	} catch (err) {
 		console.error('Load leagues error:', err);
-		container.innerHTML = '<div class="league-status">Failed to load leagues</div>';
+		const ownedContainer = document.getElementById('league-list');
+		const memberContainer = document.getElementById('member-league-list');
+		if (ownedContainer) ownedContainer.innerHTML = '<div class="league-status">Failed to load leagues</div>';
+		if (memberContainer) memberContainer.innerHTML = '<div class="league-status">Failed to load leagues</div>';
 	}
 }
 

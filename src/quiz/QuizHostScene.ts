@@ -13,10 +13,11 @@ import { PlayerConfig, PhaserPlayerState, PhaserPlayer } from './PhaserPlayer';
 import { YouTubePlayerUI } from './YouTubePlayerUI';
 
 import { GlobalNavbar } from 'src/ui/GlobalNavbar';
-import { CountdownTimer } from 'src/ui/CountdownTimer';
 import { SoundSettingsPanel } from 'src/ui/SoundSettingsPanel';
 import { BeatManager } from 'src/utils/BeatManager';
 import { GameObjects } from 'phaser';
+import { LobbyHUD } from 'src/ui/LobbyHUD';
+import { preloadSharedHostAssets } from 'src/utils/sharedHostAssets';
 
 export class QuizHostScene extends BaseScene {
 
@@ -58,14 +59,8 @@ export class QuizHostScene extends BaseScene {
     private background: Phaser.GameObjects.Image;
     private backgroundOverlay: Phaser.GameObjects.Graphics;
 
-    private instructionsPanel: Phaser.GameObjects.Container | null = null;
     private instructionState: 'hidden' | 'minimized' | 'maximized' = 'maximized';
-
-    private startingSoonHUD: Phaser.GameObjects.Container | null = null;
-    private HUDWaitingText: Phaser.GameObjects.Text | null = null;
-    private HUDCountdownSeconds: number = 900;
-    private HUDCountdownTimer: CountdownTimer;
-    private lobbyTitle: string = 'Welcome';
+    private lobbyHUD: LobbyHUD | null = null;
 
     // Add this constructor to set the scene key
     constructor() {
@@ -87,19 +82,11 @@ export class QuizHostScene extends BaseScene {
     preload(): void {
         super.preload();
 
-        // Load common assets for all question types
-        // Background images
-        this.load.image('quiz-background', '/img/quiz/background.jpg');
-        this.load.image('simple-button', '/assets/img/simplebutton.png');
-        this.load.image('simple-button-hover', '/assets/img/simplebutton-hover.png');
-        this.load.image('dropzone', '/assets/img/dropzone.png');
-        this.load.image('dropzone-square', '/assets/img/dropzone-square.png');
-        this.load.image('checkmark', '/assets/three/checkmark.png');
-        this.load.image('crossmark', '/assets/three/crossmark.png');
-
+        // Assets shared identically with ThreeHostScene (backgrounds, common buttons/marks, shared SFX, font)
+        preloadSharedHostAssets(this);
 
         // Player UI assets
-        this.load.image('playernamepanel', '/assets/rounded-rect-grey-480x48x14.png');
+        // (playernamepanel is shared - see preloadSharedHostAssets)
 
         // YouTube player buttons
         this.load.image('player-play', '/assets/img/YouTubePlayerButtons_90px_0002_play.png');
@@ -110,7 +97,6 @@ export class QuizHostScene extends BaseScene {
         this.load.image('crosshair', '/img/crosshair40.png');
 
         // Audio assets - theme music
-        this.load.audio('quiz-countdown', '/assets/audio/quiz/music/quiz-countdown-337785.mp3');
         this.load.audio('quiz-race', '/assets/audio/quiz/music/1-01 Title.m4a');
         this.load.audio('quiz-end', '/assets/audio/quiz/music/2-10 Koopa Cape (Final Lap).m4a');
 
@@ -122,16 +108,7 @@ export class QuizHostScene extends BaseScene {
         this.load.audio('answer-incorrect', '/assets/audio/quiz/fx/150879__nenadsimic__jazzy-chords.wav');
         this.load.audio('button-click', '/assets/audio/quiz/fx/114187__edgardedition__thud17.wav');
         this.load.audio('submit-answer', '/assets/audio/quiz/fx/585256__lesaucisson__swoosh-2.mp3');
-        this.load.audio('question-answered', '/assets/audio/quiz/fx/446100__justinvoke__bounce.wav');
-        this.load.audio('end-question', '/assets/audio/quiz/fx/gong-hit-2-184010.mp3');
         this.load.audio('crowd-cheer', '/assets/audio/quiz/fx/crowd-cheering-314920.mp3');
-
-        // Load custom fonts
-        this.load.rexWebFont({
-            google: {
-                families: ['Titan One']
-            }
-        });
 
     }
 
@@ -256,17 +233,10 @@ export class QuizHostScene extends BaseScene {
             
             if (readyResponse && readyResponse.success && readyResponse.roomID) {
                 this.roomID = readyResponse.roomID;
-                
-                // Show rich lobby waiting sequence immediately using returning consolidated data
-                this.waitingToStart(readyResponse);
 
-                // Queue QR loading
-                this.load.image('roomQR', `/assets/qr/${this.roomID}.png`);
-                this.load.once('complete', () => {
-                    console.log('QuizHostScene:: Room QR code image loaded');
-                    this.showInstructions();
-                });
-                this.load.start();
+                // Show rich lobby waiting sequence immediately using returning consolidated data
+                // (lobbyHUD.showInstructionPanel() loads the QR image itself, no separate load step needed here)
+                this.waitingToStart(readyResponse);
             } else {
                 console.error('QuizHostScene:: Consolidated bootstrap failed:', readyResponse);
                 this.socket?.emit('consolelog', `QuizHostScene:: Consolidated bootstrap failed: ${readyResponse ? readyResponse.error : 'Unknown'}`);
@@ -276,6 +246,7 @@ export class QuizHostScene extends BaseScene {
 
     update(time: number, delta: number): void {
         this.beatManager.update();
+        this.lobbyHUD?.updateHUDTimerGraphics();
     }
 
     private waitingToStart(data: any): void {
@@ -301,9 +272,13 @@ export class QuizHostScene extends BaseScene {
             this.quizMap.updatePosition(0, 0, 'LOBBY');
         }
 
-        // Show the pulsing title and instructions
-        this.showStartingSoonHUD(data.title);
-        this.showInstructions();
+        // Show the waiting-room HUD (title, player count, countdown, join/QR instructions).
+        // Lives in topContainer, not UIContainer - clearUI() (called on every round transition)
+        // does a full removeAll(true) on UIContainer, which would destroy it the first time that ran.
+        this.lobbyHUD = new LobbyHUD(this, 0, 0, data.title);
+        this.topContainer.add(this.lobbyHUD);
+        this.lobbyHUD.showInstructionPanel(this.roomID, this.instructionState);
+        this.lobbyHUD.updatePlayerCount(this.getPlayerConfigsAsArray().filter(p => p.connected).length);
 
     }
 
@@ -312,7 +287,7 @@ export class QuizHostScene extends BaseScene {
 
         // Player connect/disconnect - these are caught by BaseScene but quiz can also take action
         // BaseScene handles the storage/maintenance of playerConfigs - game decides their own visuals
-        this.socket.on('playerconnect', (playerConfig: PlayerConfig) => {
+        this.registerSocketListener('playerconnect', (playerConfig: PlayerConfig) => {
             console.log('QuizHostScene:: playerconnect :', { playerConfigs: this.getPlayerConfigsAsArray() });
             const player: PhaserPlayer = this.getPlayerBySessionID(playerConfig.sessionID);
             if (player) {
@@ -320,19 +295,14 @@ export class QuizHostScene extends BaseScene {
             } else {
                 this.addPlayer(playerConfig);
             }
- 
-            // Refresh instructions and HUD
-            if (this.instructionState === 'maximized') {
-                this.showInstructions();
-            }
-            if (this.startingSoonHUD) {
-                this.showStartingSoonHUD();
-            }
+
+            // Refresh HUD player count
+            this.lobbyHUD?.updatePlayerCount(this.getPlayerConfigsAsArray().filter(p => p.connected).length);
         });
 
         // When player disconnects don't remove from list as they might re-join
         // They simply become 'dormant' and won't receive questions - but if they re-join they will be right back where they left off
-        this.socket.on('playerdisconnect', (sessionID: string) => {
+        this.registerSocketListener('playerdisconnect', (sessionID: string) => {
             console.log('QuizHostScene:: playerdisconnect:', sessionID);
             const player: PhaserPlayer = this.getPlayerBySessionID(sessionID);
             if (player) {
@@ -342,26 +312,22 @@ export class QuizHostScene extends BaseScene {
             }
 
             // Update HUD
-            if (this.startingSoonHUD) {
-                this.showStartingSoonHUD();
-            }
+            this.lobbyHUD?.updatePlayerCount(this.getPlayerConfigsAsArray().filter(p => p.connected).length);
         });
 
-        this.socket.on('server:players', (playerConfigs: PlayerConfig[]) => {
+        this.registerSocketListener('server:players', (playerConfigs: PlayerConfig[]) => {
             console.log('QuizHostScene:: server:players:', playerConfigs);
 
             playerConfigs.forEach((playerConfig: PlayerConfig) => {
                 this.addPlayer(playerConfig);
             });
 
-            if (this.startingSoonHUD) {
-                this.showStartingSoonHUD();
-            }
+            this.lobbyHUD?.updatePlayerCount(this.getPlayerConfigsAsArray().filter(p => p.connected).length);
         });
 
 
         // This is an all-purpose socket event that can perform any useful action
-        this.socket.on('server:hostaction', (data) => {
+        this.registerSocketListener('server:hostaction', (data) => {
             console.log('QuizHostScene:: server:hostaction:', data);
             if (data.action === 'toggleInstructions') {
                 this.toggleInstructions();
@@ -370,8 +336,7 @@ export class QuizHostScene extends BaseScene {
                 this.globalNavbar?.toggle();
             }
             if (data.action === 'syncTimer') {
-                this.HUDCountdownSeconds = data.seconds;
-                this.HUDCountdownTimer.setSeconds(this.HUDCountdownSeconds);
+                this.lobbyHUD?.setCountdownSeconds(data.seconds);
             }
 
             // Emit to scene events so question presenters can listen for state updates
@@ -381,12 +346,12 @@ export class QuizHostScene extends BaseScene {
 
         // Listen for opening credits message
         // For now we are not using this - but this is done on the server
-        this.socket.on('server:openingcredits', (data) => {
+        this.registerSocketListener('server:openingcredits', (data) => {
             this.showOpeningCredits(data.title, data.description || '', data.samples || []);
         });
 
         // Listen for intro round message
-        this.socket.on('server:introround', (data) => {
+        this.registerSocketListener('server:introround', (data) => {
             if (data.roundnumber) {
                 this.currentRoundNumber = data.roundnumber;
                 this.currentQuestionNumber = 0;
@@ -396,7 +361,7 @@ export class QuizHostScene extends BaseScene {
         });
 
         // Listen for question - not sure if this should all be here...
-        this.socket.on('server:question', async (question, callback) => {
+        this.registerSocketListener('server:question', async (question, callback) => {
             if (question.roundNumber && question.questionNumber) {
                 this.currentRoundNumber = question.roundNumber;
                 this.currentQuestionNumber = question.questionNumber;
@@ -468,7 +433,7 @@ export class QuizHostScene extends BaseScene {
         });
 
         // Player answered a question
-        this.socket.on('server:questionanswered', (data) => {
+        this.registerSocketListener('server:questionanswered', (data) => {
             this.playerAnswers.set(data.sessionID, data.response);
             this.updatePlayerAnswer(data.sessionID, data.response);
             const player: PhaserPlayer = this.getPlayerBySessionID(data.sessionID);
@@ -490,14 +455,14 @@ export class QuizHostScene extends BaseScene {
         });
 
         // endquestion - clean up any question-specific elements
-        this.socket.on('server:endquestion', (data) => {
+        this.registerSocketListener('server:endquestion', (data) => {
             console.log('QuizHostScene:: server:endquestion');
             this.soundManager.playFX('end-question', 0.5);
             this.soundManager.stopTrack('quiz-countdown');
         });
 
         // Show answer
-        this.socket.on('server:showanswer', async (question) => {
+        this.registerSocketListener('server:showanswer', async (question) => {
             this.quizMap.updatePosition(this.currentRoundNumber, this.currentQuestionNumber, 'SHOW_ANSWER');
             await this.createQuestion(question);
             // Make sure it's added to the scene, and to the question container (for depth management)
@@ -507,49 +472,49 @@ export class QuizHostScene extends BaseScene {
         });
 
         // Update scores
-        this.socket.on('server:updatescores', (data) => {
+        this.registerSocketListener('server:updatescores', (data) => {
             this.quizMap.updatePosition(this.currentRoundNumber, this.currentQuestionNumber, 'UPDATE_SCORES');
             this.updateScores(data.scores);
         });
 
         // End round
-        this.socket.on('server:endround', (data) => {
+        this.registerSocketListener('server:endround', (data) => {
             this.quizMap.updatePosition(this.currentRoundNumber, this.currentQuestionNumber, 'END_ROUND');
             this.soundManager.stopAll( 3000 );
             this.endRound(data);
         });
 
         // End quiz
-        this.socket.on('server:endquiz', (data) => {
+        this.registerSocketListener('server:endquiz', (data) => {
             this.quizMap.updatePosition(this.currentRoundNumber, this.currentQuestionNumber, 'END_QUIZ');
             this.showFinalScores(data);
         });
         // Closing credits
-        this.socket.on('server:closingcredits', (data) => {
+        this.registerSocketListener('server:closingcredits', (data) => {
             this.showClosingCredits(data);
         });
 
         // Start timer
-        this.socket.on('server:starttimer', (data) => {
+        this.registerSocketListener('server:starttimer', (data) => {
             this.startTimer(data.duration);
         });
 
         // streammode - sent by server when we are live-streaming
         // For now all this does is remove the background to allow webcam to go behind questions
         // OBS Studio has its own background that can be added beneath the webcam
-        this.socket.on('server:streammode', (data) => {
+        this.registerSocketListener('server:streammode', (data) => {
             console.log('QuizHostScene:: server:streammode:', data);
             if (data && data.enabled) {
                 this.backgroundContainer.setVisible(( data.enabled ? false : true ));
             }
         });
 
-        this.socket.on('server:waitingforstream', (data) => {
+        this.registerSocketListener('server:waitingforstream', (data) => {
             console.log('QuizHostScene:: server:waitingforstream:', data);
             this.showStreamCue();
         });
 
-        this.socket.on('server:collectanswers', () => {
+        this.registerSocketListener('server:collectanswers', () => {
             console.log('QuizHostScene:: server:collectanswers:');
             if (this.streamCue) {
                 this.streamCue.destroy();
@@ -590,23 +555,19 @@ export class QuizHostScene extends BaseScene {
             return;
         }
         if (event.code === 'ArrowUp') {
-            const currentSeconds = Math.ceil(this.HUDCountdownSeconds);
-            let nextMinute = Math.ceil(currentSeconds / 60) * 60;
-            if (nextMinute === currentSeconds) nextMinute += 60;
-            this.socket.emit('host:action', { action: 'syncTimer', seconds: nextMinute });
+            const currentSeconds = Math.ceil(this.lobbyHUD?.getCountdownSeconds() ?? 0);
+            const newSeconds = currentSeconds + 60;
+            this.socket.emit('host:action', { action: 'syncTimer', seconds: newSeconds });
             // This time will get over-written as soon as the server responds but this provides an instant feedback to make the UI feel responsive
-            this.HUDCountdownSeconds = nextMinute;
-            this.HUDCountdownTimer.setSeconds(this.HUDCountdownSeconds);
+            this.lobbyHUD?.setCountdownSeconds(newSeconds);
             return;
         }
         if (event.code === 'ArrowDown') {
-            const currentSeconds = Math.floor(this.HUDCountdownSeconds);
-            let prevMinute = Math.floor(currentSeconds / 60) * 60;
-            if (prevMinute === currentSeconds) prevMinute -= 60;
-            this.socket.emit('host:action', { action: 'syncTimer', seconds: Math.max(0, prevMinute) });
+            const currentSeconds = Math.floor(this.lobbyHUD?.getCountdownSeconds() ?? 0);
+            const newSeconds = Math.max(0, currentSeconds - 60);
+            this.socket.emit('host:action', { action: 'syncTimer', seconds: newSeconds });
             // This time will get over-written as soon as the server responds but this provides an instant feedback to make the UI feel responsive
-            this.HUDCountdownSeconds = Math.max(0, prevMinute);
-            this.HUDCountdownTimer.setSeconds(this.HUDCountdownSeconds);
+            this.lobbyHUD?.setCountdownSeconds(newSeconds);
             return;
         }
 
@@ -622,7 +583,7 @@ export class QuizHostScene extends BaseScene {
         } else {
             this.instructionState = 'hidden';
         }
-        this.showInstructions();
+        this.lobbyHUD?.toggleInstructionPanel(this.instructionState);
     }
 
     private showRoomID(roomID: string): void {
@@ -724,293 +685,6 @@ export class QuizHostScene extends BaseScene {
         return this.players.get(sessionID)!;
     }
 
-    private createUI(): void {
-
-        // Round display - uses labelConfig defined in BaseScene
-        const roundDisplayConfig = Object.assign({}, this.labelConfig, {
-            fontSize: this.getY(36),
-            strokeThickness: 4
-        });
-        const roundDisplay = this.add.text(960, this.getY(50), '', roundDisplayConfig);
-
-        // Timer bar
-        this.timerBar = this.add.graphics();
-
-        // Timer text
-        const timerTextConfig = Object.assign({}, this.labelConfig, {
-            fontSize: this.getY(36),
-            strokeThickness: 3
-        });
-        this.timerText = this.add.text(960, this.getY(600), '', timerTextConfig);
-
-    }
-
-    private drawHUDTimer(): void {
-        if (!this.HUDTimerGraphics) return;
-
-        const graphics = this.HUDTimerGraphics;
-        graphics.clear();
-
-        const totalSeconds = this.HUDCountdownSeconds;
-        const subSecond = (this.time.now % 1000) / 1000;
-        
-        // Ticks represent seconds remaining in the current minute (0-59)
-        const secsInMinute = totalSeconds % 60;
-        
-        const centerX = 0;
-        const centerY = 0;
-        const radius = 150;
-        
-        // 1. Outer Ring: 60 Ticks
-        for (let i = 0; i < 60; i++) {
-            const angle = Phaser.Math.DegToRad((i * 6) - 90);
-            
-            // Ticks "disappear" as seconds count down
-            // If i < secsInMinute, it's a remaining second
-            const isActive = i < secsInMinute;
-            
-            const r1 = radius + 25;
-            const r2 = radius + 50;
-            
-            if (isActive) {
-                graphics.lineStyle(6, 0x00ccff, 1);
-            } else {
-                graphics.lineStyle(2, 0xffffff, 0.1);
-            }
-            
-            graphics.lineBetween(
-                centerX + Math.cos(angle) * r1,
-                centerY + Math.sin(angle) * r1,
-                centerX + Math.cos(angle) * r2,
-                centerY + Math.sin(angle) * r2
-            );
-        }
-
-        // 2. Inner Ring: Sweep logic (30s fill, 30s erase for active feel)
-        // We use actual time for smooth sub-second sweeping
-        const sweepProgress = ((this.time.now / 1000) % 2); // 0.0 to 2.0
-        
-        if (sweepProgress < 1) {
-            // Phase 1: Fill
-            graphics.lineStyle(12, 0x00ccff, 1);
-            graphics.beginPath();
-            graphics.arc(centerX, centerY, radius, Phaser.Math.DegToRad(-90), Phaser.Math.DegToRad(-90 + (sweepProgress * 360)), false);
-            graphics.strokePath();
-        } else {
-            // Phase 2: Erase
-            const eraseProgress = sweepProgress - 1;
-            // Draw full ring base
-            graphics.lineStyle(12, 0x00ccff, 1);
-            graphics.beginPath();
-            graphics.arc(centerX, centerY, radius, Phaser.Math.DegToRad(-90 + eraseProgress * 360), Phaser.Math.DegToRad(270), false);
-            graphics.strokePath();            
-        }
-    }
-
-    private showStartingSoonHUD(titleTextOverride?: string): void {
-        if (titleTextOverride) this.lobbyTitle = titleTextOverride;
-        
-        const playerCount = this.getPlayerConfigsAsArray()
-            .filter(player => player.connected)
-            .length;
-
-        // If it already exists, just update the player count text and return
-        if (this.startingSoonHUD && this.HUDWaitingText) {
-            this.HUDWaitingText.setText(`${playerCount} PLAYERS JOINED`);
-            return;
-        }
-
-        // Otherwise create from scratch
-        if (this.startingSoonHUD) {
-            this.startingSoonHUD.destroy(true);
-            this.startingSoonHUD = null;
-            this.HUDTimerGraphics = null;
-            this.HUDWaitingText = null;
-        }
-
-        // Center HUD higher and slightly smaller to avoid overlap
-        this.startingSoonHUD = this.add.container(960, this.getY(350)).setScale(0.84);
-
-        // This should replace all timer code
-        this.HUDCountdownTimer = new CountdownTimer(this, 0, this.getY(50), this.HUDCountdownSeconds);
-
-
-        // Pulsing Title (Branding)
-        const title = this.add.text(0, -320, this.lobbyTitle.toUpperCase(), {
-            fontFamily: 'Titan One',
-            fontSize: '110px',
-            color: '#ffffff',
-            stroke: '#000000',
-            strokeThickness: 12
-        }).setOrigin(0.5);
-
-        // Beat-synced Pulse
-        // We use the BeatManager to trigger a "bump" on every beat
-        this.beatManager.onBeat((index) => {
-            if (title && title.active) {
-                this.tweens.add({
-                    targets: title,
-                    scale: 1.08,
-                    duration: 150,
-                    yoyo: true,
-                    ease: 'Back.easeOut'
-                });
-            }
-        });
-
-        // Fallback pulse if music isn't playing or BeatManager isn't used
-        this.tweens.add({
-            targets: title,
-            scale: 1.03,
-            duration: 2000,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.easeInOut'
-        });
-
-        // "Starting Soon" - larger than 960 x since entire container is scaled down
-        const startingText = this.add.text(1080, -320, "STARTING SOON!", {
-            fontFamily: 'Titan One',
-            fontSize: '44px',
-            color: '#FFFF00',
-            stroke: '#000000',
-            strokeThickness: 6
-        }).setOrigin(1, 1);
-
-        // Player Count
-        this.HUDWaitingText = this.add.text(1080, -280, `${playerCount} PLAYERS JOINED`, {
-            fontFamily: 'Titan One',
-            fontSize: '36px',
-            color: '#ffffff',
-            stroke: '#000000',
-            strokeThickness: 4
-        }).setOrigin(1,1);
-
-        this.startingSoonHUD.add([title, startingText, this.HUDWaitingText, this.HUDCountdownTimer]);
-
-    }
-
-    private adjustHUDTimer(delta: number): void {
-        this.HUDCountdownSeconds = Math.max(0, this.HUDCountdownSeconds + delta);
-        this.HUDCountdownTimer.setSeconds(this.HUDCountdownSeconds);            
-    }
-
-    private showInstructions(): void {
-        if (this.instructionsPanel) {
-            this.instructionsPanel.destroy();
-            this.instructionsPanel = null;
-        }
-
-        if (this.instructionState === 'hidden') return;
-
-        if (this.instructionState === 'maximized') {
-            const panelWidth = 1600;
-            const panelHeight = 352; // Height is determined by QR(320) + 16px border top/bottom
-            const qrBlockSize = 352; // Width is determined by QR(320) + 16px border left/right
-            const textPanelWidth = panelWidth - qrBlockSize; 
-
-            // Position lower (bottom-heavy layout)
-            this.instructionsPanel = this.add.container(960, this.getY(1080) - 380);
-            
-            // Background for Text (Semi-transparent black)
-            const bgText = this.add.rectangle(-(panelWidth / 2), 0, textPanelWidth, panelHeight, 0x000000, 0.6)
-                .setOrigin(0, 0).setInteractive();
-            
-            // Background for QR (Solid White as requested for a perfect fit)
-            const bgQR = this.add.rectangle((panelWidth / 2) - qrBlockSize, 0, qrBlockSize, panelHeight, 0x000000, 0.6)
-                .setOrigin(0, 0).setInteractive();
-            
-            this.instructionsPanel.add([bgText, bgQR]);
-
-            // Left side: Join Text (Tweaked vertical offsets to center in 352 height)
-            const leftX = -(panelWidth / 2) + 60;
-            const joinText = this.add.text(leftX, 85, 'JOIN AT:', { 
-                fontFamily: 'Titan One', 
-                fontSize: '48px', 
-                color: '#fff' 
-            }).setOrigin(0, 1);
-            this.instructionsPanel.add(joinText);
-
-            const urlText = this.add.text(leftX, 185, 'VIDEOSWIPE.NET', { 
-                fontFamily: 'Titan One', 
-                fontSize: '80px', 
-                color: '#fff'
-            }).setOrigin(0, 1);
-            this.instructionsPanel.add(urlText);
-
-            const roomText = this.add.text(leftX, 285, 'ROOM: ' + this.roomID, { 
-                fontFamily: 'Titan One', 
-                fontSize: '80px', 
-                color: '#FFFF00' 
-            }).setOrigin(0, 1);
-            this.instructionsPanel.add(roomText);
-
-            const orText = this.add.text(textPanelWidth - 1100, 200, 'OR', { 
-                fontFamily: 'Titan One', 
-                fontSize: '72px', 
-                color: '#66d' 
-            }).setOrigin(0, 1);
-            this.instructionsPanel.add(orText);
-
-            // Right side: QR Code (Perfectly centered in the white 352x352 block)
-            if (this.textures.exists('roomQR')) {
-                const qrImageSize = 320;
-                const qr = this.add.image((panelWidth / 2) - (qrBlockSize / 2), panelHeight / 2, 'roomQR')
-                    .setDisplaySize(qrImageSize, qrImageSize);
-                this.instructionsPanel.add(qr);
-                console.log('QuizHostScene:: Added roomQR to instructions panel with 16px border');
-
-                // experiment with plane for 3D perspective - YES WORKS WELL!
-                // const qrPlane = this.add.plane(0, 0, 'roomQR');
-                // gsap.to(qrPlane, {
-                //     rotateY: 360,
-                //     duration: 1.5,
-                //     ease: 'back.out',
-                //     repeat: -1,
-                //     yoyo: true
-                // });
-                // this.instructionsPanel.add(qrPlane);
-                
-            } else {
-                console.warn('QuizHostScene:: roomQR texture not found for instructions panel');
-            }
-
-        } else if (this.instructionState === 'minimized') {
-            // Watermark state: Bottom-left corner
-            this.instructionsPanel = this.add.container(40, this.getY(1080) - 40);
-            
-            const bg = this.add.rectangle(0, 0, 400, 140, 0x000000, 0.6).setOrigin(0, 1).setInteractive();
-            this.instructionsPanel.add(bg);
-
-            if (this.textures.exists('roomQR')) {
-                const qrImage = this.add.image(10, -10, 'roomQR').setDisplaySize(120, 120).setOrigin(0, 1);
-                this.instructionsPanel.add(qrImage);
-            }
-
-            const joinText = this.add.text(140, -105, 'JOIN AT:', { 
-                fontFamily: 'Titan One', 
-                fontSize: '20px', 
-                color: '#77e' 
-            }).setOrigin(0, 1);
-            this.instructionsPanel.add(joinText);
-
-            const urlText = this.add.text(140, -70, 'VIDEOSWIPE.NET', { 
-                fontFamily: 'Titan One', 
-                fontSize: '24px', 
-                color: '#fff' 
-            }).setOrigin(0, 1);
-            this.instructionsPanel.add(urlText);
-
-            const roomText = this.add.text(140, -15, 'ROOM: ' + this.roomID, { 
-                fontFamily: 'Titan One', 
-                fontSize: '32px', 
-                color: '#FFFF00' 
-            }).setOrigin(0, 1);
-            this.instructionsPanel.add(roomText);
-        }
-    }
-
-
     private showOpeningCredits(title: string, description: string, samples: any[]): void {
         console.log('QuizHostScene:: showOpeningCredits:', title);
         this.clearUI();
@@ -1021,18 +695,8 @@ export class QuizHostScene extends BaseScene {
             this.currentQuestion = null;
         }
 
-        // Minimize instructions automatically for the intro
-        this.instructionState = 'minimized';
-        this.showInstructions();
-
-        // Ensure Starting Soon HUD is gone
-        if (this.startingSoonHUD) {
-            this.startingSoonHUD.destroy(true);
-            this.startingSoonHUD = null;
-            this.HUDTimerGraphics = null;
-            this.HUDWaitingText = null;
-            this.HUDCountdownTimer.destroy();
-        }
+        // Waiting-room HUD (title, countdown, player count, join instructions) is no longer needed once the intro starts
+        this.lobbyHUD?.setVisible(false);
 
         // Play intro music — QuizHostScene stays alive during the overlay so controls audio.
         // this.soundManager.playMusic('quiz-music-intro', { volume: 0.6, fadeIn: 1000 });
@@ -1684,7 +1348,7 @@ export class QuizHostScene extends BaseScene {
             particle.tumblePhase = Math.random() * Math.PI * 2;
         });
 
-        this.overlayContainer.add(emitter);
+        this.topContainer.add(emitter);
         
         // Stop emitting after 5 seconds
         this.time.delayedCall(5000, () => {
@@ -1825,19 +1489,15 @@ export class QuizHostScene extends BaseScene {
         this.podiums.forEach(p => p.destroy());
         this.podiums = [];
 
-        if (this.startingSoonHUD) {
-            this.startingSoonHUD.destroy(true);
-            this.startingSoonHUD = null;
-            this.HUDCountdownTimer.destroy();
-            this.HUDWaitingText = null;
-        }
-
         // Clean up the previous question's display elements
         if (this.UIContainer) {
             this.UIContainer.removeAll(true);
         } else {
             this.UIContainer = this.add.container(0, 0);
             this.add.existing(this.UIContainer);
+        }
+        if (this.lobbyHUD) {
+            this.lobbyHUD.destroy();
         }
         if (this.currentQuestion) {
             this.currentQuestion.destroy();
@@ -1877,10 +1537,6 @@ export class QuizHostScene extends BaseScene {
         // if (this.racetrack) {
         //     this.racetrack.setPosition(0, this.getY(640));
         // }
-
-        if (this.startingSoonHUD) {
-            this.startingSoonHUD.setPosition(960, this.getY(350));
-        }
 
         if (this.currentQuestion) {
             this.currentQuestion.renderHost();

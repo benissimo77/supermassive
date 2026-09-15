@@ -70,7 +70,7 @@ class Room {
 		this.pingInterval = setInterval(() => {
 			this.pingAllClients();
 			this.checkIdle();
-		}, 5000);
+		}, 30000);
 
 	}
 

@@ -10,6 +10,7 @@ import { LobbyHUD } from 'src/ui/LobbyHUD';
 import { BeatManager } from 'src/utils/BeatManager';
 import ThreeHostActionFactory from './actions/ThreeHostActionFactory';
 import BaseHostAction from './actions/BaseHostAction';
+import { preloadSharedHostAssets } from 'src/utils/sharedHostAssets';
 
 import { gsap } from 'gsap';
 
@@ -104,8 +105,8 @@ export class ThreeHostScene extends BaseScene {
     preload(): void {
         super.preload();
 
-        // Phaser assets should use root-relative paths to load from /public/
-        this.load.image('quiz-background', '/img/quiz/background.jpg');
+        // Assets shared identically with QuizHostScene (backgrounds, common buttons/marks, shared SFX, font)
+        preloadSharedHostAssets(this);
 
         // Cards and Icons
         this.load.image('card_back', '/assets/three/card-back.png');
@@ -118,36 +119,14 @@ export class ThreeHostScene extends BaseScene {
         this.load.image('joker', '/assets/three/joker.png');
         this.load.image('joker-white', '/assets/three/joker-white.png');
 
-        this.load.image('checkmark', '/assets/three/checkmark.png');
-        this.load.image('crossmark', '/assets/three/crossmark.png');
-
-        // Player UI assets
-        this.load.image('playernamepanel', '/assets/rounded-rect-grey-480x48x14.png');
-
         // Selection slots - plus highlight versions and versus graphic
         this.load.image('selection-slot', "/assets/three/card-background.png");
         this.load.image('selection-slot-highlight', "/assets/three/card-background-highlight.png");
         this.load.image('highlight', "/assets/three/card-highlight.png");
         this.load.image('versus', '/assets/three/versus.png');
 
-        // Quiz-related images
-        this.load.image('dropzone', '/assets/img/dropzone.png');
-        this.load.image('dropzone-square', '/assets/img/dropzone-square.png');
-        this.load.image('simple-button', '/assets/img/simplebutton.png');
-        this.load.image('simple-button-hover', '/assets/img/simplebutton-hover.png');
-
         // Audio
         this.load.audio('quiz-music-intro', '/assets/audio/quiz/music/modern-beat-jingle-intro-149598.mp3');
-        this.load.audio('quiz-countdown', '/assets/audio/quiz/music/quiz-countdown-337785.mp3');
-        this.load.audio('question-answered', '/assets/audio/quiz/fx/446100__justinvoke__bounce.wav');
-        this.load.audio('end-question', '/assets/audio/quiz/fx/gong-hit-2-184010.mp3');
-
-        // Load custom fonts
-        this.load.rexWebFont({
-            google: {
-                families: ['Titan One']
-            }
-        });
 
     }
 
@@ -758,7 +737,7 @@ export class ThreeHostScene extends BaseScene {
     private setupSocketListeners(): void {
 
         // First socket events are general ones sent by room - keep these together (they are special so don't follow the same schema as other events)
-        this.socket.on('playerconnect', (playerConfig: PlayerConfig) => {
+        this.registerSocketListener('playerconnect', (playerConfig: PlayerConfig) => {
             console.log('ThreeHostScene:: playerconnect', playerConfig);
             const player: ThreePlayer = this.getPlayerBySessionID(playerConfig.sessionID);
             if (player) {
@@ -776,7 +755,7 @@ export class ThreeHostScene extends BaseScene {
 
         // When player disconnects don't remove from list as they might re-join
         // They simply become 'dormant' and won't receive questions - but if they re-join they will be right back where they left off
-        this.socket.on('playerdisconnect', (sessionID: string) => {
+        this.registerSocketListener('playerdisconnect', (sessionID: string) => {
             console.log('ThreeHostScene:: playerdisconnect:', sessionID);
             const player: ThreePlayer = this.getPlayerBySessionID(sessionID);
             if (player) {
@@ -793,7 +772,7 @@ export class ThreeHostScene extends BaseScene {
 
         });
 
-        this.socket.on('server:players', (players: any[]) => {
+        this.registerSocketListener('server:players', (players: any[]) => {
             console.log('ThreeHostScene:: server:players', players);
             players.forEach(p => {
                 if (!this.players.has(p.sessionID)) {
@@ -807,7 +786,7 @@ export class ThreeHostScene extends BaseScene {
             this.lobbyHUD.updatePlayerCount(playerCount);
         });
 
-        this.socket.on('server:state:question', async (question: any) => {
+        this.registerSocketListener('server:state:question', async (question: any) => {
             // Reparent all players to float at the bottom while answering
             // Either an Open or a Battle question — stateSetup handles sliding battle UI off and reparenting players
             if (question.battleMode === BattleMode.OPEN) {
@@ -837,7 +816,7 @@ export class ThreeHostScene extends BaseScene {
             this.stateTimeline = tl;
         });
 
-        this.socket.on('server:state:answer', async (question: any) => {
+        this.registerSocketListener('server:state:answer', async (question: any) => {
             this.changeState(ThreeState.QUIZ_ANSWER, question);
             await this.createQuestion(question);
 
@@ -872,7 +851,7 @@ export class ThreeHostScene extends BaseScene {
         });
 
         // Player answered a question
-        this.socket.on('server:questionanswered', (data) => {
+        this.registerSocketListener('server:questionanswered', (data) => {
             const player: ThreePlayer = this.getPlayerBySessionID(data.sessionID);
             console.log('ThreeHostScene:: server:questionanswered - player answered:', data.sessionID, 'player object:', player, 'currentState:', this.currentState);
             if (player) {
@@ -900,7 +879,7 @@ export class ThreeHostScene extends BaseScene {
             }
         });
 
-        this.socket.on('server:state:teambattle', (data: any) => {
+        this.registerSocketListener('server:state:teambattle', (data: any) => {
             console.log('ThreeHostScene:: server:state:teambattle', data);
 
             // Slight edge case to logic here since this event can be called multiple times
@@ -908,22 +887,22 @@ export class ThreeHostScene extends BaseScene {
             this.changeState(ThreeState.TEAM_BATTLE, data);
         });
 
-        this.socket.on('server:state:tileselection', (data: any) => {
+        this.registerSocketListener('server:state:tileselection', (data: any) => {
             console.log('ThreeHostScene:: server:state:tileselection:', data);
             this.changeState(ThreeState.TILE_SELECTION, data);
         });
 
-        this.socket.on('server:state:joker', (data: any) => {
+        this.registerSocketListener('server:state:joker', (data: any) => {
             console.log('ThreeHostScene:: server:state:joker:', data);
             this.changeState(ThreeState.JOKER, data);
         });
 
-        this.socket.on('server:action:iconrevealed', (data: { iconKey: string }) => {
+        this.registerSocketListener('server:action:iconrevealed', (data: { iconKey: string }) => {
             console.log('ThreeHostScene:: server:action:iconrevealed', data);
             this.battleMap.iconRevealed(data.iconKey);
         });
 
-        this.socket.on('game:selection', (data: { index: number, order: number | null }) => {
+        this.registerSocketListener('game:selection', (data: { index: number, order: number | null }) => {
             console.log('ThreeHostScene:: game:selection', data);
             const card = this.cards[data.index];
             if (card) {
@@ -931,7 +910,7 @@ export class ThreeHostScene extends BaseScene {
             }
         });
 
-        this.socket.on('server:action:revealtile', (data: { index: number, icon?: string }) => {
+        this.registerSocketListener('server:action:revealtile', (data: { index: number, icon?: string }) => {
             console.log('ThreeHostScene:: server:action:revealtile', data);
             const card = this.cards[data.index];
             if (card) {
@@ -939,7 +918,7 @@ export class ThreeHostScene extends BaseScene {
             }
         });
 
-        this.socket.on('server:action:hidetile', (data: { index: number }) => {
+        this.registerSocketListener('server:action:hidetile', (data: { index: number }) => {
             console.log('ThreeHostScene:: server:action:hidetile', data);
             const card = this.cards[data.index];
             if (card) {
@@ -947,7 +926,7 @@ export class ThreeHostScene extends BaseScene {
             }
         });
 
-        this.socket.on('server:action:collecttile', (data: { sessionID: string, icon: string, newTileCount?: number }) => {
+        this.registerSocketListener('server:action:collecttile', (data: { sessionID: string, icon: string, newTileCount?: number }) => {
             console.log('ThreeHostScene:: server:action:collecttile', data);
             const player = this.players.get(data.sessionID);
             if (player) {
@@ -956,7 +935,7 @@ export class ThreeHostScene extends BaseScene {
             }
         });
 
-        this.socket.on('server:action:losetile', (data: { sessionID: string, icon: string }) => {
+        this.registerSocketListener('server:action:losetile', (data: { sessionID: string, icon: string }) => {
             console.log('ThreeHostScene:: server:action:losetile', data);
             const player = this.players.get(data.sessionID);
             if (player) {
@@ -965,22 +944,17 @@ export class ThreeHostScene extends BaseScene {
             }
         });
 
-        this.socket.on('server:state:turnevaluate', (data: { reveals: any[] }) => {
+        this.registerSocketListener('server:state:turnevaluate', (data: { reveals: any[] }) => {
             console.log('ThreeHostScene:: server:state:turnevaluate:', data);
             this.changeState(ThreeState.TURN_EVALUATE, data);
         });
 
-        this.socket.on('server:state:joker', (data: any) => {
-            console.log('ThreeHostScene:: server:state:joker:', data);
-            this.changeState(ThreeState.JOKER, data);
-        });
-
-        this.socket.on('server:state:jokerevaluate', (data: any) => {
+        this.registerSocketListener('server:state:jokerevaluate', (data: any) => {
             console.log('ThreeHostScene:: server:state:jokerevaluate:', data);
             this.changeState(ThreeState.JOKER_EVALUATE, data);
         });
 
-        this.socket.on('game:turn', (data: { sessionID: string }) => {
+        this.registerSocketListener('game:turn', (data: { sessionID: string }) => {
             console.log('ThreeHostScene:: game:turn', data);
             this.setActiveTeam(data.sessionID);
         });

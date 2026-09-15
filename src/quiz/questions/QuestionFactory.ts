@@ -9,9 +9,13 @@ import ImageOrderingQuestion from "./ImageOrdering";
 import TextQuestion from "./Text";
 import PlayerTextQuestion from "./PlayerText";
 import PlayerNumberQuestion from "./PlayerNumber";
+import PlayerTrueFalseQuestion from "./PlayerTrueFalse";
+import PlayerMultipleChoiceQuestion from "./PlayerMultipleChoice";
+import PlayerHotspotQuestion from "./PlayerHotspot";
 import PlayerOrderingQuestion from "./PlayerOrdering";
 import PlayerImageOrderingQuestion from "./PlayerImageOrdering";
 import PlayerImageMatchingQuestion from "./PlayerImageMatching";
+import PlayerDrawQuestion from "./PlayerDraw";
 import NumberQuestion from "./Number";
 import HotspotQuestion from "./Hotspot";
 import DrawQuestion from "./Draw";
@@ -46,6 +50,18 @@ export class QuestionFactory {
         if (this.scene.TYPE === 'play') {
             if (type === 'text') {
                 return new PlayerTextQuestion(this.scene, data as any);
+            }
+            if (type === 'true-false') {
+                return new PlayerTrueFalseQuestion(this.scene, data as any);
+            }
+            if (type === 'multiple-choice') {
+                return new PlayerMultipleChoiceQuestion(this.scene, data as any);
+            }
+            if (type === 'hotspot' || type === 'point-it-out') {
+                return new PlayerHotspotQuestion(this.scene, data as any);
+            }
+            if (type === 'draw') {
+                return new PlayerDrawQuestion(this.scene, data as any);
             }
             if (['number-exact', 'number-closest', 'number-average'].includes(type)) {
                 return new PlayerNumberQuestion(this.scene, data as any);

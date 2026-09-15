@@ -20,6 +20,10 @@ export abstract class BaseScene extends Phaser.Scene {
     private onServerPlayers: (players: PlayerConfig[]) => void;
     private onServerPing: (data: any, callback: Function) => void;
 
+    // Listeners registered via registerSocketListener() - tracked so shutdown() can remove exactly
+    // these, the same way, without every subclass having to hand-maintain its own matching .off() calls
+    private trackedListeners: Array<{ event: string; handler: (...args: any[]) => void }> = [];
+
     // Containers for the different layers that make up the scene
     protected backgroundContainer: Phaser.GameObjects.Container;
     protected mainContainer: Phaser.GameObjects.Container;
@@ -233,6 +237,18 @@ export abstract class BaseScene extends Phaser.Scene {
         };
         this.socket.off('server:ping', this.onServerPing);
         this.socket.on('server:ping', this.onServerPing);
+    }
+
+    // registerSocketListener
+    // Use this instead of calling this.socket.on(...) directly for any listener a child scene
+    // registers itself. The socket is a page-lifetime singleton and a scene's create() can run
+    // more than once (eg a scene restart) — a plain socket.on() call would stack a duplicate
+    // handler on every restart since nothing would ever remove the old one. Listeners registered
+    // this way are automatically removed in shutdown(), so child scenes don't need to hand-write
+    // matching .off() calls (and can't forget to).
+    protected registerSocketListener(event: string, handler: (...args: any[]) => void): void {
+        this.socket.on(event, handler);
+        this.trackedListeners.push({ event, handler });
     }
 
     protected getDeviceType(): string {
@@ -684,6 +700,10 @@ export abstract class BaseScene extends Phaser.Scene {
             this.socket.off('playerdisconnect', this.onPlayerDisconnect);
             this.socket.off('server:players', this.onServerPlayers);
             this.socket.off('server:ping', this.onServerPing);
+
+            // And every listener a child scene registered via registerSocketListener()
+            this.trackedListeners.forEach(({ event, handler }) => this.socket.off(event, handler));
+            this.trackedListeners = [];
         }
 
         // Release wake lock if it exists

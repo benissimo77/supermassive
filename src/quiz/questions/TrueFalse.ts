@@ -21,24 +21,18 @@ export default class TrueFalseQuestion extends BaseQuestion {
      * Create the specific content for multiple choice questions
      * The questionData holds everything we need including a 'mode' (ask/answer)
      * If mode = 'answer' then we show the correct answer (non-interactive)
-     * If mode = 'ask' then we show the options
-     * If mode = 'ask' AND we are player screen then make interactive and collect player input
+     * Host only ever displays - player-side interactivity lives in PlayerTrueFalseQuestion
      */
     protected createAnswerUI(): void {
 
-        console.log('TrueFalseQuestion::createAnswerUI:', this.scene.TYPE, this.questionData);
+        console.log('TrueFalseQuestion::createAnswerUI:', this.questionData);
 
         // Create answer options
-        ['true', 'false'].forEach((option: string, index: number) => {
+        ['true', 'false'].forEach((option: string) => {
 
             const newButton: NineSliceButton = new NineSliceButton(this.scene, option.toUpperCase());
             this.buttons.set(option, newButton);
             this.answerContainer.add(newButton);
-
-            // Make interactive if we are in ask mode and player screen
-            if (this.questionData.mode == 'ask' && this.scene.TYPE != 'host') {
-                this.makeInteractive();
-            }
 
             // If we are in answer mode then we show the correct answer
             if (this.questionData.mode == 'answer') {
@@ -65,7 +59,7 @@ export default class TrueFalseQuestion extends BaseQuestion {
         const numColumns = isPortrait ? 1 : 2;
         const buttonSpace = availableHeight / numRows;
 
-        console.log('TrueFalseQuestion::showAnswerContent:', this.scene.TYPE, availableHeight, buttonSpace);
+        console.log('TrueFalseQuestion::showAnswerContent:', availableHeight, buttonSpace);
 
         // Create answer options
         ['true', 'false'].forEach((option: string, index: number) => {
@@ -84,24 +78,9 @@ export default class TrueFalseQuestion extends BaseQuestion {
         });
     }
 
+    // Host never makes buttons interactive (that's PlayerTrueFalseQuestion's job) - kept as a no-op
+    // to satisfy BaseQuestion's abstract contract.
     protected makeInteractive(): void {
-
-        this.buttons.forEach((button, option) => {
-
-            button.setInteractive({ useHandCursor: true });
-            button.on('pointerup', () => {
-                this.makeNonInteractive();
-                this.submitAnswer(option);
-                this.highlightAnswer(option);
-                this.scene.time.delayedCall(1000, () => {
-                    this.scene.soundManager.playFX('submit-answer');
-                    gsap.to(this.answerContainer, {
-                        y: this.scene.getY(1080 + 540),
-                        ease: 'back.in'
-                    });
-                });
-            });
-        });
     }
 
     protected makeNonInteractive(): void {

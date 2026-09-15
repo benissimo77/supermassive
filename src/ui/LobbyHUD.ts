@@ -11,7 +11,10 @@ export class LobbyHUD extends Phaser.GameObjects.Container {
     private HUDTimerGraphics: Phaser.GameObjects.Graphics;
     private HUDCountdownSeconds: number = 600; // Default to 60 seconds, can be updated by host
     private instructionsPanel: Phaser.GameObjects.Container;
+    private countdownContainer: Phaser.GameObjects.Container
     private roomID: string = "";
+    private minText: Phaser.GameObjects.Text;
+    private secText: Phaser.GameObjects.Text;
 
     constructor(scene: BaseScene, x: number, y: number, title: string = "Waiting for players...") {
         super(scene, x, y);
@@ -45,10 +48,21 @@ export class LobbyHUD extends Phaser.GameObjects.Container {
 
 
         // HUD Timer Graphics
-        // Add Bloom effect to make the neon blue elements glow
-        // (color, offsetX, offsetY, blurStrength, strength)
+        // Add a Glow effect to make the neon blue elements glow - Phaser 4 replaced the old
+        // postFX.addBloom() with a per-object filters list, which is null until you opt in via
+        // enableFilters() (confirmed: renderer was WebGL all along, filters was just never enabled).
+        // (color, outerStrength, innerStrength, scale)
         this.HUDTimerGraphics = this.scene.add.graphics();
-        this.HUDTimerGraphics.postFX.addBloom(0x00ccff, 1, 1, 2, 1.5);
+        // this.HUDTimerGraphics.enableFilters();
+        // Graphics has no inherent width/height, so Phaser can't auto-focus the filter camera on it -
+        // it falls back to focusing the whole rendering context instead, which is what was pushing the
+        // glow ~300px off from the actual drawing (centered on this object's own local (0,0), ticks
+        // reaching out to radius 200 - see updateHUDTimerGraphics()). This pins the filter to a fixed
+        // 440x440 box centered on that same local origin (with a little padding for the glow's spread)
+        // and, per the docs, also turns off the per-frame auto-refocus that was causing the offset.
+        // this.HUDTimerGraphics.focusFiltersOverride(220, 220, 440, 440);
+        // console.log('LobbyHUD:: HUDTimerGraphics.filters =', this.HUDTimerGraphics.filters, 'renderer type =', this.scene.renderer?.type);
+        // this.HUDTimerGraphics.filters?.internal.addGlow(0x00ccff, 2, 0, 1);
 
         // Countdown Clock
         // We use fixed offsets from center to ensure stable positioning regardless of character width
@@ -59,14 +73,14 @@ export class LobbyHUD extends Phaser.GameObjects.Container {
             stroke: '#000000',
             strokeThickness: 8
         };
-        const countdownContainer: Phaser.GameObjects.Container = this.scene.add.container(960, 350);
-        const minText = this.scene.add.text(-15, 0, "", timerStyle).setOrigin(1, 0.5);
+        this.countdownContainer = this.scene.add.container(960, 350);
+        this.minText = this.scene.add.text(-15, 0, "", timerStyle).setOrigin(1, 0.5);
         const colon = this.scene.add.text(0, -6, ":", timerStyle).setOrigin(0.5, 0.5);
-        const secText = this.scene.add.text(15, 0, "", timerStyle).setOrigin(0, 0.5);
+        this.secText = this.scene.add.text(15, 0, "", timerStyle).setOrigin(0, 0.5);
 
-        countdownContainer.add([minText, colon, secText, this.HUDTimerGraphics]);
-        countdownContainer.setPosition(960, 350);
-        
+        this.countdownContainer.add([this.minText, colon, this.secText, this.HUDTimerGraphics]);
+        this.countdownContainer.setPosition(960, 350);
+
         // Start countdown only once
         if (!this.scene.data.get('timerStarted')) {
             this.scene.data.set('timerStarted', true);
@@ -75,11 +89,11 @@ export class LobbyHUD extends Phaser.GameObjects.Container {
                 callback: () => {
                     if (this.HUDCountdownSeconds > 0) {
                         this.HUDCountdownSeconds--;
-                        if (minText.active) {
+                        if (this.minText.active) {
                             const m = Math.floor(this.HUDCountdownSeconds / 60);
                             const s = this.HUDCountdownSeconds % 60;
-                            minText.setText(`${m.toString().padStart(2, '0')}`);
-                            secText.setText(`${s.toString().padStart(2, '0')}`);
+                            this.minText.setText(`${m.toString().padStart(2, '0')}`);
+                            this.secText.setText(`${s.toString().padStart(2, '0')}`);
                         }
                     }
                 },
@@ -87,7 +101,7 @@ export class LobbyHUD extends Phaser.GameObjects.Container {
             });
         }
 
-        this.add([this.titleText, this.startingSoonText, this.playerCountText, countdownContainer]);
+        this.add([this.titleText, this.startingSoonText, this.playerCountText, this.countdownContainer]);
 
     }
 
@@ -224,6 +238,19 @@ export class LobbyHUD extends Phaser.GameObjects.Container {
         this.playerCountText.setText(`${count} PLAYERS JOINED`);
     }
 
+    public getCountdownSeconds(): number {
+        return this.HUDCountdownSeconds;
+    }
+
+    // setCountdownSeconds - lets a host push the countdown forward/back (eg an adjust hotkey)
+    public setCountdownSeconds(seconds: number): void {
+        this.HUDCountdownSeconds = Math.max(0, seconds);
+        const m = Math.floor(this.HUDCountdownSeconds / 60);
+        const s = this.HUDCountdownSeconds % 60;
+        if (this.minText?.active) this.minText.setText(`${m.toString().padStart(2, '0')}`);
+        if (this.secText?.active) this.secText.setText(`${s.toString().padStart(2, '0')}`);
+    }
+
     public updateHUDTimerGraphics(): void {
 
         if (!this.HUDTimerGraphics) return;
@@ -287,5 +314,23 @@ export class LobbyHUD extends Phaser.GameObjects.Container {
         }
     }
 
+    public destroy(): void {
+        if (this.HUDTimerGraphics) {
+            this.HUDTimerGraphics.destroy();
+        }
+        if (this.titleText) {
+            this.titleText.destroy();
+        }
+        if (this.startingSoonText) {
+            this.startingSoonText.destroy();
+        }
+        if (this.playerCountText) {
+            this.playerCountText.destroy();
+        }
+        if (this.countdownContainer) {
+            this.countdownContainer.removeAll(true);
+        }
+
+    }
 
 }

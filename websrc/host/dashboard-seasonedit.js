@@ -123,23 +123,28 @@ function createEpisodeCard(ep) {
 
 	// Add air date and time inputs
 	clone.querySelector('.ep-airdate-input').value = ep.airDate ? toDateInputValue(ep.airDate) : '';
-	clone.querySelector('.ep-airtime-input').value = ep.airTime || '';
+	const defaultTime = currentSeasonData?.defaultTime || '18:00';
+	const airTimeInput = clone.querySelector('.ep-airtime-input');
+	airTimeInput.value = ep.airTime || '';
+	airTimeInput.placeholder = `Default: ${defaultTime}`;
+	airTimeInput.title = `Leave blank to use the season default time (${defaultTime})`;
 
 	return clone.querySelector('.episode-card');
 }
 
 function renderEpisodes(episodes) {
 
+	const list = document.getElementById('episode-list');
+	list.innerHTML = '';
+
 	if (episodes.length === 0) {
+		list.innerHTML = `
+			<div class="empty-state" style="margin-top: 1rem;">
+				<h3>No Episodes Yet</h3>
+				<p>Click 'Add Episode' to attach a quiz to this season.</p>
+			</div>`;
 		return;
 	}
-
-	const list = document.getElementById('episode-list');
-	const emptyState = list.querySelector('.empty-state');
-	if (emptyState) {
-		emptyState.style.display = 'none';
-	}
-	list.innerHTML = '';
 
 	episodes.forEach(ep => list.appendChild(createEpisodeCard(ep)));
 

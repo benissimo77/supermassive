@@ -7,11 +7,34 @@ import { OrderMatchQuestionData } from "./QuestionTypes";
 export default class PlayerOrderingQuestion extends PlayerBaseQuestion {
     
     private buttons: Map<string, NineSliceButton> = new Map<string, NineSliceButton>();
-    private dropzones: Map<number, Phaser.GameObjects.NineSlice> = new Map<number, Phaser.GameObjects.NineSlice>();
+    private dropzones: Map<number, Phaser.GameObjects.NineSlice | Phaser.GameObjects.Image> = new Map();
     private dropzoneLabels: Map<number, Phaser.GameObjects.Text> = new Map<number, Phaser.GameObjects.Text>();
+
+    // Toggle to compare the dotted-line dropzone graphic as a 9-slice (tiled, current) vs a plain
+    // uniformly-scaled image (no tiling artifacts on the dashes, but stretches the dash pattern
+    // itself if a dropzone ends up far from square) - remove this + the false branch once decided.
+    private readonly USE_NINESLICE_DROPZONE = false;
     private submitButton: NineSliceButton;
     private items: string[] = [];
     private labels: string[] = [];
+
+    // Same fixed-size approach as PlayerTrueFalse/PlayerMultipleChoice (and, for the column
+    // centering, the same as Ordering.ts's host layout, which hardcodes the same ±480 column
+    // centers): a single fixed item width and height - matching Ordering.ts's own 800x120 buttons
+    // exactly - sits comfortably both as a single column in portrait's full 1920-wide canvas and
+    // centered within either 960-wide column in landscape. No row-count-driven shrinking: with
+    // items up to ~6 per column, that would only ever bind on a screen shaped roughly 2.67:1
+    // landscape or more extreme (needs screenWidth > ~2.67 * screenHeight) - not a realistic play
+    // scenario, same reasoning as PlayerMultipleChoiceQuestion's dropped height guard.
+
+    // item height = fixed 800x120px - matches Host's 800x120 items and looks good in general
+    private readonly ITEM_WIDTH = 800;
+    private readonly ITEM_HEIGHT = 120;
+
+    // Submit button does not scale with screen size, is a physical size
+    private readonly SUBMIT_WIDTH_PX = 120;
+    private readonly SUBMIT_HEIGHT_PX = 32;
+    private readonly SUBMIT_MARGIN_PX = 12;
 
     constructor(scene: BaseScene, questionData: OrderMatchQuestionData) {
         super(scene, questionData);
@@ -59,15 +82,10 @@ export default class PlayerOrderingQuestion extends PlayerBaseQuestion {
 
         // Create dropzones
         this.labels.forEach((label: string, index: number) => {
-            const dropzone = this.scene.add.nineslice(
-                0, 0,
-                'dropzone',
-                undefined,
-                800, 120,
-                12, 12, 12, 12
-            )
-                .setOrigin(0.5)
-                .setTint(0x8080C0);
+            const dropzone: Phaser.GameObjects.NineSlice | Phaser.GameObjects.Image = this.USE_NINESLICE_DROPZONE
+                ? this.scene.add.nineslice(0, 0, 'dropzone', undefined, 800, 120, 12, 12, 12, 12).setOrigin(0.5)
+                : this.scene.add.image(0, 0, 'dropzone').setOrigin(0.5);
+            dropzone.setTint(0x8080C0);
 
             dropzone.setData('dropped', '');
             dropzone.setData('index', index);
@@ -83,7 +101,7 @@ export default class PlayerOrderingQuestion extends PlayerBaseQuestion {
 
         // Create submit button
         this.submitButton = new NineSliceButton(this.scene, 'Submit');
-        this.answerContainer.add(this.submitButton);
+        this.add(this.submitButton);
         this.submitButton.setVisible(false);
 
         if (this.questionData.mode === 'ask') {
@@ -92,47 +110,80 @@ export default class PlayerOrderingQuestion extends PlayerBaseQuestion {
     }
 
     protected showAnswerContent(answerHeight: number): void {
+
         const isPortrait = this.scene.isPortrait();
-        const scaleFactor: number = this.scene.getUIScaleFactor();
+        const physicalScale = this.scene.getPhysicalScale();
+        const N = this.items.length;
 
-        // Submit button positioning
-        this.submitButton.setButtonSize(320 * scaleFactor, 80 * scaleFactor);
-        this.submitButton.setTextSize(46 * scaleFactor);
-        this.submitButton.setPosition(960 - 160 * scaleFactor - 20, this.scene.getY(answerHeight) - 40 * scaleFactor - 20);
+        // --- Submit button: fixed physical size, pinned to the bottom-right corner - persistent
+        // chrome, not part of the scaled content block below (same pattern as PlayerTrueFalse/
+        // PlayerMultipleChoice's touch-target sizing).
+        const submitW = this.SUBMIT_WIDTH_PX * physicalScale;
+        const submitH = this.SUBMIT_HEIGHT_PX * physicalScale;
+        this.submitButton.setButtonSize(submitW, submitH);
+        this.submitButton.adjustTextSize(submitH);
+        this.submitButton.setPosition(
+            1920 - (this.SUBMIT_WIDTH_PX / 2 + this.SUBMIT_MARGIN_PX) * physicalScale,
+            this.scene.getY(answerHeight) - (this.SUBMIT_HEIGHT_PX / 2 + this.SUBMIT_MARGIN_PX) * physicalScale
+        );
 
-        answerHeight -= 80 * scaleFactor;
+        // --- Items + dropzones: fixed size (see ITEM_WIDTH's comment), no touch-target clamp or
+        // row-count-driven shrinking - matches PlayerTrueFalse/PlayerMultipleChoice. Row spacing
+        // divides the full available height evenly across however many rows are needed, and the
+        // gap between rows falls out as whatever's left over (fitHeight - itemHeight), rather
+        // than an independently-tuned gap ratio - same approach as PlayerMultipleChoiceQuestion.
+        const itemWidth = this.ITEM_WIDTH;
+        const itemHeight = this.ITEM_HEIGHT;
 
-        let paddingHeight = 0;
-        const numElements = isPortrait ? this.items.length * 2 : this.items.length;
-        const buttonSpace = answerHeight / numElements;
+        const rows = isPortrait ? N * 2 : N;
+        const fitHeight = answerHeight / rows;
+        const totalHeight = answerHeight - (fitHeight - itemHeight);
+        const top = -totalHeight / 2;
+        // const dropzoneLabelFontSize = itemHeight * this.DROPZONE_LABEL_FONT_RATIO;
 
+        // rowY: the button group occupies rows [0, N), the dropzone group occupies rows [N, 2N)
+        // in portrait (landscape keeps them in separate side-by-side columns at the same rows) -
+        // the group boundary gets the same implicit gap as any other row, rather than a second,
+        // independently-tuned gap.
+        const rowY = (rowIndex: number): number => this.scene.getY(top + rowIndex * fitHeight + itemHeight / 2);
+
+        // Pass 1: size and position every item button, noting each one's own best-fit font size.
+        let uniformFontSize = Infinity;
         this.buttons.forEach((button, item) => {
             const index = button.getData('index');
+            const x = isPortrait ? 0 : -480; // centered in the left half-screen-width column, matching Ordering.ts's hardcoded x = -480
+            const y = rowY(index);
 
-            const x = isPortrait ? 0 : -480;
-            const y = paddingHeight + index * buttonSpace + buttonSpace / 2;
-
-            button.setButtonSize(800 * scaleFactor, 120 * scaleFactor);
-            button.setPosition(x, this.scene.getY(y));
-            button.setTextSize(48 * scaleFactor);
+            button.setButtonSize(itemWidth, itemHeight);
+            button.setPosition(x, y);
+            uniformFontSize = Math.min(uniformFontSize, button.adjustTextSize(itemHeight));
             button.setData('OriginX', x);
-            button.setData('OriginY', this.scene.getY(y));
-            button.setData('dropzone', null); 
+            button.setData('OriginY', y);
+            button.setData('dropzone', null);
         });
 
-        this.dropzones.forEach((dropzone, index) => {
-            const x = isPortrait ? 0 : 480;
-            const y = isPortrait
-                ? paddingHeight + this.items.length * buttonSpace + (buttonSpace/2) + index * buttonSpace + buttonSpace / 2
-                : paddingHeight + index * buttonSpace + buttonSpace / 2;
+        // Pass 2: re-apply the smallest fitted size to every item button - see
+        // PlayerMultipleChoiceQuestion for why (adjustTextSize fits per-button from its own text).
+        this.buttons.forEach((button) => button.setTextSize(uniformFontSize));
 
-            dropzone.setSize(800 * scaleFactor, 120 * scaleFactor);
-            dropzone.setPosition(x, this.scene.getY(y));
+        this.dropzones.forEach((dropzone, index) => {
+            const rowIndex = isPortrait ? N + index : index;
+            const x = isPortrait ? 0 : 480; // centered in the right half-screen-width column, matching Ordering.ts's hardcoded x = 480
+            const y = rowY(rowIndex);
+
+            // NineSlice.setSize() resizes the slice; a plain Image needs setDisplaySize() instead
+            // since setSize() only touches its size metadata, not what's actually drawn.
+            if (dropzone instanceof Phaser.GameObjects.NineSlice) {
+                dropzone.setSize(itemWidth, itemHeight);
+            } else {
+                dropzone.setDisplaySize(itemWidth, itemHeight);
+            }
+            dropzone.setPosition(x, y);
 
             const label = this.dropzoneLabels.get(index);
             if (label) {
-                label.setPosition(x, this.scene.getY(y));
-                label.setFontSize(46 * scaleFactor);
+                label.setPosition(x, y);
+                label.setFontSize(uniformFontSize);
             }
 
             dropzone.setData('dropped', '');
@@ -254,7 +305,7 @@ export default class PlayerOrderingQuestion extends PlayerBaseQuestion {
         }
 
         this.submitButton.setVisible(this.checkDropzonesFull());
-        this.answerContainer.bringToTop(this.submitButton);
+        this.bringToTop(this.submitButton);
     }
 
     private handleDrag(pointer: Phaser.Input.Pointer, gameObject: any, dragX: number, dragY: number): void {

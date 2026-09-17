@@ -196,15 +196,14 @@ export class ImageButton extends NineSliceButton {
         }
     }
 
-    protected adjustTextSize(targetHeight: number): void {
+    public adjustTextSize(targetHeight: number): number {
         if (!this.isSquareMode || !this.buttonImage || !this.buttonImage.visible) {
-            super.adjustTextSize(targetHeight);
-            return;
+            return super.adjustTextSize(targetHeight);
         }
 
         // Avoid infinite loop - always end if we go below a certain size
         if (targetHeight < 12) {
-            return;
+            return parseInt(this.text.style.fontSize as unknown as string, 10) || targetHeight;
         }
 
         const inset = 6;
@@ -212,14 +211,15 @@ export class ImageButton extends NineSliceButton {
         const panelHeight = this.height * 0.20;
 
         this.text.setFontSize(targetHeight);
-        
+
         // Give it slight horizontal padding inside the black panel so it's not flush to the edges
         const textWrapWidth = panelWidth - 8;
         this.text.setWordWrapWidth(textWrapWidth);
-        
-        // Recurse downwards if the text is physically taller or wider than the panel 
+
+        // Recurse downwards if the text is physically taller or wider than the panel
         if (this.text.height > panelHeight || this.text.width > textWrapWidth) {
-            this.adjustTextSize(targetHeight - 2);
+            return this.adjustTextSize(targetHeight - 2);
         }
+        return targetHeight;
     }
 }

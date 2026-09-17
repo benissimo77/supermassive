@@ -19,14 +19,11 @@ export class NineSliceButton extends SimpleButton {
         return nineslice;
     }
 
-    // setButtonSize override for nineslice
-    public setButtonSize(width: number, height: number): void {
-        this.normalImage.setSize(width, height);
-        this.hoverImage.setSize(width, height);
-        this.setSize(width, height);
-        if (this.input) {
-            this.input.hitArea = new Phaser.Geom.Rectangle(0, 0, width, height);
-        }
-        this.text.setWordWrapWidth(width - 40);
+    // See SimpleButton.resizeGraphic - a NineSlice must be resized via its own setSize(), not
+    // setDisplaySize(), so its corners stay a fixed pixel size instead of being scaled along with
+    // everything else.
+    protected resizeGraphic(image: Phaser.GameObjects.NineSlice, width: number, height: number): void {
+        image.setSize(width, height);
     }
+
 }

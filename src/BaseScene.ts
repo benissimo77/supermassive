@@ -562,19 +562,31 @@ export abstract class BaseScene extends Phaser.Scene {
 
     /**
      * getPhysicalScale
-     * Returns a scale factor designed to keep interactive elements at a consistent 
-     * physical size regardless of the screen's logical-to-physical mapping.
-     * 
-     * Formula: (1 / cameraZoom) * (1 / dpr) * constant
+     * Returns a scale factor designed to keep interactive elements at a consistent
+     * physical (CSS-pixel) size regardless of camera zoom.
+     *
+     * Formula: 1 / cameraZoom
+     *
+     * cameraZoom is already computed from screenWidth in CSS px (see handleResize), so 1/zoom
+     * alone converts a logical-canvas unit to a constant CSS-px size - no separate devicePixelRatio
+     * compensation is needed (a prior version of this formula multiplied by 1/dpr as well, which
+     * double-compensated and made elements too small on high-DPR devices).
      */
     getPhysicalScale(): number {
         const cameraZoom = this.cameras.main.zoom || 1;
-        const dpr = window.devicePixelRatio || 1;
+        return 1 / cameraZoom;
+    }
 
-        console.log('BaseScene:: getPhysicalScale: cameraZoom:', cameraZoom, 'devicePixelRatio:', dpr, 'returns:', (1 / cameraZoom) * (1 / dpr));
-        // A pure ratio that keeps an object at its standard physical size 
-        // across different camera zooms and pixel densities.
-        return (1 / cameraZoom) * (1 / dpr);
+    /**
+     * cssPxToLogical
+     * Converts a target CSS-px size into logical Phaser world units, clamped to [minPx, maxPx]
+     * as a safety floor/ceiling. Use for any UI size derived from a proportion of available
+     * screen space, so it never drops below a touch-target-safe minimum or balloons past a
+     * sensible maximum on unusually large screens (e.g. a laptop-as-player window).
+     */
+    cssPxToLogical(cssPx: number, minPx: number, maxPx: number): number {
+        const clampedPx = Phaser.Math.Clamp(cssPx, minPx, maxPx);
+        return clampedPx * this.getPhysicalScale();
     }
 
 

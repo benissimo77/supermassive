@@ -18,10 +18,11 @@ export class SimpleButton extends Phaser.GameObjects.Container {
             return;
         }
 
-        const buttonTextSize = { fontSize: 46 };
-        const buttonStyle = Object.assign({}, this.scene.labelConfig, buttonTextSize, styleOverride);
+        // Use sensible defaults as a base case - can be adjusted with setButtonSize and setFontSize
         const buttonWidth = 800;
         const buttonHeight = 120;
+        const buttonTextSize = 46;
+        const buttonStyle = Object.assign({}, this.scene.labelConfig, { fontSize: buttonTextSize }, styleOverride);
 
         // Create normal and hover images using the overridable method
         this.normalImage = this.createButtonGraphic(textureOverride, buttonWidth, buttonHeight, false);
@@ -42,6 +43,7 @@ export class SimpleButton extends Phaser.GameObjects.Container {
         this.add(debugRect);
 
         this.setButtonSize(buttonWidth, buttonHeight);
+        this.adjustTextSize(buttonHeight);
 
         this.on('pointerover', this.onPointerOver, this);
         this.on('pointerout', this.onPointerOut, this);
@@ -70,13 +72,22 @@ export class SimpleButton extends Phaser.GameObjects.Container {
     }
 
     public setButtonSize(width: number, height: number): void {
-        this.normalImage.setDisplaySize(width, height);
-        this.hoverImage.setDisplaySize(width, height);
+        this.resizeGraphic(this.normalImage, width, height);
+        this.resizeGraphic(this.hoverImage, width, height);
         this.setSize(width, height);
         if (this.input) {
             this.input.hitArea = new Phaser.Geom.Rectangle(0, 0, width, height);
         }
         this.text.setWordWrapWidth(width - 40);
+    }
+
+    // A plain Image has no intrinsic resize, so setDisplaySize() (scale-based) is the correct way
+    // to resize it - this is the default. NineSliceButton overrides this to use NineSlice's own
+    // setSize() instead: setDisplaySize() on a NineSlice sets scaleX/scaleY, which uniformly
+    // scales the WHOLE graphic including its corners, defeating the purpose of 9-slicing (corners
+    // should stay a fixed pixel size; only the middle segment should stretch).
+    protected resizeGraphic(image: Phaser.GameObjects.Image | Phaser.GameObjects.NineSlice, width: number, height: number): void {
+        image.setDisplaySize(width, height);
     }
 
     public setTint(color: number): void {
@@ -97,41 +108,45 @@ export class SimpleButton extends Phaser.GameObjects.Container {
         this.setScale(1.1);
         const fx1 = (this.hoverImage as any).enableFilters()?.filters?.external?.addGlow?.(0xffff00, 1, 3);
     }
-    protected adjustTextSize(targetHeight: number): void {
+    // Starting font size as a fraction of the button's own HEIGHT only - deliberately independent
+    // of width, so resizing a button wider without changing its height never changes the font
+    // size on its own. Text content can only ever shrink it further from here (see below).
+    private static readonly FONT_HEIGHT_RATIO = 0.4;
+
+    // Returns the font size it applied, in case a caller with several sibling buttons wants to
+    // fit each one individually and then re-apply the smallest result to all of them via
+    // setTextSize() - otherwise buttons with shorter text end up visibly larger than buttons
+    // with longer text, even at identical button size, since this method sizes purely from its
+    // own text content.
+    public adjustTextSize(targetHeight: number): number {
         if (targetHeight < 8) {
             console.warn('SimpleButton::adjustTextSize: minimum text size reached');
-            return;
+            return parseInt(this.text.style.fontSize as unknown as string, 10) || targetHeight;
         }
-        let padding: number;
-        let maxHeightRatio: number;
-        if (this.width <= 120) {
-            padding = 12;
-            maxHeightRatio = 1.2;
-        } else if (this.width >= 800) {
-            padding = 60;
-            maxHeightRatio = 1.8;
-        } else {
-            padding = 40;
-            maxHeightRatio = 1.4;
-        }
-        const availableWidth = this.width - padding;
-        const availableHeight = this.height / maxHeightRatio;
+
+        // Padding is a modest, continuous fraction of each dimension - no discrete width "bands",
+        // so resizing a button never causes a sudden jump in available space just from crossing a
+        // threshold (that was the previous bug: widening a button with no height change could
+        // change which band applied and produce a bigger font for no real reason).
+        const paddingX = Phaser.Math.Clamp(this.width * 0.08, 12, 60);
+        const paddingY = Phaser.Math.Clamp(this.height * 0.15, 8, 24);
+        const availableWidth = Math.max(1, this.width - paddingX * 2);
+        const availableHeight = Math.max(1, this.height - paddingY * 2);
         this.text.setWordWrapWidth(availableWidth);
-        let fontSize = Math.min(targetHeight, availableHeight);
-        const textLength = this.text.text.length;
-        const avgCharWidth = fontSize * 0.6;
-        const charsPerLine = Math.floor(availableWidth / avgCharWidth);
-        const estimatedLines = Math.ceil(textLength / charsPerLine);
-        if (estimatedLines > 1) {
-            const lineHeight = fontSize * 1.2;
-            const totalHeight = lineHeight * estimatedLines;
-            if (totalHeight > availableHeight) {
-                fontSize = fontSize * (availableHeight / totalHeight);
-            }
-        }
+
+        let fontSize = Math.min(targetHeight * SimpleButton.FONT_HEIGHT_RATIO, availableHeight);
         this.text.setFontSize(Math.floor(fontSize));
-        if (this.text.height > availableHeight || this.text.width > availableWidth) {
-            this.text.setFontSize(Math.floor(fontSize * 0.9));
+
+        // Shrink using Phaser's own measured text bounds (accounts for real wrapping) rather than
+        // an estimated average character width - the estimate was what made the result depend on
+        // width instead of purely on whether the actual text fits.
+        let iterations = 0;
+        while ((this.text.height > availableHeight || this.text.width > availableWidth) && fontSize > 8 && iterations < 20) {
+            fontSize -= 1;
+            this.text.setFontSize(Math.floor(fontSize));
+            iterations++;
         }
+
+        return Math.floor(fontSize);
     }
 }

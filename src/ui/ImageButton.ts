@@ -2,12 +2,15 @@ import { BaseScene } from 'src/BaseScene';
 import { NineSliceButton } from './NineSliceButton';
 import { ImageLoader } from 'src/utils/ImageLoader';
 
+// ImageButton is always square - a NineSlice-bordered image with a text label panel across the
+// bottom. It previously also supported a "letterbox" mode that hid the image/panel entirely; that
+// was never actually used anywhere in the codebase, so it's been dropped rather than kept as
+// speculative flexibility.
 export class ImageButton extends NineSliceButton {
 
     private buttonImage: Phaser.GameObjects.Image | null = null;
     private textBackground: Phaser.GameObjects.Graphics;
     private imageKey: string | null = null;
-    private isSquareMode: boolean = true;
 
     constructor(scene: BaseScene, text: string, imageKey: string | null = null, styleOverride: any = {}) {
         super(scene, text, styleOverride);
@@ -23,9 +26,13 @@ export class ImageButton extends NineSliceButton {
         this.add(this.buttonImage);
         this.add(this.textBackground);
         this.add(this.text);
-        
-        this.setDisplayMode('square');
-        
+
+        // The super() constructor already called setButtonSize/adjustTextSize once, via virtual
+        // dispatch, before buttonImage/textBackground existed - that first pass was a no-op for
+        // the image/text-panel layout below. Re-run it now that this button's own state actually
+        // exists, so the layout is correct even if a caller never calls setButtonSize() again.
+        this.setButtonSize(this.width, this.height);
+
         // Kick off the one-time high-quality texture generation
         this.initTexture();
     }
@@ -124,6 +131,11 @@ export class ImageButton extends NineSliceButton {
 
         console.log('ImageButton:: applyBakedTexture', roundedKey, this.buttonImage);
 
+        // The async load/bake can finish after this button was destroyed - Phaser nulls out
+        // .scene on destroy (see this.scene checks in other destroy() overrides in this
+        // codebase), so guard against touching already-destroyed children the same way.
+        if (!this.scene) return;
+
         if (this.buttonImage) {
             if (this.scene.textures.exists(roundedKey)) {
                 this.buttonImage.setTexture(roundedKey);
@@ -147,57 +159,43 @@ export class ImageButton extends NineSliceButton {
         }
     }
 
-    public setDisplayMode(mode: 'square' | 'letterbox'): void {
-        this.isSquareMode = (mode === 'square');
-        
-        if (this.buttonImage && this.textBackground) {
-            this.buttonImage.setVisible(this.isSquareMode);
-            this.textBackground.setVisible(this.isSquareMode);
-            
-            // If dropping down to letterbox, just hide the image elements and re-center the text
-            if (!this.isSquareMode) {
-                this.text.setPosition(0, 0);
-            }
-        }
-    }
-
     public setButtonSize(width: number, height: number): void {
         super.setButtonSize(width, height);
 
-        // Text position at centre - will be updated if in square mode...
+        // Text position at centre - overridden below if there's an image (text moves into the
+        // panel at the bottom instead).
         this.text.setPosition(0, 0);
 
-        if (this.isSquareMode && this.buttonImage && this.textBackground && this.imageKey) {
-            
-            // Recalculate layout scales without regenerating the canvas texture
-            this.updateImageScale();
+        if (!this.buttonImage || !this.textBackground || !this.imageKey) return;
 
-            const inset = 6; // Shrink the image so the NineSlice outer gold border remains visible!
-            const innerWidth = width - (inset * 2);
-            
-            // Position text at the bottom.
-            // 1. Text panel should be 20% of the button's overall height
-            const textPanelHeight = height * 0.20; 
-            
-             // 3. The text background panel should not over-bleed the gold border (width - inset * 2)
-            // It aligns with the inset image now. We'll use innerWidth directly.
-            
-            // Calculate bottom Y coordinate (-height/2 to height/2, so bottom is height/2)
-            // It needs to be inside the inset border as well: height / 2 - inset - textPanelHeight / 2
-            const bottomY = (height / 2) - inset - (textPanelHeight / 2); 
-            this.textBackground.setPosition(0, bottomY);
-            this.textBackground.clear();
-            this.textBackground.fillStyle(0x000000, 0.6); // Semi-transparent black
-            this.textBackground.fillRoundedRect(-innerWidth / 2, -textPanelHeight / 2, innerWidth, textPanelHeight, 16);
+        // Recalculate layout scales without regenerating the canvas texture
+        this.updateImageScale();
 
-            // 2. Adjust text size logic: start with a size around 85% of the panel height
-            this.adjustTextSize(textPanelHeight * 0.85);
-            this.text.setPosition(0, bottomY);
-        }
+        const inset = 6; // Shrink the image so the NineSlice outer gold border remains visible!
+        const innerWidth = width - (inset * 2);
+
+        // Position text at the bottom.
+        // 1. Text panel should be 20% of the button's overall height
+        const textPanelHeight = height * 0.20;
+
+        // The text background panel should not over-bleed the gold border (width - inset * 2) -
+        // it aligns with the inset image, so we use innerWidth directly.
+
+        // Calculate bottom Y coordinate (-height/2 to height/2, so bottom is height/2) - it needs
+        // to be inside the inset border as well: height / 2 - inset - textPanelHeight / 2
+        const bottomY = (height / 2) - inset - (textPanelHeight / 2);
+        this.textBackground.setPosition(0, bottomY);
+        this.textBackground.clear();
+        this.textBackground.fillStyle(0x000000, 0.6); // Semi-transparent black
+        this.textBackground.fillRoundedRect(-innerWidth / 2, -textPanelHeight / 2, innerWidth, textPanelHeight, 16);
+
+        // 2. Adjust text size logic: start with a size around 85% of the panel height
+        this.adjustTextSize(textPanelHeight * 0.85);
+        this.text.setPosition(0, bottomY);
     }
 
     public adjustTextSize(targetHeight: number): number {
-        if (!this.isSquareMode || !this.buttonImage || !this.buttonImage.visible) {
+        if (!this.buttonImage || !this.imageKey) {
             return super.adjustTextSize(targetHeight);
         }
 

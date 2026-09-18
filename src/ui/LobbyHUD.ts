@@ -12,15 +12,16 @@ export class LobbyHUD extends Phaser.GameObjects.Container {
     private HUDCountdownSeconds: number = 600; // Default to 60 seconds, can be updated by host
     private instructionsPanel: Phaser.GameObjects.Container;
     private countdownContainer: Phaser.GameObjects.Container
-    private roomID: string = "";
+    private roomID: string;
     private QRImage: Phaser.GameObjects.Image;
     private minText: Phaser.GameObjects.Text;
     private secText: Phaser.GameObjects.Text;
 
-    constructor(scene: BaseScene, x: number, y: number, title: string = "Waiting for players...") {
+    constructor(scene: BaseScene, x: number, y: number, title: string = "Waiting for players...", roomID: string = "") {
         super(scene, x, y);
 
         this.scene = scene;
+        this.roomID = roomID;
 
         // Title Text
         this.titleText = this.scene.add.text(960, 60, title.toUpperCase(), {
@@ -104,18 +105,6 @@ export class LobbyHUD extends Phaser.GameObjects.Container {
 
         this.add([this.titleText, this.startingSoonText, this.playerCountText, this.countdownContainer]);
 
-    }
-
-    // showInstructionPanel - this creates the instruction panel with the QR code and text instructions on how to join
-    // Separated out as we must wait until we have a roomID before we can build the panel
-    public showInstructionPanel(roomID: string, instructionState: 'hidden' | 'minimized' | 'maximized' = 'maximized'): void {
-
-        this.roomID = roomID;
-
-        if (this.instructionsPanel) {
-            this.instructionsPanel.destroy();
-        }
-
         // Load QR code image if not already loaded
         if (this.scene.textures.exists('roomQR')) {
             console.log('LobbyHUD:: roomQR texture already exists, skipping load');
@@ -128,11 +117,20 @@ export class LobbyHUD extends Phaser.GameObjects.Container {
                 // this.showInstructionPanel(this.roomID, instructionState);
                 // So only call it if we know it was successful:
                 console.log('LobbyHUD:: QR Initialized: re-rendering', {data});
-                this.showInstructionPanel(this.roomID, instructionState);
+                this.showInstructionPanel();
             });
             this.scene.load.start();
         }
-        
+
+    }
+
+    // showInstructionPanel - this creates the instruction panel with the QR code and text instructions on how to join
+    // Separated out as we must wait until we have a roomID before we can build the panel
+    public showInstructionPanel(instructionState: 'hidden' | 'minimized' | 'maximized' = 'maximized'): void {
+
+        if (this.instructionsPanel) {
+            this.instructionsPanel.destroy();
+        }
         
         if (instructionState === 'hidden') return;
 
@@ -233,7 +231,7 @@ export class LobbyHUD extends Phaser.GameObjects.Container {
 
     public toggleInstructionPanel(newState: 'hidden' | 'minimized' | 'maximized'): void {
 
-        this.showInstructionPanel(this.roomID, newState);
+        this.showInstructionPanel(newState);
     }
 
     public updatePlayerCount(count: number): void {

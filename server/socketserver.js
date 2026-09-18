@@ -116,6 +116,8 @@ export default function createSocketServer(server) {
 	});
 
 	// Keeping the below code as a sample of how to integrate into admin UI
+	// UPDATE: Claude tells me this is not possible for the regular admin.socket.io admin dashboard
+	// Would need to be part of a self-built admin interface.
 	// try {
 	// 	const adminNs = io.of('/admin'); // admin namespace created by instrument()
 	// 	adminNs.emit('server:ping-result', {

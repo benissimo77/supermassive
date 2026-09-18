@@ -275,9 +275,9 @@ export class QuizHostScene extends BaseScene {
         // Show the waiting-room HUD (title, player count, countdown, join/QR instructions).
         // Lives in topContainer, not UIContainer - clearUI() (called on every round transition)
         // does a full removeAll(true) on UIContainer, which would destroy it the first time that ran.
-        this.lobbyHUD = new LobbyHUD(this, 0, 0, data.title);
+        this.lobbyHUD = new LobbyHUD(this, 0, 0, data.title, this.roomID);
         this.topContainer.add(this.lobbyHUD);
-        this.lobbyHUD.showInstructionPanel(this.roomID, this.instructionState);
+        this.lobbyHUD.showInstructionPanel(this.instructionState);
         this.lobbyHUD.updatePlayerCount(this.getPlayerConfigsAsArray().filter(p => p.connected).length);
 
     }

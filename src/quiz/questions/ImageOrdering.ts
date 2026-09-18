@@ -262,8 +262,22 @@ export default class ImageOrderingQuestion extends OrderingQuestion {
                 // Loop through player answer in reverse order (bottom to top)
                 for (let answerIndex = playerAnswerList.length - 1; answerIndex >= 0; answerIndex--) {
                     const playerAnswer = playerAnswerList[answerIndex];
-                    const originalIndex = this.questionData.items?.indexOf(playerAnswer) ?? -1;
-                    let url = (originalIndex >= 0 && (this.questionData as any).itemImages) ? (this.questionData as any).itemImages[originalIndex] : '';
+
+                    // Resolve the image the same way createAnswerUI does (see there) - ordering
+                    // uses a flat items/itemImages pair indexed by original position; matching
+                    // uses leftItems/leftItemsShuffled objects that carry their image inline,
+                    // looked up here by matching text since this loop only has the answer string,
+                    // not a precomputed index.
+                    let url = '';
+                    if (this.questionData.type === 'ordering') {
+                        const originalIndex = this.questionData.items?.indexOf(playerAnswer) ?? -1;
+                        url = (originalIndex >= 0 && (this.questionData as any).itemImages) ? (this.questionData as any).itemImages[originalIndex] : '';
+                    } else {
+                        const q: any = this.questionData;
+                        const leftItems = q.leftItemsShuffled || q.leftItems || (q.pairsShuffled || q.pairs || []).map((p: any, i: number) => ({ text: p.left, image: (q.itemImages && q.itemImages[i]) || undefined }));
+                        const match = (leftItems || []).find((li: any) => li && li.text === playerAnswer);
+                        url = match && match.image ? match.image : '';
+                    }
 
                     // Protection against malformed JSON structs if itemImages happens to contain objects instead of strings
                     if (url && typeof url === 'object') {

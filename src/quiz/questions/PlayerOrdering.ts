@@ -180,6 +180,7 @@ export default class PlayerOrderingQuestion extends PlayerBaseQuestion {
             }
             dropzone.setPosition(x, y);
 
+            // Set the label text size to the same size as the buttons for a uniform appearance
             const label = this.dropzoneLabels.get(index);
             if (label) {
                 label.setPosition(x, y);

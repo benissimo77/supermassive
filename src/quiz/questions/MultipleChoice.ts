@@ -194,6 +194,7 @@ export default class MultipleChoiceQuestion extends BaseQuestion {
         for (const [option, button] of this.buttons) {
             button.setAlpha(0.5);
             if (option ===  correctAnswer) {
+                console.log('highlightAnswer: correctAnswer =', correctAnswer);
                 button.setHighlight();
                 this.answerContainer.bringToTop(button);
             }

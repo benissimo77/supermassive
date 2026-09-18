@@ -3,6 +3,7 @@ import { BaseScene } from "src/BaseScene";
 import { BaseQuestion } from "./BaseQuestion";
 import { NineSliceButton } from "src/ui/NineSliceButton";
 import { TrueFalseQuestionData } from "./QuestionTypes";
+import { PhaserPlayer } from "src/quiz/PhaserPlayer";
 
 export default class TrueFalseQuestion extends BaseQuestion {
 
@@ -38,7 +39,7 @@ export default class TrueFalseQuestion extends BaseQuestion {
             if (this.questionData.mode == 'answer') {
                 // Instead of converting option to boolean, compare strings directly
                 if (option === this.questionData.answer) {
-                    newButton.onPointerOver();
+                    // newButton.onPointerOver();
                 }
             }
         });
@@ -95,7 +96,9 @@ export default class TrueFalseQuestion extends BaseQuestion {
 
         for (const [option, button] of this.buttons) {
             button.setAlpha(0.5);
+            console.log('highlightAnswer: option:', option, ' correctAnswer:', correctAnswer);
             if (option === correctAnswer) {
+                console.log('highlightAnswer: correctAnswer =', correctAnswer);
                 button.setHighlight();
             }
         }

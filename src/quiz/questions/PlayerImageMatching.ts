@@ -8,8 +8,8 @@ import { MatchingQuestionDataV2 as MatchingQuestionData } from "./QuestionTypes"
 /**
  * PlayerImageMatchingQuestion
  * Player-side handler for matching questions that have images on the left-side items.
- * Renders 4 ImageButtons in a 2×2 grid alongside 4 text-label dropzones in a second 2×2 grid.
- * Portrait: grids stack vertically. Landscape: grids sit side-by-side.
+ * Same column layout as PlayerOrderingQuestion (items in one column, dropzones in a second),
+ * except items are square ImageButtons instead of rectangular text buttons.
  * Interaction is identical drag-and-drop to PlayerOrdering.
  */
 export default class PlayerImageMatchingQuestion extends PlayerBaseQuestion {
@@ -21,25 +21,32 @@ export default class PlayerImageMatchingQuestion extends PlayerBaseQuestion {
     private items: string[] = [];
     private labels: string[] = [];
 
+    // Square items - laid out as two groups (items | dropzones), items | dropzones side-by-side
+    // as columns in portrait, or items-above-dropzones as rows in landscape. Landscape has much
+    // less relative vertical room (world-height is capped by screen width there) but the full
+    // 1920-wide canvas to spare horizontally, so a row layout (only 2 "ranks" tall - one item
+    // row, one dropzone row) lets items go much bigger than the column layout's up-to-4-rows
+    // would allow. Unlike small text rectangles, a fixed size here is exposed to real
+    // device-aspect-ratio variance (e.g. an iPad's ~4:3 landscape shape vs an iPhone's elongated
+    // one), so instead of a final fixed size, ITEM_SIZE is a *reference* size for a
+    // nicely-proportioned mockup - the whole answerContainer is then scaled uniformly to fit
+    // whatever space is actually available (see showAnswerContent).
+    private readonly ITEM_SIZE = 720;
+    private readonly GROUP_GAP_RATIO = 1 / 3;    // gap between the item group and dropzone group, as a fraction of item size
+    private readonly ITEM_GAP_RATIO = 0.15;      // gap between adjacent items within the same row/column, as a fraction of item size
+    private readonly WIDTH_FRACTION = 0.85;      // fraction of canvas width the whole block may use
+    private readonly HEIGHT_FRACTION = 0.85;     // fraction of available height the whole block may use
+
+    private readonly SUBMIT_WIDTH_PX = 120;
+    private readonly SUBMIT_HEIGHT_PX = 32;
+    private readonly SUBMIT_MARGIN_PX = 12;
+
     constructor(scene: BaseScene, questionData: MatchingQuestionData) {
         super(scene, questionData);
     }
 
     protected createAnswerUI(): void {
         console.log('PlayerImageMatchingQuestion::createAnswerUI:', this.questionData);
-        try {
-            console.log('PlayerImageMatchingQuestion::createAnswerUI (json):', JSON.stringify(this.questionData));
-        } catch (e) {
-            console.warn('Could not stringify questionData for debug', e);
-        }
-
-        // Ensure answer container visible for debugging
-        try {
-            this.answerContainer.setVisible(true);
-            this.answerContainer.setAlpha(1);
-        } catch (e) {
-            console.warn('Could not set answerContainer visible:', e);
-        }
 
         const questionData = this.questionData as MatchingQuestionData;
 
@@ -56,17 +63,12 @@ export default class PlayerImageMatchingQuestion extends PlayerBaseQuestion {
         this.items = (leftItems || []).map((li: any) => li && li.text ? li.text : '');
         this.labels = (rightItems || []).map((ri: any) => ri && ri.text ? ri.text : '');
 
-        console.log('PlayerImageMatchingQuestion::computed leftItems length:', (leftItems || []).length, 'rightItems length:', (rightItems || []).length);
-        console.log('PlayerImageMatchingQuestion::leftItems sample:', (leftItems || []).slice(0,10));
-        console.log('PlayerImageMatchingQuestion::rightItems sample:', (rightItems || []).slice(0,10));
-
         // Create ImageButtons — use image field from leftItems where available
         const originalLeftItems = leftItems || [];
 
         this.items.forEach((item, index) => {
             let url: string = originalLeftItems[index] && originalLeftItems[index].image ? originalLeftItems[index].image : '';
 
-            // Guard against non-string values stored in itemImages
             if (url && typeof url === 'object') {
                 url = (url as any).url || (url as any).src || (url as any).href || '';
             }
@@ -79,15 +81,6 @@ export default class PlayerImageMatchingQuestion extends PlayerBaseQuestion {
             this.buttons.set(item, button);
             this.answerContainer.add(button);
         });
-
-        console.log('PlayerImageMatchingQuestion::createAnswerUI: created', this.items.length, 'image buttons and', this.labels.length, 'labels');
-
-        // If nothing created, add a visible debug marker so it's obvious on-screen
-        if (this.items.length === 0 || this.labels.length === 0) {
-            const debugText = this.scene.add.text(0, 0, 'No matching items', { fontSize: 36, color: '#ff0000' }).setOrigin(0.5);
-            this.answerContainer.add(debugText);
-            console.warn('PlayerImageMatchingQuestion: no items/labels to display');
-        }
 
         // Create dropzones with text labels (right side of each pair)
         this.labels.forEach((label, index) => {
@@ -106,7 +99,7 @@ export default class PlayerImageMatchingQuestion extends PlayerBaseQuestion {
         });
 
         this.submitButton = new NineSliceButton(this.scene, 'Submit');
-        this.answerContainer.add(this.submitButton);
+        this.add(this.submitButton);
         this.submitButton.setVisible(false);
 
         if (this.questionData.mode === 'ask') {
@@ -115,79 +108,83 @@ export default class PlayerImageMatchingQuestion extends PlayerBaseQuestion {
     }
 
     protected showAnswerContent(answerHeight: number): void {
+        const physicalScale = this.scene.getPhysicalScale();
+        const N = this.items.length;
+
+        // --- Submit button: fixed physical size, pinned to the bottom-right corner - persistent
+        // chrome, not part of the scaled content block below (same pattern as PlayerOrdering).
+        const submitW = this.SUBMIT_WIDTH_PX * physicalScale;
+        const submitH = this.SUBMIT_HEIGHT_PX * physicalScale;
+        this.submitButton.setButtonSize(submitW, submitH);
+        this.submitButton.adjustTextSize(submitH);
+        this.submitButton.setPosition(
+            1920 - (this.SUBMIT_WIDTH_PX / 2 + this.SUBMIT_MARGIN_PX) * physicalScale,
+            this.scene.getY(answerHeight) - (this.SUBMIT_HEIGHT_PX / 2 + this.SUBMIT_MARGIN_PX) * physicalScale
+        );
+
+        // --- Items + dropzones: assembled at a nicely-proportioned reference size - portrait
+        // stacks items/dropzones as two side-by-side columns, landscape lays them out as two
+        // rows (items above, dropzones below), matching whichever axis has more room to spare
+        // (see ITEM_SIZE's comment). Either way the whole answerContainer is then scaled
+        // uniformly to fit the available space.
         const isPortrait = this.scene.isPortrait();
-        const scaleFactor = this.scene.getUIScaleFactor();
-        const totalH = this.scene.getY(answerHeight);
+        const itemSize = this.ITEM_SIZE;
+        const groupGap = itemSize * this.GROUP_GAP_RATIO;
+        const itemGap = itemSize * this.ITEM_GAP_RATIO;
 
-        // Square button size that fits a 2×2 grid on either orientation
-        const BTNSIZE = 380 * scaleFactor;
-        const GAP = 20 * scaleFactor;
-        const SECTION_GAP = 40 * scaleFactor;
-        const SUBMIT_H = 80 * scaleFactor;
-        const SUBMIT_PAD = 20 * scaleFactor;
+        const contentWidth = isPortrait
+            ? 2 * itemSize + groupGap
+            : N * itemSize + (N - 1) * itemGap;
+        const contentHeight = isPortrait
+            ? N * itemSize + (N - 1) * itemGap
+            : 2 * itemSize + groupGap;
 
-        if (isPortrait) {
-            // Two 2×2 grids stacked vertically, full block vertically centred
-            const totalContent = 4 * BTNSIZE + 2 * GAP + SECTION_GAP + SUBMIT_PAD + SUBMIT_H;
-            const startY = Math.max(SUBMIT_PAD, (totalH - totalContent) / 2);
+        const availableWidth = 1920 * this.WIDTH_FRACTION;
+        const availableHeight = this.scene.getY(answerHeight) * this.HEIGHT_FRACTION;
+        const fitScale = Math.min(availableWidth / contentWidth, availableHeight / contentHeight);
 
-            const grid1CenterY = startY + BTNSIZE + GAP / 2;
-            const grid2CenterY = grid1CenterY + BTNSIZE + GAP / 2 + SECTION_GAP + BTNSIZE + GAP / 2;
-            const submitY = grid2CenterY + BTNSIZE + GAP / 2 + SUBMIT_PAD + SUBMIT_H / 2;
+        this.answerContainer.setScale(fitScale);
 
-            this.placeButtonGrid(0, grid1CenterY, BTNSIZE, GAP);
-            this.placeDropzoneGrid(0, grid2CenterY, BTNSIZE, GAP);
+        const dropzoneLabelFontSize = Math.max(20, itemSize * 0.15);
 
-            this.submitButton.setButtonSize(BTNSIZE * 1.5, SUBMIT_H * 0.85);
-            this.submitButton.setTextSize(SUBMIT_H * 0.45);
-            this.submitButton.setPosition(0, submitY);
-        } else {
-            // Two 2×2 grids side by side, vertically centred with submit below
-            const gridCenterY = (totalH - SUBMIT_H - SUBMIT_PAD * 2) / 2;
-            const submitY = totalH - SUBMIT_PAD - SUBMIT_H / 2;
+        // Children are positioned in plain reference units - answerContainer's scale above
+        // handles converting everything to the right on-screen size in one step. itemPos gives
+        // the position along the "spread" axis (down a column in portrait, across a row in
+        // landscape); groupOffset moves a whole group to its side of the group gap.
+        const spread = isPortrait ? contentHeight : contentWidth;
+        const itemPos = (index: number): number => -spread / 2 + index * (itemSize + itemGap) + itemSize / 2;
+        const groupOffset = (itemSize + groupGap) / 2;
 
-            this.placeButtonGrid(-480, gridCenterY, BTNSIZE, GAP);
-            this.placeDropzoneGrid(480, gridCenterY, BTNSIZE, GAP);
-
-            this.submitButton.setButtonSize(BTNSIZE * 1.5, SUBMIT_H * 0.85);
-            this.submitButton.setTextSize(SUBMIT_H * 0.45);
-            this.submitButton.setPosition(480, submitY);
-        }
-
-        this.submitButton.setVisible(false);
-    }
-
-    private placeButtonGrid(cx: number, cy: number, btnSize: number, gap: number): void {
         this.buttons.forEach((button) => {
-            const index: number = button.getData('index');
-            const col = index % 2;
-            const row = Math.floor(index / 2);
-            const x = cx + (col - 0.5) * (btnSize + gap);
-            const y = cy + (row - 0.5) * (btnSize + gap);
-            button.setButtonSize(btnSize, btnSize);
+            const index = button.getData('index');
+            const x = isPortrait ? -groupOffset : itemPos(index);
+            const y = isPortrait ? itemPos(index) : -groupOffset;
+
+            button.setButtonSize(itemSize, itemSize);
             button.setPosition(x, y);
             button.setData('OriginX', x);
             button.setData('OriginY', y);
             button.setData('dropzone', null);
         });
-    }
 
-    private placeDropzoneGrid(cx: number, cy: number, btnSize: number, gap: number): void {
         this.dropzones.forEach((dropzone, index) => {
-            const col = index % 2;
-            const row = Math.floor(index / 2);
-            const x = cx + (col - 0.5) * (btnSize + gap);
-            const y = cy + (row - 0.5) * (btnSize + gap);
-            dropzone.setSize(btnSize, btnSize);
+            const x = isPortrait ? groupOffset : itemPos(index);
+            const y = isPortrait ? itemPos(index) : groupOffset;
+
+            dropzone.setSize(itemSize, itemSize);
             dropzone.setPosition(x, y);
+
             const label = this.dropzoneLabels.get(index);
             if (label) {
                 label.setPosition(x, y);
-                label.setFontSize(Math.max(20, btnSize * 0.12));
+                label.setFontSize(dropzoneLabelFontSize);
             }
+
             dropzone.setData('dropped', '');
             dropzone.setTint(0x8080C0);
         });
+
+        this.submitButton.setVisible(false);
     }
 
     protected makeInteractive(): void {
@@ -294,7 +291,7 @@ export default class PlayerImageMatchingQuestion extends PlayerBaseQuestion {
         }
 
         this.submitButton.setVisible(this.checkDropzonesFull());
-        this.answerContainer.bringToTop(this.submitButton);
+        this.bringToTop(this.submitButton);
     }
 
     private handleDrag(pointer: Phaser.Input.Pointer, gameObject: any, dragX: number, dragY: number): void {

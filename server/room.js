@@ -43,24 +43,22 @@ class Room {
 
 		// Initialize telemetry for the room
 		this.telemetry = {
-			playersConnected: 0,
-			hostsConnected: 0,
-			adminsConnected: 0,
 			clients: {}
 		}
 
 		/* Sample telemetry structure for a client
-		"socketID": {
+		"sessionID": {
 			latency: [
-				{ timestamp: Date.now(), latency: 34 },
-				{ timestamp: Date.now(), latency: 45 },
+				{ timestamp: new Date(), latency: 34 },
+				{ timestamp: new Date(), latency: 45 },
 			],
 			disconnects: [
-				{ timestamp: Date.now(), reason: 'unknown' },
-				{ timestamp: Date.now(), reason: 'network_error' }
+				{ timestamp: new Date(), reason: 'unknown' },
+				{ timestamp: new Date(), reason: 'network_error' }
 			],
 			transport: 'websocket',
-		}		
+			sockets: [socket.id],
+		}
 		*/
 
 
@@ -90,11 +88,17 @@ class Room {
 		socket.join(this.id);
 
 		// And instantiate a client object for storing telemetry data
-		this.telemetry.clients[socket.id] = {
-			latency: [],
-			disconnects: [],
-			transport: socket.conn.transport.name
-		};
+		if (this.telemetry.clients[userObj.sessionID]) {
+			// already added - add socket.id to the sockets set
+			this.telemetry.clients[userObj.sessionID].sockets.push(socket.id);
+		} else {
+			this.telemetry.clients[userObj.sessionID] = {
+				transport: socket.conn.transport.name,
+				sockets: [socket.id],
+				latency: [],
+				disconnects: []
+			};
+		}
 
 		// host value in player object must evaluate to truth (eg = 1)
 		if (userObj.host) {
@@ -157,8 +161,9 @@ class Room {
 		//
 		//
 		socket.conn.on('upgrade', () => {
+			const sessionID = this.getSessionIDBySocketID(socket.id);
 			console.log('>> socket connection upgraded to', socket.conn.transport.name);
-			this.telemetry.clients[socket.id].transport = socket.conn.transport.name;
+			this.telemetry.clients[sessionID].transport = socket.conn.transport.name;
 		});
 
 		socket.on('client:response', (response) => {
@@ -172,6 +177,7 @@ class Room {
 		socket.on('player:ready', (data, callback) => {
 			console.log('player:ready from socket:', socket.id, data, callback);
 			const player = this.getPlayerBySocketID(socket.id);
+			const sessionID = this.getSessionIDBySocketID(socket.id);
 			if (callback && typeof callback === 'function') {
 				callback(player);
 			}
@@ -180,7 +186,9 @@ class Room {
 
 			// data should inclue the players device type so store in telemetry
 			if (data && data.device) {
-				this.telemetry.clients[socket.id].device = data.device;
+				if (this.telemetry.clients[sessionID]) {
+					this.telemetry.clients[sessionID].device = data.device;
+				}
 			}
 
 			// Notify game of player (re)connection - function should work for both new and reconnected players
@@ -214,8 +222,9 @@ class Room {
 			console.log('socket.disconnect:', socket.id, reason);
 
 			// Add this disconnect event to the telemetry
-			if (this.telemetry.clients[socket.id]) {
-				this.telemetry.clients[socket.id].disconnects.push( { timestamp: Date.now(), reason: reason } );
+			const sessionID = this.getSessionIDBySocketID(socket.id);
+			if (this.telemetry.clients[sessionID]) {
+				this.telemetry.clients[sessionID].disconnects.push( { timestamp: new Date(), reason: reason } );
 			}
 			consoleLogLimiter.reset(socket.id);
 			this.removePlayer(socket.id);
@@ -228,7 +237,14 @@ class Room {
 		socket.on('client:pong', (timestamp) => {
 			const latency = Date.now() - timestamp;
 			console.log('Received client:pong from socket:', socket.id, 'Timestamp:', timestamp, 'Latency:', latency);
-			this.telemetry.clients[socket.id].latency.push({ timestamp: timestamp, latency: latency });
+			
+			const sessionID = this.getSessionIDBySocketID(socket.id);
+			if (this.telemetry.clients[sessionID]) {
+				// timestamp here is the raw ms-epoch number echoed back from the client (used above
+				// for the latency subtraction) - convert to a real Date only at the point of
+				// storing it, so it persists as a proper BSON date rather than a raw number.
+				this.telemetry.clients[sessionID].latency.push({ timestamp: new Date(timestamp), latency: latency });
+			}
 		});
 		// console.log('userJoinRoom ending: ', this.players);
 	}
@@ -268,8 +284,11 @@ class Room {
 			console.log(`Received host:ready: socketID=${socket.id}, roomID=${this.id}, gameType=${gameType}, quizID=${quizID}, seasonID=${seasonID}`);
 
 			// Telemetry reporting
+			const sessionID = this.getSessionIDBySocketID(socket.id);
 			if (data && data.device) {
-				this.telemetry.clients[socket.id].device = data.device;
+				if (sessionID && this.telemetry.clients[sessionID]) {
+					this.telemetry.clients[sessionID].device = data.device;
+				}
 			}
 
 			let initData = {};
@@ -508,6 +527,11 @@ class Room {
 
 		const seasonID = this.host ? this.host.seasonID : null;
 
+		// Update the telemetry data with total connected players, hosts and admins
+		this.telemetry.totalPlayers = this.players.length;
+		this.telemetry.totalHosts = this.hosts.length;
+		this.telemetry.totalAdmins = this.admins.length;
+
 		try {
 
 			const session = await GameSession.create({
@@ -736,6 +760,15 @@ class Room {
 	}
 	getPlayerBySessionID(sessionID) {
 		return this.players.find((player) => player.sessionID === sessionID)
+	}
+	getSessionIDBySocketID(socketID) {
+		const player = this.getPlayerBySocketID(socketID);
+		if (player) return player.sessionID;
+		const host = this.hosts.find((host) => host.socketID === socketID);
+		if (host) return host.sessionID;
+		const admin = this.admins.find((admin) => admin.socketID === socketID);
+		if (admin) return admin.sessionID;
+		return undefined;
 	}
 	getConnectedPlayers() {
 		console.log('Connected players:', this.players.filter((player) => player.connected).length);

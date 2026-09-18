@@ -21,17 +21,18 @@
         </div>
 
         <!-- All-time Global Leaderboard -->
-        <div class="card">
-            <div class="card-header">
+        <details class="card" open>
+            <summary class="card-header">
+                <i class="fa-solid fa-chevron-down card-chevron"></i>
                 <div>
                     <h2>All-Time Global Leaderboard</h2>
                     <p class="card-subtitle">Top scorers across all verified games</p>
                 </div>
-            </div>
+            </summary>
             <div class="card-body" id="leaderboard-global-container">
                 <div class="leaderboard-status">Loading global rankings...</div>
             </div>
-        </div>
+        </details>
 
         <div class="leaderboard-grid" id="leaderboard-grid">
             <!-- Public season leaderboards are injected here -->
@@ -71,15 +72,16 @@
     </template>
 
     <template id="season-card-template">
-        <div class="card">
-            <div class="card-header" style="border-left: 3px solid var(--clr-tertiary);">
+        <details class="card card-header--violet" open>
+            <summary class="card-header">
+                <i class="fa-solid fa-chevron-down card-chevron"></i>
                 <div>
-                    <h2 style="margin: 0;"></h2>
+                    <h2></h2>
                     <p class="card-subtitle"></p>
                 </div>
-            </div>
+            </summary>
             <div class="card-body"></div>
-        </div>
+        </details>
     </template>
 
 </body>

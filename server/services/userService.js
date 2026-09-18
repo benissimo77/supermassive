@@ -27,15 +27,15 @@ class UserService {
     return user;
   }
 
-  async claimGuestResults(sessionID, userID) {
-    if (!sessionID || !userID) return { updatedCount: 0 };
-    
+  async claimGuestResults(guestID, userID) {
+    if (!guestID || !userID) return { updatedCount: 0 };
+
     const result = await PlayerResult.updateMany(
-        { sessionID: sessionID, userID: { $eq: null } },
+        { guestID: guestID, userID: { $eq: null } },
         { $set: { userID: userID } }
     );
-    
-    console.log(`Claimed ${result.modifiedCount} results for session ${sessionID} to user ${userID}`);
+
+    console.log(`Claimed ${result.modifiedCount} results for guest ${guestID} to user ${userID}`);
     return { updatedCount: result.modifiedCount };
   }
 

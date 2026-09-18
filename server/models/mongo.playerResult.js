@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 const playerResultSchema = new mongoose.Schema({
     gameSessionID: { type: mongoose.Schema.Types.ObjectId, ref: 'GameSession', required: true, index: true },
-    sessionID: { type: String, index: true }, // The transient browser session ID for guests
+    guestID: { type: String, index: true }, // The durable guest identity cookie, retrofitted with userID on signup
     userID: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true }, // Null for guests
     displayName: { type: String, required: true },
     avatar: { type: String },

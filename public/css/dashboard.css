@@ -446,9 +446,11 @@ main {
 .card-header:active {
   cursor: grabbing;
 }
-.card-header h2 {
+.card-header h2,
+.card-header h3 {
 	margin: 0;
 	font-size: 1.1rem;
+	font-weight: 700;
 }
 
 
@@ -456,9 +458,27 @@ main {
   padding: var(--space-md);
 }
 
-/* Collapsible cards use native <details>/<summary> — no chevron icon, the whole
-   header row is the click target. (The rotating chevron elsewhere in the dashboard
-   belongs only to the sidebar's sub-menu toggle, a separate component.) */
+/* Collapsible cards use native <details>/<summary>. A chevron to the left of the
+   title signals that the row is collapsible; it rotates 180deg on open, matching
+   the sidebar's sub-menu chevron (down = collapsed, up = expanded). */
+.card-chevron {
+	flex-shrink: 0;
+	color: var(--clr-text-muted);
+	transition: transform 0.3s ease;
+}
+
+details.card[open] > summary.card-header .card-chevron {
+	transform: rotate(180deg);
+}
+
+details.card summary {
+	outline: none;
+}
+
+details.card:not([open]) {
+	margin-bottom: var(--space-sm);
+}
+
 details.card:not([open]) .card-header {
 	border-bottom: none;
 }
@@ -635,28 +655,64 @@ details.card:not([open]) .card-header {
 	margin-top: 2rem;
 }
 
-.season-card {
-	cursor: pointer;
-	border-left: 4px solid var(--clr-accent) !important;
-	margin-bottom: 0 !important;
+/* Cards inside the grid don't need bottom margin — gap handles spacing */
+.season-grid > .card {
+	margin-bottom: 0;
 }
 
-.season-series-label {
-	font-size: 0.72rem;
-	font-weight: 700;
-	text-transform: uppercase;
-	letter-spacing: 2px;
-	color: var(--clr-accent);
-	margin-bottom: 0.35rem;
+/* Fixed golden-ratio "poster" shape — mostly empty today, reserved for a future
+   season image. Not collapsible: small enough to always show fully. */
+.season-card {
+	position: relative;
+	overflow: hidden;
+	aspect-ratio: 1.618 / 1;
+	border-left: 4px solid var(--clr-border);
+	display: flex;
+	transition: border-color 0.2s ease;
+}
+
+/* Light up on hover, not the other way round */
+.season-card:hover {
+	border-left-color: var(--clr-accent);
+}
+
+.season-card.is-clickable {
+	cursor: pointer;
+}
+
+.season-card > .card-body {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
 }
 
 .season-name {
-	font-size: 1.4rem;
-	font-weight: 800;
-	margin: 0 0 0.75rem 0;
+	margin: 0 0 0.35rem 0;
+	font-size: 1.15rem;
+	font-weight: 700;
+}
+
+/* Sub-heading, not a heading — smaller and muted than .season-name, clamped so a
+   long description can't break the card's fixed height */
+.season-description {
+	margin: 0;
+	font-size: 0.85rem;
+	color: var(--clr-text-muted);
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.season-delete-btn {
+	position: absolute;
+	top: 0.6rem;
+	right: 0.6rem;
+	padding: 0.35rem 0.5rem;
 }
 
 .season-meta {
+	margin-top: auto;
 	font-size: 0.8rem;
 	color: var(--clr-text-muted);
 	display: flex;
@@ -720,10 +776,6 @@ details.card:not([open]) .card-header {
 	margin: 0;
 	color: var(--clr-text-muted);
 	line-height: 1.4;
-}
-
-.season-card:hover {
-	border-color: var(--clr-accent) !important;
 }
 
 /* =========================================

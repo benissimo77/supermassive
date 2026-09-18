@@ -16,7 +16,7 @@ const extendUserSession = (req) => {
 class AuthController {
 
     async handleOAuthCallback(strategy, req, res, next) {
-        const guestSessionID = req.sessionID;
+        const guestID = req.cookies.guestID;
         passport.authenticate(strategy, async (err, user) => {
             if (err) {
                 console.error(`${strategy} authentication error:`, err);
@@ -34,7 +34,7 @@ class AuthController {
 
                 try {
                     // Automatically claim any guest results from the current session
-                    await userService.claimGuestResults(guestSessionID, user._id);
+                    await userService.claimGuestResults(guestID, user._id);
 
                     // Check for redirect in session
                     const redirectUrl = req.session.returnTo || '/host/dashboard';
@@ -61,8 +61,8 @@ class AuthController {
     }
 
     async login(req, res, next) {
-        const guestSessionID = req.sessionID;
-        console.log('authController: login attempt. Guest Session ID:', guestSessionID);
+        const guestID = req.cookies.guestID;
+        console.log('authController: login attempt. Guest ID:', guestID);
 
         passport.authenticate('local', async (err, user, info) => {
             if (err) {
@@ -83,9 +83,9 @@ class AuthController {
                 extendUserSession(req);
                 console.log('User logged in:', user.email || user.id, 'New Session ID:', req.sessionID);
 
-                // Automatically claim any guest results from the CAPTURED guestSessionID
+                // Automatically claim any guest results from the CAPTURED guestID
                 try {
-                    await userService.claimGuestResults(guestSessionID, user._id);
+                    await userService.claimGuestResults(guestID, user._id);
                 } catch (claimErr) {
                     console.error('Error claiming results during login:', claimErr);
                 }
@@ -206,7 +206,7 @@ class AuthController {
     async signUp(req, res) {
         try {
             console.log('authController /signup :', req.body);
-            const guestSessionID = req.sessionID;
+            const guestID = req.cookies.guestID;
             const { email, password } = req.body;
             const result = await authService.initiateNewUserSignUp(email, password);
             if (result.success) {
@@ -216,7 +216,7 @@ class AuthController {
                     } else {
                         // Automatically claim any guest results from the current session
                         try {
-                            await userService.claimGuestResults(guestSessionID, result.user._id);
+                            await userService.claimGuestResults(guestID, result.user._id);
                         } catch (claimErr) {
                             console.error('Error claiming results during signup:', claimErr);
                         }
@@ -338,11 +338,11 @@ class AuthController {
                 return res.status(401).json(error('Unauthorized'));
             }
 
-            const sessionID = req.sessionID || req.session.id;
+            const guestID = req.cookies.guestID;
             const userID = req.user._id;
 
-            console.log(`authController: claimResults for session ${sessionID}, user ${userID}`);
-            const result = await userService.claimGuestResults(sessionID, userID);
+            console.log(`authController: claimResults for guest ${guestID}, user ${userID}`);
+            const result = await userService.claimGuestResults(guestID, userID);
 
             res.status(200).json(success('Results claimed successfully', result));
         } catch (err) {

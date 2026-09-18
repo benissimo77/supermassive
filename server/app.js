@@ -4,6 +4,8 @@ dotenv.config();
 import express from 'express';
 import session from 'express-session';
 import MongoStore from 'connect-mongo';
+import cookieParser from 'cookie-parser';
+import { v4 as uuidv4 } from 'uuid';
 import passport from './passport.js';
 import { dbConnect, isDBConnected, mongoose } from './db.js';
 import { fileURLToPath } from 'url';
@@ -99,7 +101,25 @@ app.use(sessionMiddleware);
 app.use(passport.initialize());
 app.use(passport.session());
 
-
+// Durable guest identity cookie - separate from the auth session cookie above.
+// Unlike connect.sid (short-lived, rotates on login), this persists for ~1 year so a
+// casual guest player can be recognised across weeks of inactivity and, if they later
+// sign up, have all their historical PlayerResult docs retrofitted with their userID.
+const cookieParserMiddleware = cookieParser();
+app.use(cookieParserMiddleware);
+app.use((req, res, next) => {
+  if (!req.cookies.guestID) {
+    const guestID = uuidv4();
+    res.cookie('guestID', guestID, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      maxAge: 365 * 24 * 60 * 60 * 1000
+    });
+    req.cookies.guestID = guestID;
+  }
+  next();
+});
 
 // ROUTES
 app.use('/', indexRoutes);
@@ -121,4 +141,4 @@ app.use('/api/league', apiLeague);
 app.use('/api/leaderboard', apiLeaderboard);
 app.use('/api/seasons', apiSeasons);
 
-export { app, sessionMiddleware };
+export { app, sessionMiddleware, cookieParserMiddleware };

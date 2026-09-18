@@ -20,16 +20,18 @@ const leaderboardController = {
             const sessionIds = verifiedSessions.map(s => s._id);
 
             const leaderboard = await PlayerResult.aggregate([
-                { 
-                    $match: { 
+                {
+                    $match: {
                         gameSessionID: { $in: sessionIds },
-                        isBot: false 
-                    } 
+                        isBot: false
+                    }
                 },
-                { 
-                    // Group by userID if available, else by displayName
+                // Newest result first, so the $first below picks up the most recently played name/avatar
+                { $sort: { createdAt: -1 } },
+                {
+                    // Group by userID if available, else by guestID, else by displayName
                     $group: {
-                        _id: { $ifNull: ["$userID", "$displayName"] },
+                        _id: { $ifNull: ["$userID", "$guestID", "$displayName"] },
                         totalScore: { $sum: "$totalScore" },
                         totalQuestions: { $sum: "$totalQuestions" },
                         totalCorrect: { $sum: "$totalCorrect" },
@@ -97,6 +99,8 @@ const leaderboardController = {
 
             const leaderboard = await PlayerResult.aggregate([
                 { $match: matchStage },
+                // Newest result first, so the $first below picks up the most recently played name/avatar
+                { $sort: { createdAt: -1 } },
                 {
                     $group: {
                         _id:            { $ifNull: ['$userID', '$displayName'] },

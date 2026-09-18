@@ -1,4 +1,5 @@
 import { avatarList, getAvatarUrl } from '../utils/avatars.js';
+import { initCollapsibles } from '../utils/Collapsible.js';
 
 /**
  * Leaderboard Logic for SuperMassive
@@ -17,6 +18,9 @@ const MEDALS = ['🥇', '🥈', '🥉'];
 
 export async function initLeaderboard() {
     console.log('[Leaderboard] Initializing...');
+
+    // The global leaderboard <details> card is static markup, present at load
+    initCollapsibles(document);
 
     // 1. Initial Load Global
     loadGlobalLeaderboard();
@@ -74,6 +78,7 @@ async function loadPublicSeasons() {
         results.forEach(({ season, entries }) => {
             renderSeasonCard(season, entries);
         });
+        initCollapsibles(seasonsGrid);
 
     } catch (err) {
         console.error('[Leaderboard] Seasons fetch failed:', err);

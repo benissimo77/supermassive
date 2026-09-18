@@ -8,32 +8,30 @@ function renderSeasonCard(season, { clickable = false, showPublicBadge = false }
 	const card = clone.querySelector('.season-card');
 
 	if (clickable) {
+		card.classList.add('is-clickable');
 		card.addEventListener('click', () => location.href = `/host/dashboard/seasons/edit?id=${season._id}`);
-	}
 
-	if (season.seriesName) {
-		const label = clone.querySelector('.season-series-label');
-		label.textContent = season.seriesName;
-		label.hidden = false;
+		const deleteBtn = clone.querySelector('.delete-season-item');
+		deleteBtn.hidden = false;
+		deleteBtn.addEventListener('click', () => {
+			if (confirm(`Are you sure you want to delete "${season.name}"? This cannot be undone.`)) {
+				deleteSeason(season._id, deleteBtn);
+			}
+		});
 	}
 
 	clone.querySelector('.season-name').textContent = season.name;
 
+	if (season.description) {
+		const desc = clone.querySelector('.season-description');
+		desc.textContent = season.description;
+		desc.hidden = false;
+	}
+
 	const episodeCount = season.episodes?.length || 0;
 	clone.querySelector('.season-episode-count').textContent = `${episodeCount} Episode${episodeCount !== 1 ? 's' : ''}`;
 
-	const fmt = d => new Date(d).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
-	const dates = [season.startDate && fmt(season.startDate), season.endDate && fmt(season.endDate)]
-		.filter(Boolean).join(' – ');
-	if (dates) {
-		clone.querySelector('.season-dates-sep').hidden = false;
-		const datesEl = clone.querySelector('.season-dates');
-		datesEl.textContent = dates;
-		datesEl.hidden = false;
-	}
-
 	if (showPublicBadge && season.isPublic) {
-		clone.querySelector('.season-public-sep').hidden = false;
 		clone.querySelector('.public-badge').hidden = false;
 	}
 
@@ -87,6 +85,20 @@ async function loadPublicSeasons() {
 		console.error('Failed to load public seasons:', err);
 		container.innerHTML = '<div class="empty-state">Failed to load public seasons.</div>';
 	}
+}
+
+async function deleteSeason(seasonId, btn) {
+	const result = await runSave(btn, async () => {
+		const response = await fetch(`/api/seasons/${seasonId}`, {
+			method: 'DELETE',
+			headers: { 'Content-Type': 'application/json' }
+		});
+		return response.json();
+	}, {
+		savingText: 'Deleting...',
+		onError: (err) => alert('Error deleting season: ' + err.message)
+	});
+	if (result) loadSeasons();
 }
 
 async function createNewSeason() {

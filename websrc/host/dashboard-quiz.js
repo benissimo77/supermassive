@@ -114,7 +114,7 @@ function createQuizList(quizzes, user) {
 			// Set the title and (for admin only - ie me) show if it's public
 			if (isPersonal && currentUser?.role === 'admin') {
 				const isPublic = quiz.isPublic !== undefined ? quiz.isPublic : quiz.public;
-				quizItemElement.querySelector('.public-quiz').textContent = isPublic ? 'PUBLIC' : 'PRIVATE';
+				quizItemElement.querySelector('.public-quiz').hidden = !isPublic;
 			}
 			quizItemElement.querySelector('.quiz-item-title').textContent = quiz.title;
 

@@ -87,7 +87,9 @@ router.post('/', async (req, res) => {
 /**
  * GET /api/seasons/:id
  * Get a season with its episode titles populated from the quiz collection.
- * Only the owner can view a private season; anyone authenticated can view a public one.
+ * Owner only. isPublic only controls whether the season's LEADERBOARD is public
+ * (see GET /public and /api/leaderboard/season/:id) — it never makes the season
+ * record itself viewable or editable by anyone but its owner.
  */
 router.get('/:id', async (req, res) => {
     try {
@@ -99,8 +101,8 @@ router.get('/:id', async (req, res) => {
         }
 
         const isOwner = String(season.ownerID) === String(req.user?._id);
-        if (!isOwner && !season.isPublic) {
-            // Same 404 as a missing season — don't reveal that a private season with this id exists
+        if (!isOwner) {
+            // Same 404 as a missing season — don't reveal that someone else's season with this id exists
             return res.status(404).json({ success: false, message: 'Season not found' });
         }
 
@@ -140,6 +142,29 @@ router.post('/:id', async (req, res) => {
         );
 
         res.json({ success: true, data: season });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+/**
+ * DELETE /api/seasons/:id
+ * Delete a season. Owner only. Does not touch GameSession/PlayerResult records
+ * already tagged with this seasonID — they simply become untagged history.
+ */
+router.delete('/:id', async (req, res) => {
+    try {
+        const existing = await Season.findById(req.params.id, { ownerID: 1 });
+        if (!existing) {
+            return res.status(404).json({ success: false, message: 'Season not found' });
+        }
+        if (String(existing.ownerID) !== String(req.user?._id)) {
+            return res.status(403).json({ success: false, message: 'You do not have permission to delete this season' });
+        }
+
+        await Season.findByIdAndDelete(req.params.id);
+
+        res.json({ success: true });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }

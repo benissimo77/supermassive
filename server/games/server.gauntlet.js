@@ -1383,7 +1383,7 @@ export default class Gauntlet extends Game {
 
 				return {
 					gameSessionID: session._id,
-					sessionID: sessionID, // This is the player's transient session ID
+					guestID: player ? player.guestID : null,
 					userID: player ? player.userID : null,
 					displayName: player ? player.name : 'Unknown',
 					avatar: player ? player.avatar : null,
@@ -1408,9 +1408,10 @@ export default class Gauntlet extends Game {
 					rank: r.rank
 				}));
 
-				playerResults.forEach(result => {
+				playerResults.forEach((result, index) => {
 					console.log('playerResults:', result);
-					const player = this.players.find(p => p.sessionID === result.sessionID);
+					const sessionID = sortedScores[index][0];
+					const player = this.players.find(p => p.sessionID === sessionID);
 					if (player && player.socketID) {
 						console.log(`Notifying player ${player.name} of final rank ${result.rank}`);
 						this.room.emitToPlayers([player.socketID], 'server:endquiz', {

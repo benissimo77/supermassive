@@ -54,14 +54,14 @@
 
 	<template id="season-card-template">
 		<div class="card season-card">
+			<button class="delete-season-item season-delete-btn btn btn-sm btn-danger" hidden onclick="event.stopPropagation()" title="Delete season">
+				<i class="fas fa-trash"></i>
+			</button>
 			<div class="card-body">
-				<div class="season-series-label" hidden></div>
 				<h3 class="season-name"></h3>
+				<p class="season-description" hidden></p>
 				<div class="season-meta">
 					<span><i class="fa-solid fa-film" style="margin-right:3px; opacity:0.5;"></i><span class="season-episode-count"></span></span>
-					<span class="season-dates-sep" hidden>&bull;</span>
-					<span class="season-dates" hidden></span>
-					<span class="season-public-sep" hidden>&bull;</span>
 					<span class="public-badge" hidden>Public</span>
 				</div>
 			</div>

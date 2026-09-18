@@ -500,6 +500,12 @@ export default class Quiz extends Game {
 				playerQuestion.leftItemsShuffled = this.question.leftItemsShuffled;
 				playerQuestion.itemImagesShuffled = this.question.itemImagesShuffled;
 				playerQuestion.extra = this.question.extra;
+				// Ordering needs the original (pre-shuffle) items array alongside itemImages -
+				// see the matching comment in collectAnswers().
+				if (playerQuestion.type === 'ordering') {
+					playerQuestion.items = this.question.items;
+					playerQuestion.itemImages = this.question.itemImages;
+				}
 				// Ensure rightItems are sent to players (fallback to legacy pairs)
 				let rightItems = this.question.rightItems;
 				if ((!Array.isArray(rightItems)) && Array.isArray(this.question.pairs)) {
@@ -850,6 +856,14 @@ export default class Quiz extends Game {
 		playerQuestion.leftItemsShuffled = this.question.leftItemsShuffled;
 		playerQuestion.itemImagesShuffled = this.question.itemImagesShuffled;
 		playerQuestion.extra = this.question.extra;
+
+		// Ordering needs the original (pre-shuffle) items array alongside itemImages, since
+		// image lookup is by original position (see ImageOrdering.ts/PlayerImageOrdering.ts) -
+		// matching doesn't need this, since leftItemsShuffled already carries each item's image inline.
+		if (playerQuestion.type === 'ordering') {
+			playerQuestion.items = this.question.items;
+			playerQuestion.itemImages = this.question.itemImages;
+		}
 
 		// Ensure rightItems are sent to players (fallback to legacy pairs)
 		let rightItems = this.question.rightItems;
@@ -1526,7 +1540,7 @@ export default class Quiz extends Game {
 			}
 
 			return {
-				sessionID: sessionID,
+				guestID: player ? player.guestID : null,
 				userID: player ? player.userID : null,
 				displayName: player ? player.name : 'Unknown',
 				avatar: player ? player.avatar : null,
@@ -1549,9 +1563,10 @@ export default class Quiz extends Game {
 				rank: r.rank
 			}));
 
-			playerResults.forEach(result => {
+			playerResults.forEach((result, index) => {
 				console.log('playerResults:', result);
-				const player = this.players.find(p => p.sessionID === result.sessionID);
+				const sessionID = sortedScores[index][0];
+				const player = this.players.find(p => p.sessionID === sessionID);
 				if (player && player.socketID) {
 					console.log(`Notifying player ${player.name} of final rank ${result.rank}`);
 					this.room.emitToPlayers([player.socketID], 'server:endquiz', {

@@ -1,6 +1,6 @@
 import { Server } from 'socket.io';
 import { instrument } from '@socket.io/admin-ui';
-import { sessionMiddleware } from './app.js';
+import { sessionMiddleware, cookieParserMiddleware } from './app.js';
 import { Room } from './room.js';
 import eventLoopLag from 'event-loop-lag';
 
@@ -24,6 +24,11 @@ export default function createSocketServer(server) {
 	// Use session middleware with Socket.IO
 	io.use((socket, next) => {
 		sessionMiddleware(socket.request, {}, next);
+	});
+
+	// Parse cookies so the durable guestID cookie (set over HTTP before the socket connects) is readable in identifyUser()
+	io.use((socket, next) => {
+		cookieParserMiddleware(socket.request, {}, next);
 	});
 
 	// Initialization for the Admin UI (note password must be encrypted)
@@ -143,6 +148,7 @@ function identifyUser(socket) {
 	// 1. Initial Identity (defaults or existing session data)
 	let userObj = {
 		sessionID: socket.request.sessionID,
+		guestID: socket.request.cookies?.guestID || null,
 		socketID: socket.id,
 		userID: session.passport?.user || session.user?._id || null,
 		name: session.name || 'Guest',

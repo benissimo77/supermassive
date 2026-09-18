@@ -6,6 +6,8 @@ class Player {
 		this.socketID = obj.socketID;
 		// Session ID is assigned on entry - remains constant use this to reference player
 		this.sessionID = obj.sessionID;
+		// Durable guest identity cookie - separate from sessionID, survives across weeks/auth-session expiry
+		this.guestID = obj.guestID || null;
 		// Player data
 		this.name = obj.name;
 		this.avatar = obj.avatar;
@@ -15,10 +17,10 @@ class Player {
 	}
 
 	/**
-	 * Ensure sensitive data like isBot is not sent to the client during JSON serialization.
+	 * Ensure sensitive/server-internal data like isBot and guestID is not sent to the client during JSON serialization.
 	 */
 	toJSON() {
-		const { isBot, ...publicData } = this;
+		const { isBot, guestID, ...publicData } = this;
 		return publicData;
 	}
 }

@@ -217,19 +217,6 @@
 }
 
 
-/* Details/Summary specific */
-details.card summary {
-  outline: none;
-}
-
-details.card:not([open]) {
-  margin-bottom: var(--space-sm);
-}
-
-details.card:not([open]) .card-header {
-  border-bottom: none;
-}
-
 /* Form Layouts */
 .form-grid {
   display: grid;

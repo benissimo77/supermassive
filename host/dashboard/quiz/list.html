@@ -35,6 +35,21 @@
 		</div>
 
 		<!-- MAIN CONTENT -->
+
+		<details class="card mb-md" id="quiz-filters" open>
+			<summary class="card-header">
+				<div class="flex justify-between w-full items-center">
+					<span class="header-quiz-label">Tags</span>
+				</div>
+			</summary>
+			<div class="card-body">
+				<div id="filter-subjects" class="form-group mb-md"></div>
+				<div id="filter-age-ranges" class="form-group mb-md"></div>
+				<div id="filter-difficulty" class="form-group mb-md"></div>
+				<div id="filter-rating" class="form-group"></div>
+			</div>
+		</details>
+
 		<h2>Your Quizzes</h2>
 
 		<section id="personal-quiz-list">
@@ -91,6 +106,7 @@
 							<span class="error-indicator" style="display:none; color: var(--clr-error);"
 								title="This quiz has validation errors">⚠</span>
 						</div>
+						<div class="quiz-item-meta" style="font-size: 0.8rem; color: var(--clr-text-muted);"></div>
 					</td>
 					<td style="text-align: right;">
 						<div class="flex justify-end gap-sm items-center">

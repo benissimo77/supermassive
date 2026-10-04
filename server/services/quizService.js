@@ -403,41 +403,41 @@ export async function saveAsQuizV2(quizData, userID) {
     }
 
     // getAllQuizzes
-    // Returns all available quizzes for hosting
+    // Returns a lightweight list (title + tags/metadata + round/question counts, no embedded
+    // question content) for the quiz list/browse page. QuizV2 is intentionally excluded here -
+    // it was an experimental separate-questions-collection design that's no longer used; V1
+    // (Quiz) is the only source for the list. getQuizById still returns the full document
+    // (and still falls back to QuizV2) for actually editing a quiz.
     export async function getAllQuizzes(userID) {
 
         const userIDString = getUserIDString(userID);
+        const ownerMatch = userIDString ? new mongoose.Types.ObjectId(userIDString) : null;
 
         // Return quizzes owned by the user OR public quizzes, excluding deleted ones
         const search = {
             isDeleted: { $ne: true },
             $or: [
-                { ownerID: userIDString },
+                { ownerID: ownerMatch },
                 { isPublic: true }
             ]
         };
 
-        const quizzes = await Quiz.find(search).sort({ title: 1 }).lean();
+        const quizzes = await Quiz.aggregate([
+            { $match: search },
+            { $project: {
+                title: 1, rating: 1, difficulty: 1, subjects: 1, ageRanges: 1,
+                isPublic: 1, public: 1, ownerID: 1, validation: 1, createdAt: 1, updatedAt: 1,
+                roundCount: { $size: { $ifNull: ['$rounds', []] } },
+                questionCount: { $sum: { $map: {
+                    input: { $ifNull: ['$rounds', []] },
+                    as: 'r',
+                    in: { $size: { $ifNull: ['$r.questions', []] } }
+                } } }
+            } },
+            { $sort: { title: 1 } }
+        ]);
 
-        const v2quizzes = await QuizV2.find(search)
-            .sort({ title: 1 })
-            .populate({
-                path: 'rounds.questions',
-                model: 'Question'
-            })
-            .lean();
-
-        // console.log('QuizService::getAllQuizzes: Found V2:', v2quizzes[0].rounds[0].questions);
-
-        // Flatten questions - quirk of populate, it populates question into the questionID field
-        // for (const quiz of v2quizzes) {
-        //     quiz.rounds.forEach(round => {
-        //         round.questions = round.questions.map(q => q.questionId); // unwrap the document
-        //     });
-        // }
-
-        const all_quizzes = quizzes.concat(v2quizzes);
-        return all_quizzes.map(quiz => filterQuestions(quiz, userIDString));
+        return quizzes.map(quiz => filterQuestions(quiz, userIDString));
     }
 
 

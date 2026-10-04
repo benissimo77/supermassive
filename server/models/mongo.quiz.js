@@ -64,6 +64,9 @@ const quizSchema = new mongoose.Schema({
     parentID: { type: mongoose.Schema.Types.ObjectId, ref: 'Quiz', default: null }, // the direct parent it was forked from
     originID: { type: mongoose.Schema.Types.ObjectId, ref: 'Quiz', default: null }, // the ultimate original creation
     rating: { type: Number, default: 0 },
+    difficulty: { type: Number, min: 1, max: 5 }, // 1=Easy .. 5=Mastermind, see websrc/utils/quizTags.js
+    subjects: { type: [String], default: [] }, // plain strings, not an enum - see websrc/utils/quizTags.js
+    ageRanges: { type: [String], default: ['Family'] }, // plain strings, not an enum - see websrc/utils/quizTags.js
     isPublic: { type: mongoose.Schema.Types.Boolean, required: true, default: true },
     isDeleted: { type: Boolean, default: false },
     validation: [ {type: Object} ],

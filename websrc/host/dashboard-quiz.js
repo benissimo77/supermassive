@@ -1,8 +1,17 @@
 import { FileDropzone } from './FileDropzone.js';
 import { runSave } from '../utils/saveButton.js';
+import { SUBJECTS, AGE_RANGES, DIFFICULTY_ITEMS, RATING_FILTER_THRESHOLD, renderPillGroup } from '../utils/quizTags.js';
 
 // Globals - scoped to this module
 let currentUser = null;
+let allQuizzes = []; // fetched once, filtered in memory on every pill toggle
+
+const filters = {
+	subjects: new Set(),    // independent multi-toggle
+	ageRanges: new Set(),   // independent multi-toggle
+	difficulty: null,       // single-select - clicking the active pill again clears it
+	ratingMin: null         // single standalone toggle - RATING_FILTER_THRESHOLD or null
+};
 
 function initDashboardQuiz() {
 
@@ -23,6 +32,7 @@ function initDashboardQuiz() {
 		}
 	});
 
+	renderFilterBadges();
 	fetchQuizzes();
 
 }
@@ -45,10 +55,71 @@ async function fetchQuizzes() {
 			currentUser = (userData && userData.success && userData.data) ? userData.data.user : null;
 		}
 
-		createQuizList(result.data, currentUser);
+		allQuizzes = result.data;
+		rerenderAll();
 	} catch (error) {
 		console.error('Error fetching quizzes:', error);
 	}
+}
+
+function rerenderAll() {
+	createQuizList(applyFilters(allQuizzes), currentUser);
+}
+
+function applyFilters(quizzes) {
+	return quizzes.filter(quiz => {
+		if (filters.subjects.size > 0 && !(quiz.subjects || []).some(s => filters.subjects.has(s))) return false;
+		if (filters.ageRanges.size > 0 && !(quiz.ageRanges || []).some(a => filters.ageRanges.has(a))) return false;
+		if (filters.difficulty && quiz.difficulty !== filters.difficulty) return false;
+		if (filters.ratingMin && (quiz.rating || 0) < filters.ratingMin) return false;
+		return true;
+	});
+}
+
+// --- Filter pills: rendered via the shared renderPillGroup() (websrc/utils/quizTags.js),
+// the same helper the quiz editor's Tags section uses, so the two pages can't visually
+// drift apart or duplicate this DOM-building code. ---
+
+function renderFilterBadges() {
+	const subjectsContainer = document.getElementById('filter-subjects');
+	const ageRangesContainer = document.getElementById('filter-age-ranges');
+	const difficultyContainer = document.getElementById('filter-difficulty');
+	const ratingContainer = document.getElementById('filter-rating');
+	if (!subjectsContainer) return;
+
+	renderPillGroup(subjectsContainer, 'Subject Matter', SUBJECTS,
+		(key) => filters.subjects.has(key),
+		(key) => {
+			if (filters.subjects.has(key)) filters.subjects.delete(key);
+			else filters.subjects.add(key);
+			renderFilterBadges();
+			rerenderAll();
+		});
+
+	renderPillGroup(ageRangesContainer, 'Age Suitability', AGE_RANGES,
+		(key) => filters.ageRanges.has(key),
+		(key) => {
+			if (filters.ageRanges.has(key)) filters.ageRanges.delete(key);
+			else filters.ageRanges.add(key);
+			renderFilterBadges();
+			rerenderAll();
+		});
+
+	renderPillGroup(difficultyContainer, 'Difficulty', DIFFICULTY_ITEMS,
+		(key) => filters.difficulty === key,
+		(key) => {
+			filters.difficulty = filters.difficulty === key ? null : key;
+			renderFilterBadges();
+			rerenderAll();
+		});
+
+	renderPillGroup(ratingContainer, 'Rating', [{ key: 'ratingMin', label: `★ ${RATING_FILTER_THRESHOLD}+`, color: '#FFD700' }],
+		() => filters.ratingMin === RATING_FILTER_THRESHOLD,
+		() => {
+			filters.ratingMin = filters.ratingMin === RATING_FILTER_THRESHOLD ? null : RATING_FILTER_THRESHOLD;
+			renderFilterBadges();
+			rerenderAll();
+		});
 }
 
 function createQuizList(quizzes, user) {
@@ -117,6 +188,11 @@ function createQuizList(quizzes, user) {
 				quizItemElement.querySelector('.public-quiz').hidden = !isPublic;
 			}
 			quizItemElement.querySelector('.quiz-item-title').textContent = quiz.title;
+
+			const metaEl = quizItemElement.querySelector('.quiz-item-meta');
+			if (metaEl && (quiz.roundCount !== undefined || quiz.questionCount !== undefined)) {
+				metaEl.textContent = `${quiz.roundCount || 0} round${quiz.roundCount === 1 ? '' : 's'} · ${quiz.questionCount || 0} question${quiz.questionCount === 1 ? '' : 's'}`;
+			}
 
 			const deleteBtn = quizItemElement.querySelector('.delete-quiz-item');
 			const copyBtn = quizItemElement.querySelector('.copy-quiz-item');

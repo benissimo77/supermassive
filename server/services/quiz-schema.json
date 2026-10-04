@@ -16,6 +16,22 @@
 			"type": "string",
 			"description": "A description of the quiz"
 		},
+		"difficulty": {
+			"type": ["integer", "null"],
+			"minimum": 1,
+			"maximum": 5,
+			"description": "Difficulty rating: 1=Easy, 2=Casual, 3=Medium, 4=Hard, 5=Mastermind"
+		},
+		"subjects": {
+			"type": "array",
+			"items": { "type": "string" },
+			"description": "Subject matter tags (extensible list - see websrc/utils/quizTags.js)"
+		},
+		"ageRanges": {
+			"type": "array",
+			"items": { "type": "string" },
+			"description": "Age-suitability tags, e.g. Family, Gen-Z (see websrc/utils/quizTags.js)"
+		},
 		"rounds": {
 			"type": "array",
 			"description": "The rounds in the quiz",

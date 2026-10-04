@@ -21,7 +21,7 @@
 	<nav id="sidebar"></nav>
 	<main>
 		<div id="quiz-edit" class="container">
-			<div class="editor-header">
+			<div class="page-header">
 				<div class="flex items-center gap-md">
 					<a href="/host/dashboard/quiz/list" class="btn btn-ghost">
 						<i class="fa-solid fa-arrow-left"></i>
@@ -105,12 +105,12 @@
 				</div>
 			</div>
 
-			<details class="card quiz-card" open id="quiz-details">
+			<details class="card quiz-card card-header--amber" open id="quiz-details">
 				<summary class="card-header">
 					<div class="flex justify-between w-full items-center">
 						<div class="flex items-center gap-sm">
 							<span class="header-quiz-label">Quiz:</span>
-							<span class="header-title" style="font-weight: 600;"></span>
+							<span class="header-title"></span>
 						</div>
 					</div>
 				</summary>
@@ -143,6 +143,19 @@
 				</div>
 			</details>
 
+			<details class="card" id="quiz-tags">
+				<summary class="card-header">
+					<div class="flex justify-between w-full items-center">
+						<span class="header-quiz-label">Tags</span>
+					</div>
+				</summary>
+				<div class="card-body">
+					<div id="tag-subjects" class="form-group mb-md"></div>
+					<div id="tag-age-ranges" class="form-group mb-md"></div>
+					<div id="tag-difficulty" class="form-group"></div>
+				</div>
+			</details>
+
 			<details class="mt-md">
 				<summary style="cursor: pointer; color: var(--clr-text-muted); font-size: 0.9rem;">Advanced: Quiz JSON</summary>
 				<textarea id="quiz-json" style="width: 100%; height: 800px; font-family: monospace; font-size: 0.8rem;" placeholder="Quiz JSON will appear here"></textarea>
@@ -157,11 +170,11 @@
 					<div class="flex items-center gap-sm">
 						<span class="drag-handle" style="cursor: grab;">☰</span>
 						<span class="header-round-label">Round <span class="header-round-number"></span>:</span>
-						<span class="header-title" style="font-weight: 600;"></span>
+						<span class="header-title"></span>
 					</div>
 					<div class="flex items-center gap-sm">
-						<span class="error-indicator" style="display:none; color: var(--clr-error);">⚠</span>
-						<span class="warning-indicator" style="display:none; color: #ffcc00; cursor: help;">⚠</span>
+						<span class="error-indicator" style="display:none;">⚠</span>
+						<span class="warning-indicator" style="display:none;">⚠</span>
 						<button class="delete-btn btn btn-xs btn-danger">
 							<i class="fa-solid fa-trash"></i>
 							Delete
@@ -229,17 +242,17 @@
 	</template>
 
 	<template id="question-template">
-		<details class="card question" open>
+		<details class="card question card-header--teal" open>
 			<summary class="card-header">
 				<div class="flex justify-between w-full items-center">
 					<div class="flex items-center gap-sm">
 						<span class="drag-handle" style="cursor: grab;">☰</span>
 						<span class="header-question-label">Question <span class="header-question-number"></span>:</span>
-						<span class="header-title" style="font-weight: 600;"></span>
+						<span class="header-title"></span>
 					</div>
 					<div class="flex items-center gap-sm">
-						<span class="error-indicator" style="display:none; color: var(--clr-error);">⚠</span>
-						<span class="warning-indicator" style="display:none; color: #ffcc00; cursor: help;">⚠</span>
+						<span class="error-indicator" style="display:none;">⚠</span>
+						<span class="warning-indicator" style="display:none;">⚠</span>
 						<button class="delete-btn btn btn-xs btn-danger">
 							<i class="fa-solid fa-trash"></i>
 							Delete

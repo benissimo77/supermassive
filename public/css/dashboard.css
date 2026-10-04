@@ -342,6 +342,10 @@ main {
 	flex-direction: column;
 }
 
+.flex-wrap {
+	flex-wrap: wrap;
+}
+
 .items-center {
 	align-items: center;
 }
@@ -493,12 +497,48 @@ details.card:not([open]) .card-header {
 .card-header--teal { border-left: 3px solid var(--clr-primary) !important; }
 .card-header--teal > .card-header { background: rgba(16, 185, 129, 0.2); }
 
+/* Reusable colored toggle pill - used by telemetry filter badges and quiz tag/filter pills.
+   Per-instance color comes from JS via --pill-color; the visual rule lives here, only the
+   color and selected state are set inline (see dashboard-telemetry.js's styleBadge()). */
+.pill {
+	display: inline-block;
+	margin: 4px;
+	padding: 4px 12px;
+	border-radius: 999px;
+	border: 2px solid var(--pill-color, var(--clr-border));
+	background: transparent;
+	color: var(--pill-color, var(--clr-text));
+	cursor: pointer;
+	font-size: 13px;
+	font-family: inherit;
+	transition: background-color 0.15s ease, color 0.15s ease, filter 0.15s ease;
+}
+.pill--selected {
+	background: var(--pill-color, var(--clr-border));
+	color: #ffffff;
+}
+.pill:hover {
+	filter: brightness(1.15); /* hover always brightens, never dims */
+}
+
 /* Action buttons (e.g. Delete) inside a card-header, pinned right; wrap with
    onclick="event.stopPropagation()" so clicking them doesn't toggle the card. */
 .card-header-actions {
 	margin-left: auto;
 	display: flex;
 	gap: var(--space-sm);
+}
+
+/* Quiz/season editor card-header title pattern: a muted "Quiz:"/"Round:" prefix label
+   next to the bold editable title itself. Used by quiz/edit.html and seasons/edit.html. */
+.header-title {
+	font-weight: 600;
+}
+.header-quiz-label,
+.header-round-label,
+.header-question-label {
+	color: var(--clr-text-muted);
+	font-weight: 500;
 }
 
 
@@ -1031,10 +1071,6 @@ table.leaderboard td {
 	align-items: center;
 }
 
-.modal .invite-url {
-	flex: 1;
-}
-
 .modal .invite-status {
 	margin-top: 8px;
 	color: var(--clr-text-muted);
@@ -1052,11 +1088,8 @@ table.leaderboard td {
 	color: var(--clr-text-muted);
 }
 
-.modal .invite-url-wrap {
-	margin-top: 6px;
-}
-
 .modal .invite-url {
+	flex: 1;
 	width: 100%;
 	box-sizing: border-box;
 	padding: 8px;

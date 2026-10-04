@@ -119,37 +119,13 @@
   margin: 0 auto;
 }
 
-/* Header Section */
-.editor-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--space-xl);
-  padding: var(--space-md) 0;
-  border-bottom: 1px solid var(--clr-line);
-  position: sticky;
-  top: 0;
-  background: var(--clr-bg);
-  z-index: 100;
-}
-
-.editor-header h1 {
-  margin: 0;
-  font-size: 1.75rem;
-  color: var(--clr-text);
-}
-
+/* Header Section - uses the shared .page-header (dashboard.css), not a page-local copy */
 
 /* Specific Card Types */
 /* These can modify global styles defined in dashboard.css */
-.quiz-card {
-  border-left: 3px solid var(--clr-accent);
-}
-
-.quiz-card > .card-header {
-  background: rgba(245, 158, 11, 0.2); /* Muted Amber */
-}
-
+/* .quiz-card's amber accent and .question's teal accent are now the shared
+   .card-header--amber/--teal modifiers (dashboard.css) - applied in markup instead of
+   redeclared here. .round keeps its own blue accent since there's no generic equivalent. */
 .round {
   border-left: 3px solid var(--clr-secondary);
 }
@@ -159,13 +135,8 @@
 }
 
 .question {
-  border-left: 3px solid var(--clr-primary);
   margin-left: var(--space-md);
   background: var(--clr-question-bg);
-}
-
-.question > .card-header {
-  background: rgba(16, 185, 129, 0.2); /* Muted Green */
 }
 
 /* Add Question Button matching question header */
@@ -283,21 +254,10 @@
   color: var(--clr-primary);
 }
 
-.quiz-title-link:hover {
-  text-decoration: underline;
-}
-
 /* Validation Styles */
 .validation-error {
   border: 2px solid var(--clr-error) !important;
   background-color: rgba(217, 83, 79, 0.1) !important;
-}
-
-.error-message {
-  color: var(--clr-error);
-  font-size: 0.8rem;
-  margin-top: var(--space-xs);
-  display: block;
 }
 
 /* Sortable Styles */
@@ -457,9 +417,9 @@ details summary {
 
 /* Error and validation messages */
 .error-message {
-  color: #d9534f;
-  background-color: rgba(217, 83, 79, 0.1);
-  border-left: 3px solid #d9534f;
+  color: var(--clr-error);
+  background-color: rgba(181, 60, 56, 0.1); /* --clr-error at 10% opacity */
+  border-left: 3px solid var(--clr-error);
   padding: 10px;
   margin: 5px 0;
   font-size: 0.9rem;
@@ -480,17 +440,46 @@ details summary {
   font-weight: bold;
 }
 
+/* Overrides #validation-summary's default red for the AI fact-check success/warning states -
+   ID-scoped (not just .alert-success) so it actually beats the ID rule's specificity. */
+#validation-summary.alert-success {
+  background-color: var(--clr-success);
+  color: #ffffff;
+}
+#validation-summary.alert-warning {
+  background-color: var(--clr-warning);
+  color: #1a1a1a;
+}
+
 /* Warning icon for validation errors */
 .error-indicator {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #F00;
+  color: var(--clr-error);
   width: 20px;
   height: 20px;
   font-size: 18px;
   margin-left: 10px;
   cursor: help;
+}
+
+/* AI fact-check warning icon - same layout as .error-indicator, amber instead of red */
+.warning-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--clr-warning);
+  width: 20px;
+  height: 20px;
+  font-size: 18px;
+  margin-left: 10px;
+  cursor: help;
+}
+.warning-indicator[data-count]:after {
+  content: attr(data-count);
+  font-size: 11px;
+  font-weight: bold;
 }
 
 /* Position for round headers */
@@ -519,6 +508,7 @@ details summary {
   100% { transform: rotate(0deg); }
 }
 
-.error-indicator.animate {
+.error-indicator.animate,
+.warning-indicator.animate {
   animation: wiggle 0.5s ease;
 }

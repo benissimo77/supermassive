@@ -4,10 +4,16 @@ import '../utils/ImageSelector.js';
 import { QuestionTypeRegistry } from './quiz-editor-registry.js';
 import { initCollapsibles } from '../utils/Collapsible.js';
 import { runSave } from '../utils/saveButton.js';
+import { SUBJECTS, AGE_RANGES, DIFFICULTY_ITEMS, DEFAULT_AGE_RANGES, renderPillGroup } from '../utils/quizTags.js';
 
 // Global state variables
 const UI = {};
 let hasUnsavedChanges = false;
+
+// Quiz tags section state (Subject / Age Suitability / Difficulty)
+let selectedSubjects = new Set();
+let selectedAgeRanges = new Set();
+let selectedDifficulty = null;
 
 
 /**
@@ -26,6 +32,11 @@ function initDashboardQuizEdit() {
 	UI.saveButtons = document.querySelectorAll('.save-quiz-btn');
 	UI.addRoundBtn = document.getElementById('add-round');
 	UI.hostQuizBtn = document.getElementById('host-quiz');
+
+	// Tags section
+	UI.tagSubjects = document.getElementById('tag-subjects');
+	UI.tagAgeRanges = document.getElementById('tag-age-ranges');
+	UI.tagDifficulty = document.getElementById('tag-difficulty');
 
 	// AI Generator
 	UI.aiPanel = document.getElementById('ai-generator-panel');
@@ -347,6 +358,9 @@ function readQuizFromUI() {
 		ownerID: UI.quizOwner.value,
 		title: UI.quizTitle.value,
 		description: UI.quizDescription.value,
+		difficulty: selectedDifficulty,
+		subjects: Array.from(selectedSubjects),
+		ageRanges: Array.from(selectedAgeRanges),
 		rounds: Array.from(UI.roundsContainer.querySelectorAll('.round')).map(roundEl => readRoundFromUI(roundEl))
 	};
 
@@ -420,6 +434,11 @@ async function writeQuizToUI(quizData) {
 	UI.quizDescription.value = quizData.description || "";
 	updateHeaderWithTitle({ target: UI.quizTitle });
 
+	selectedDifficulty = quizData.difficulty || null;
+	selectedSubjects = new Set(quizData.subjects || []);
+	selectedAgeRanges = new Set(quizData.ageRanges && quizData.ageRanges.length ? quizData.ageRanges : DEFAULT_AGE_RANGES);
+	renderTagPills();
+
 	UI.roundsContainer.innerHTML = '';
 
 	// 3. Build Rounds & Questions
@@ -443,6 +462,39 @@ async function writeQuizToUI(quizData) {
 	addRoundQuestionNumbers();
 	collapseAll();
 	resetSaveChanges();
+}
+
+// Renders the Subject/Age/Difficulty pill groups in the Tags section via the shared
+// renderPillGroup() (websrc/utils/quizTags.js) - also used by the quiz list's filter bar,
+// so both pages render identical markup/styling from one implementation.
+function renderTagPills() {
+	if (!UI.tagSubjects) return;
+
+	renderPillGroup(UI.tagSubjects, 'Subject Matter', SUBJECTS,
+		(key) => selectedSubjects.has(key),
+		(key) => {
+			if (selectedSubjects.has(key)) selectedSubjects.delete(key);
+			else selectedSubjects.add(key);
+			renderTagPills();
+			markAsChanged();
+		});
+
+	renderPillGroup(UI.tagAgeRanges, 'Age Suitability', AGE_RANGES,
+		(key) => selectedAgeRanges.has(key),
+		(key) => {
+			if (selectedAgeRanges.has(key)) selectedAgeRanges.delete(key);
+			else selectedAgeRanges.add(key);
+			renderTagPills();
+			markAsChanged();
+		});
+
+	renderPillGroup(UI.tagDifficulty, 'Difficulty', DIFFICULTY_ITEMS,
+		(key) => selectedDifficulty === key,
+		(key) => {
+			selectedDifficulty = selectedDifficulty === key ? null : key;
+			renderTagPills();
+			markAsChanged();
+		});
 }
 
 function writeRoundToUI(roundEl, data) {

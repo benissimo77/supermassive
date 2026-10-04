@@ -113,13 +113,18 @@ export default class PlayerImageMatchingQuestion extends PlayerBaseQuestion {
 
         // --- Submit button: fixed physical size, pinned to the bottom-right corner - persistent
         // chrome, not part of the scaled content block below (same pattern as PlayerOrdering).
-        const submitW = this.SUBMIT_WIDTH_PX * physicalScale;
-        const submitH = this.SUBMIT_HEIGHT_PX * physicalScale;
+        // Floored to a logical-unit minimum so it doesn't shrink to a disproportionately tiny
+        // fraction of the canvas on a wide window (e.g. a laptop as a solo/player screen) -
+        // physicalScale alone targets a constant CSS-px size regardless of canvas width, which
+        // looks right on a phone but too small on a wide one.
+        const submitW = Math.max(this.SUBMIT_WIDTH_PX * physicalScale, 200);
+        const submitH = Math.max(this.SUBMIT_HEIGHT_PX * physicalScale, 55);
+        const submitMargin = Math.max(this.SUBMIT_MARGIN_PX * physicalScale, 16);
         this.submitButton.setButtonSize(submitW, submitH);
         this.submitButton.adjustTextSize(submitH);
         this.submitButton.setPosition(
-            1920 - (this.SUBMIT_WIDTH_PX / 2 + this.SUBMIT_MARGIN_PX) * physicalScale,
-            this.scene.getY(answerHeight) - (this.SUBMIT_HEIGHT_PX / 2 + this.SUBMIT_MARGIN_PX) * physicalScale
+            1920 - (submitW / 2 + submitMargin),
+            this.scene.getY(answerHeight) - (submitH / 2 + submitMargin)
         );
 
         // --- Items + dropzones: assembled at a nicely-proportioned reference size - portrait
@@ -225,16 +230,7 @@ export default class PlayerImageMatchingQuestion extends PlayerBaseQuestion {
 
         this.submitAnswer(answers);
 
-        const tl = gsap.timeline();
-        tl.to(this.answerContainer, {
-            y: this.scene.getY(2160),
-            duration: 0.5,
-            ease: 'back.in'
-        });
-        tl.add(() => {
-            this.scene.soundManager.playFX('submit-answer');
-        }, '<+0.25');
-        tl.play();
+        this.playSubmitAnimation();
     }
 
     private checkDropzonesFull(): boolean {

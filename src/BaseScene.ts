@@ -44,8 +44,10 @@ export abstract class BaseScene extends Phaser.Scene {
 
     // TYPE is the type of screen we are showing, currently 'play' or 'host' (maybe 'admin', 'viewer' later)
     public TYPE: string;
-    // Store a flag for single player mode - maybe there is a better way to do this but see how far we get with this
-    public singlePlayerMode: boolean = false;
+    // Set true for a solo quiz session (one person, dual-registered server-side as both
+    // host and player) - read by BaseQuestion.ts to decide whether to compose an
+    // interactive answer-collection delegate into the host's own question screen.
+    public isSolo: boolean = false;
 
     // The labelConfig/buttonConfig is used for text styles in the scene, properties can be overridden as needed
     public labelConfig: Phaser.Types.GameObjects.Text.TextStyle;
@@ -153,6 +155,7 @@ export abstract class BaseScene extends Phaser.Scene {
 
         this.game.events.on('hidden', () => {
             console.log('Game lost focus');
+            this.socket.emit('consolelog', 'WakeLock:: game hidden - releasing');
             // Pause game, mute audio, etc.
             this.scene.pause();
             // Add overlay to highlight that game can no longer be controlled
@@ -162,6 +165,7 @@ export abstract class BaseScene extends Phaser.Scene {
 
         this.game.events.on('visible', () => {
             console.log('Game gained focus');
+            this.socket.emit('consolelog', 'WakeLock:: game visible - trying immediate request, then arming gesture fallback');
             // Resume game, unmute audio, etc.
             this.scene.resume();
             // Remove the overlay if it exists
@@ -169,7 +173,14 @@ export abstract class BaseScene extends Phaser.Scene {
                 this.overlay.destroy();
                 this.overlay = null;
             }
+            // Try immediately first - succeeds without a fresh gesture on some browsers (e.g.
+            // desktop/Android Chrome). If it silently fails (iOS Safari requires transient user
+            // activation), the armed fallback below catches it on the player's next tap instead
+            // of leaving the screen able to sleep for the rest of the game.
             this.requestWakeLock();
+            if (!__DEV__) {
+                this.armWakeLockOnNextGesture();
+            }
         });
 
         if (!this.backgroundContainer) {
@@ -195,17 +206,11 @@ export abstract class BaseScene extends Phaser.Scene {
         if (__DEV__) {
             // Don't add wake lock or fullscreen - leave for production use only
         } else {
-            const enableWakeLock = () => {
-                this.requestWakeLock();
-                // Playtesting going fullscreen not so useful
-                // If playing on a laptop user wants to be able to switch tabs easily
-                // On phones its only marginally useful - maybe just ignore...
-                // this.requestFullscreenPortrait();
-                this.game.canvas.removeEventListener('click', enableWakeLock);
-                this.game.canvas.removeEventListener('touchend', enableWakeLock);
-            };
-            this.game.canvas.addEventListener('click', enableWakeLock);
-            this.game.canvas.addEventListener('touchend', enableWakeLock);
+            // Playtesting going fullscreen not so useful
+            // If playing on a laptop user wants to be able to switch tabs easily
+            // On phones its only marginally useful - maybe just ignore...
+            // this.requestFullscreenPortrait();
+            this.armWakeLockOnNextGesture();
         }
 
         // Max debugging of all input events
@@ -270,6 +275,51 @@ export abstract class BaseScene extends Phaser.Scene {
         }
 
         return device;
+    }
+
+    // Richer device info for telemetry - same OS detection as getDeviceType() plus browser and
+    // viewport size. Kept separate from getDeviceType() since that's used elsewhere (wake lock/
+    // fullscreen logging) purely as a plain string.
+    protected getDeviceInfo(): { userAgent: string; OS: string; browser: string; viewportWidth: number; viewportHeight: number } {
+        const userAgent = navigator.userAgent;
+
+        let OS = 'unknown';
+        if (/iPad/.test(userAgent)) {
+            OS = 'iPad';
+        } else if (/iPhone|iPod/.test(userAgent)) {
+            OS = 'iPhone';
+        } else if (/Android/.test(userAgent)) {
+            OS = 'Android';
+        } else if (/Windows/.test(userAgent)) {
+            OS = 'Windows';
+        } else if (/Macintosh/.test(userAgent)) {
+            OS = 'Mac';
+        } else if (/Linux/.test(userAgent)) {
+            OS = 'Linux';
+        }
+
+        let browser = 'unknown';
+        if (/Edge|Edg/.test(userAgent)) {
+            browser = 'Edge';
+        } else if (/Chrome/.test(userAgent) && !/Chromium|OPR|Edge/.test(userAgent)) {
+            browser = 'Chrome';
+        } else if (/Firefox/.test(userAgent) && !/Seamonkey/.test(userAgent)) {
+            browser = 'Firefox';
+        } else if (/Safari/.test(userAgent) && !/Chrome|Chromium|Edge|OPR/.test(userAgent)) {
+            browser = 'Safari';
+        } else if (/Opera|OPR/.test(userAgent)) {
+            browser = 'Opera';
+        } else if (/Trident|MSIE|IEMobile/.test(userAgent)) {
+            browser = 'Internet Explorer';
+        }
+
+        return {
+            userAgent,
+            OS,
+            browser,
+            viewportWidth: window.innerWidth,
+            viewportHeight: window.innerHeight
+        };
     }
 
     protected handlePlayerConnect(playerConfig: PlayerConfig): void {
@@ -591,7 +641,43 @@ export abstract class BaseScene extends Phaser.Scene {
 
 
 
+    // Arms a listener that requests the wake lock on the player's next tap/click. The Wake Lock
+    // API requires a fresh user gesture to succeed on many browsers (iOS Safari especially -
+    // confirmed in practice by "Permission was denied" failures there) - this is what lets it
+    // actually reacquire after being released (e.g. on visibilitychange), instead of only ever
+    // working once at scene start.
+    private wakeLockGestureArmed = false;
+    private armWakeLockOnNextGesture(): void {
+        if (this.wakeLockGestureArmed) {
+            this.socket.emit('consolelog', 'WakeLock:: already armed, skipping re-arm');
+            return;
+        }
+        this.wakeLockGestureArmed = true;
+        this.socket.emit('consolelog', 'WakeLock:: armed gesture fallback listener');
+        const reacquire = async () => {
+            this.socket.emit('consolelog', 'WakeLock:: gesture fired, attempting reacquire');
+            // iOS/iPadOS Safari doesn't reliably grant transient activation on the very first
+            // gesture after a visibility change (documented WebKit quirk - the first touch after
+            // regaining focus often doesn't carry it, a later one usually does) - only disarm
+            // once a request actually succeeds, so a failed attempt leaves the listener live for
+            // the player's next tap to retry, rather than giving up after one failed shot.
+            await this.requestWakeLock();
+            if (BaseScene.wakeLock !== null) {
+                this.socket.emit('consolelog', 'WakeLock:: reacquire succeeded, disarming gesture fallback');
+                this.wakeLockGestureArmed = false;
+                this.game.canvas.removeEventListener('click', reacquire);
+                this.game.canvas.removeEventListener('touchend', reacquire);
+            } else {
+                this.socket.emit('consolelog', 'WakeLock:: reacquire failed, staying armed for next gesture');
+            }
+        };
+        this.game.canvas.addEventListener('click', reacquire);
+        this.game.canvas.addEventListener('touchend', reacquire);
+    }
+
     private async requestWakeLock(): Promise<void> {
+
+        this.socket.emit('consolelog', `WakeLock:: requestWakeLock() called - currentlyHeld=${BaseScene.wakeLock !== null}`);
 
         // Log if wake lock is available
         if (!('wakeLock' in navigator)) {
@@ -606,12 +692,19 @@ export abstract class BaseScene extends Phaser.Scene {
                 this.socket.emit('consolelog', `Wake lock active: ${this.getDeviceType()}`);
             } catch (err: any) {
                 console.error('Wake lock request failed:', err);
-                this.socket.emit('consolelog', `Wake lock failed: ${err?.message || err}`);
+                // err.message alone tends to be a generic "Permission was denied" on WebKit
+                // regardless of the specific cause - log the state that actually distinguishes
+                // the remaining candidates (insecure context, document not yet visible, standalone
+                // PWA vs normal tab) instead of guessing blind on the next failure.
+                this.socket.emit('consolelog', `Wake lock failed: ${err?.name || ''} ${err?.message || err} | secureContext=${window.isSecureContext} visibilityState=${document.visibilityState} standalone=${(navigator as any).standalone === true || window.matchMedia?.('(display-mode: standalone)').matches}`);
             }
+        } else {
+            this.socket.emit('consolelog', 'WakeLock:: requestWakeLock() no-op, already held');
         }
     }
 
     private async releaseWakeLock(): Promise<void> {
+        this.socket.emit('consolelog', `WakeLock:: releaseWakeLock() called - currentlyHeld=${BaseScene.wakeLock !== null}`);
         if (BaseScene.wakeLock !== null) {
             try {
                 await BaseScene.wakeLock.release();

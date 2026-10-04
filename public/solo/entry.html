@@ -1,0 +1,119 @@
+<html lang="en">
+
+<head>
+
+    <meta charset="utf-8">
+
+    <!-- ✅ Correct for fullscreen games -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+
+    <title>Videoswipe - Games</title>
+
+    <!-- Add these meta tags for better iOS fullscreen support and PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#051C55">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+    <!-- <link rel="apple-touch-icon" href="/img/app-icon.png"> -->
+    <link rel="apple-touch-icon" href="/img/w3logo.png">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Titan+One&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.4/gsap.min.js"></script>
+    <link rel="stylesheet" href="/css/play.css">
+
+    <style>
+        #ios-prompt {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px;
+            font-family: 'Poppins', sans-serif;
+            text-align: center;
+        }
+    </style>
+
+</head>
+
+<body>
+    <div class="entry-container">
+        <div id="auth-status" class="auth-status-container">
+            <!-- Logged In Panel -->
+            <div id="auth-logged-in" class="auth-logged-in hidden">
+                <div class="auth-logged-in-dot"></div>
+                <span class="auth-logged-in-text">Playing as <strong id="username-display"></strong></span>
+            </div>
+
+            <!-- Anonymous / Sign Up Panel -->
+            <div id="auth-anonymous" class="auth-anonymous hidden">
+                <span class="auth-anonymous-text">Save your scores?</span>
+                <a id="auth-login-link" href="/login" class="auth-link auth-login-link">Login</a>
+                <span class="auth-divider">|</span>
+                <a id="auth-signup-link" href="/login?mode=signup" class="auth-link">Sign Up</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <h1 class="title">Join the Game</h1>
+
+            <!-- Solo mode: the room is already fixed (passed in via ?room=), so unlike
+                 the real player entry page this has no visible Room Code field - just
+                 a hidden one play-entry.js already knows how to prefill from the URL
+                 and submit unchanged. Only the form's action differs (set by the
+                 inline script below, since this one static file serves every
+                 room/game) - it posts back to this same URL (see routes.solo.js),
+                 which then serves the two-pane view now that the session is identified. -->
+            <form method='post' id="gameform" name="gameform">
+                <input type="hidden" id="room" name="room" value="">
+
+                <div class="form-group">
+                    <label for="name">Team Name</label>
+                    <input type="text" id="name" name="name" maxlength="15" placeholder="Your Name" autocomplete="off">
+                </div>
+
+                <input type="hidden" id="avatar" name="avatar" value="">
+
+                <div class="form-group">
+                    <label>Choose Your Avatar</label>
+                    <div id="gallerycontainer" class="avatar-grid"></div>
+                </div>
+
+                <div id="form-error" class="error-message" style="display: none;"></div>
+
+                <div class="form-actions">
+                    <button type="submit" id='submit' class="btn-enter">
+                        <span>ENTER GAME</span>
+                        <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Simple iOS prompt -->
+    <div id="ios-prompt">
+        For fullscreen: Tap "Share" then "Add to Home Screen"
+    </div>
+
+    <script type="module" src="/modules/play-entry.min.js"></script>
+
+    <script>
+        // This one static file serves every solo room/game. play-entry.js already
+        // prefills the hidden #room field from the ?room= query param (same as the
+        // real player entry page), so all we add is pointing the form back at this
+        // same URL (preserving ?q=&s=) instead of at /play - see routes.solo.js's
+        // POST handler, which joins the player then redirects back here to the
+        // two-pane view rather than onward to the standalone player page.
+        document.getElementById('gameform').action = window.location.pathname + window.location.search;
+    </script>
+
+</body>
+
+</html>

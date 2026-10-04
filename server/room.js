@@ -5,6 +5,7 @@ import GameSession from './models/mongo.gameSession.js';
 import PlayerResult from './models/mongo.playerResult.js';
 import { GhostManager } from './services/GhostManager.js';
 import { createRateLimiter } from './utils/rateLimiter.js';
+import { getEventLoopLag } from './utils/eventLoopLag.js';
 
 // A room with no one connected for this long is considered abandoned and torn down (see Room.checkIdle)
 const ROOM_IDLE_TIMEOUT_MS = 5 * 60 * 1000;
@@ -43,7 +44,12 @@ class Room {
 
 		// Initialize telemetry for the room
 		this.telemetry = {
-			clients: {}
+			clients: {},
+			// Server-wide event loop lag sampled once per ping tick (see pingAllClients) - not
+			// per-client, since there's only one event loop for the whole process. Lets us
+			// correlate "was the server busy" against client-reported latency for the same moment,
+			// instead of only ever being able to guess whether a spike was client- or server-side.
+			eventLoopLag: []
 		}
 
 		/* Sample telemetry structure for a client
@@ -89,14 +95,26 @@ class Room {
 
 		// And instantiate a client object for storing telemetry data
 		if (this.telemetry.clients[userObj.sessionID]) {
-			// already added - add socket.id to the sockets set
+			// already added - add socket.id to the sockets set, and refresh host/name in case
+			// this connection legitimately reflects a role change since the entry was first
+			// created (e.g. this session first connected as a player, then later as host) -
+			// otherwise host gets locked in at whatever it was on the very first connection
+			// (see this.hosts.push below, which stays correct on every connection independently
+			// of this telemetry entry, which is how this bug was found - totalHosts came from
+			// this.hosts.length and was right, while telemetry.clients[...].host was stuck false)
 			this.telemetry.clients[userObj.sessionID].sockets.push(socket.id);
+			this.telemetry.clients[userObj.sessionID].host = userObj.host;
+			this.telemetry.clients[userObj.sessionID].name = userObj.name;
 		} else {
 			this.telemetry.clients[userObj.sessionID] = {
+				host: userObj.host,
+				name: userObj.name,
 				transport: socket.conn.transport.name,
 				sockets: [socket.id],
 				latency: [],
-				disconnects: []
+				disconnects: [],
+				staleResponses: [],
+				eventLoopLag: []
 			};
 		}
 
@@ -105,6 +123,11 @@ class Room {
 			// perform host initialisation...
 			console.log('User is host:', socket.id, userObj);
 			this.host = userObj;
+
+			// Capture the real chosen identity before the HOST-display-name workaround below
+			// overwrites it - solo mode needs the ORIGINAL name/avatar for the player record.
+			const soloName = userObj.name;
+			const soloAvatar = userObj.avatar;
 
 			// Workaround - in case we will end up in SOLO player mode intialise the host fields for a player
 			this.host.name = 'HOST';
@@ -123,6 +146,15 @@ class Room {
 			// I've removed this line from here and instead made the host responsible for contacting the server when its ready
 			// this.#io.to(socket.id).emit('hostconnect', { room: this.id, players: this.getConnectedPlayers() });
 			this.attachHostEvents(socket);
+
+			// Solo mode: this same socket also plays, so dual-register it as a player too -
+			// using a SEPARATE object (not the mutated host userObj above) so the player
+			// record keeps the person's own chosen name/avatar rather than "HOST". This is
+			// what emitToAllPlayers()'s existing host-exclusion (see below) was anticipating.
+			if (userObj.isSolo) {
+				const player = this.addUserAsPlayer(socket, { ...userObj, name: soloName, avatar: soloAvatar });
+				this.emitToHosts('playerconnect', player);
+			}
 		} else if (userObj.role === 'admin') {
 			// Admin role - can see host view and control game
 			console.log('User is admin:', socket.id, userObj);
@@ -166,10 +198,16 @@ class Room {
 			this.telemetry.clients[sessionID].transport = socket.conn.transport.name;
 		});
 
-		socket.on('client:response', (response) => {
+		socket.on('client:response', (response, callback) => {
 			console.log('client:response :', socket.id, response);
 			if (this.clientResponseHandler) {
 				this.clientResponseHandler(socket, response);
+			}
+			// Ack unconditionally here - whether the game layer accepted or rejected the
+			// response (e.g. a stale question number, see server.quiz.js) is its own concern;
+			// this just confirms the message was received, so the client's retry loop can stop.
+			if (callback && typeof callback === 'function') {
+				callback({ received: true });
 			}
 		})
 
@@ -237,7 +275,7 @@ class Room {
 		socket.on('client:pong', (timestamp) => {
 			const latency = Date.now() - timestamp;
 			console.log('Received client:pong from socket:', socket.id, 'Timestamp:', timestamp, 'Latency:', latency);
-			
+
 			const sessionID = this.getSessionIDBySocketID(socket.id);
 			if (this.telemetry.clients[sessionID]) {
 				// timestamp here is the raw ms-epoch number echoed back from the client (used above
@@ -276,7 +314,11 @@ class Room {
 		// Consolidates initialization directly in a single handshake using URL parameters (q/s/gameType)
 		socket.on('host:ready', async (data, callback) => {
 
-			const userObj = this.getPlayerBySocketID(socket.id) || this.host;
+			// this.host first: once a solo socket is dual-registered as a player too (see
+			// addUserToRoom), getPlayerBySocketID would otherwise find it first - but the
+			// Player model strips gameType/quizID/seasonID/isSolo (see allModels.js), which
+			// would silently break game auto-bootstrap and the isSolo flag sent back below.
+			const userObj = this.host || this.getPlayerBySocketID(socket.id);
 			const gameType = userObj?.gameType;
 			const quizID = userObj?.quizID;
 			const seasonID = userObj?.seasonID;
@@ -319,6 +361,7 @@ class Room {
 				callback({
 					success: true,
 					roomID: this.id,
+					isSolo: !!userObj?.isSolo,
 					...initData
 				});
 			}
@@ -446,8 +489,15 @@ class Room {
 		if (this.#io.sockets.sockets.size > 1) {
 			console.log(`Pinging ${this.#io.sockets.sockets.size} clients in the room...`);
 
+			const timestamp = Date.now();
+
 			// Can just use this room ID to automatically call all connected clients of this room
-			this.#io.to(this.id).emit('server:ping', { timestamp: Date.now() } );
+			this.#io.to(this.id).emit('server:ping', { timestamp } );
+
+			// Capture server responsiveness at the same moment we ping clients, so a later spike
+			// in client-reported latency can be checked against whether the server itself was
+			// busy at that exact tick, rather than assuming it's always a client/network issue.
+			this.telemetry.eventLoopLag.push({ timestamp: new Date(timestamp), lag: getEventLoopLag() });
 		}
 	}
 
@@ -553,6 +603,17 @@ class Room {
 			});
 			console.log('Game session saved:');
 			console.dir(session);
+
+			// This Room object can outlive a single game (same room code re-hosted without a full
+			// 5-minute idle teardown in between - see ROOM_IDLE_TIMEOUT_MS/checkIdle), but
+			// this.telemetry was only ever initialized once, in the constructor. Without resetting
+			// it here, it would keep accumulating every client/latency/disconnect entry from every
+			// game ever played in this room, and each new GameSession would get saved with all of
+			// the previous games' stale data still mixed in.
+			this.telemetry = {
+				clients: {},
+				eventLoopLag: []
+			};
 
 			const playerResults = this.game.playerResults;
 

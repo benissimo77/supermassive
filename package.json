@@ -15,7 +15,7 @@
     "deploy:modules": "scp -r public/modules/*.js nodejs@videoswipe.net:~/supermassive/public/modules",
     "deploy:modules-play": "scp -r public/modules/phaser.play.min.js nodejs@videoswipe.net:~/supermassive/public/modules",
     "deploy:host": "scp -r host/admin host/dashboard host/lobby host/quiz nodejs@videoswipe.net:~/supermassive/host && scp -r public/modules/dashboard*.js nodejs@videoswipe.net:~/supermassive/public/modules",
-    "deploy:public": "scp -r public/*.html public/css public/login public/play nodejs@videoswipe.net:~/supermassive/public && scp -r public/modules/play-entry*.js public/modules/landing*.js public/modules/login*.js nodejs@videoswipe.net:~/supermassive/public/modules",
+    "deploy:public": "scp -r public/*.html public/css public/login public/play public/solo nodejs@videoswipe.net:~/supermassive/public && scp -r public/modules/play-entry*.js public/modules/landing*.js public/modules/login*.js nodejs@videoswipe.net:~/supermassive/public/modules",
     "deploy:server": "scp -r server.js server nodejs@videoswipe.net:~/supermassive/ && ssh nodejs@videoswipe.net 'pm2 reload all'",
     "deploy:server-games": "scp -r server/games nodejs@videoswipe.net:~/supermassive/server && ssh nodejs@videoswipe.net 'pm2 reload all'",
     "deploy:full": "npm-run-all deploy:modules deploy:host deploy:public deploy:server",

@@ -49,7 +49,14 @@ export default class PlayerNumberQuestion extends PlayerBaseQuestion {
         Object.assign(this.htmlInput.style, {
             position: 'absolute',
             left: '50%',
-            top: '5%', // HARD PINNED TO TOP to avoid keyboard collision logic!
+            // Anchored to the bottom rather than a fixed top offset: this question type is
+            // composed inside the host's own screen in solo mode, sharing it with variable-
+            // height question text/image above, but the answer area is always the bottom-most
+            // section of the layout (see BaseQuestion.ts's calculateLayout()), so the bottom
+            // edge is a stable anchor regardless of what's above. Trade-off: on-screen mobile
+            // keyboards can cover this while typing - accepted for now, revisit if it's a
+            // real problem in practice.
+            bottom: 'calc(5% + 60px)', // tucked above the submit button
             transform: 'translate(-50%, 0)',
             width: '80vw',
             maxWidth: '600px',
@@ -94,12 +101,16 @@ export default class PlayerNumberQuestion extends PlayerBaseQuestion {
 
         // Submit via "Enter" key on mobile/desktop keyboard
         this.htmlInput.addEventListener('keydown', (e: KeyboardEvent) => {
+            // Isolate every keystroke from Phaser's global keyboard shortcuts (e.g. a host
+            // scene's reserved hotkeys) while typing here - same isolation already applied
+            // unconditionally to every touch/mouse listener above, just completed for keydown.
+            e.stopPropagation();
+
             if (e.key === 'Enter') {
                 e.preventDefault();
-                e.stopPropagation();
                 this.handleSubmit();
             }
-            
+
             // Allow digits, dot, comma (EU decimal), minus, and control keys
             if (!/^[0-9\.\-\,]$/.test(e.key) && 
                 !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Enter', 'Tab'].includes(e.key)) {
@@ -113,7 +124,7 @@ export default class PlayerNumberQuestion extends PlayerBaseQuestion {
         Object.assign(this.htmlSubmitButton.style, {
             position: 'absolute',
             left: '50%',
-            top: 'calc(5% + 75px)', // Tucked nicely beneath the input
+            bottom: '5%', // closest to the bottom edge, input tucked above it
             transform: 'translate(-50%, 0)',
             width: '200px',
             height: '45px',
@@ -182,15 +193,21 @@ export default class PlayerNumberQuestion extends PlayerBaseQuestion {
             // Submit immediately so host updates instantly
             this.submitAnswer(val); 
 
-            // 2) Wait for keyboard to vanish (approx 400ms), then Input Field glides off the TOP
+            // 2) Wait for keyboard to vanish (approx 400ms), then Input Field glides off the
+            // BOTTOM (matching the bottom anchor above)
             this.scene.time.delayedCall(800, () => {
                 if (this.htmlInput) {
-                    this.htmlInput.style.transform = 'translate(-50%, -100vh)';
+                    this.htmlInput.style.transform = 'translate(-50%, 100vh)';
                 }
                 if (this.htmlSubmitButton) {
-                    this.htmlSubmitButton.style.transform = 'translate(-50%, -100vh)';
+                    this.htmlSubmitButton.style.transform = 'translate(-50%, 100vh)';
                 }
             });
+
+            // The DOM elements handle their own dismissal above - this drives the scene's
+            // "submitted" notification (see PlayerBaseQuestion.playSubmitAnimation) on a
+            // matching timescale (800ms dismissal delay + ~800ms CSS slide-out).
+            this.playSubmitAnimation(1.5);
         }
     }
 
@@ -205,6 +222,20 @@ export default class PlayerNumberQuestion extends PlayerBaseQuestion {
             this.htmlSubmitButton.disabled = true;
             this.htmlSubmitButton.style.pointerEvents = 'none';
         }
+    }
+
+    // The input/button are raw DOM elements outside Phaser's display list entirely (see
+    // createAnswerUI), so the inherited Container.setVisible() has no effect on them - override
+    // it here so the scene hiding this question (e.g. on server:endquestion) actually hides them.
+    public setVisible(value: boolean): this {
+        super.setVisible(value);
+        if (this.htmlInput) {
+            this.htmlInput.style.display = value ? '' : 'none';
+        }
+        if (this.htmlSubmitButton) {
+            this.htmlSubmitButton.style.display = value ? '' : 'none';
+        }
+        return this;
     }
 
     public destroy(fromScene?: boolean): void {

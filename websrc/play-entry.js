@@ -1,25 +1,6 @@
 import { avatarList, getAvatarUrl } from './utils/avatars.js';
 
 // Functions
-function toggleFullScreen() {
-    const docElm = document.documentElement;
-    if (!document.fullscreenElement &&
-        !document.mozFullScreenElement &&
-        !document.webkitFullscreenElement &&
-        !document.msFullscreenElement) {
-
-        if (docElm.requestFullscreen) {
-            docElm.requestFullscreen();
-        } else if (docElm.webkitRequestFullscreen) {
-            docElm.webkitRequestFullscreen();
-        } else if (docElm.mozRequestFullScreen) {
-            docElm.mozRequestFullScreen();
-        } else if (docElm.msRequestFullscreen) {
-            docElm.msRequestFullscreen();
-        }
-    }
-}
-
 function selectAvatar(e) {
     const avatarId = e.target.id;
     document.getElementById('avatar').value = avatarId;
@@ -91,12 +72,6 @@ async function checkForm(event) {
     localStorage.setItem('sm_last_name', name);
     localStorage.setItem('sm_last_avatar', avatar);
 
-    try {
-        toggleFullScreen();
-        // We don't need the timeout here if we're using addEventListener
-    } catch (err) {
-        console.log('Fullscreen error:', err);
-    }
     return true;
 }
 

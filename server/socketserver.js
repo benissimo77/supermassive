@@ -2,10 +2,7 @@ import { Server } from 'socket.io';
 import { instrument } from '@socket.io/admin-ui';
 import { sessionMiddleware, cookieParserMiddleware } from './app.js';
 import { Room } from './room.js';
-import eventLoopLag from 'event-loop-lag';
-
-// Set up event loop lag monitoring (used inside the ping interval to track server responsiveness)
-const lag = eventLoopLag(1000);
+import { getEventLoopLag } from './utils/eventLoopLag.js';
 
 export default function createSocketServer(server) {
 	// Initialize Socket.IO
@@ -18,6 +15,13 @@ export default function createSocketServer(server) {
 				: ['https://admin.socket.io', 'http://localhost:3000'],
 			methods: ['GET', 'POST'],
 			credentials: true
+		},
+		// Lets a briefly-dropped client (wifi blip, backgrounded tab) resume its session with
+		// buffered missed events instead of a full reconnect + app-level resync. Default
+		// in-memory recovery storage is fine here - single-server deployment, no Redis/adapter.
+		connectionStateRecovery: {
+			maxDisconnectionDuration: 2 * 60 * 1000, // 2 minutes
+			skipMiddlewares: true
 		}
 	});
 
@@ -133,7 +137,7 @@ export default function createSocketServer(server) {
 
 	// Finally, since we know we have at least one connection we can log the current event loop lag
 	// Monitor the server event loop
-	console.log('Current event loop lag:', lag());
+	console.log('Current event loop lag:', getEventLoopLag());
 
 	return io;
 }
@@ -170,7 +174,12 @@ function identifyUser(socket) {
 			const roomCodeUpper = roomCode ? roomCode.toUpperCase() : null;
 			const sessionRoomUpper = session.room ? session.room.toUpperCase() : null;
 
-			if (type === 'host') {
+			// /solo/ROOM1/quiz is the unauthenticated solo-mode host view (see
+			// routes.solo.js) - it's the same host page served a different way, so it's
+			// granted host privileges via the exact same check as a real /host connection.
+			const isSoloHost = type === 'solo';
+
+			if (type === 'host' || isSoloHost) {
 				// Security check: Only allow host privileges if the user owns the room in their session,
 				// or if they are an elevated user (Admin/Producer).
 				
@@ -181,6 +190,10 @@ function identifyUser(socket) {
 				if (isStaff || (roomCodeUpper && roomCodeUpper === sessionRoomUpper)) {
 					userObj.host = true;
 					userObj.role = session.role || 'host';
+					// Rides along on this same userObj (see Room.addUserToRoom, which stores it
+					// as-is) through to the host:ready ack in room.js, so the host scene can tell
+					// it's a solo session without any new socket event, cookie, or URL param.
+					userObj.isSolo = isSoloHost;
 				} else {
 					console.warn(`SocketServer.identifyUser:: Unauthorized host attempt for room ${roomCodeUpper}`);
 					userObj.host = false;

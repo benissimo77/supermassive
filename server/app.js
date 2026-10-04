@@ -21,6 +21,7 @@ import adminRoutes from './routes/routes.admin.js';
 import loginRoutes from './routes/routes.auth.js';
 import devRoutes from './routes/routes.dev.js';
 import leagueRoutes from './routes/routes.league.js';
+import soloRoutes from './routes/routes.solo.js';
 
 import apiQuiz from './api/api.quiz.js';
 import apiImage from './api/api.image.js';
@@ -127,6 +128,7 @@ app.use('/auth', loginRoutes);
 app.use('/host', hostRoutes);
 app.use('/admin', adminRoutes);
 app.use('/league', leagueRoutes);
+app.use('/solo', soloRoutes);
 // Dev routes: mount only in non-production (and can be disabled via ENABLE_DEV_ROUTES=false)
 if (!isProduction && process.env.ENABLE_DEV_ROUTES !== 'false') {
   app.use('/dev', devRoutes);

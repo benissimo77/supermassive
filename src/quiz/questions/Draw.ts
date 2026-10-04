@@ -24,8 +24,6 @@ export default class DrawQuestion extends BaseQuestion {
     protected createAnswerUI(): void {
         console.log('DrawQuestion::createAnswerUI:', this.questionData.mode);
 
-        this.answerContainer.removeAll(true);
-
         if (this.questionData.mode === 'ask') {
             // While players are drawing, host just shows a waiting message
             this.waitingMessage = this.scene.add.text(0, 0, "Players are drawing their answers...", {

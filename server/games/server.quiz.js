@@ -537,6 +537,12 @@ export default class Quiz extends Game {
 				socket.emit('server:showanswer', { 'scores': scores });
 			}
 		}
+		// If we are in the closing credits state, send to player
+		if (this.stateMachine.state === QuizState.CLOSING_CREDITS) {
+			socket.emit('server:closingcredits', {
+				title: this.quizData.title
+			});
+		}
 	}
 
 
@@ -609,6 +615,14 @@ export default class Quiz extends Game {
 
 		// Check if we are overriding question/answer types for this round (not used yet)
 		const typeOverride = (this.round.type && this.round.type != this.quizData.type);
+
+		// With only one round and nothing to announce (no title/description), there's
+		// no "Round 1 of..." worth showing - skip straight to the first question.
+		const hasContent = (this.round.title && this.round.title.trim() !== '') || (this.round.description && this.round.description.trim() !== '');
+		if (this.quizData.rounds.length === 1 && !hasContent) {
+			this.stateMachine.transitionTo(QuizState.NEXT_QUESTION);
+			return;
+		}
 
 		// Return the Promise from emitToHosts back to the caller
 		this.room.emitToHosts('server:introround', { roundnumber: this.roundNumber, title: this.round.title, description: this.round.description, duration: 8 }, true)
@@ -882,8 +896,27 @@ export default class Quiz extends Game {
 			const player = this.room.getPlayerBySocketID(socket.id);
 			if (player) {
 				// Clean once, at the point of entry, so every later use (host display, player-facing broadcasts,
-				// stored PlayerResult analysis) inherits safe data. Non-string answers (numbers/booleans/coords) pass through untouched.
+				// stored PlayerResult analysis, telemetry) inherits safe data. Non-string answers (numbers/booleans/coords) pass through untouched.
 				const cleanAnswer = typeof response.answer === 'string' ? escapeHtml(response.answer) : response.answer;
+
+				// Guard against a stale/misdirected response (e.g. a client retry that arrives
+				// after the question has already moved on) landing against the wrong question.
+				// Log it to telemetry instead of silently recording it - a genuine answer going
+				// uncredited is worth knowing about, not just discarding.
+				if (response.questionNumber !== this.question.questionNumber) {
+					console.warn('quiz.responseHandler: stale response - received for question', response.questionNumber, 'but current question is', this.question.questionNumber);
+					const clientTelemetry = this.room.telemetry.clients[player.sessionID];
+					if (clientTelemetry) {
+						clientTelemetry.staleResponses.push({
+							timestamp: new Date(),
+							receivedQuestionNumber: response.questionNumber,
+							currentQuestionNumber: this.question.questionNumber,
+							answer: cleanAnswer
+						});
+					}
+					return;
+				}
+
 				this.question.responses[player.sessionID] = {
 					answer: cleanAnswer,
 					time: response.answerTime,

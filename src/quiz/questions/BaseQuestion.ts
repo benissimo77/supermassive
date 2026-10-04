@@ -5,6 +5,8 @@ import { ImageLoader } from 'src/utils/ImageLoader';
 import { gsap } from "gsap";
 
 import { YouTubePlayerUI } from '../YouTubePlayerUI';
+import { QuestionFactory } from './QuestionFactory';
+import { PlayerBaseQuestion } from './PlayerBaseQuestion';
 
 // Some defaults to get us started (these are all logical units)
 const QUESTIONIMAGE_HEIGHT = 640;
@@ -43,6 +45,19 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
     protected answerContainer: Phaser.GameObjects.Container;
     protected tl: gsap.core.Timeline;   // Used by child classes
     private debugContainer: Phaser.GameObjects.Container;
+
+    // Solo mode only: while asking the question, the real interactive Player-side question
+    // class is composed in here as a child of answerContainer, rather than this class's own
+    // non-interactive createAnswerUI() - see initialize()/renderHost(). Never set for reveal
+    // (mode === 'answer') or for any non-solo scene.
+    private playerDelegate: PlayerBaseQuestion | null = null;
+
+    // Guards against a tap submitting before the server has actually started collecting
+    // answers (it only registers its handler once it receives host:response, which this
+    // same client doesn't send until the slide-in animation finishes - see
+    // enableDelegateAnswering(), called from QuizHostScene at that same moment). An early
+    // submission would otherwise be silently acknowledged by the server and then dropped.
+    private delegateReady: boolean = false;
 
     constructor(scene: BaseScene, questionData: BaseQuestionData) {
         super(scene, 0, 0);
@@ -255,8 +270,30 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
 
         }
 
-        // All screen types create answer UI (implemented by subclasses)
-        await this.createAnswerUI();
+        // In solo mode, while still asking the question, compose the real interactive
+        // Player-side question class as a child of answerContainer instead of building
+        // this class's own non-interactive answer UI - reused as-is, not reimplemented.
+        // Restricted to mode === 'ask': at reveal time (mode === 'answer') this class's
+        // own createAnswerUI/showAnswerContent/createRevealAnswerTimeline run exactly as
+        // normal - some Player classes don't even implement createRevealAnswerTimeline,
+        // and some (Text/Number) build essential reveal content in createAnswerUI() too,
+        // not just interactive options, so reveal must never run against a delegate.
+        if (this.scene.TYPE === 'host' && this.scene.isSolo && this.questionData.mode === 'ask') {
+            this.delegateReady = false;
+            this.playerDelegate = new QuestionFactory(this.scene).createPlayerDelegate(this.questionData.type, this.questionData);
+            this.answerContainer.add(this.playerDelegate);
+            this.playerDelegate.onAnswer((answer: any) => {
+                if (!this.delegateReady) {
+                    console.warn('BaseQuestion:: answer submitted before server was ready to collect it - ignoring');
+                    return;
+                }
+                this.submitAnswer(answer);
+            });
+            await this.playerDelegate.initialize();
+        } else {
+            // All screen types create answer UI (implemented by subclasses)
+            await this.createAnswerUI();
+        }
 
     }
 
@@ -323,8 +360,17 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
         this.answerContainer.x = 960;
         this.answerContainer.y = this.scene.getY(answerSlotTop);
 
-        // Position answer content (implemented by subclasses)
-        this.showAnswerContent(answerHeight);
+        // Position answer content - the composed delegate (see initialize()) if there is
+        // one, otherwise this class's own implementation (implemented by subclasses).
+        // renderAsHostDelegate (not showAnswerContent directly) cancels out this object's
+        // own answerContainer offset on the delegate's coordinate space, so the delegate's
+        // existing positioning math - written assuming it's rendered standalone - works
+        // unmodified. See PlayerBaseQuestion.ts for the full reasoning.
+        if (this.playerDelegate) {
+            this.playerDelegate.renderAsHostDelegate(answerSlotTop, answerHeight);
+        } else {
+            this.showAnswerContent(answerHeight);
+        }
 
         const graphics: Phaser.GameObjects.Rectangle = this.scene.add.rectangle(0, 0, 25, 25, 0xffff00, 1).setOrigin(0.5);
         this.debugContainer.removeAll();
@@ -344,6 +390,13 @@ export abstract class BaseQuestion extends Phaser.GameObjects.Container {
      */
     public onAnswer(callback: Function): void {
         this.answerCallback = callback;
+    }
+
+    // Called by QuizHostScene once the server has actually started collecting answers for
+    // this question (see the delegateReady field above for why this matters) - a no-op
+    // when there's no composed delegate (i.e. every non-solo question).
+    public enableDelegateAnswering(): void {
+        this.delegateReady = true;
     }
 
     // Subclasses should call this method to submit the answer

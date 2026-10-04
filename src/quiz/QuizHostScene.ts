@@ -251,7 +251,12 @@ export class QuizHostScene extends BaseScene {
 
     private waitingToStart(data: any): void {
         console.log('QuizHostScene:: Initializing Lobby Phase:', data.title);
-        
+
+        // Sets BaseScene's existing isSolo flag - read by BaseQuestion.ts to compose the
+        // real interactive Player-side question class into this screen's answer area
+        // instead of building its own non-interactive one.
+        this.isSolo = !!data.isSolo;
+
         // Start lobby music
         // this.soundManager.playMusic('quiz-music-intro', { volume: 0.5 });
         const music = this.soundManager.getCurrentMusicTrack();
@@ -272,13 +277,22 @@ export class QuizHostScene extends BaseScene {
             this.quizMap.updatePosition(0, 0, 'LOBBY');
         }
 
-        // Show the waiting-room HUD (title, player count, countdown, join/QR instructions).
+        // Show the waiting-room HUD (title, player count, countdown, join/QR instructions) -
+        // none of that makes sense in solo mode, where nobody else is going to join.
         // Lives in topContainer, not UIContainer - clearUI() (called on every round transition)
         // does a full removeAll(true) on UIContainer, which would destroy it the first time that ran.
-        this.lobbyHUD = new LobbyHUD(this, 0, 0, data.title, this.roomID);
-        this.topContainer.add(this.lobbyHUD);
-        this.lobbyHUD.showInstructionPanel(this.instructionState);
-        this.lobbyHUD.updatePlayerCount(this.getPlayerConfigsAsArray().filter(p => p.connected).length);
+        if (!data.isSolo) {
+            this.lobbyHUD = new LobbyHUD(this, 0, 0, data.title, this.roomID);
+            this.topContainer.add(this.lobbyHUD);
+            this.lobbyHUD.showInstructionPanel(this.instructionState);
+            this.lobbyHUD.updatePlayerCount(this.getPlayerConfigsAsArray().filter(p => p.connected).length);
+        } else {
+            // Solo mode has no second human to drive the keyboard, so give the player an
+            // on-screen equivalent of a real host's ArrowRight keypress - createSimpleButton
+            // already does exactly that (see its pointerdown handler).
+            const nextButton = this.createSimpleButton(1800, this.getY(1020), 'NEXT ▶');
+            this.topContainer.add(nextButton);
+        }
 
     }
 
@@ -399,6 +413,10 @@ export class QuizHostScene extends BaseScene {
                 onComplete: () => {
                     console.log('GSAP animation complete!');
                     this.socket.emit('host:response');
+                    // Solo mode: only now (same moment the server is told to start collecting
+                    // answers) is an actual submission allowed through - see BaseQuestion.ts's
+                    // delegateReady field for why answering any earlier would be silently lost.
+                    this.currentQuestion?.enableDelegateAnswering();
                     if (question.mode === 'ask') {
                         if (!question.video && !question.audio) {
                             this.soundManager.playMusic('quiz-countdown', { volume: 0.3, fadeIn: 6000 });
@@ -415,8 +433,21 @@ export class QuizHostScene extends BaseScene {
             // This code taken from QuizPlayScene - the way to submit an answer (for single-player mode when hosting)
             this.currentQuestion.onAnswer((answer: any) => {
                 console.log('QuizHostScene:: answer:', answer);
-                // Send the answer to the server
-                this.socket.emit('client:response', { answer: answer, answerTime: Date.now() - receivedTime });
+                // questionNumber is required - server.quiz.js's responseHandler now rejects any
+                // response whose questionNumber doesn't match the currently active question.
+                const responsePayload = { answer: answer, answerTime: Date.now() - receivedTime, questionNumber: this.currentQuestionNumber };
+                const sendResponse = (isRetry: boolean) => {
+                    this.socket.timeout(4000).emit('client:response', responsePayload, (err: any) => {
+                        if (!err) return;
+                        if (!isRetry) {
+                            console.warn('QuizHostScene:: client:response not acknowledged, retrying once:', err);
+                            sendResponse(true);
+                        } else {
+                            console.warn('QuizHostScene:: client:response retry also not acknowledged, giving up:', err);
+                        }
+                    });
+                };
+                sendResponse(false);
             });
 
             // Set all players to state of ANSWERING

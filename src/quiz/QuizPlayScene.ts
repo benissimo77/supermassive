@@ -2,7 +2,7 @@ import gsap from 'gsap';
 import { BaseScene } from "src/BaseScene";
 
 import { QuestionFactory } from "./questions/QuestionFactory";
-import { BaseQuestion } from "./questions/BaseQuestion";
+import { PlayerBaseQuestion } from "./questions/PlayerBaseQuestion";
 
 import { PlayerConfig, PhaserPlayer } from "./PhaserPlayer";
 
@@ -15,20 +15,32 @@ export class QuizPlayScene extends BaseScene {
     // tracked separately via this.phaserPlayer.
     public players: Map<string, Phaser.GameObjects.Container> = new Map();
 
-    private currentQuestion: BaseQuestion;
+    private currentQuestion: PlayerBaseQuestion;
     private currentQuestionNumber: number = -1;
+    // Tracks whether the local player has answered the current question - lets
+    // server:endquestion tell apart "already showing Answer Submitted, leave it resize-safe"
+    // from "never answered, stop resizing the now-hidden question".
+    private hasAnswered: boolean = false;
     private questionFactory: QuestionFactory;
-    private waitingState: Boolean = false;
     private quizFinished: boolean = false;
     private phaserPlayer: PhaserPlayer;
-    private podiums: Phaser.GameObjects.Graphics[] = [];
+
+    // Unlike the Host's multi-player leaderboard, this player-facing screen only ever shows the
+    // local player, so the avatar doesn't need to vary in size by rank - a flat scale looks
+    // better here. 2x makes the ~480px name panel a comfortable ~960px in both orientations.
+    private readonly PODIUM_PLAYER_SCALE = 2.6;
 
     // Stored handler references so sceneShutdown() can remove them cleanly.
     private onConnectSendReady: () => void;
 
-    // UI elements
-    private waitingText: Phaser.GameObjects.Text;
+    // Shared UI elements
     private waitingPanel: Phaser.GameObjects.Container;
+
+    // The currently-active screen's layout function - reassigned by whichever screen method is
+    // showing right now, called once immediately to position everything, and re-invoked by
+    // render() on every resize. null between clearUI() and the next screen's assignment is a
+    // safe transient state (render() just no-ops).
+    private currentLayout: (() => void) | null = null;
 
     // Add this constructor to set the scene key
     constructor() {
@@ -86,21 +98,27 @@ export class QuizPlayScene extends BaseScene {
 
         console.log('QuizPlayScene:: create: HELLO')
 
-        // Add a CONNECT/DISCONNECT button to simulate player disconnections
-        // const connectButton = this.add.text(960, 10, 'Connect', this.labelConfig).setOrigin(0.5, 0);
-        // connectButton.setInteractive({ useHandCursor: true });
-        // connectButton.on('pointerdown', () => this.toggleConnect());
-
-        // Create the waiting panel - this will be shown at the beginning of the quiz and between questions
+        // Create the waiting panel - shown once, before the quiz starts
         this.waitingPanel = this.add.container(960, 540);
-        this.waitingText = this.add.text(0, 0, 'Waiting for quiz to start...', this.labelConfig).setOrigin(0.5);
-        this.waitingPanel.add(this.waitingText);
+        const waitingText = this.add.text(0, 0, 'Waiting for quiz to start...', this.labelConfig).setOrigin(0.5);
+        this.waitingPanel.add(waitingText);
         this.waitingPanel.setScale(this.getUIScaleFactor());
         this.waitingPanel.setVisible(true);
 
+        // Deliberately does NOT touch phaserPlayer.x/y - its position is owned by the
+        // animatePlayer() tween, and a resize must not snap it out of that tween.
+        this.currentLayout = () => {
+            this.waitingPanel.setPosition(960, this.getY(540));
+            this.waitingPanel.setScale(this.getUIScaleFactor());
+            if (this.phaserPlayer) {
+                this.phaserPlayer.setScale(this.getUIScaleFactor());
+            }
+        };
+        this.currentLayout();
+
         const sendReady = () => {
-            const device = this.getDeviceType();
-            console.log('QuizPlayScene:: sending player:ready with device type:', device);
+            const device = this.getDeviceInfo();
+            console.log('QuizPlayScene:: sending player:ready with device info:', device);
             this.socket.emit('player:ready', { device }, (playerConfig: PlayerConfig) => {
                 console.log('QuizPlayScene:: player:ready callback:', playerConfig);
                 this.mySessionID = playerConfig.sessionID;
@@ -120,48 +138,6 @@ export class QuizPlayScene extends BaseScene {
 
         // Setup socket listeners
         this.setupSocketListeners();
-
-        // TESTING - add a DOMElement to handle input
-        // const formElement = this.add.dom(400, 300).createFromHTML(`
-        //     <form id="myForm" style="text-align: center;">
-        //         <input type="text" name="userInput" placeholder="Type here..."
-        //                style="font-size: 20px; padding: 5px; width: 200px;" />
-        //         <br><br>
-        //         <button type="submit" style="font-size: 18px; padding: 5px 15px;">
-        //             Submit
-        //         </button>
-        //     </form>
-        // `);
-
-        // // Access the real HTML form and input
-        // const realForm = formElement.node;
-        // const inputNode = realForm.querySelector('input[name="userInput"]');
-
-        // // Attach native submit handler
-        // realForm.addEventListener('submit', (event) => {
-        //     event.preventDefault();
-        //     if (inputNode.value.trim() !== '') {
-        //         console.log('Submitted:', inputNode.value);
-        //         inputNode.value = '';
-        //     }
-        //     this.socket.emit('consolelog', { message: 'Player submitted the form!' });
-        // });
-
-        // // Ensure tapping the input focuses it (mobile keyboard)
-        // inputNode.addEventListener('touchend', () => {
-        //     inputNode.focus(); // iOS will now show keyboard
-        //     this.socket.emit('consolelog', { message: 'Player tapped the input!' });
-        // });    
-    }
-
-
-    private toggleConnect(): void {
-        console.log('QuizPlayScene:: toggleConnect')
-        if (this.socket.connected) {
-            this.socket.disconnect();
-        } else {
-            this.socket.connect();
-        }
     }
 
     private setupSocketListeners(): void {
@@ -188,9 +164,8 @@ export class QuizPlayScene extends BaseScene {
             }
 
             this.currentQuestionNumber = question.questionNumber;
+            this.hasAnswered = false;
 
-            this.waitingState = false;
-            this.waitingPanel.setVisible(false);
             this.tweens.killAll();
             this.tweens.add({
                 targets: this.phaserPlayer,
@@ -261,22 +236,45 @@ export class QuizPlayScene extends BaseScene {
 
             // Make sure it's added to the scene
             this.add.existing(this.currentQuestion);
-            this.waitingState = false;
 
             this.currentQuestion.onAnswer((answer: any) => {
                 console.log('QuizPlayScene:: answer:', answer);
-                // Send the answer to the server
-                this.socket.emit('client:response', { answer: answer, answerTime: Date.now() - receivedTime - displayTime });
+                this.hasAnswered = true;
 
-                // This flag prevents the question from being re-displayed if render fires eg on resize
-                this.waitingState = true;
+                // Send the answer to the server immediately - this must never wait on an animation.
+                // questionNumber lets the server tell a genuine answer apart from a stale retry
+                // that arrives after the question has already moved on (see server.quiz.js).
+                const responsePayload = {
+                    answer: answer,
+                    answerTime: Date.now() - receivedTime - displayTime,
+                    questionNumber: this.currentQuestionNumber
+                };
+                // Deliberately minimal: one retry on a missing ack, not a robust queue/backoff -
+                // Socket.io's own buffer-and-flush-on-reconnect (plus connectionStateRecovery)
+                // already covers the more common "briefly disconnected at submit time" case;
+                // this only needs to catch "ack lost but connection fine".
+                const sendResponse = (isRetry: boolean) => {
+                    this.socket.timeout(4000).emit('client:response', responsePayload, (err: any) => {
+                        if (!err) return;
+                        if (!isRetry) {
+                            console.warn('QuizPlayScene:: client:response not acknowledged, retrying once:', err);
+                            sendResponse(true);
+                        } else {
+                            console.warn('QuizPlayScene:: client:response retry also not acknowledged, giving up:', err);
+                        }
+                    });
+                };
+                sendResponse(false);
 
-                // Show waiting panel and animate player after a short delay to allow submitted answer to disappear
-                // Also hide the question panel otherwise it might appear when resizing mobile
-                // Problem with delayedCall: anything can happen in the 2.5 seconds delay! eg a new question is asked
-                this.time.delayedCall(2500, () => {
-                    this.gotoWaitingState();
-                });
+                // The question is now playing its own submit-feedback animation (see
+                // PlayerBaseQuestion.playSubmitAnimation) - stop resizing it, since renderPlayer()
+                // would fight that animation by resetting the answer container's position.
+                // onSubmitted (below) takes over once that animation finishes.
+                this.currentLayout = null;
+            });
+
+            this.currentQuestion.onSubmitted(() => {
+                this.showAnswerSubmitted();
             });
         });
 
@@ -288,10 +286,20 @@ export class QuizPlayScene extends BaseScene {
         // Question over - clear the screen
         // Note: we DON'T destroy the question since it might still be animating etc - just hide it
         this.socket.on('server:endquestion', (data) => {
-            console.log('QuizPlayScene:: server:endquestion - UI invisible:', data);
-            this.UIContainer.setVisible(false);
+            console.log('QuizPlayScene:: server:endquestion:', data);
+            // If the player just tapped submit, force their feedback animation to finish right
+            // now (see PlayerBaseQuestion.finishPendingAnimation) so it resolves into the Answer
+            // Submitted screen cleanly rather than being silently hidden mid-animation.
+            this.currentQuestion?.finishPendingAnimation();
             if (this.currentQuestion) {
                 this.currentQuestion.setVisible(false);
+            }
+            // If the player never answered, show a neutral placeholder until the real next
+            // screen (showanswer, etc.) arrives - the question is now hidden with nothing local
+            // to replace it. If they did answer, Answer Submitted is already showing (in
+            // UIContainer, untouched here) and stays resize-safe.
+            if (!this.hasAnswered) {
+                this.showTimesUp();
             }
             this.currentQuestionNumber = -1;
         });
@@ -314,38 +322,11 @@ export class QuizPlayScene extends BaseScene {
 
         // Show ratings screen
         this.socket.on('server:closingcredits', (data) => {
-            this.showRatingUI();
+            // Comment this out for now - not worth collecting ratings just yet...
+            // Besides the UI looks a bit janky...
+            // this.showRatingUI();
         });
 
-    }
-
-    // Sets player screen in the waiting state
-    // Waiting message displays, player is animated around the screen
-    // Note: we need to check if answerSubmitted in case this function is called while a new question is added
-    private gotoWaitingState(message: string = 'Waiting for next question...'): void {
-
-        // If we are no longer waiting (often in the time between delayed calls) then exit
-        if (this.waitingState === false) {
-            return
-        }
-        if (this.currentQuestion) {
-            this.currentQuestion.setVisible(false);
-        }
-        this.waitingText.text = message;
-        this.waitingText.setFontSize(8);
-        this.waitingPanel.setVisible(true);
-        this.tweens.killAll();
-        this.animatePlayer(this.phaserPlayer);
-        this.tweens.addCounter({
-            from: 0.1,
-            to: 1,
-            duration: 1000,
-            ease: 'Back.Out',
-            onUpdate: (tween) => {
-                const scale: number | null = tween.getValue();
-                this.waitingText.setFontSize(8 + (scale || 1) * 28);
-            }
-        });
     }
 
     private showQuizIntro(title: string, description: string): void {
@@ -372,6 +353,12 @@ export class QuizPlayScene extends BaseScene {
         const descText = this.add.text(960, this.getY(350), cleanDescription, quizDescriptionConfig);
 
         this.UIContainer.add([titleText, descText]);
+
+        this.currentLayout = () => {
+            titleText.setPosition(960, this.getY(50));
+            descText.setPosition(960, this.getY(350));
+        };
+        this.currentLayout();
 
         gsap.fromTo(this.UIContainer,
             { y: -1080 },
@@ -406,11 +393,11 @@ export class QuizPlayScene extends BaseScene {
 
         // Show description
         const descriptionConfig = {
-            fontSize: this.getY(32),
+            fontSize: 32,
             fontFamily: 'Arial',
             color: '#ffffff',
             align: 'center',
-            padding: { x: 20, y: this.getY(10) },
+            padding: { x: 20, y: 10 },
             stroke: '#000000'
         }
         const cleanDescription = description.replace(/<\/?[^>]+(>|$)/g, "");
@@ -419,34 +406,11 @@ export class QuizPlayScene extends BaseScene {
 
         this.UIContainer.add([roundTitle, descText]);
 
-    }
-
-    private createSimpleButton(x: number, y: number, text: string): Phaser.GameObjects.Text {
-        const buttonConfig = {
-            fontSize: this.getY(36),
-            fontFamily: '"Titan One", Arial',
-            color: '#ffffff',
-            backgroundColor: '#0066cc',
-            padding: { x: 30, y: 15 },
-            align: 'center',
-            stroke: '#000000',
-            strokeThickness: 2
+        this.currentLayout = () => {
+            roundTitle.setPosition(960, this.getY(200));
+            descText.setPosition(960, this.getY(350));
         };
-
-        const button = this.add.text(x, y, text, buttonConfig)
-            .setOrigin(0.5)
-            .setInteractive({ useHandCursor: true })
-            .on('pointerdown', () => {
-                this.socket.emit('host:keypress', { key: 'ArrowRight' });
-            })
-            .on('pointerover', () => {
-                button.setStyle({ backgroundColor: '#0055aa' });
-            })
-            .on('pointerout', () => {
-                button.setStyle({ backgroundColor: '#0066cc' });
-            });
-
-        return button;
+        this.currentLayout();
     }
 
     private async createQuestion(question: any): Promise<void> {
@@ -467,7 +431,8 @@ export class QuizPlayScene extends BaseScene {
         // Let the specialized renderer handle the display - this is when question gets added to the scene
         if (this.currentQuestion) {
             await this.currentQuestion.initialize();
-            this.currentQuestion.renderPlayer();
+            this.currentLayout = () => this.currentQuestion.renderPlayer();
+            this.currentLayout();
 
             // Debug container position and visibility
             console.log('Question container:', {
@@ -481,8 +446,60 @@ export class QuizPlayScene extends BaseScene {
 
     }
 
+    // Shown the instant the local player submits an answer, once their own submit-feedback
+    // animation finishes (see PlayerBaseQuestion.onSubmitted) - persists as-is, no timer, until
+    // the next real server event (endquestion/showanswer/etc.) replaces it.
+    private showAnswerSubmitted(): void {
+        this.clearUI();
+
+        this.tweens.killAll();
+        this.animatePlayer(this.phaserPlayer);
+
+        const msg = this.add.text(960, 0, 'Answer submitted!', {
+            fontFamily: '"Titan One", Arial',
+            fontSize: '64px',
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 6,
+            align: 'center'
+        }).setOrigin(0.5);
+        this.UIContainer.add(msg);
+
+        this.currentLayout = () => {
+            msg.setPosition(960, this.getY(540));
+            if (this.phaserPlayer) this.phaserPlayer.setScale(this.getUIScaleFactor());
+        };
+        this.currentLayout();
+    }
+
+    // Shown when server:endquestion arrives and the local player never submitted an answer -
+    // persists as-is, no timer, until the next real server event (showanswer, etc.) replaces it.
+    private showTimesUp(): void {
+        this.clearUI();
+
+        this.tweens.killAll();
+        this.animatePlayer(this.phaserPlayer);
+
+        const msg = this.add.text(960, 0, "Time's up!", {
+            fontFamily: '"Titan One", Arial',
+            fontSize: '64px',
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 6,
+            align: 'center'
+        }).setOrigin(0.5);
+        this.UIContainer.add(msg);
+
+        this.currentLayout = () => {
+            msg.setPosition(960, this.getY(540));
+            if (this.phaserPlayer) this.phaserPlayer.setScale(this.getUIScaleFactor());
+        };
+        this.currentLayout();
+    }
+
     // showAnswer - receives a list of scores from the server and displays if user got this question correct
-    // Plays a suitable sound effect based on players score
+    // Plays a suitable sound effect based on players score. Persists as-is, no timer, until the
+    // next real server event (next round intro, next question, round end, or final scores).
     private showAnswer(questionData: any): void {
 
         // questionData.scores is a dictionary with keys as sessionIDs and values as score objects
@@ -503,11 +520,26 @@ export class QuizPlayScene extends BaseScene {
             } else {
                 this.soundManager.playFX('answer-incorrect');
             }
-            this.waitingState = true;
-            this.gotoWaitingState(answerText);
-            this.time.delayedCall(6000, () => {
-                this.gotoWaitingState('Waiting for next question...');
-            });
+
+            this.clearUI();
+            this.tweens.killAll();
+            this.animatePlayer(this.phaserPlayer);
+
+            const msg = this.add.text(960, 0, answerText, {
+                fontFamily: '"Titan One", Arial',
+                fontSize: '64px',
+                color: '#ffffff',
+                stroke: '#000000',
+                strokeThickness: 6,
+                align: 'center'
+            }).setOrigin(0.5);
+            this.UIContainer.add(msg);
+
+            this.currentLayout = () => {
+                msg.setPosition(960, this.getY(540));
+                if (this.phaserPlayer) this.phaserPlayer.setScale(this.getUIScaleFactor());
+            };
+            this.currentLayout();
         }
     }
 
@@ -531,13 +563,6 @@ export class QuizPlayScene extends BaseScene {
     // but we don't need to do anything here
     getPlayerBySessionID(sessionID: string): Phaser.GameObjects.Container {
         return this.add.container(0, 0);
-    }
-
-    private getPlayerName(playerId: string): string {
-        // Placeholder - you would look up the actual player name
-        // based on their ID in your player tracking system
-        // For now just return a placeholder
-        return `Player ${playerId.substring(0, 4)}`;
     }
 
     private endRound(data: any): void {
@@ -577,6 +602,13 @@ export class QuizPlayScene extends BaseScene {
 
         this.UIContainer.add([titleText, descText]);
 
+        this.currentLayout = () => {
+            titleText.setPosition(960, this.getY(200));
+            descText.setPosition(960, this.getY(350));
+            descText.setWordWrapWidth(this.cameras.main.width - 200);
+        };
+        this.currentLayout();
+
         // Animation
         this.tweens.add({
             targets: this.UIContainer,
@@ -600,85 +632,88 @@ export class QuizPlayScene extends BaseScene {
         // Stop all tweens (including player animation)
         this.tweens.killAll();
 
-        // Hide waiting panel
-        this.waitingState = false;
-        this.waitingPanel.setVisible(false);
+        const titleText = this.add.text(960, 0, 'QUIZ COMPLETE!', {
+            fontSize: '80px',
+            fontFamily: '"Titan One", Arial',
+            color: '#ffff00',
+            stroke: '#000000',
+            strokeThickness: 6,
+            align: 'center',
+            wordWrap: { width: 1800 }
+        }).setOrigin(0.5);
 
-        // Show quiz complete message - calculate vertical positions dynamically
-        // We nudge everything up and shrink slightly for small mobile screens (iPhone)
-        let currentY = this.getY(100);
+        const rankText = this.add.text(960, 0, `You finished ${data.rank}${this.getOrdinal(data.rank)} out of ${data.totalPlayers}!`, {
+            fontSize: '48px',
+            fontFamily: '"Titan One", Arial',
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 4,
+            align: 'center'
+        }).setOrigin(0.5);
+        rankText.setWordWrapWidth(1800);
 
-        const titleText = this.add.text(
-            960,
-            currentY,
-            'QUIZ COMPLETE!',
-            {
-                fontSize: `${this.getY(80)}px`,
-                fontFamily: '"Titan One", Arial',
-                color: '#ffff00',
-                stroke: '#000000',
-                strokeThickness: 6,
-                align: 'center',
-                wordWrap: { width: 1800 }
-            }
-        ).setOrigin(0.5);
-
-        currentY += titleText.height + this.getY(10);
-
-        const rankText = this.add.text(
-            960,
-            currentY,
-            `You finished ${data.rank}${this.getOrdinal(data.rank)} out of ${data.totalPlayers}!`,
-            {
-                fontSize: `${this.getY(48)}px`,
-                fontFamily: '"Titan One", Arial',
-                color: '#ffffff',
-                stroke: '#000000',
-                strokeThickness: 4,
-                align: 'center',
-                wordWrap: { width: 1800 }
-            }
-        ).setOrigin(0.5);
-
-        currentY += rankText.height + this.getY(10);
-
-        const scoreText = this.add.text(
-            960,
-            currentY,
-            `Final Score: ${data.score}`,
-            {
-                fontSize: `${this.getY(36)}px`,
-                fontFamily: '"Titan One", Arial',
-                color: '#00ff00',
-                stroke: '#000000',
-                strokeThickness: 4,
-                align: 'center'
-            }
-        ).setOrigin(0.5);
+        const scoreText = this.add.text(960, 0, `Final Score: ${data.score}`, {
+            fontSize: '36px',
+            fontFamily: '"Titan One", Arial',
+            color: '#00ff00',
+            stroke: '#000000',
+            strokeThickness: 4,
+            align: 'center'
+        }).setOrigin(0.5);
 
         this.UIContainer.add([titleText, rankText, scoreText]);
 
         // Show "Save Scores" if guest
         const isGuest = !this.phaserPlayer.getUserID();
-        if (isGuest) {
-            this.showSavePrompt(this.getY(1040));
-        }
+        const saveObjects = isGuest ? this.showSavePrompt() : null;
 
-        // If in top 3, show the podium
-        if (data.rank <= 3) {
-            this.showPodium(data.rank);
-        } else {
-            // If not in top 3, still show the player but maybe just at the bottom
-            if (this.phaserPlayer) {
-                this.phaserPlayer.setVisible(true);
-                this.phaserPlayer.setScale(2.8);
-                // Center the avatar on the screen: avatar is roughly 100px wide starting at x=6 in container
-                // Center of avatar is x=56.
-                // We use getY(700) instead of getY(760) to nudge them up away from the signup footer
-                this.phaserPlayer.setPosition(960 - (56 * 2.8), this.getY(700));
+        this.currentLayout = () => {
+            const isPortrait = this.isPortrait();
+            const scale = isPortrait ? 2 : 1;
+
+            // Save prompt: fixed top row in both orientations - button flush to the right edge,
+            // text right-aligned immediately to its left.
+            if (saveObjects) {
+                const margin = 40;
+                const gap = 24;
+                const btnY = this.getY(70);
+                const btnX = 1920 - margin;
+                saveObjects.saveText.setScale(scale);
+                saveObjects.signupBtn.setScale(scale);
+                saveObjects.signupBtn.setPosition(btnX, btnY);
+                saveObjects.saveText.setPosition(btnX - saveObjects.signupBtn.width - gap, btnY);
             }
-        }
 
+            // Title/rank/score share one column: full-width-centered in portrait, or centered in
+            // the right half in landscape (wordwrap kept clear of the podium group on the left).
+            // Title never wraps (see its own construction) but still shares the same x.
+            const textX = isPortrait ? 960 : 1440;
+            const wrapWidth = isPortrait ? 1820 : 860;
+
+            let currentY = this.getY(260);
+            titleText.setPosition(textX, currentY);
+            currentY += titleText.height + this.getY(20 * scale);
+
+            rankText.setWordWrapWidth(wrapWidth);
+            rankText.setPosition(textX, currentY);
+            currentY += rankText.height + this.getY(10);
+            scoreText.setPosition(textX, currentY);
+
+            if (this.phaserPlayer) {
+                const x = 400;
+                this.phaserPlayer.setVisible(true);
+                this.phaserPlayer.setScale(this.PODIUM_PLAYER_SCALE);
+                // Avatar is roughly 100px wide starting at x=6 in its container - center is x=56.
+                this.phaserPlayer.setPosition(x, this.getY(880));
+            }
+
+            // Not a great solution but text needs to scale up in portrait since camera zoom is reduced.
+            titleText.setScale(scale);
+            rankText.setScale(scale);
+            scoreText.setScale(scale);
+
+        };
+        this.currentLayout();
     }
 
     private getOrdinal(n: number): string {
@@ -687,33 +722,34 @@ export class QuizPlayScene extends BaseScene {
         return s[(v - 20) % 10] || s[v] || s[0];
     }
 
-    private showSavePrompt(y: number): void {
+    private showSavePrompt(): { saveText: Phaser.GameObjects.Text; signupBtn: Phaser.GameObjects.Text } {
+        // Positioned properly in the layout closure (top row, button flush right, text
+        // right-aligned immediately to its left) - origins are set here since they don't change.
         const saveText = this.add.text(
-            600,
-            y,
+            0,
+            0,
             'Sign up to save your score for next time!',
             {
-                fontSize: `${this.getY(28)}px`,
+                fontSize: '40px',
                 fontFamily: 'Poppins, Arial',
                 color: '#ffffff',
-                align: 'right',
-                lineSpacing: 4
+                align: 'right'
             }
-        ).setOrigin(0.5)
-            .setWordWrapWidth(960);
+        ).setOrigin(1, 0.5)
+            .setWordWrapWidth(700);
 
         const signupBtn = this.add.text(
-            1520,
-            y,
+            0,
+            0,
             'SIGN UP',
             {
-                fontSize: `${this.getY(44)}px`,
+                fontSize: '44px',
                 fontFamily: '"Titan One", Arial',
                 backgroundColor: '#10b981',
                 color: '#ffffff',
                 padding: { x: 40, y: 20 }
             }
-        ).setOrigin(0.5)
+        ).setOrigin(1, 0.5)
             .setInteractive({ useHandCursor: true })
             .on('pointerdown', () => {
                 // Redirect to signup with return URL to the play entry page
@@ -724,106 +760,8 @@ export class QuizPlayScene extends BaseScene {
             .on('pointerout', () => signupBtn.setStyle({ backgroundColor: '#10b981' }));
 
         this.UIContainer.add([saveText, signupBtn]);
-    }
 
-    private showPodium(rank: number): void {
-        const colors = [0xFFD700, 0xC0C0C0, 0xCD7F32]; // Gold, Silver, Bronze
-        const heights = [350, 220, 120];
-        const scales = [2.8, 2.3, 1.5];
-        const labels = ['1st', '2nd', '3rd'];
-
-        const rankIndex = rank - 1;
-        const color = colors[rankIndex];
-        const height = heights[rankIndex];
-        const scale = scales[rankIndex];
-        const label = labels[rankIndex];
-
-        // Move podium up a bit for mobile clearance
-        const x = 960;
-        const y = this.getY(780);
-
-        // Create podium
-        this.createPodiumCylinder(x, y, 200 * scale, height, color);
-
-        // Position player on podium
-        if (this.phaserPlayer) {
-            const totalScale = scale * 1.5;
-            this.phaserPlayer.setVisible(true);
-            this.phaserPlayer.setScale(totalScale);
-
-            // Center the avatar (approx x=56 in internal container) on the podium
-            // and position feet on top of the podium (shifted 20px higher than previous 40px offset)
-            this.phaserPlayer.setPosition(x - (56 * totalScale), y - (60 * scale));
-
-            // Add medal label ABOVE the avatar
-            const medalLabel = this.add.text(x, y - (240 * scale), label, {
-                fontSize: `${this.getY(36 * scale)}px`,
-                fontFamily: '"Titan One", Arial',
-                color: '#ffffff',
-                stroke: '#000000',
-                strokeThickness: 6
-            }).setOrigin(0.5);
-            this.UIContainer.add(medalLabel);
-        }
-    }
-
-    private createPodiumCylinder(x: number, y: number, width: number, height: number, color: number): void {
-        const graphics = this.add.graphics();
-        this.backgroundContainer.add(graphics);
-        this.podiums.push(graphics);
-
-        const depth = width / 4;
-
-        // Shading colors
-        const colorObj = Phaser.Display.Color.IntegerToColor(color);
-        const darkColor = colorObj.clone().darken(30).color;
-        const midColor = color;
-        const lightColor = colorObj.clone().brighten(20).color;
-
-        // Vertices for the hexagonal top (isometric look)
-        const topPoints = [
-            { x: x - width / 2, y: y },                       // Left
-            { x: x - width / 4, y: y - depth / 2 },          // Back-Left
-            { x: x + width / 4, y: y - depth / 2 },          // Back-Right
-            { x: x + width / 2, y: y },                       // Right
-            { x: x + width / 4, y: y + depth / 2 },          // Front-Right
-            { x: x - width / 4, y: y + depth / 2 }           // Front-Left
-        ];
-
-        // Vertices for the hexagonal bottom (simply top points + height)
-        const botPoints = topPoints.map(p => ({ x: p.x, y: p.y + height }));
-
-        // 1. Draw individual vertical panels for proper shading
-        // Left Panel (Lightest) - between p[0] and p[5]
-        graphics.fillStyle(lightColor, 1);
-        graphics.fillPoints([topPoints[0], topPoints[5], botPoints[5], botPoints[0]], true);
-
-        // Center Panel (Mid) - between p[5] and p[4]
-        graphics.fillStyle(midColor, 1);
-        graphics.fillPoints([topPoints[5], topPoints[4], botPoints[4], botPoints[5]], true);
-
-        // Right Panel (Darkest) - between p[4] and p[3]
-        graphics.fillStyle(darkColor, 1);
-        graphics.fillPoints([topPoints[4], topPoints[3], botPoints[3], botPoints[4]], true);
-
-        // 2. Draw the bottom edges to give it weight
-        graphics.lineStyle(2, midColor, 1);
-        graphics.strokePoints([botPoints[0], botPoints[5], botPoints[4], botPoints[3]], false);
-
-        // 3. Draw the top face (brighter surface with slight gradient)
-        graphics.fillStyle(lightColor, 1);
-        graphics.fillPoints(topPoints, true);
-        graphics.lineStyle(1, 0xffffff, 0.3); // Subtle highlight on top edge
-        graphics.strokePoints(topPoints, true);
-
-        // Animate in
-        graphics.setAlpha(0);
-        this.tweens.add({
-            targets: graphics,
-            alpha: 1,
-            duration: 500,
-            ease: 'Power2.out'
-        });
+        return { saveText, signupBtn };
     }
 
     private showRatingUI(): void {
@@ -832,8 +770,6 @@ export class QuizPlayScene extends BaseScene {
         // Clear away all old UI
         this.clearUI();
 
-        this.waitingState = false;
-        this.waitingPanel.setVisible(false);
         this.tweens.killAll();
         this.tweens.add({
             targets: this.phaserPlayer,
@@ -844,16 +780,9 @@ export class QuizPlayScene extends BaseScene {
             ease: 'Back.Out'
         })
 
-        this.podiums.forEach(p => {
-            if (p.active) {
-                p.destroy();
-            }
-        });
-        this.podiums = [];
-
         const title = this.add.text(960, this.getY(150), 'RATE THE QUIZ!', {
             fontFamily: '"Titan One", Arial',
-            fontSize: `${this.getY(72)}px`,
+            fontSize: '72px',
             color: '#ffff00',
             stroke: '#000000',
             strokeThickness: 8,
@@ -863,8 +792,9 @@ export class QuizPlayScene extends BaseScene {
         const ratingContainer = this.add.container(960, 0);
 
         // Create 5 interactive stars
+        const stars: Phaser.GameObjects.Text[] = [];
         for (let i = 1; i <= 5; i++) {
-            const star = this.add.text(-600 + (i * 240), this.getY(540), '⭐', { fontSize: `${this.getY(80)}px` })
+            const star = this.add.text(-600 + (i * 80), this.getY(540), '⭐', { fontSize: '80px' })
                 .setOrigin(0.5)
                 .setInteractive({ useHandCursor: true });
 
@@ -873,9 +803,20 @@ export class QuizPlayScene extends BaseScene {
             star.on('pointerout', () => star.setScale(1.0));
 
             ratingContainer.add(star);
+            stars.push(star);
         }
 
         this.UIContainer.add([title, ratingContainer]);
+
+        this.currentLayout = () => {
+            title.setPosition(960, this.getY(150));
+            ratingContainer.setPosition(960, 0);
+            stars.forEach((star, idx) => star.setPosition(-600 + ((idx + 1) * 80), this.getY(540)));
+            // deliberately not re-snapping phaserPlayer.x/y - see entrance tween above,
+            // resize should not fight an in-flight tween
+            if (this.phaserPlayer) this.phaserPlayer.setScale(this.getUIScaleFactor());
+        };
+        this.currentLayout();
     }
 
     private submitRating(stars: number): void {
@@ -883,9 +824,9 @@ export class QuizPlayScene extends BaseScene {
         this.socket.emit('player:rating', { stars: stars });
 
         this.clearUI();
-        const msg = this.add.text(960, 540, 'THANK YOU!', {
+        const msg = this.add.text(960, this.getY(540), 'THANK YOU!', {
             fontFamily: '"Titan One", Arial',
-            fontSize: `${this.getY(80)}px`,
+            fontSize: '80px',
             color: '#00ff00',
             stroke: '#000000',
             strokeThickness: 8
@@ -900,33 +841,30 @@ export class QuizPlayScene extends BaseScene {
             yoyo: true,
             repeat: -1
         });
+
+        this.currentLayout = () => msg.setPosition(960, this.getY(540));
+        this.currentLayout();
     }
 
 
     protected render(): void {
-        // Called from BaseScene when the screen is resized
-        console.log('QuizPlayScene:: render: updating layout for new size');
-        if (this.waitingState) {
-            // nothing needs to be done here - display should resize itself good enough for now...
-        } else if (this.currentQuestion) {
-            this.currentQuestion.renderPlayer();
-        }
-
-        // Re-position waiting panel
-        if (this.waitingPanel) {
-            this.waitingPanel.setPosition(960, this.getY(540));
-            this.waitingPanel.setScale(this.getUIScaleFactor());
-        }
-        // Re-scale and position player if answer NOT submitted ie player is in corner
-        if (this.phaserPlayer) {
-            this.phaserPlayer.setScale(this.getUIScaleFactor());
-            if (!this.waitingState) {
-                this.phaserPlayer.setPosition(0, this.getY(1060));
-            }
-        }
+        // Called from BaseScene when the screen is resized.
+        // Every screen method (re)assigns currentLayout when it becomes active, so this just
+        // re-runs whichever one is currently showing. null is a safe transient state.
+        this.currentLayout?.();
     }
 
     private clearUI(): void {
+        // Screen is transitioning away - its layout no longer applies until the next screen
+        // method assigns a new one. Safe even mid-transition since render() treats null as a no-op.
+        this.currentLayout = null;
+        // A new screen is about to take over - force any in-flight submit animation to finish
+        // right now rather than let it keep running (and fire onSubmitted) against whatever
+        // replaces it. No-op if nothing is animating.
+        this.currentQuestion?.finishPendingAnimation();
+        // Every screen but the initial "waiting for quiz to start" one hides this - do it here
+        // once rather than in every individual screen method.
+        this.waitingPanel?.setVisible(false);
         // Clean up any existing display (note: NOT current question - this is only destroyed the moment a new question is needed)
         // Also position and make visible so its ready for new content
         if (this.UIContainer) {
@@ -941,6 +879,10 @@ export class QuizPlayScene extends BaseScene {
         if (this.onConnectSendReady) {
             this.socket.off('connect', this.onConnectSendReady);
         }
+        // A question that's only ever hidden (never destroyed, e.g. the quiz ended without
+        // building another one) still needs its destroy() to run - some question types
+        // (Number, Text) hold raw DOM elements outside Phaser that only destroy() removes.
+        this.currentQuestion?.destroy();
         this.phaserPlayer = null as any;
     }
 

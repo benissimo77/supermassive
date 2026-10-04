@@ -247,7 +247,7 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 	// If needed we can re-introduce the 'ghost' players but for now lets just make them invisible
 	disconnect(): void {
 		if (this.playerTexture) {
-			this.playerTexture.setAlpha(0);
+			this.playerTexture.setAlpha(0.4);
 		}
 		this.stopFlames();
 		this.playerScoreText.setText('');
@@ -261,7 +261,7 @@ export class PhaserPlayer extends Phaser.GameObjects.Container {
 		this.playerConfig.connected = true;
 	}
 
-	destroy(fromScene?: boolean) {
+	destroy(fromScene: boolean = true) {
 		console.warn(`*** Destroying PhaserPlayer: ${this.playerConfig.name} ***`);
 
 		// Don't destroy  the player - that's very bad - just reparent back to playerContainer

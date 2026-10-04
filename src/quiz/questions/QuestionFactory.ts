@@ -48,45 +48,7 @@ export class QuestionFactory {
 
         // --- PILOT MIGRATION INTERCEPT ---
         if (this.scene.TYPE === 'play') {
-            if (type === 'text') {
-                return new PlayerTextQuestion(this.scene, data as any);
-            }
-            if (type === 'true-false') {
-                return new PlayerTrueFalseQuestion(this.scene, data as any);
-            }
-            if (type === 'multiple-choice') {
-                return new PlayerMultipleChoiceQuestion(this.scene, data as any);
-            }
-            if (type === 'hotspot' || type === 'point-it-out') {
-                return new PlayerHotspotQuestion(this.scene, data as any);
-            }
-            if (type === 'draw') {
-                return new PlayerDrawQuestion(this.scene, data as any);
-            }
-            if (['number-exact', 'number-closest', 'number-average'].includes(type)) {
-                return new PlayerNumberQuestion(this.scene, data as any);
-            }
-            if (type === 'ordering') {
-                const hasImages = Array.isArray((data as any).itemImages) &&
-                    (data as any).itemImages.some((url: string) => url && url.trim().length > 0);
-                if (hasImages) {
-                    return new PlayerImageOrderingQuestion(this.scene, data as any);
-                }
-                return new PlayerOrderingQuestion(this.scene, data as any);
-            }
-            if (type === 'matching') {
-                // Prefer leftItemsShuffled/leftItems image fields for matching questions
-                const q: any = data;
-                let leftItems = q.leftItemsShuffled || q.leftItems;
-                if (!Array.isArray(leftItems) && Array.isArray(q.pairs)) {
-                    leftItems = q.pairs.map((p: any, i: number) => ({ text: p.left, image: (q.itemImages && q.itemImages[i]) || undefined }));
-                }
-                const hasLeftImages = Array.isArray(leftItems) && leftItems.some((li: any) => li && li.image && String(li.image).trim().length > 0);
-                if (hasLeftImages) {
-                    return new PlayerImageMatchingQuestion(this.scene, data as any);
-                }
-                return new PlayerOrderingQuestion(this.scene, data as any);
-            }
+            return this.createPlayerVersion(type, data);
         }
 
         // Get the constructor from the map
@@ -121,5 +83,61 @@ export class QuestionFactory {
             type: 'multiple-choice',
             options: ['Error: Unknown question type']
         } as MultipleChoiceQuestionData);
+    }
+
+    // Used directly by BaseQuestion.ts to compose an interactive answer-collection
+    // delegate for the host's own screen in solo mode - same classes real players
+    // already use, reused as-is, not duplicated.
+    createPlayerDelegate(type: string, data: BaseQuestionData): any {
+        return this.createPlayerVersion(type, data);
+    }
+
+    private createPlayerVersion(type: string, data: BaseQuestionData): any {
+        if (type === 'text') {
+            return new PlayerTextQuestion(this.scene, data as any);
+        }
+        if (type === 'true-false') {
+            return new PlayerTrueFalseQuestion(this.scene, data as any);
+        }
+        if (type === 'multiple-choice') {
+            return new PlayerMultipleChoiceQuestion(this.scene, data as any);
+        }
+        if (type === 'hotspot' || type === 'point-it-out') {
+            return new PlayerHotspotQuestion(this.scene, data as any);
+        }
+        if (type === 'draw') {
+            return new PlayerDrawQuestion(this.scene, data as any);
+        }
+        if (['number-exact', 'number-closest', 'number-average'].includes(type)) {
+            return new PlayerNumberQuestion(this.scene, data as any);
+        }
+        if (type === 'ordering') {
+            const hasImages = Array.isArray((data as any).itemImages) &&
+                (data as any).itemImages.some((url: string) => url && url.trim().length > 0);
+            if (hasImages) {
+                return new PlayerImageOrderingQuestion(this.scene, data as any);
+            }
+            return new PlayerOrderingQuestion(this.scene, data as any);
+        }
+        if (type === 'matching') {
+            // Prefer leftItemsShuffled/leftItems image fields for matching questions
+            const q: any = data;
+            let leftItems = q.leftItemsShuffled || q.leftItems;
+            if (!Array.isArray(leftItems) && Array.isArray(q.pairs)) {
+                leftItems = q.pairs.map((p: any, i: number) => ({ text: p.left, image: (q.itemImages && q.itemImages[i]) || undefined }));
+            }
+            const hasLeftImages = Array.isArray(leftItems) && leftItems.some((li: any) => li && li.image && String(li.image).trim().length > 0);
+            if (hasLeftImages) {
+                return new PlayerImageMatchingQuestion(this.scene, data as any);
+            }
+            return new PlayerOrderingQuestion(this.scene, data as any);
+        }
+
+        console.error(`QuestionFactory.createPlayerVersion: Question type not supported: ${type}`);
+        return new PlayerMultipleChoiceQuestion(this.scene, {
+            ...data,
+            type: 'multiple-choice',
+            options: ['Error: Unknown question type']
+        } as any);
     }
 }

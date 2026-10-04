@@ -28,6 +28,7 @@ import apiImage from './api/api.image.js';
 import apiLeague from './api/api.league.js';
 import apiLeaderboard from './api/api.leaderboard.js';
 import apiSeasons from './api/api.seasons.js';
+import apiTelemetry from './api/api.telemetry.js';
 
 console.log('######  app.js is running  ######');
 
@@ -142,5 +143,6 @@ app.use('/api/image', apiImage);
 app.use('/api/league', apiLeague);
 app.use('/api/leaderboard', apiLeaderboard);
 app.use('/api/seasons', apiSeasons);
+app.use('/api/telemetry', apiTelemetry);
 
 export { app, sessionMiddleware, cookieParserMiddleware };

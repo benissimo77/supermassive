@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telemetry - SuperMassive</title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3/dist/chartjs-plugin-annotation.min.js"></script>
+    <script type="module" src="/modules/dashboard.min.js" defer></script>
+    <script type="module" src="/modules/dashboard-telemetry.min.js" defer></script>
+</head>
+<body>
+    <nav id="sidebar"></nav>
+
+    <main>
+        <div class="page-header">
+            <h1>Telemetry</h1>
+            <p>Client latency, disconnects, devices, and stale responses across recent game sessions.</p>
+        </div>
+
+        <div class="card">
+            <div class="card-body" id="telemetry-filters">
+                <label>Game type
+                    <select id="filter-gameType"><option value="">All</option></select>
+                </label>
+                <label>From
+                    <input type="date" id="filter-dateFrom">
+                </label>
+                <label>To
+                    <input type="date" id="filter-dateTo">
+                </label>
+                <button class="btn btn-outline" id="filter-clear" type="button">Clear filters</button>
+            </div>
+        </div>
+
+        <details class="card" open>
+            <summary class="card-header">
+                <i class="fa-solid fa-chevron-down card-chevron"></i>
+                <div>
+                    <h2>Sessions</h2>
+                    <p class="card-subtitle" id="sessions-subtitle"></p>
+                </div>
+            </summary>
+            <div class="card-body">
+                <table id="sessions-table">
+                    <thead>
+                        <tr>
+                            <th>Room</th>
+                            <th>Game</th>
+                            <th>Started</th>
+                            <th>Duration (s)</th>
+                            <th>Players</th>
+                            <th>Hosts</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </details>
+
+        <details class="card" open>
+            <summary class="card-header">
+                <i class="fa-solid fa-chevron-down card-chevron"></i>
+                <div>
+                    <h2>Clients</h2>
+                    <p class="card-subtitle">Toggle a badge to show/hide that client (or OS/browser/Host/Player group) in the panels below.</p>
+                </div>
+            </summary>
+            <div class="card-body">
+                <div id="client-badges-bulk"></div>
+                <div id="client-badges-os"></div>
+                <div id="client-badges-browser"></div>
+                <div id="client-badges"></div>
+                <p id="client-badges-warning" style="display:none;"></p>
+            </div>
+        </details>
+
+        <details class="card" open>
+            <summary class="card-header">
+                <i class="fa-solid fa-chevron-down card-chevron"></i>
+                <div><h2>Latency over time</h2></div>
+            </summary>
+            <div class="card-body" style="height:420px;"><canvas id="chart-latency"></canvas></div>
+        </details>
+
+        <div class="grid">
+            <details class="card" open>
+                <summary class="card-header">
+                    <i class="fa-solid fa-chevron-down card-chevron"></i>
+                    <div><h2>Disconnect reasons</h2></div>
+                </summary>
+                <div class="card-body" style="height:480px;"><canvas id="chart-disconnects"></canvas></div>
+            </details>
+
+            <details class="card" open>
+                <summary class="card-header">
+                    <i class="fa-solid fa-chevron-down card-chevron"></i>
+                    <div><h2>Device OS</h2></div>
+                </summary>
+                <div class="card-body" style="height:480px;"><canvas id="chart-devices"></canvas></div>
+            </details>
+        </div>
+
+        <details class="card" open>
+            <summary class="card-header">
+                <i class="fa-solid fa-chevron-down card-chevron"></i>
+                <div>
+                    <h2>Stale / misattributed responses</h2>
+                    <p class="card-subtitle">Answers received for a question that had already moved on - a gap of 1 likely just means a slow response; a bigger gap is worth investigating.</p>
+                </div>
+            </summary>
+            <div class="card-body">
+                <table id="stale-table">
+                    <thead>
+                        <tr>
+                            <th>Session</th>
+                            <th>Time</th>
+                            <th>Received Q#</th>
+                            <th>Current Q#</th>
+                            <th>Gap</th>
+                            <th>Answer</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </details>
+
+        <details class="card" id="session-detail-card" style="display:none;">
+            <summary class="card-header">
+                <i class="fa-solid fa-chevron-down card-chevron"></i>
+                <div>
+                    <h2>Session detail</h2>
+                    <p class="card-subtitle" id="session-detail-subtitle"></p>
+                </div>
+            </summary>
+            <div class="card-body" id="session-detail-body"></div>
+        </details>
+    </main>
+</body>
+</html>

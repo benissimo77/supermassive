@@ -171,7 +171,23 @@ export default [
             }
         ],
         plugins: [
-            terser(terserOptions), 
+            terser(terserOptions),
+            resolve()
+        ]
+    },
+
+    // TELEMETRY
+    {
+        input: "websrc/host/dashboard-telemetry.js",
+        output: [
+            {
+                file: "public/modules/dashboard-telemetry.min.js",
+                format: "esm",
+                sourcemap: true
+            }
+        ],
+        plugins: [
+            terser(terserOptions),
             resolve()
         ]
     },
